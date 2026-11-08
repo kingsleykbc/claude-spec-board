@@ -1,0 +1,30 @@
+/* Top bar and project switcher: docs/design/Spec Board.dc.html lines 32-52. */
+.bar { position: sticky; top: 0; z-index: 30; height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 20px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 9px; padding-right: 4px; }
+.logo { width: 20px; height: 20px; border-radius: 6px; background: var(--fg); display: flex; align-items: flex-end; justify-content: center; gap: 2px; padding: 4px; }
+.logo span { width: 3px; border-radius: 1px; }
+.word { font-size: 12.5px; font-weight: 700; letter-spacing: 0.14em; }
+.sep { width: 1px; height: 20px; background: var(--line); }
+.flex { flex: 1; }
+.btn { height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: transparent; font-size: 13px; font-weight: 500; cursor: pointer; }
+.btn:hover, .theme:hover { background: var(--panel); }
+.live { display: flex; align-items: center; gap: 7px; padding: 0 8px 0 6px; font-size: 12px; font-weight: 500; }
+.dot { width: 7px; height: 7px; border-radius: 99px; }
+.theme { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 8px; background: transparent; cursor: pointer; font-size: 15px; line-height: 1; }
+
+.sw { position: relative; }
+.swBtn { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; font-size: 14px; font-weight: 600; }
+.swBtn:hover { background: var(--panel); }
+.swProg { font-family: var(--mono); font-size: 11.5px; font-weight: 400; color: var(--fg3); }
+.caret { color: var(--fg3); font-size: 10px; }
+.menu { position: absolute; top: 38px; left: 0; width: 300px; padding: 6px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 2px; }
+.menuHead { padding: 6px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: var(--fg3); }
+.item { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px 10px; border: 0; border-radius: 7px; background: transparent; text-align: left; cursor: pointer; }
+.item:hover, .folder:hover { background: var(--panel); }
+.tick { color: var(--accent-ink); font-weight: 700; font-size: 13px; }
+.itemText { display: flex; flex-direction: column; min-width: 0; }
+.itemName { font-size: 13.5px; font-weight: 600; }
+.itemPath { font-family: var(--mono); font-size: 11px; color: var(--fg3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.itemProg { font-size: 12px; color: var(--fg2); }
+.rule { height: 1px; background: var(--line); margin: 4px 6px; }
+.folder { padding: 8px 10px 8px 34px; border: 0; border-radius: 7px; background: transparent; text-align: left; font-size: 13px; color: var(--fg2); cursor: pointer; }

@@ -55,6 +55,8 @@ export interface UseProject {
   refresh(): Promise<void>;
   /** Error from the latest fetch, if it failed. */
   error: Error | null;
+  /** Drop the socket and connect again now (the banner's Reconnect); re-fetches once live. */
+  reconnect(): void;
 }
 
 const EMPTY = new Set<string>();
@@ -72,6 +74,9 @@ export function useProject(pid: string): UseProject {
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pidRef = useRef(pid);
   pidRef.current = pid;
+  /** Bumped by reconnect() to restart the socket. */
+  const [attempt, setAttempt] = useState(0);
+  const manual = useRef(false);
 
   const load = useCallback(async (forPid: string, live: boolean) => {
     const mine = ++seq.current;
@@ -109,21 +114,38 @@ export function useProject(pid: string): UseProject {
     setChanged(EMPTY);
     setNewQuestions(EMPTY);
     setConn('live');
+    manual.current = false;
     void load(pid, false);
-    const stop = connectLive(
-      pid,
-      () => void load(pid, true),
-      (c) => setConn(c),
-    );
     return () => {
-      stop();
       seq.current++;
       if (clearTimer.current !== null) clearTimeout(clearTimer.current);
       clearTimer.current = null;
     };
   }, [pid, load]);
 
-  const refresh = useCallback(() => load(pidRef.current, false), [load]);
+  // The live socket; restarted by reconnect().
+  useEffect(() => {
+    if (manual.current) setConn('reconnecting');
+    const stop = connectLive(
+      pid,
+      () => void load(pid, true),
+      (c) => {
+        setConn(c);
+        // A fresh socket does not report its first open as a reconnect, so re-fetch here.
+        if (c === 'live' && manual.current) {
+          manual.current = false;
+          void load(pid, false);
+        }
+      },
+    );
+    return stop;
+  }, [pid, attempt, load]);
 
-  return { data, conn, changed, newQuestions, refresh, error };
+  const refresh = useCallback(() => load(pidRef.current, false), [load]);
+  const reconnect = useCallback(() => {
+    manual.current = true;
+    setAttempt((a) => a + 1);
+  }, []);
+
+  return { data, conn, changed, newQuestions, refresh, error, reconnect };
 }

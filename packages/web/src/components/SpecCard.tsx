@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import type { DragEvent, KeyboardEvent, MouseEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { DragEvent, HTMLAttributes, KeyboardEvent, MouseEvent } from 'react';
 import type { Spec } from '@specboard/core';
 import { firstParagraph, statusMeta } from '../lib/vm';
 import { CategoryTag } from './CategoryTag';
@@ -25,8 +25,12 @@ export interface SpecCardProps {
   onArchive: () => void;
   onUnarchive: () => void;
   onWriteUp: () => void;
+  /** Native HTML5 drag: the card is `draggable` only when one of these is passed. */
   onDragStart?: () => void;
   onDragEnd?: () => void;
+  /** Ref and listeners/attributes from a drag library (dnd-kit's `useDraggable`), put on the card's root. */
+  dragRef?: (el: HTMLElement | null) => void;
+  dragProps?: HTMLAttributes<HTMLDivElement>;
 }
 
 type Tip = 'blocked' | 'file' | 'deps' | null;
@@ -55,10 +59,19 @@ export function SpecCard({
   onWriteUp,
   onDragStart,
   onDragEnd,
+  dragRef,
+  dragProps,
 }: SpecCardProps) {
   const [tip, setTip] = useState<Tip>(null);
   const [menu, setMenu] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const setRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      ref.current = el;
+      dragRef?.(el);
+    },
+    [dragRef],
+  );
 
   // Close the ⋯ menu on a press outside the card or on Escape.
   useEffect(() => {
@@ -125,6 +138,9 @@ export function SpecCard({
   const shadow = lifted ? '0 18px 40px oklch(0.2 0.01 60 / .22)' : flash ? '0 0 0 3px var(--accent-soft)' : undefined;
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    // A drag library may claim the key first (dnd-kit picks up on Space).
+    dragProps?.onKeyDown?.(e);
+    if (e.defaultPrevented) return;
     if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
       e.preventDefault();
       onOpen();
@@ -138,12 +154,13 @@ export function SpecCard({
 
   return (
     <div
-      ref={ref}
+      {...dragProps}
+      ref={setRef}
       className={s.card}
       role="button"
       tabIndex={0}
       aria-label={`${spec.id} ${spec.title}`}
-      draggable
+      draggable={onDragStart !== undefined || onDragEnd !== undefined}
       onDragStart={dragStart}
       onDragEnd={() => onDragEnd?.()}
       onClick={onOpen}
