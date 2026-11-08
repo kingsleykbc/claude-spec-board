@@ -31,7 +31,9 @@ export const SUGGEST_MS = 150;
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 /** "deploy" → "DEPLOY.md" (the prototype's newName). */
 export const newDocName = (input: string) => (input.trim() || 'NEW-DOC').replace(/\.md$/i, '').toUpperCase() + '.md';
-const baseName = (p: string) => p.split('/').pop() ?? p;
+/** The server's rule for a new document name (after trimming, dropping `.md` and uppercasing). */
+export const validDocName = (input: string) => /^[A-Z0-9][A-Z0-9._-]*$/.test(newDocName(input).slice(0, -3));
+const baseName =(p: string) => p.split('/').pop() ?? p;
 
 type AddStep = 'menu' | 'link' | 'new';
 interface Edit {
@@ -52,6 +54,8 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
   const [input, setInput] = useState('');
   const [suggest, setSuggest] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  /** Set synchronously, so a second click before the re-render does nothing. */
+  const inFlight = useRef(false);
   const [removeAsk, setRemoveAsk] = useState<ReferenceDoc | null>(null);
   const tabsRef = useRef<HTMLDivElement | null>(null);
   const [arrows, setArrows] = useState({ l: false, r: false });
@@ -153,8 +157,9 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
 
   const link = async (raw: string) => {
     const p = raw.trim();
-    if (!p || busy) return;
+    if (!p || inFlight.current) return;
     if (down) return offline();
+    inFlight.current = true;
     setBusy(true);
     try {
       const res = await client.linkReference(pid, p);
@@ -168,14 +173,16 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
     } catch (e) {
       toast('err', `Couldn’t link ${p}`, message(e));
     } finally {
+      inFlight.current = false;
       if (alive.current) setBusy(false);
     }
   };
 
   const create = async () => {
-    if (busy) return;
+    if (inFlight.current || !validDocName(input)) return;
     if (down) return offline();
     const name = newDocName(input);
+    inFlight.current = true;
     setBusy(true);
     try {
       const res = await client.createReference(pid, input.trim() || 'NEW-DOC');
@@ -191,6 +198,7 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
     } catch (e) {
       toast('err', `Couldn’t create docs/${name}`, message(e));
     } finally {
+      inFlight.current = false;
       if (alive.current) setBusy(false);
     }
   };
@@ -207,10 +215,14 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
       toast('err', `Couldn’t remove ${doc.name}`, message(e));
       return;
     }
-    const fresh = await load();
     if (!alive.current) return;
-    setActivePath(fresh?.[0]?.path ?? null);
+    // Drop it locally now and pick the next tab from the list without it, so a failed refetch
+    // never brings the removed doc back.
+    const left = (refs ?? []).filter((r) => r.path !== doc.path);
+    setRefs((cur) => (cur ? cur.filter((r) => r.path !== doc.path) : cur));
+    setActivePath(left[0]?.path ?? null);
     setEdit(null);
+    void load();
     toast('ok', `Removed ${doc.name} from references`, 'The file was not deleted.');
   };
 
@@ -342,12 +354,18 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
                     Document name
                   </label>
                   <input id="rf-new" className={s.rfInput} autoFocus placeholder="DEPLOY.md" value={input} onChange={(e) => setInput(e.target.value)} />
-                  <span className={s.rfHint}>Saved as docs/{newDocName(input)}</span>
+                  {validDocName(input) ? (
+                    <span className={s.rfHint}>Saved as docs/{newDocName(input)}</span>
+                  ) : (
+                    <span className={s.rfError} role="alert">
+                      Use letters, numbers, dots, dashes or underscores
+                    </span>
+                  )}
                   <div className={s.rfFormBtns}>
                     <button type="button" className={s.rfBack} onClick={back}>
                       Back
                     </button>
-                    <button type="submit" className={s.rfConfirm} disabled={busy}>
+                    <button type="submit" className={s.rfConfirm} disabled={busy || !validDocName(input)}>
                       Create
                     </button>
                   </div>
@@ -441,7 +459,7 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
         )}
       </div>
       {conflict && editing && (
-        <ConflictDialog path={active.path} onKeepEditing={keepEditing} onReloadKeepCopy={() => void reloadKeepCopy()} onReload={reload} />
+        <ConflictDialog title="This document changed outside the board" path={active.path} onKeepEditing={keepEditing} onReloadKeepCopy={() => void reloadKeepCopy()} onReload={reload} />
       )}
       {removeAsk && (
         <Dialog

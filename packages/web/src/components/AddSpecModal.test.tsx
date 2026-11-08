@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ApiError } from '../api/client';
 import { recipeSpec } from '../fixtures/recipeBox';
 import { OFFLINE_TOAST } from '../state/actions';
@@ -7,14 +7,14 @@ import { AddSpecModal } from './AddSpecModal';
 
 afterEach(cleanup);
 
-function setup(over: { down?: boolean; createSpec?: ReturnType<typeof vi.fn> } = {}) {
+function setup(over: { down?: boolean; createSpec?: ReturnType<typeof vi.fn>; refresh?: ReturnType<typeof vi.fn> } = {}) {
   const created = { ...recipeSpec('T-107'), id: 'T-109', title: 'Nutrition info' };
   const props = {
     pid: 'p1',
     nextId: 'T-109',
     client: { createSpec: over.createSpec ?? vi.fn(async () => ({ spec: created })) },
     toast: vi.fn(),
-    refresh: vi.fn(async () => undefined),
+    refresh: over.refresh ?? vi.fn(async () => undefined),
     onWriteUp: vi.fn(async () => undefined),
     onClose: vi.fn(),
     down: over.down ?? false,
@@ -78,5 +78,32 @@ describe('AddSpecModal', () => {
     fireEvent.click(writeBtn());
     expect(p.client.createSpec).not.toHaveBeenCalled();
     expect(p.toast).toHaveBeenCalledWith('err', ...OFFLINE_TOAST);
+  });
+
+  it('clicking Add as draft twice in one tick creates once', async () => {
+    const p = setup();
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'X' } });
+    const btn = draftBtn();
+    // Both clicks land before React re-renders (no disabled state yet).
+    act(() => {
+      btn.click();
+      btn.click();
+    });
+    await waitFor(() => expect(p.onClose).toHaveBeenCalled());
+    expect(p.client.createSpec).toHaveBeenCalledTimes(1);
+  });
+
+  it('a failing refresh still confirms the draft', async () => {
+    const p = setup({ refresh: vi.fn(async () => Promise.reject(new Error('offline'))) });
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Nutrition info' } });
+    fireEvent.click(draftBtn());
+    await waitFor(() => expect(p.toast).toHaveBeenCalledWith('ok', 'T-109 added as draft', 'Nutrition info'));
+  });
+
+  it('a failing refresh still calls the write-up', async () => {
+    const p = setup({ refresh: vi.fn(async () => Promise.reject(new Error('offline'))) });
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Nutrition info' } });
+    fireEvent.click(writeBtn());
+    await waitFor(() => expect(p.onWriteUp).toHaveBeenCalledWith(p.created));
   });
 });

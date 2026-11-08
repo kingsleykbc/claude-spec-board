@@ -84,7 +84,7 @@ describe('ReferencesModal', () => {
     fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Document markdown' }), { target: { value: 'mine' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    const dlg = await screen.findByRole('alertdialog');
+    const dlg = await screen.findByRole('alertdialog', { name: 'This document changed outside the board' });
     expect(within(dlg).getByText('CLAUDE.md')).toBeTruthy();
     fireEvent.click(within(dlg).getByRole('button', { name: 'Reload & keep my copy' }));
     await waitFor(() => expect(toast).toHaveBeenCalledWith('ok', 'Reloaded latest version', 'Your text is saved as CLAUDE.draft.md'));
@@ -221,5 +221,73 @@ describe('ReferencesModal', () => {
     fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(client.saveReference).not.toHaveBeenCalled();
+  });
+
+  it('create twice in one tick posts once', async () => {
+    const { client } = setup();
+    await screen.findByText('House rules.');
+    fireEvent.click(screen.getByRole('button', { name: '+ Add' }));
+    fireEvent.click(screen.getByRole('button', { name: /Create a new document/ }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Document name' }), { target: { value: 'deploy' } });
+    const btn = screen.getByRole('button', { name: 'Create' });
+    // Both clicks land before React re-renders (no disabled state yet).
+    act(() => {
+      btn.click();
+      btn.click();
+    });
+    await screen.findByText('Editing docs/DEPLOY.md');
+    expect(client.createReference).toHaveBeenCalledTimes(1);
+  });
+
+  it('link twice in one tick posts once', async () => {
+    const { client } = setup();
+    await screen.findByText('House rules.');
+    fireEvent.click(screen.getByRole('button', { name: '+ Add' }));
+    fireEvent.click(screen.getByRole('button', { name: /Link an existing file/ }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'File path' }), { target: { value: 'README.md' } });
+    const btn = screen.getByRole('button', { name: 'Link file' });
+    // Both clicks land before React re-renders (no disabled state yet).
+    act(() => {
+      btn.click();
+      btn.click();
+    });
+    await screen.findByRole('tab', { name: 'README.md' });
+    expect(client.linkReference).toHaveBeenCalledTimes(1);
+  });
+
+  it('an invalid document name disables Create and shows the rule', async () => {
+    setup();
+    await screen.findByText('House rules.');
+    fireEvent.click(screen.getByRole('button', { name: '+ Add' }));
+    fireEvent.click(screen.getByRole('button', { name: /Create a new document/ }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Document name' }), { target: { value: '../evil' } });
+    expect(screen.getByRole('button', { name: 'Create' })).toHaveProperty('disabled', true);
+    expect(screen.getByText('Use letters, numbers, dots, dashes or underscores')).toBeTruthy();
+    expect(screen.queryByText(/Saved as/)).toBeNull();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Document name' }), { target: { value: 'deploy-notes.md' } });
+    expect(screen.getByRole('button', { name: 'Create' })).toHaveProperty('disabled', false);
+    expect(screen.getByText('Saved as docs/DEPLOY-NOTES.md')).toBeTruthy();
+  });
+
+  it('a server 400 on create shows its message as a toast', async () => {
+    const { toast } = setup({ createReference: vi.fn(async () => Promise.reject(new ApiError(400, 'Invalid name'))) });
+    await screen.findByText('House rules.');
+    fireEvent.click(screen.getByRole('button', { name: '+ Add' }));
+    fireEvent.click(screen.getByRole('button', { name: /Create a new document/ }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Document name' }), { target: { value: 'ok' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith('err', 'Couldn’t create docs/OK.md', 'Invalid name'));
+  });
+
+  it('after Remove, a failed refetch still drops the removed doc and picks the next tab', async () => {
+    const references = vi.fn(async () => [...DOCS]);
+    setup({ references });
+    await screen.findByText('House rules.');
+    references.mockRejectedValue(new Error('offline'));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove from list' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove link' }));
+    await waitFor(() => expect(tabs()).toEqual(['CONTEXT.md', 'GONE.md']));
+    expect(screen.getByRole('tab', { name: 'CONTEXT.md' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.queryByText('House rules.')).toBeNull();
   });
 });

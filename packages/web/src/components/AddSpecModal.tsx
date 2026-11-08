@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Spec } from '@specboard/core';
 import { api } from '../api/client';
 import { OFFLINE_TOAST } from '../state/actions';
@@ -28,27 +28,36 @@ export function AddSpecModal({ pid, nextId, client = api, toast, down = false, r
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
   const [busy, setBusy] = useState(false);
+  /** Set synchronously, so a second click before the re-render does nothing. */
+  const inFlight = useRef(false);
   const t = title.trim();
   const disabled = t === '' || busy;
   const opacity = t === '' ? 0.45 : 1;
 
   const add = async (write: boolean) => {
-    if (disabled) return;
+    if (disabled || inFlight.current) return;
     if (down) {
       toast('err', ...OFFLINE_TOAST);
       return;
     }
+    inFlight.current = true;
     setBusy(true);
     let spec: Spec;
     try {
       ({ spec } = await client.createSpec(pid, { title: t, description: desc.trim() || NO_DESCRIPTION, draft: true }));
     } catch (e) {
+      inFlight.current = false;
       setBusy(false);
       toast('err', 'Couldn’t add the spec', message(e));
       return;
     }
     onClose();
-    await refresh();
+    // The spec exists now: a failed refresh must not swallow the confirmation or the write-up.
+    try {
+      await refresh();
+    } catch {
+      // the live update or the next refresh will catch up
+    }
     if (write) await onWriteUp(spec);
     else toast('ok', `${spec.id} added as draft`, spec.title);
   };

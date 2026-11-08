@@ -28,4 +28,9 @@ describe('ConflictDialog', () => {
     fireEvent.click(dlg.parentElement!);
     expect(h.onKeepEditing).toHaveBeenCalledTimes(2);
   });
+
+  it('takes an optional title', () => {
+    render(<ConflictDialog title="This document changed outside the board" path="CLAUDE.md" onKeepEditing={vi.fn()} onReloadKeepCopy={vi.fn()} onReload={vi.fn()} />);
+    expect(screen.getByRole('alertdialog', { name: 'This document changed outside the board' })).toBeTruthy();
+  });
 });
