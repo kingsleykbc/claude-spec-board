@@ -41,10 +41,10 @@ export const Medium: Story = {
   args: { md: SAMPLE },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
-    const h1 = c.getAllByRole('heading', { level: 1 })[0]!;
+    const h1 = c.getAllByRole('heading', { level: 2 })[0]!;
     expect(getComputedStyle(h1).fontSize).toBe('20px');
     expect(getComputedStyle(h1).fontWeight).toBe('600');
-    const h2 = c.getAllByRole('heading', { level: 2 })[0]!;
+    const h2 = c.getAllByRole('heading', { level: 3 })[0]!;
     expect(getComputedStyle(h2).textTransform).toBe('uppercase');
     expect(getComputedStyle(h2).fontSize).toBe('11.5px');
   },
