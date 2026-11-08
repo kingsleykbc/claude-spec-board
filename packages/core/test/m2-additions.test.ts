@@ -6,7 +6,8 @@ import { compareIds, loadProject } from '../src/project.js';
 import { replaceSpecBody, specBodyMd } from '../src/edit.js';
 import { setConfigReferences } from '../src/config.js';
 import { parseSpec } from '../src/parseSpec.js';
-import { writeSiblingDraft } from '../src/write.js';
+import { writeIfUnchanged, writeSiblingDraft } from '../src/write.js';
+import { hashText } from '../src/hash.js';
 
 const sample = path.resolve(import.meta.dirname, '../../../examples/recipe-box');
 const t104Path = path.join(sample, '.specboard/specs/T-104-meal-planner-calendar/spec.md');
@@ -170,5 +171,29 @@ describe('loadProject', () => {
     expect(failed).toBe(2);
     expect(p.config).not.toBeNull();
     expect(p.problems).toEqual([]);
+  });
+});
+
+describe('writeIfUnchanged (F4.1)', () => {
+  it('retries both reads on the save path on EBUSY/EPERM', async () => {
+    const dir = await tmp();
+    const file = path.join(dir, 'spec.md');
+    await fs.writeFile(file, 'old');
+    const real = fs.readFile.bind(fs) as (...a: unknown[]) => Promise<unknown>;
+    // Reads of `file`: 1-2 fail (EBUSY), 3 is the first read, 4-5 fail (EPERM), 6 is the re-hash read.
+    const codes = ['EBUSY', 'EBUSY', null, 'EPERM', 'EPERM', null];
+    let n = 0;
+    vi.spyOn(fs, 'readFile').mockImplementation(((f: unknown, ...rest: unknown[]) => {
+      if (String(f) === file) {
+        const code = codes[n++];
+        if (code) return Promise.reject(Object.assign(new Error(code), { code }));
+      }
+      return real(f, ...rest);
+    }) as never);
+    const res = await writeIfUnchanged(file, hashText('old'), (t) => t + ' new');
+    expect(n).toBe(6);
+    expect(res).toMatchObject({ ok: true, hash: hashText('old new') });
+    vi.restoreAllMocks();
+    expect(await fs.readFile(file, 'utf8')).toBe('old new');
   });
 });

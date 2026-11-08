@@ -21,14 +21,14 @@ export type WriteResult =
  */
 export async function writeIfUnchanged(file: string, baseHash: string, transform: (text: string) => string): Promise<WriteResult> {
   return withLock(lockKey(file), async (): Promise<WriteResult> => {
-    const current = await fs.readFile(file, 'utf8');
+    const current = await withRetry(() => fs.readFile(file, 'utf8'));
     const currentHash = hashText(current);
     if (currentHash !== baseHash) return { ok: false, conflict: true, currentText: current, currentHash };
     const next = transform(current);
     const tmp = `${file}.${randomBytes(6).toString('hex')}.tmp`;
     await fs.writeFile(tmp, next, 'utf8');
     try {
-      const again = await fs.readFile(file, 'utf8');
+      const again = await withRetry(() => fs.readFile(file, 'utf8'));
       const againHash = hashText(again);
       if (againHash !== baseHash) {
         await fs.rm(tmp, { force: true });
