@@ -5,7 +5,7 @@ import { isAllowedRequest } from './security.js';
 
 /** Fan-out of `project-changed` events to WebSocket clients at `/ws`. */
 export class Hub {
-  private readonly wss = new WebSocketServer({ noServer: true });
+  private readonly wss = new WebSocketServer({ noServer: true, maxPayload: 65536 });
   private readonly subs = new Map<WebSocket, Set<string>>();
 
   /**
@@ -20,20 +20,26 @@ export class Hub {
   }
 
   private readonly handleUpgrade = (req: IncomingMessage, socket: Duplex, head: Buffer): void => {
-    const url = new URL(req.url ?? '/', 'http://localhost');
-    if (url.pathname !== '/ws') {
-      // Not ours; leave other upgrade handlers (if any) alone, otherwise refuse.
-      if (this.server.listenerCount('upgrade') <= 1) this.refuse(socket, '404 Not Found');
-      return;
+    // A reset while we answer must never become an uncaught exception.
+    socket.on('error', () => undefined);
+    try {
+      if (!isAllowedRequest(req.headers.host, req.headers.origin, 'GET', this.port(), { upgrade: true })) {
+        this.refuse(socket, '403 Forbidden');
+        return;
+      }
+      if ((req.url ?? '').split('?')[0] !== '/ws') {
+        // Not ours; leave other upgrade handlers (if any) alone, otherwise refuse.
+        if (this.server.listenerCount('upgrade') <= 1) this.refuse(socket, '404 Not Found');
+        return;
+      }
+      this.wss.handleUpgrade(req, socket, head, (ws) => this.accept(ws));
+    } catch {
+      this.refuse(socket, '400 Bad Request');
     }
-    if (!isAllowedRequest(req.headers.host, req.headers.origin, 'GET', this.port(), { upgrade: true })) {
-      this.refuse(socket, '403 Forbidden');
-      return;
-    }
-    this.wss.handleUpgrade(req, socket, head, (ws) => this.accept(ws));
   };
 
   private refuse(socket: Duplex, status: string): void {
+    socket.on('error', () => undefined);
     socket.end(`HTTP/1.1 ${status}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
     socket.destroy();
   }

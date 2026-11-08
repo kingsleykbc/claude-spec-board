@@ -3,6 +3,8 @@ import chokidar from 'chokidar';
 import type { ProjectEntry } from './registry.js';
 
 const DEBOUNCE_MS = 150;
+/** A burst never delays the event longer than this after its first change. */
+const MAX_WAIT_MS = 1000;
 
 /** Editor scratch files and Spec Board drafts never count as changes. */
 const ignored = (p: string): boolean => /\.tmp$/i.test(p) || /\.draft\.md$/i.test(p);
@@ -24,6 +26,7 @@ export async function watchProject(
   const configFile = path.join(specboard, 'config.md');
   let closed = false;
   let timer: NodeJS.Timeout | null = null;
+  let burstStart = 0;
   let watched = new Set<string>();
 
   const watcher = chokidar.watch(specboard, {
@@ -34,11 +37,14 @@ export async function watchProject(
 
   const fire = () => {
     if (closed) return;
-    if (timer) clearTimeout(timer);
+    const now = Date.now();
+    if (timer === null) burstStart = now;
+    else clearTimeout(timer);
+    const wait = Math.max(0, Math.min(DEBOUNCE_MS, burstStart + MAX_WAIT_MS - now));
     timer = setTimeout(() => {
       timer = null;
       if (!closed) onChange(entry.id);
-    }, DEBOUNCE_MS);
+    }, wait);
   };
 
   let syncing: Promise<void> = Promise.resolve();
@@ -49,7 +55,7 @@ export async function watchProject(
       try {
         next = await refs();
       } catch {
-        next = [];
+        return; // keep what we watch now
       }
       if (closed) return;
       const want = new Set(next);

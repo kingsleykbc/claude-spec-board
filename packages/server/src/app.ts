@@ -107,8 +107,9 @@ export interface Realtime {
 /** Absolute paths of a project's safe, existing reference files. Anything unsafe or missing is skipped. */
 async function referenceFiles(entry: ProjectEntry): Promise<string[]> {
   const { config } = await loadProject(entry.root);
+  if (!config || config.problems.length > 0) throw new Error('config.md unreadable'); // caller keeps its current watch set
   const out: string[] = [];
-  for (const ref of config?.references ?? []) {
+  for (const ref of config.references) {
     try {
       const abs = safeProjectPath(entry.root, ref);
       if ((await fs.stat(abs)).isFile()) out.push(abs);

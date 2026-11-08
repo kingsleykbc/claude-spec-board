@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import http from 'node:http';
+import net from 'node:net';
 import type { AddressInfo } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -106,11 +107,77 @@ describe('realtime', () => {
     expect(c.msgs.find((m) => m.type === 'project-changed')).toEqual({ type: 'project-changed', pid });
   });
 
-  it('does not notify clients subscribed to another project', async () => {
-    const c = await subscribed('nope0000');
+  it('notifies only subscribers of the edited project', async () => {
+    const proj2 = path.join(tmp, 'second');
+    await fs.cp(SAMPLE, proj2, { recursive: true });
+    const pid2 = (await registry.add(proj2)).id;
+    await rt.watch(pid2);
+    const a = await subscribed(pid);
+    const b = await subscribed(pid2);
     await editSpec();
+    expect(await until(() => a.changed() >= 1, 1000)).toBe(true);
+    await sleep(600);
+    expect(b.changed()).toBe(0);
+  });
+
+  it('survives a request target of // on upgrade', async () => {
+    const sock = net.connect(port, '127.0.0.1');
+    sock.on('error', () => undefined);
+    await new Promise<void>((r) => sock.once('connect', () => r()));
+    sock.write(
+      ['GET // HTTP/1.1', `Host: 127.0.0.1:${port}`, 'Upgrade: websocket', 'Connection: Upgrade', 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==', 'Sec-WebSocket-Version: 13', '', ''].join('\r\n'),
+    );
+    await sleep(300);
+    sock.destroy();
+    const res = await new Promise<number>((resolve, reject) => {
+      http.get({ host: '127.0.0.1', port, path: '/api/health' }, (r) => {
+        r.resume();
+        resolve(r.statusCode ?? 0);
+      }).on('error', reject);
+    });
+    expect(res).toBe(200);
+    const c = await connect();
+    expect(await until(() => c.msgs.some((m) => m.type === 'hello'))).toBe(true);
+  });
+
+  it('survives a client that resets while being refused', async () => {
+    for (let i = 0; i < 5; i++) {
+      const sock = net.connect(port, '127.0.0.1');
+      sock.on('error', () => undefined);
+      await new Promise<void>((r) => sock.once('connect', () => r()));
+      sock.write(
+        ['GET /ws HTTP/1.1', `Host: 127.0.0.1:${port}`, 'Origin: http://evil.com', 'Upgrade: websocket', 'Connection: Upgrade', 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==', 'Sec-WebSocket-Version: 13', '', ''].join('\r\n'),
+      );
+      sock.resetAndDestroy();
+    }
+    await sleep(300);
+    const c = await connect();
+    expect(await until(() => c.msgs.some((m) => m.type === 'hello'))).toBe(true);
+  });
+
+  it('fires during a long burst (max wait) instead of only at the end', async () => {
+    const c = await subscribed();
+    const files = (await loadProject(proj)).specs.slice(0, 4).map((x) => x.path);
+    const texts = await Promise.all(files.map((f) => fs.readFile(f, 'utf8')));
+    const end = Date.now() + 2500;
+    let i = 0;
+    while (Date.now() < end) {
+      const k = i % files.length;
+      await fs.writeFile(files[k]!, texts[k] + `\n<!-- ${i} -->\n`, 'utf8');
+      i++;
+      await sleep(50);
+    }
+    expect(c.changed()).toBeGreaterThanOrEqual(2);
+  });
+
+  it('keeps watching references when config.md becomes unreadable', async () => {
+    const c = await subscribed();
+    const cfg = path.join(proj, '.specboard', 'config.md');
+    await fs.writeFile(cfg, '---\nname: [oops\nreferences: {{{\n---\n', 'utf8');
     await sleep(700);
-    expect(c.changed()).toBe(0);
+    const before = c.changed();
+    await fs.appendFile(path.join(proj, 'docs', 'RULES.md'), '\nmore\n', 'utf8');
+    expect(await until(() => c.changed() > before)).toBe(true);
   });
 
   it('collapses 20 quick writes into at most 2 events', async () => {
