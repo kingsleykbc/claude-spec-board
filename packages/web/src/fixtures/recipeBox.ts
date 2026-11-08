@@ -1,4 +1,4 @@
-import type { Spec } from '@specboard/core';
+import type { Project, Spec } from '@specboard/core';
 
 // Typed fixtures of examples/recipe-box (T-100 archived, T-101..T-108) plus T-109, a spec with a file problem.
 // Generated once from loadProject(); edit by hand if the sample changes.
@@ -753,3 +753,22 @@ export function recipeSpec(id: string): Spec {
   if (!s) throw new Error(`No fixture spec ${id}`);
   return s;
 }
+
+/** The recipe-box project as loadProject() returns it (active T-101..T-108, archived T-100). */
+export const recipeProject: Project = {
+  root: 'examples/recipe-box',
+  config: {
+    name: 'Recipe Box',
+    description: "A web app to save recipes, plan the week's meals and turn the plan into a shopping list.",
+    references: ['CLAUDE.md', 'docs/CONTEXT.md', 'docs/RULES.md', 'docs/API-NOTES.md', 'docs/STYLE-GUIDE.md'],
+    problems: [],
+  },
+  overview: {
+    updated: '2026-11-08T09:30',
+    summaryMd:
+      'Recipe Box can list and add recipes, and **Search & filters** is built and waiting for your review.\n\nThe **meal planner** is in progress: the calendar grid and drag-to-day work, and saving planned meals is underway. **User accounts** is the most urgent spec left and also unblocks sharing. **Shopping list export** needs three answers from you and waits on the planner.',
+  },
+  specs: recipeSpecs,
+  archived: recipeArchived,
+  problems: [],
+};

@@ -1,5 +1,5 @@
 import type { Spec, Status } from '@specboard/core';
-import { api, ConflictError } from '../api/client';
+import { api, ConflictError, type ClaudeAction } from '../api/client';
 import { ST } from '../lib/vm';
 import type { HashOp } from './mutate';
 import type { PushToast } from './toasts';
@@ -27,6 +27,31 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Thrown inside the op of a move queued behind a conflicted one: it is dropped without a request. */
 class Superseded extends Error {}
+
+export interface ClaudeDeps {
+  client: Pick<typeof api, 'claude'>;
+  toast: PushToast;
+  isDown?: () => boolean;
+}
+
+/**
+ * Ask Claude for something (an M2 stub). Ruling 18: refused with the offline toast while
+ * disconnected; only a 501 stub answer gets the stub toast; any other failure is an err toast.
+ */
+export async function askClaude({ client, toast, isDown = () => false }: ClaudeDeps, action: ClaudeAction, body: Record<string, unknown>, failText: string): Promise<void> {
+  if (isDown()) {
+    toast('err', ...OFFLINE_TOAST);
+    return;
+  }
+  let res: { stub: boolean };
+  try {
+    res = await client.claude(action, body);
+  } catch (e) {
+    toast('err', failText, message(e));
+    return;
+  }
+  if (res.stub) toast('info', CLAUDE_STUB_TOAST);
+}
 
 export function createSpecActions({ pid, client = api, mutate, refresh, toast, isDown = () => false }: ActionDeps) {
   /**
@@ -87,19 +112,7 @@ export function createSpecActions({ pid, client = api, mutate, refresh, toast, i
 
     /** M2 stub: the server answers 501. */
     async writeUp(spec: Spec): Promise<void> {
-      // Ruling 18: refused while disconnected; only a 501 stub answer gets the stub toast.
-      if (isDown()) {
-        toast('err', ...OFFLINE_TOAST);
-        return;
-      }
-      let res: { stub: boolean };
-      try {
-        res = await client.claude('write-up', { pid, id: spec.id });
-      } catch (e) {
-        toast('err', `Couldn’t reach Claude for ${spec.id}`, message(e));
-        return;
-      }
-      if (res.stub) toast('info', CLAUDE_STUB_TOAST);
+      await askClaude({ client, toast, isDown }, 'write-up', { pid, id: spec.id }, `Couldn’t reach Claude for ${spec.id}`);
     },
   };
 }

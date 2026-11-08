@@ -1,4 +1,4 @@
-import { useCallback, useEffect, type KeyboardEvent, type RefObject } from 'react';
+import { useCallback, useEffect, useState, type KeyboardEvent, type RefObject } from 'react';
 
 const FOCUSABLE =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -15,15 +15,17 @@ export interface FocusTrapOptions {
 }
 
 /**
- * Keeps Tab inside `ref` (spread the returned handler as `onKeyDown`), focuses it on mount and,
+ * Keeps Tab inside `ref` (spread the returned handler as `onKeyDown`), focuses it on mount (unless an
+ * `autoFocus` child already took focus) and,
  * on unmount, returns focus to whatever had it before — or, if that left the page, to
  * `returnFocus()`, or to the nearest other open modal.
  */
 export function useFocusTrap(ref: RefObject<HTMLElement | null>, { initial = 'container', returnFocus }: FocusTrapOptions = {}) {
+  // Read during the first render, before any `autoFocus` child moves focus on commit.
+  const [prev] = useState(() => (document.activeElement instanceof HTMLElement ? document.activeElement : null));
   useEffect(() => {
-    const prev = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const root = ref.current;
-    if (root) {
+    if (root && !(document.activeElement instanceof Node && root.contains(document.activeElement))) {
       const target = initial === 'first' ? (focusables(root)[0] ?? root) : root;
       target.focus();
     }

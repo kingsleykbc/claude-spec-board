@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Spec, Status, Urgency } from '@specboard/core';
 import { api, ConflictError, type SpecWrite } from '../../api/client';
-import { CLAUDE_STUB_TOAST, OFFLINE_TOAST, type Mutate } from '../../state/actions';
+import { askClaude, OFFLINE_TOAST, type Mutate } from '../../state/actions';
 import type { PushToast } from '../../state/toasts';
-import { ESC, useEscape } from '../../lib/escape';
 import { relPath, ST, truncate } from '../../lib/vm';
 import { ConflictDialog } from '../ConflictDialog';
-import { Dialog } from '../Dialog';
 import { Modal } from '../Modal';
+import { useDiscardGuard } from '../useDiscardGuard';
 import { BlockedBanner, type BlockReason } from './BlockedBanner';
 import { Dependencies } from './Dependencies';
 import { DetailHeader } from './DetailHeader';
@@ -121,23 +120,15 @@ function SpecDetail({
   const editBase = useRef<{ md: string; hash: string }>({ md: '', hash: '' });
   const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState(false);
-  const [discardAsk, setDiscardAsk] = useState(false);
   const dirty = editText !== null && editText !== editBase.current.md;
-
-  // Ruling 17: Esc leaves the editor before the modal, asking first if there are unsaved changes.
-  useEscape(
-    editText !== null,
-    () => {
-      if (dirty) setDiscardAsk(true);
-      else setEditText(null);
-    },
-    ESC.editor,
-  );
-  /** Close the modal, or ask first when the editor has unsaved changes (scrim, ×). */
-  const requestClose = () => {
-    if (dirty) setDiscardAsk(true);
-    else onClose();
-  };
+  // Ruling 17: Esc leaves the editor before the modal; unsaved changes are never dropped silently.
+  const { requestClose, dialog: discardDialog } = useDiscardGuard({
+    editing: editText !== null,
+    dirty,
+    what: 'this spec',
+    onLeave: () => setEditText(null),
+    onClose,
+  });
 
   const [hl, setHl] = useState<Section | null>(null);
   const hlTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -170,18 +161,9 @@ function SpecDetail({
   const setUrgency = (u: Urgency) => void writeMeta({ urgency: u }, (h) => client.setMeta(pid, id, h, 'urgency', u));
   const setCategories = (next: string[]) => void writeMeta({ categories: next }, (h) => client.setMeta(pid, id, h, 'categories', next));
 
-  // Ruling 18: refused while disconnected; only a 501 stub answer gets the stub toast.
-  const claude = async (action: 'run' | 'stop' | 'fix-file') => {
-    if (down) return offline();
-    let res: { stub: boolean };
-    try {
-      res = await client.claude(action, { pid, id });
-    } catch (e) {
-      toast('err', `Couldn’t reach Claude for ${id}`, message(e));
-      return;
-    }
-    if (res.stub) toast('info', CLAUDE_STUB_TOAST);
-  };
+  // Ruling 18: the shared Claude-stub handling (offline, stub, error).
+  const claude = (action: 'run' | 'stop' | 'fix-file') =>
+    askClaude({ client, toast, isDown: () => down }, action, { pid, id }, `Couldn’t reach Claude for ${id}`);
 
   const startEdit = () => {
     editBase.current = { md: spec.bodyMd, hash: spec.hash };
@@ -350,24 +332,7 @@ function SpecDetail({
       {conflict && editText !== null && (
         <ConflictDialog path={path} onKeepEditing={keepEditing} onReloadKeepCopy={() => void reloadKeepCopy()} onReload={reload} />
       )}
-      {discardAsk && editText !== null && (
-        <Dialog
-          title="Discard your changes?"
-          body="Your edits to this spec haven’t been saved. Discarding closes the editor and keeps the file as it is."
-          onDismiss={() => setDiscardAsk(false)}
-          actions={[
-            { label: 'Keep editing', onClick: () => setDiscardAsk(false) },
-            {
-              label: 'Discard',
-              kind: 'danger',
-              onClick: () => {
-                setDiscardAsk(false);
-                setEditText(null);
-              },
-            },
-          ]}
-        />
-      )}
+      {discardDialog}
     </Modal>
   );
 }

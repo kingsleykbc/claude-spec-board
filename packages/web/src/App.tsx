@@ -9,9 +9,12 @@ import { createMutator } from './state/mutate';
 import { useToasts, type PushToast } from './state/toasts';
 import { useProject } from './state/useProject';
 import { Board } from './components/Board';
+import { AddSpecModal } from './components/AddSpecModal';
 import { CardDetail } from './components/detail/CardDetail';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { FilterBar, type FilterMenu } from './components/FilterBar';
+import { OverviewModal } from './components/OverviewModal';
+import { ReferencesModal } from './components/ReferencesModal';
 import { Toasts } from './components/Toasts';
 import { TopBar } from './components/TopBar';
 import boardCss from './components/Board.module.css';
@@ -148,6 +151,8 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
   /** Optimistic status while a move is in flight, so the card does not snap back before the refresh. */
   const [pending, setPending] = useState<Record<string, Status>>({});
   const wantReconnectToast = useRef(false);
+  /** The References, Overview or Add spec modal. */
+  const [modal, setModal] = useState<'refs' | 'overview' | 'add' | null>(null);
 
   const mutate = useMemo(() => createMutator(() => Promise.reject(new Error('No default op'))), []);
   const down = conn === 'disconnected';
@@ -205,7 +210,8 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
     else if (w.target) openSpec(w.target);
   };
 
-  const openAdd = () => undefined; // the Add spec modal arrives in Task 12
+  const openAdd = () => setModal('add');
+  const closeModal = () => setModal(null);
 
   return (
     <>
@@ -233,8 +239,8 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
         conn={conn}
         theme={theme}
         onToggleTheme={onToggleTheme}
-        onOpenRefs={() => undefined /* References modal: Task 11 */}
-        onOpenOverview={() => undefined /* Overview modal: Task 11 */}
+        onOpenRefs={() => setModal('refs')}
+        onOpenOverview={() => setModal('overview')}
       />
       <ConnectionBanner
         conn={conn}
@@ -289,6 +295,21 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
               onQuestionsSeen={(keys) => setSeenQuestions((x) => new Set([...x, ...keys]))}
               down={down}
               returnFocus={() => cardElement(openId)}
+            />
+          )}
+          {modal === 'overview' && (
+            <OverviewModal pid={pid} project={{ ...project, specs }} name={name} toast={toast} down={down} onClose={closeModal} />
+          )}
+          {modal === 'refs' && <ReferencesModal pid={pid} toast={toast} down={down} stamp={project} onClose={closeModal} />}
+          {modal === 'add' && data && (
+            <AddSpecModal
+              pid={pid}
+              nextId={data.nextId}
+              toast={toast}
+              down={down}
+              refresh={refresh}
+              onWriteUp={(s) => actions.writeUp(s)}
+              onClose={closeModal}
             />
           )}
         </>
