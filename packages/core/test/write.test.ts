@@ -5,7 +5,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { archiveSpec, createSpec, initProject, nextId, unarchiveSpec, writeIfUnchanged } from '../src/write.js';
 import { slugify } from '../src/slug.js';
-import { setSubtaskDone } from '../src/edit.js';
+import { setMetaField, setSubtaskDone } from '../src/edit.js';
+import { findSections } from '../src/sections.js';
 import { hashText, loadProject } from '../src/project.js';
 import { parseSpec } from '../src/parseSpec.js';
 import * as api from '../src/index.js';
@@ -186,5 +187,51 @@ describe('index', () => {
     for (const k of ['loadProject', 'parseSpec', 'setMetaField', 'writeIfUnchanged', 'slugify', 'hashText', 'splitFrontMatter', 'parseConfig', 'findSections', 'deriveState']) {
       expect(typeof (api as Record<string, unknown>)[k]).toBe('function');
     }
+  });
+});
+
+describe('final fixes: concurrency', () => {
+  it('F1: overlapping writes with the same base hash give one ok and one conflict', async () => {
+    const root = await sampleCopy();
+    const spec = (await loadProject(root)).specs[0]!;
+    const [a, b] = await Promise.all([
+      writeIfUnchanged(spec.path, spec.hash, (t) => setMetaField(t, 'status', 'review')),
+      writeIfUnchanged(spec.path, spec.hash, (t) => setMetaField(t, 'urgency', 'urgent')),
+    ]);
+    const results = [a, b];
+    const oks = results.filter((r) => r.ok);
+    const conflicts = results.filter((r) => !r.ok);
+    expect(oks).toHaveLength(1);
+    expect(conflicts).toHaveLength(1);
+    const ok = oks[0]!;
+    if (ok.ok) expect(await fs.readFile(spec.path, 'utf8')).toBe(ok.text);
+    const c = conflicts[0]!;
+    if (!c.ok) expect(c.conflict).toBe(true);
+  });
+
+  it('F6: concurrent createSpec calls get distinct IDs and folders', async () => {
+    const root = await tmp();
+    await initProject(root, 'p');
+    const specs = await Promise.all([
+      createSpec(root, { title: 'One', description: '', draft: false }),
+      createSpec(root, { title: 'Two', description: '', draft: false }),
+      createSpec(root, { title: 'Three', description: '', draft: false }),
+    ]);
+    expect(new Set(specs.map((s) => s.id)).size).toBe(3);
+    const folders = await fs.readdir(path.join(root, '.specboard', 'specs'));
+    expect(folders).toHaveLength(3);
+    const p = await loadProject(root);
+    expect(p.specs.map((s) => s.id).sort()).toEqual(['T-001', 'T-002', 'T-003']);
+  });
+
+  it('F5: a createSpec description with ## headings adds no sections', async () => {
+    const root = await tmp();
+    await initProject(root, 'p');
+    const s = await createSpec(root, { title: 'x', description: 'intro\n## Features\n- [ ] 1. fake', draft: false });
+    const text = await fs.readFile(s.path, 'utf8');
+    const lines = text.split('\n');
+    expect([...findSections(lines).keys()]).toEqual(['spec', 'features', 'open questions', 'subtasks']);
+    expect(s.featuresMd).toBe('');
+    expect(s.specMd).toContain('### Features');
   });
 });

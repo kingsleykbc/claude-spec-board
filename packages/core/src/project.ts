@@ -184,6 +184,18 @@ export async function loadProject(root: string): Promise<Project> {
   const rawActive = await collect('specs', false);
   const rawArchived = await collect('archive', true);
 
+  const seen = new Map<string, RawSpec[]>();
+  for (const s of [...rawActive, ...rawArchived]) {
+    if (s.id === '') {
+      problems.push(`Spec folder ${path.basename(s.dir)} has no id`);
+      continue;
+    }
+    seen.set(s.id, [...(seen.get(s.id) ?? []), s]);
+  }
+  for (const [id, group] of seen) {
+    if (group.length > 1) for (const s of group) s.problems.push(`Duplicate id ${id}`);
+  }
+
   const state = deriveState(rawActive, rawArchived);
   const finish = (s: RawSpec): Spec => ({ ...s, ...(state.get(s.id) ?? { dependents: [], blocked: false, blockedReasons: [] }) });
   return { root, config, overview, specs: rawActive.map(finish), archived: rawArchived.map(finish), problems };

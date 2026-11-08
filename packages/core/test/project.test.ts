@@ -168,3 +168,22 @@ describe('loadProject edge cases', () => {
     expect(s.subtasks[0]!.hasLog).toBe(true);
   });
 });
+
+describe('F6: duplicate and missing ids', () => {
+  it('flags every spec that shares an ID', async () => {
+    const root = await makeProject({
+      'specs/T-001-a/spec.md': specText('T-001'),
+      'specs/T-001-b/spec.md': specText('T-001'),
+      'specs/T-002-c/spec.md': specText('T-002'),
+    });
+    const p = await loadProject(root);
+    const dups = p.specs.filter((s) => s.problems.includes('Duplicate id T-001'));
+    expect(dups.map((s) => path.basename(s.dir)).sort()).toEqual(['T-001-a', 'T-001-b']);
+    expect(p.specs.find((s) => s.id === 'T-002')!.problems).toEqual([]);
+  });
+  it('records a problem for a spec folder with no id', async () => {
+    const root = await makeProject({ 'specs/misc/spec.md': '---\ntitle: x\n---\n' });
+    const p = await loadProject(root);
+    expect(p.problems).toContain('Spec folder misc has no id');
+  });
+});
