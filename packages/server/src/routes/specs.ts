@@ -15,44 +15,15 @@ import {
 } from '@specboard/core';
 import type { Spec } from '@specboard/core';
 import type { Registry, ProjectEntry } from '../registry.js';
+import { HttpError, onError, readJson, requireString } from '../http.js';
 
 const META_KEYS = ['status', 'urgency', 'categories', 'title', 'draft'] as const;
 type MetaKey = (typeof META_KEYS)[number];
-
-/** Messages thrown by core for bad caller input; anything else is a server fault. */
-const CORE_400 = [/^Invalid value for /, /^Invalid key /, /^Cannot edit /, /^Only done specs can be archived/, /^(Subtask|Question) .+ not found$/];
-
-/** Raised for requests we reject on purpose; carries the HTTP status. */
-class HttpError extends Error {
-  constructor(
-    readonly status: 400 | 404,
-    message: string,
-  ) {
-    super(message);
-  }
-}
 
 function today(): string {
   const d = new Date();
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-
-async function readJson(c: Context): Promise<Record<string, unknown>> {
-  let body: unknown;
-  try {
-    body = await c.req.json();
-  } catch {
-    throw new HttpError(400, 'Invalid JSON body');
-  }
-  if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new HttpError(400, 'Invalid JSON body');
-  return body as Record<string, unknown>;
-}
-
-function requireString(b: Record<string, unknown>, key: string, allowEmpty = true): string {
-  const v = b[key];
-  if (typeof v !== 'string' || (!allowEmpty && v === '')) throw new HttpError(400, `Missing or invalid "${key}"`);
-  return v;
 }
 
 function findSpec(p: { specs: Spec[]; archived: Spec[] }, id: string): Spec | undefined {
@@ -160,15 +131,7 @@ export function specRoutes(registry: Registry): Hono {
     return c.body(null, 204);
   });
 
-  app.onError((err, c) => {
-    if (err instanceof HttpError) return c.json({ error: err.message }, err.status);
-    if (err instanceof Error) {
-      if (/^Spec .+ not found$/.test(err.message)) return c.json({ error: err.message }, 404);
-      if (CORE_400.some((re) => re.test(err.message))) return c.json({ error: err.message }, 400);
-    }
-    console.error(err instanceof Error ? err.stack : err);
-    return c.json({ error: 'Internal error' }, 500);
-  });
+  app.onError(onError);
 
   return app;
 }
