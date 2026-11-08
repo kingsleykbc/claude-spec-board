@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>@keyframes sbPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}</style></helmet>
+<div draggable="{{ draggable }}" onDragStart="{{ c.onDragStart }}" onDragEnd="{{ c.onDragEnd }}" onClick="{{ open }}" onKeyDown="{{ onKey }}" tabIndex="0" role="button" aria-label="{{ aria }}" style="position:relative; display:flex; flex-direction:column; gap:9px; padding:12px 13px 11px; border-radius:10px; background:{{ bg }}; border:1px solid {{ border }}; box-shadow:{{ shadow }}; opacity:{{ opacity }}; transform:{{ transform }}; cursor:pointer; transition:background .15s, border-color .15s, box-shadow .6s, opacity .15s; font-family:var(--sans); color:var(--fg)" style-hover="border-color:var(--line2); background:var(--raise)">
+  <div style="display:flex; align-items:center; gap:6px; min-height:20px">
+    <span style="font-family:var(--mono); font-size:11.5px; color:var(--fg3); letter-spacing:0.02em">{{ c.id }}</span>
+    <sc-if value="{{ c.draft }}"><span style="font-size:11px; font-weight:600; padding:1px 7px; border-radius:5px; border:1px dashed var(--line2); color:var(--fg2)">Draft</span></sc-if>
+    <sc-if value="{{ c.archived }}"><span style="font-size:11px; color:var(--fg3)">· Archived</span></sc-if>
+    <span style="flex:1"></span>
+    <sc-if value="{{ c.fileProblem }}"><span onMouseEnter="{{ onTipF }}" onMouseLeave="{{ tipOff }}" style="position:relative; display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; padding:2px 7px; border-radius:5px; background:var(--review-soft); color:var(--review-ink)">⚠ File problem<sc-if value="{{ tipFile }}"><span style="position:absolute; top:calc(100% + 6px); right:0; z-index:5; white-space:nowrap; padding:6px 9px; border-radius:6px; background:var(--fg); color:var(--bg); font-size:12px; font-weight:500">{{ c.fileTip }}</span></sc-if></span></sc-if>
+    <sc-if value="{{ c.blocked }}"><span onMouseEnter="{{ onTipB }}" onMouseLeave="{{ tipOff }}" style="position:relative; display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; padding:2px 7px; border-radius:5px; background:var(--block-soft); color:var(--block-ink)"><span style="font-weight:700">!</span>Blocked<sc-if value="{{ tipBlocked }}"><span style="position:absolute; top:calc(100% + 6px); right:0; z-index:5; white-space:nowrap; padding:6px 9px; border-radius:6px; background:var(--fg); color:var(--bg); font-size:12px; font-weight:500">{{ c.blockedTip }}</span></sc-if></span></sc-if>
+    <sc-if value="{{ c.isDone }}"><span style="position:relative"><button onClick="{{ toggleMenu }}" aria-label="Card actions" style="width:24px; height:22px; border:0; border-radius:5px; background:transparent; color:var(--fg3); cursor:pointer; font-size:14px; line-height:1" style-hover="background:var(--panel); color:var(--fg)">⋯</button><sc-if value="{{ menu }}"><span onClick="{{ stopClick }}" style="position:absolute; top:26px; right:0; z-index:6; min-width:150px; padding:4px; border-radius:8px; background:var(--card); border:1px solid var(--line); box-shadow:var(--shadow-lg); display:flex; flex-direction:column"><button onClick="{{ archive }}" style="text-align:left; padding:7px 10px; border:0; border-radius:5px; background:transparent; font-size:13px; cursor:pointer" style-hover="background:var(--panel)">{{ c.archiveLabel }}</button></span></sc-if></span></sc-if>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:4px">
+    <div style="font-size:14.5px; font-weight:600; line-height:1.3; text-wrap:pretty">{{ c.title }}</div>
+    <div style="font-size:13px; line-height:1.45; color:var(--fg2); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden">{{ c.desc }}</div>
+  </div>
+  <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap">
+    <sc-for list="{{ c.cats }}" as="cat"><span style="display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--fg2); padding:1px 7px 1px 6px; border-radius:99px; border:1px solid var(--line)"><span style="width:6px; height:6px; border-radius:99px; background:{{ cat.dot }}"></span>{{ cat.name }}</span></sc-for>
+    <span style="flex:1"></span>
+    <span title="Urgency" style="display:inline-flex; align-items:center; gap:5px; padding:{{ c.urg.pad }}; border-radius:5px; background:{{ c.urg.bg }}"><span style="display:flex; align-items:flex-end; gap:1.5px; height:11px"><sc-for list="{{ c.urg.bars }}" as="br"><span style="width:3px; height:{{ br.h }}; border-radius:1px; background:{{ br.c }}"></span></sc-for></span><span style="font-size:11.5px; color:{{ c.urg.fg }}; font-weight:{{ c.urg.weight }}">{{ c.urg.label }}</span></span>
+  </div>
+  <sc-if value="{{ c.hasDeps }}"><div onMouseEnter="{{ onTipD }}" onMouseLeave="{{ tipOff }}" style="position:relative; display:flex; flex-wrap:wrap; gap:2px 10px; font-size:11.5px; color:var(--fg3)">
+    <sc-if value="{{ c.hasNeeds }}"><span style="display:inline-flex; gap:4px; align-items:baseline">⤴ needs<sc-if value="{{ c.needsFew }}"><sc-for list="{{ c.needsShown }}" as="d"><span style="font-family:var(--mono); color:{{ d.color }}; font-weight:{{ d.weight }}">{{ d.id }}</span></sc-for></sc-if><sc-if value="{{ c.needsMany }}"><span style="color:{{ c.needsManyColor }}; font-weight:600">{{ c.needsCount }}</span></sc-if></span></sc-if>
+    <sc-if value="{{ c.hasNeededBy }}"><span style="display:inline-flex; gap:4px; align-items:baseline">⤵ needed by<sc-if value="{{ c.neededFew }}"><sc-for list="{{ c.neededShown }}" as="d"><span style="font-family:var(--mono)">{{ d.id }}</span></sc-for></sc-if><sc-if value="{{ c.neededMany }}"><span style="font-weight:600">{{ c.neededCount }}</span></sc-if></span></sc-if>
+    <sc-if value="{{ tipDeps }}"><span style="position:absolute; top:calc(100% + 6px); left:0; z-index:5; max-width:280px; padding:7px 9px; border-radius:6px; background:var(--fg); color:var(--bg); font-size:12px; line-height:1.45">{{ c.depTip }}</span></sc-if>
+  </div></sc-if>
+  <sc-if value="{{ c.running }}"><div style="display:flex; align-items:center; gap:7px; padding:6px 8px; border-radius:7px; background:var(--doing-soft); color:var(--doing-ink); font-size:12px; font-weight:500; min-width:0">{{ pulse }}<span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis">Claude is working<sc-if value="{{ c.hasRunningSub }}"><span style="font-weight:400; opacity:.85"> · {{ c.runningSub }}</span></sc-if></span></div></sc-if>
+  <sc-if value="{{ c.writing }}"><div style="display:flex; align-items:center; gap:7px; padding:6px 8px; border-radius:7px; background:var(--doing-soft); color:var(--doing-ink); font-size:12px; font-weight:500">{{ pulse }}Claude is writing it up</div></sc-if>
+  <sc-if value="{{ c.review }}"><div style="display:flex; align-items:center; gap:7px; padding:6px 8px; border-radius:7px; background:var(--review-soft); color:var(--review-ink); font-size:12px; font-weight:600"><span style="font-size:9px">◆</span>Waiting on your review</div></sc-if>
+  <div style="display:flex; align-items:center; gap:10px; min-height:24px">
+    <sc-if value="{{ c.showWriteUp }}"><button onClick="{{ writeUp }}" style="display:inline-flex; align-items:center; gap:6px; height:24px; padding:0 9px; border:0; border-radius:6px; background:var(--accent-soft); color:var(--accent-ink); font-size:12px; font-weight:600; cursor:pointer" style-hover="background:var(--accent); color:var(--accent-fg)"><span style="font-size:8px">▶</span>Have Claude write this up</button></sc-if>
+    <sc-if value="{{ c.showProgress }}"><div style="display:flex; align-items:center; gap:7px" title="Subtasks done"><div style="width:52px; height:4px; border-radius:99px; background:var(--line); overflow:hidden"><div style="height:100%; width:{{ c.pct }}; background:{{ c.barColor }}; border-radius:99px; transition:width .5s"></div></div><span style="font-family:var(--mono); font-size:11.5px; color:var(--fg2)">{{ c.done }}/{{ c.total }}</span></div></sc-if>
+    <span style="flex:1"></span>
+    <button onClick="{{ open }}" style="height:24px; padding:0 10px; border:1px solid var(--line); border-radius:6px; background:transparent; font-size:12px; color:var(--fg2); cursor:pointer" style-hover="color:var(--fg); border-color:var(--line2)">View</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:300,&quot;height&quot;:220},&quot;c&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;}}">
+class Component extends DCLogic {
+  state = { tip: null, menu: false };
+  pulse = React.createElement('span', { style: { width: 7, height: 7, borderRadius: 99, background: 'currentColor', display: 'inline-block', flex: 'none', animation: 'sbPulse 1.6s ease-in-out infinite' } });
+  renderVals() {
+    const c = this.props.c || { cats: [], urg: { bars: [] } };
+    const stop = fn => e => { e.stopPropagation(); fn && fn(); };
+    const t = k => () => this.setState({ tip: k });
+    return {
+      c, pulse: this.pulse,
+      draggable: !c.static,
+      open: () => { if (!c.static && c.onOpen) c.onOpen(); },
+      onKey: e => { if ((e.key === 'Enter' || e.key === ' ') && !c.static && c.onOpen && e.target === e.currentTarget) { e.preventDefault(); c.onOpen(); } },
+      aria: `${c.id} ${c.title}`,
+      bg: c.forceHover ? 'var(--raise)' : c.flash ? 'var(--accent-soft)' : 'var(--card)',
+      border: c.forceHover ? 'var(--line2)' : c.flash ? 'var(--accent)' : 'var(--line)',
+      shadow: c.lifted ? '0 18px 40px oklch(0.2 0.01 60 / .22)' : c.flash ? '0 0 0 3px var(--accent-soft)' : '0 1px 1.5px oklch(0.2 0.01 60 / .05)',
+      opacity: c.dragging ? 0.4 : c.archived ? 0.62 : 1,
+      transform: c.lifted ? 'rotate(-1.8deg)' : 'none',
+      tipBlocked: this.state.tip === 'b', tipFile: this.state.tip === 'f', tipDeps: this.state.tip === 'd',
+      onTipB: t('b'), onTipF: t('f'), onTipD: t('d'), tipOff: () => this.setState({ tip: null }),
+      menu: this.state.menu,
+      toggleMenu: stop(() => this.setState(s => ({ menu: !s.menu }))),
+      archive: stop(() => { this.setState({ menu: false }); c.onArchive && c.onArchive(); }),
+      writeUp: stop(c.onWriteUp),
+      stopClick: e => e.stopPropagation(),
+    };
+  }
+}
+</script>
+</body>
+</html>

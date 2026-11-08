@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="display:flex; flex-direction:column; gap:10px; font-size:{{ fs }}; line-height:1.65; color:var(--fg); text-wrap:pretty">
+<sc-if value="{{ isEmpty }}"><p style="margin:0; color:var(--fg3)">Nothing here yet.</p></sc-if>
+<sc-for list="{{ blocks }}" as="b" hint-placeholder-count="3">
+<sc-if value="{{ b.h1 }}"><h2 style="margin:4px 0 0; font-size:20px; font-weight:600; letter-spacing:-0.01em; line-height:1.3">{{ b.text }}</h2></sc-if>
+<sc-if value="{{ b.h2 }}"><h3 style="margin:10px 0 -2px; font-size:11.5px; font-weight:600; letter-spacing:0.09em; text-transform:uppercase; color:var(--fg2)">{{ b.text }}</h3></sc-if>
+<sc-if value="{{ b.h3 }}"><h4 style="margin:6px 0 -4px; font-size:14px; font-weight:600">{{ b.text }}</h4></sc-if>
+<sc-if value="{{ b.p }}"><p style="margin:0"><sc-for list="{{ b.segs }}" as="s"><sc-if value="{{ s.plain }}">{{ s.t }}</sc-if><sc-if value="{{ s.bold }}"><strong style="font-weight:600">{{ s.t }}</strong></sc-if><sc-if value="{{ s.code }}"><code style="font-family:var(--mono); font-size:0.86em; padding:1px 5px; border-radius:4px; background:var(--code); border:1px solid var(--line)">{{ s.t }}</code></sc-if></sc-for></p></sc-if>
+<sc-if value="{{ b.ul }}"><ul style="margin:0; padding-left:20px; display:flex; flex-direction:column; gap:4px"><sc-for list="{{ b.items }}" as="it"><li style="padding-left:2px"><sc-for list="{{ it.segs }}" as="s"><sc-if value="{{ s.plain }}">{{ s.t }}</sc-if><sc-if value="{{ s.bold }}"><strong style="font-weight:600">{{ s.t }}</strong></sc-if><sc-if value="{{ s.code }}"><code style="font-family:var(--mono); font-size:0.86em; padding:1px 5px; border-radius:4px; background:var(--code); border:1px solid var(--line)">{{ s.t }}</code></sc-if></sc-for></li></sc-for></ul></sc-if>
+<sc-if value="{{ b.code }}"><pre style="margin:0; padding:12px 14px; border-radius:8px; background:var(--code); border:1px solid var(--line); font-family:var(--mono); font-size:12.5px; line-height:1.6; overflow:auto; white-space:pre">{{ b.text }}</pre></sc-if>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:600,&quot;height&quot;:300},&quot;md&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;# Title\n\nSome **bold** and `code`.\n\n## Features\n- One\n- Two&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;size&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;sm&quot;,&quot;md&quot;],&quot;default&quot;:&quot;md&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+function inline(t){return t.split(/(`[^`]+`|\*\*[^*]+\*\*)/).filter(Boolean).map(p=>p.length>1&&p[0]==='`'&&p.endsWith('`')?{t:p.slice(1,-1),code:true}:p.length>3&&p.startsWith('**')&&p.endsWith('**')?{t:p.slice(2,-2),bold:true}:{t:p,plain:true});}
+function parse(md){const L=(md||'').split('\n');const out=[];let para=[],list=null,i=0;
+const fp=()=>{if(para.length){out.push({p:true,segs:inline(para.join(' '))});para=[];}};
+const fl=()=>{if(list){out.push({ul:true,items:list});list=null;}};
+while(i<L.length){const l=L[i];
+if(l.startsWith('```')){fp();fl();const buf=[];i++;while(i<L.length&&!L[i].startsWith('```')){buf.push(L[i]);i++;}out.push({code:true,text:buf.join('\n')});i++;continue;}
+const h=l.match(/^(#{1,3})\s+(.*)/);
+if(h){fp();fl();out.push({['h'+h[1].length]:true,text:h[2]});}
+else if(/^\s*[-*]\s+/.test(l)){fp();list=list||[];list.push({segs:inline(l.replace(/^\s*[-*]\s+/,''))});}
+else if(!l.trim()){fp();fl();}
+else{fl();para.push(l.trim());}
+i++;}
+fp();fl();return out;}
+class Component extends DCLogic {
+  renderVals(){
+    const md=this.props.md||'';
+    if(md!==this._md){this._md=md;this._b=parse(md);}
+    return {blocks:this._b,isEmpty:!this._b.length,fs:this.props.size==='sm'?'14px':'15px'};
+  }
+}
+</script>
+</body>
+</html>
