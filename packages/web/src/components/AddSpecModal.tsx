@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { OFFLINE_TOAST } from '../state/actions';
 import type { PushToast } from '../state/toasts';
 import { Modal } from './Modal';
+import { useDiscardGuard } from './useDiscardGuard';
 import s from './modals.module.css';
 
 export interface AddSpecModalProps {
@@ -33,6 +34,15 @@ export function AddSpecModal({ pid, nextId, client = api, toast, down = false, r
   const t = title.trim();
   const disabled = t === '' || busy;
   const opacity = t === '' ? 0.45 : 1;
+  // F3d: typed text counts as unsaved work, so Esc, the scrim and × ask before dropping it.
+  const { requestClose, dialog } = useDiscardGuard({
+    editing: false,
+    dirty: false,
+    otherDirty: t !== '' || desc.trim() !== '',
+    what: 'this spec',
+    onLeave: () => undefined,
+    onClose,
+  });
 
   const add = async (write: boolean) => {
     if (disabled || inFlight.current) return;
@@ -63,12 +73,12 @@ export function AddSpecModal({ pid, nextId, client = api, toast, down = false, r
   };
 
   return (
-    <Modal label="New spec" width="min(600px, 100%)" height="auto" onClose={onClose}>
+    <Modal label="New spec" width="min(600px, 100%)" height="auto" onClose={requestClose}>
       <div className={s.nsHead}>
         <span className={s.nsTitle}>New spec</span>
         <span className={s.nsId}>{nextId}</span>
         <span className={s.grow} />
-        <button type="button" className={s.close} aria-label="Close" onClick={onClose}>
+        <button type="button" className={s.close} aria-label="Close" onClick={requestClose}>
           ×
         </button>
       </div>
@@ -113,6 +123,7 @@ export function AddSpecModal({ pid, nextId, client = api, toast, down = false, r
           <span className={s.nsPlay}>▶</span>Add &amp; have Claude write it up
         </button>
       </div>
+      {dialog}
     </Modal>
   );
 }

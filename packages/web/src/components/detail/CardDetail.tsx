@@ -121,13 +121,18 @@ function SpecDetail({
   const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState(false);
   const dirty = editText !== null && editText !== editBase.current.md;
-  // Ruling 17: Esc leaves the editor before the modal; unsaved changes are never dropped silently.
-  const { requestClose, dialog: discardDialog } = useDiscardGuard({
+  /** Typed but unsaved answers in Questions (F3c). */
+  const [answersDirty, setAnswersDirty] = useState(false);
+  // Ruling 17 and F3: Esc leaves the editor before the modal; every way out (Esc, scrim, ×, a
+  // dependency link, browser Back/Forward, closing the tab) asks before unsaved work is dropped.
+  const { requestClose, guard, dialog: discardDialog } = useDiscardGuard({
     editing: editText !== null,
     dirty,
+    otherDirty: answersDirty,
     what: 'this spec',
     onLeave: () => setEditText(null),
     onClose,
+    guardPop: true,
   });
 
   const [hl, setHl] = useState<Section | null>(null);
@@ -309,10 +314,11 @@ function SpecDetail({
                 down={down}
                 {...(newQuestions ? { newQuestions } : {})}
                 {...(onQuestionsSeen ? { onSeen: onQuestionsSeen } : {})}
+                onDirtyChange={setAnswersDirty}
                 sectionRef={sectionRefs.questions}
                 highlight={hl === 'questions'}
               />
-              <Dependencies spec={spec} all={all} onOpen={onOpenSpec} sectionRef={sectionRefs.dependencies} highlight={hl === 'dependencies'} />
+              <Dependencies spec={spec} all={all} onOpen={(to) => guard(() => onOpenSpec(to))} sectionRef={sectionRefs.dependencies} highlight={hl === 'dependencies'} />
               <Subtasks
                 pid={pid}
                 spec={spec}

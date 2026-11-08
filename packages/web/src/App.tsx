@@ -4,6 +4,7 @@ import { api, type ProjectSummary } from './api/client';
 import { applyTheme, initialTheme, type Theme } from './lib/theme';
 import { createSpecActions, OFFLINE_TOAST } from './state/actions';
 import { ESC, useEscape } from './lib/escape';
+import { interceptPop } from './lib/popGuard';
 import { categoryOptions, NO_FILTERS, waitItems, type Filters, type WaitItem } from './state/filters';
 import { createMutator } from './state/mutate';
 import { useToasts, type PushToast } from './state/toasts';
@@ -69,11 +70,21 @@ export function App() {
     setUrl(next);
   }, []);
 
+  // The URL the app is showing, for putting it back when a Back/Forward is held for unsaved work.
+  const shown = useRef(url);
+  shown.current = url;
+
   useEffect(() => {
-    const onPop = () => setUrl(readUrl());
+    const onPop = () => {
+      const next = readUrl();
+      // F3b: unsaved work in the open detail. Put the shown URL back, ask, and go on only after Discard.
+      const held = interceptPop(() => navigate(next));
+      if (held) history.pushState(null, '', urlFor(shown.current));
+      else setUrl(next);
+    };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-  }, []);
+  }, [navigate]);
 
   const loadProjects = useCallback(() => {
     api

@@ -5,6 +5,7 @@ import { ConflictError } from '../../api/client';
 import { recipeArchived, recipeSpec, recipeSpecs, fileProblemSpec } from '../../fixtures/recipeBox';
 import { createSpecActions, CLAUDE_STUB_TOAST } from '../../state/actions';
 import { createMutator } from '../../state/mutate';
+import { interceptPop } from '../../lib/popGuard';
 import { CardDetail, type DetailClient } from './CardDetail';
 
 const ROOT = 'examples/recipe-box';
@@ -309,6 +310,102 @@ describe('CardDetail', () => {
     expect(onClose).not.toHaveBeenCalled();
     esc();
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  describe('F3: every way out asks first while work is unsaved', () => {
+    const discard = () => screen.getByRole('alertdialog', { name: 'Discard your changes?' });
+    const depLink = () => within(screen.getByRole('region', { name: 'Dependencies' })).getByRole('button', { name: /^T-104/ });
+    const answerYes = () => fireEvent.click(screen.getByRole('radio', { name: 'Yes' }));
+
+    it('(a) a dependency link with unsaved spec text asks; Discard then opens the other spec', () => {
+      const { onOpenSpec } = setup('T-105');
+      startEdit('changed');
+      fireEvent.click(depLink());
+      expect(discard()).toBeTruthy();
+      expect(onOpenSpec).not.toHaveBeenCalled();
+      fireEvent.click(within(discard()).getByRole('button', { name: 'Keep editing' }));
+      expect(onOpenSpec).not.toHaveBeenCalled();
+      fireEvent.click(depLink());
+      fireEvent.click(within(discard()).getByRole('button', { name: 'Discard' }));
+      expect(onOpenSpec).toHaveBeenCalledWith('T-104');
+    });
+
+    it('(a) a dependency link with nothing unsaved opens directly', () => {
+      const { onOpenSpec } = setup('T-105');
+      fireEvent.click(depLink());
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(onOpenSpec).toHaveBeenCalledWith('T-104');
+    });
+
+    it('(b) Back/Forward while dirty: the pop guard keeps the detail and asks; Discard leaves', () => {
+      const { onClose } = setup('T-105');
+      startEdit('changed');
+      const leave = vi.fn();
+      let blocked = false;
+      act(() => {
+        blocked = interceptPop(leave);
+      });
+      expect(blocked).toBe(true);
+      expect(discard()).toBeTruthy();
+      expect(leave).not.toHaveBeenCalled();
+      fireEvent.click(within(discard()).getByRole('button', { name: 'Discard' }));
+      expect(leave).toHaveBeenCalledTimes(1);
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('(b) Back/Forward with nothing unsaved is not intercepted', () => {
+      setup('T-105');
+      startEdit(recipeSpec('T-105').bodyMd);
+      expect(interceptPop(vi.fn())).toBe(false);
+    });
+
+    it('(c) typed but unsaved answers: Esc, scrim, × and a dependency link all ask; Discard closes', () => {
+      const { onClose, onOpenSpec } = setup('T-105');
+      answerYes();
+      fireEvent.keyDown(document.body, { key: 'Escape' });
+      expect(discard()).toBeTruthy();
+      fireEvent.click(within(discard()).getByRole('button', { name: 'Keep editing' }));
+      const scrim = screen.getByRole('dialog', { name: 'Shopping list export' }).parentElement!;
+      fireEvent.mouseDown(scrim);
+      fireEvent.click(scrim);
+      fireEvent.click(within(discard()).getByRole('button', { name: 'Keep editing' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+      fireEvent.click(within(discard()).getByRole('button', { name: 'Keep editing' }));
+      fireEvent.click(depLink());
+      fireEvent.click(within(discard()).getByRole('button', { name: 'Keep editing' }));
+      let blocked = false;
+      act(() => {
+        blocked = interceptPop(vi.fn());
+      });
+      expect(blocked).toBe(true);
+      fireEvent.click(within(discard()).getByRole('button', { name: 'Keep editing' }));
+      expect(onClose).not.toHaveBeenCalled();
+      expect(onOpenSpec).not.toHaveBeenCalled();
+      expect((screen.getByRole('radio', { name: 'Yes' }) as HTMLInputElement).checked).toBe(true);
+      fireEvent.keyDown(document.body, { key: 'Escape' });
+      fireEvent.click(within(discard()).getByRole('button', { name: 'Discard' }));
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('(e) beforeunload is registered while dirty and removed when clean', () => {
+      const add = vi.spyOn(window, 'addEventListener');
+      const remove = vi.spyOn(window, 'removeEventListener');
+      setup('T-105');
+      const registered = () => add.mock.calls.filter(([t]) => t === 'beforeunload');
+      expect(registered()).toHaveLength(0);
+      answerYes();
+      expect(registered()).toHaveLength(1);
+      const handler = registered()[0]![1] as (e: Event) => void;
+      const e = new Event('beforeunload', { cancelable: true });
+      handler(e);
+      expect(e.defaultPrevented).toBe(true);
+      fireEvent.click(screen.getByRole('radio', { name: 'No' }));
+      expect(registered()).toHaveLength(1);
+      cleanup();
+      expect(remove.mock.calls.some(([t, h]) => t === 'beforeunload' && h === handler)).toBe(true);
+      add.mockRestore();
+      remove.mockRestore();
+    });
   });
 
   describe('unsaved spec text (Ruling 17)', () => {

@@ -197,6 +197,38 @@ describe('App', () => {
     expect(screen.getByText('It will appear in this list.')).toBeTruthy();
     expect(screen.queryByRole('menu')).toBeNull();
   });
+
+  it('F3b: Back while the open detail has unsaved text re-pushes the URL and asks; Discard leaves', async () => {
+    history.replaceState(null, '', '/?project=p1&spec=T-105');
+    render(<App />);
+    const dlg = await screen.findByRole('dialog', { name: 'Shopping list export' });
+    fireEvent.click(within(dlg).getByRole('button', { name: '✎ Edit' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Spec markdown' }), { target: { value: 'unsaved' } });
+    // The browser has already moved to the previous entry when popstate fires.
+    act(() => {
+      history.replaceState(null, '', '/?project=p1');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    expect(location.search).toBe('?project=p1&spec=T-105');
+    expect(screen.getByRole('dialog', { name: 'Shopping list export' })).toBeTruthy();
+    const ask = screen.getByRole('alertdialog', { name: 'Discard your changes?' });
+    expect((screen.getByRole('textbox', { name: 'Spec markdown' }) as HTMLTextAreaElement).value).toBe('unsaved');
+    fireEvent.click(within(ask).getByRole('button', { name: 'Discard' }));
+    expect(location.search).toBe('?project=p1');
+    expect(screen.queryByRole('dialog', { name: 'Shopping list export' })).toBeNull();
+  });
+
+  it('F3b: Back with nothing unsaved just follows the URL', async () => {
+    history.replaceState(null, '', '/?project=p1&spec=T-105');
+    render(<App />);
+    await screen.findByRole('dialog', { name: 'Shopping list export' });
+    act(() => {
+      history.replaceState(null, '', '/?project=p1');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    expect(screen.queryByRole('dialog', { name: 'Shopping list export' })).toBeNull();
+    expect(location.search).toBe('?project=p1');
+  });
 it('?spec= opens the card detail; Esc closes it, clears ?spec= and returns focus to the card', async () => {
     render(<App />);
     await board();

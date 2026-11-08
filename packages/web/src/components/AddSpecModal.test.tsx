@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { ApiError } from '../api/client';
 import { recipeSpec } from '../fixtures/recipeBox';
 import { OFFLINE_TOAST } from '../state/actions';
@@ -105,5 +105,60 @@ describe('AddSpecModal', () => {
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Nutrition info' } });
     fireEvent.click(writeBtn());
     await waitFor(() => expect(p.onWriteUp).toHaveBeenCalledWith(p.created));
+  });
+
+  describe('F3d: a typed title or description is not dropped silently', () => {
+    const ask = () => screen.getByRole('alertdialog', { name: 'Discard your changes?' });
+    const keep = () => fireEvent.click(within(ask()).getByRole('button', { name: 'Keep editing' }));
+
+    it('Esc, scrim and × ask first; Keep editing keeps the text; Discard closes', () => {
+      const p = setup();
+      fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'An idea' } });
+      fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+      keep();
+      const scrim = screen.getByRole('dialog', { name: 'New spec' }).parentElement!;
+      fireEvent.mouseDown(scrim);
+      fireEvent.click(scrim);
+      keep();
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+      keep();
+      expect(p.onClose).not.toHaveBeenCalled();
+      expect((screen.getByLabelText('Description') as HTMLTextAreaElement).value).toBe('An idea');
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+      fireEvent.click(within(ask()).getByRole('button', { name: 'Discard' }));
+      expect(p.onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('with empty fields Esc and × close at once', () => {
+      const p = setup();
+      fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(p.onClose).toHaveBeenCalledTimes(1);
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+      expect(p.onClose).toHaveBeenCalledTimes(2);
+    });
+
+    it('a successful add closes without asking', async () => {
+      const p = setup();
+      fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Nutrition info' } });
+      fireEvent.click(draftBtn());
+      await waitFor(() => expect(p.onClose).toHaveBeenCalledTimes(1));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+    });
+
+    it('(e) beforeunload is registered while a field has text and removed when it is cleared', () => {
+      const add = vi.spyOn(window, 'addEventListener');
+      const remove = vi.spyOn(window, 'removeEventListener');
+      setup();
+      const of = (spy: typeof add) => spy.mock.calls.filter(([t]) => t === 'beforeunload');
+      expect(of(add)).toHaveLength(0);
+      fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'x' } });
+      expect(of(add)).toHaveLength(1);
+      fireEvent.change(screen.getByLabelText('Title'), { target: { value: '' } });
+      expect(of(remove)).toHaveLength(1);
+      expect(of(remove)[0]![1]).toBe(of(add)[0]![1]);
+      add.mockRestore();
+      remove.mockRestore();
+    });
   });
 });

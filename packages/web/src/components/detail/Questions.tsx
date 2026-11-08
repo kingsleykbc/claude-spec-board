@@ -23,6 +23,8 @@ export interface QuestionsProps {
   newQuestions?: ReadonlySet<string>;
   /** Called with the New keys of this spec once its answers are saved. */
   onSeen?: (keys: string[]) => void;
+  /** Typed but unsaved answers exist (F3c): the detail asks before it is left. */
+  onDirtyChange?: (dirty: boolean) => void;
   sectionRef?: Ref<HTMLElement>;
   /** Accent border (the blocked banner's scroll target). */
   highlight?: boolean;
@@ -47,6 +49,7 @@ export function Questions({
   down = false,
   newQuestions = NONE,
   onSeen,
+  onDirtyChange,
   sectionRef,
   highlight = false,
 }: QuestionsProps) {
@@ -68,6 +71,9 @@ export function Questions({
   const isChanged = (q: Question) => norm(value(q)) !== norm(q.answer);
   const changedQs = spec.questions.filter(isChanged);
   const dirty = changedQs.length > 0;
+  const dirtyCb = useRef(onDirtyChange);
+  dirtyCb.current = onDirtyChange;
+  useEffect(() => dirtyCb.current?.(dirty), [dirty]);
   const open = spec.questions.filter((q) => q.answer === null || q.answer === '').length;
   const newKey = (q: Question) => `${id}:${q.id}`;
   const isNew = (q: Question) => newQuestions.has(newKey(q)) && !seen.has(newKey(q));
