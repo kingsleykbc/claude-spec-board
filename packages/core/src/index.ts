@@ -8,3 +8,4 @@ export * from './hash.js';
 export * from './project.js';
 export * from './slug.js';
 export * from './write.js';
+export * from './config.js';

@@ -82,13 +82,12 @@ function serialiseEntry(key: string, value: unknown): string[] {
 }
 
 /**
- * Set one top-level front matter key. Only that key's own lines (its line plus any indented/list
- * continuation lines) are replaced; every other front matter line stays byte-identical.
- * Throws on an unknown key, an invalid value, or a key written in a form it cannot edit line by line.
+ * Set one top-level front matter key, without key/value validation. Only that key's own lines (its
+ * line plus any indented/list continuation lines) are replaced; every other front matter line stays
+ * byte-identical. Throws on missing front matter, invalid YAML, or a key written in a form it
+ * cannot edit line by line.
  */
-export function setMetaField<K extends MetaKey>(text: string, key: K, value: MetaValues[K]): string {
-  if (!Object.hasOwn(VALIDATORS, key)) throw new Error(`Invalid key ${String(key)}`);
-  if (!VALIDATORS[key](value)) throw new Error(`Invalid value for ${key}`);
+export function setTopLevelKey(text: string, key: string, value: unknown): string {
   const { yaml, closingLine } = splitFrontMatter(text);
   if (yaml === null || closingLine === null) throw new Error('No front matter');
   const doc = parseDocument(yaml);
@@ -117,6 +116,13 @@ export function setMetaField<K extends MetaKey>(text: string, key: K, value: Met
   while (end - 1 > start && /^(#.*|[ \t]*)$/.test(lines[end - 1]!)) end--;
   spliceLines(ls, start, end - start, entry, fallback);
   return fromLines(ls);
+}
+
+/** Set one spec front matter field. Throws on an unknown key or an invalid value. */
+export function setMetaField<K extends MetaKey>(text: string, key: K, value: MetaValues[K]): string {
+  if (!Object.hasOwn(VALIDATORS, key)) throw new Error(`Invalid key ${String(key)}`);
+  if (!VALIDATORS[key](value)) throw new Error(`Invalid value for ${key}`);
+  return setTopLevelKey(text, key, value);
 }
 
 export function setSubtaskDone(text: string, n: number, done: boolean): string {
@@ -179,4 +185,135 @@ export function replaceSection(text: string, heading: string, newBody: string): 
   const atEof = range.end === ls.length;
   spliceLines(ls, range.start, range.end - range.start, ['', ...bodyLines, ...(atEof && ls[ls.length - 1]!.text !== '' ? [] : [''])], fallback);
   return fromLines(ls);
+}
+
+// ---- Spec body: everything except front matter, the Spec heading, Open questions and Subtasks ----
+
+const FENCE_LINE = /^[ \t]*(```|~~~)/;
+const KEPT_HEADING = /^##[ \t]+(open questions|subtasks)[ \t]*#*[ \t]*$/i;
+const HEADING_LINE = /^##[ \t]+(.+?)[ \t]*#*[ \t]*$/;
+const isBlank = (l: Line): boolean => l.text.trim() === '';
+
+/** Demote `## Open questions` / `## Subtasks` headings (outside code fences) to `###`. */
+function demoteKeptHeadings(md: string): string {
+  const parts = md.split(/(\r?\n)/);
+  let fence: string | null = null;
+  for (let i = 0; i < parts.length; i += 2) {
+    const f = FENCE_LINE.exec(parts[i]!);
+    if (f) {
+      if (fence === null) fence = f[1]!;
+      else if (fence === f[1]) fence = null;
+      continue;
+    }
+    if (fence === null && KEPT_HEADING.test(parts[i]!)) parts[i] = `#${parts[i]}`;
+  }
+  return parts.join('');
+}
+
+interface BodySplit {
+  /** All lines, without the empty segment after a final line ending. */
+  ls: Line[];
+  /** Leading lines that are never edited: front matter, then the Spec heading and its blank lines. */
+  headEnd: number;
+  /** Free (editable) lines up to the end of the last kept block. */
+  a: Line[];
+  /** The kept Open questions / Subtasks blocks, in file order. */
+  kept: Line[];
+  /** Free lines after the last kept block; they start at a `## ` heading. */
+  b: Line[];
+  /** Lowercase heading text of b's first line, if any. */
+  anchor: string | null;
+  endsNl: boolean;
+}
+
+function splitBody(text: string): BodySplit {
+  let ls = toLines(text);
+  const endsNl = ls.length > 1 && ls[ls.length - 1]!.text === '';
+  if (endsNl) ls = ls.slice(0, -1);
+  const bodyStart = Math.min(splitFrontMatter(text).bodyStartLine, ls.length);
+  const sections = findSections(textsOf(ls), bodyStart);
+  const ranges = ['open questions', 'subtasks']
+    .map((k) => sections.get(k))
+    .filter((r): r is NonNullable<typeof r> => r !== undefined)
+    .sort((x, y) => x.headingLine - y.headingLine);
+  const kept: Line[] = [];
+  const inKept = new Set<number>();
+  for (const r of ranges) {
+    for (let i = r.headingLine; i < r.end; i++) {
+      kept.push(ls[i]!);
+      inKept.add(i);
+    }
+  }
+  const lastEnd = ranges.length > 0 ? ranges[ranges.length - 1]!.end : ls.length;
+  const firstKept = ranges.length > 0 ? ranges[0]!.headingLine : ls.length;
+
+  // Head: blank lines, the Spec heading and the blank lines after it (only when the heading comes first).
+  let headEnd = bodyStart;
+  const spec = sections.get('spec');
+  if (spec && spec.headingLine < firstKept && ls.slice(bodyStart, spec.headingLine).every(isBlank)) {
+    headEnd = spec.headingLine + 1;
+  }
+  while (headEnd < firstKept && isBlank(ls[headEnd]!)) headEnd++;
+
+  const a: Line[] = [];
+  const b: Line[] = [];
+  for (let i = headEnd; i < ls.length; i++) {
+    if (inKept.has(i)) continue;
+    (i < lastEnd ? a : b).push(ls[i]!);
+  }
+  const m = b.length > 0 ? HEADING_LINE.exec(b[0]!.text) : null;
+  return { ls, headEnd, a, kept, b, anchor: m ? m[1]!.trim().toLowerCase() : null, endsNl };
+}
+
+function trimTrailingBlank(ls: Line[]): Line[] {
+  let n = ls.length;
+  while (n > 0 && isBlank(ls[n - 1]!)) n--;
+  return ls.slice(0, n);
+}
+
+/**
+ * The editable body of a spec: everything after the front matter except the `## Spec` heading line
+ * and the `## Open questions` / `## Subtasks` sections. Other sections keep their headings.
+ * Leading and trailing blank lines are dropped.
+ */
+export function specBodyMd(text: string): string {
+  const s = splitBody(text);
+  const a = trimTrailingBlank(s.a);
+  const b = trimTrailingBlank(s.b);
+  const sep: Line[] = a.length > 0 && b.length > 0 ? [{ text: '', eol: a[a.length - 1]!.eol || detectEol(text) }] : [];
+  const all = [...a, ...sep, ...b];
+  return all.map((l, i) => l.text + (i === all.length - 1 ? '' : l.eol)).join('');
+}
+
+/**
+ * Replace the spec body (what `specBodyMd` returns). Front matter, the Spec heading, and the
+ * Open questions and Subtasks sections stay byte-for-byte. `## Open questions` / `## Subtasks`
+ * headings inside `md` become `###`. Sections that followed the kept blocks in the file (for example
+ * Notes) stay after them when `md` still has that heading; everything else goes before them.
+ * Line endings in `md` follow the file's.
+ */
+export function replaceSpecBody(text: string, md: string): string {
+  if (md === specBodyMd(text)) return text;
+  const eol = detectEol(text);
+  const s = splitBody(text);
+  const normalised = demoteKeptHeadings(md.replace(/\r?\n/g, eol)).replace(/^(?:[ \t]*\r?\n)+/, '');
+  const mdLines = toLines(normalised);
+  for (const l of mdLines) if (l.eol === '') l.eol = eol;
+  let aPart = mdLines;
+  let bPart: Line[] = [];
+  if (s.anchor !== null) {
+    const k = findSections(textsOf(mdLines), 0).get(s.anchor);
+    if (k) {
+      aPart = mdLines.slice(0, k.headingLine);
+      bPart = mdLines.slice(k.headingLine);
+    }
+  }
+  aPart = trimTrailingBlank(aPart);
+  bPart = trimTrailingBlank(bPart);
+  const out: Line[] = [...s.ls.slice(0, s.headEnd), ...aPart];
+  if (aPart.length > 0 && s.kept.length > 0) out.push({ text: '', eol });
+  out.push(...s.kept, ...bPart);
+  const last = out[out.length - 1];
+  if (last) last.eol = s.endsNl ? last.eol || eol : '';
+  return fromLines(out);
 }

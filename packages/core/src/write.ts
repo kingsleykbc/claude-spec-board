@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { hashText } from './hash.js';
 import { loadProject, type Spec } from './project.js';
 import { lockKey, withLock } from './lock.js';
+import { withRetry } from './retry.js';
 import { demoteH2 } from './sections.js';
 import { slugify } from './slug.js';
 import type { Urgency } from './types.js';
@@ -11,21 +12,6 @@ import type { Urgency } from './types.js';
 export type WriteResult =
   | { ok: true; hash: string; text: string }
   | { ok: false; conflict: true; currentText: string; currentHash: string };
-
-const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
-
-/** Retry an fs operation on Windows EPERM/EBUSY (up to 5 attempts, 50 ms backoff). */
-async function withRetry(op: () => Promise<void>): Promise<void> {
-  for (let attempt = 1; ; attempt++) {
-    try {
-      return await op();
-    } catch (e) {
-      const code = (e as NodeJS.ErrnoException).code;
-      if ((code !== 'EPERM' && code !== 'EBUSY') || attempt >= 5) throw e;
-      await sleep(50);
-    }
-  }
-}
 
 /**
  * Apply `transform` and write the result, but only if the file still hashes to `baseHash`.
@@ -182,4 +168,12 @@ export async function initProject(root: string, name: string): Promise<void> {
   } catch {
     await fs.writeFile(overview, '---\nupdated: null\n---\n', 'utf8');
   }
+}
+
+/** Write `<dir>/<base>.draft.md` next to `file` (overwriting any earlier draft) and return its path. */
+export async function writeSiblingDraft(file: string, text: string): Promise<string> {
+  const { dir, name } = path.parse(file);
+  const draft = path.join(dir, `${name}.draft.md`);
+  await withRetry(() => fs.writeFile(draft, text, 'utf8'));
+  return draft;
 }

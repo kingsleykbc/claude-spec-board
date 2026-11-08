@@ -1,6 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { hashText } from './hash.js';
+import { specBodyMd } from './edit.js';
+import { withRetry } from './retry.js';
 import { parseSpec } from './parseSpec.js';
 import { parseConfig, parseLog, parseOverview, type Overview, type ProjectConfig, type SubtaskLog } from './parseOther.js';
 import type { SpecDoc } from './types.js';
@@ -18,6 +20,8 @@ export interface Spec extends SpecDoc {
   blockedReasons: string[];
   progress: { done: number; total: number };
   logs: Record<number, SubtaskLog>;
+  /** Body Markdown without Open questions and Subtasks; what the SPEC panel shows and edits. */
+  bodyMd: string;
 }
 
 export interface Project {
@@ -31,7 +35,19 @@ export interface Project {
 
 interface DerivedState { dependents: string[]; blocked: boolean; blockedReasons: string[] }
 
-const byId = (a: { id: string }, b: { id: string }): number => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+/** Compare IDs like `T-999` and `T-1000` by prefix, then number. */
+export function compareIds(a: string, b: string): number {
+  const pa = /^(.*?)(\d+)$/.exec(a);
+  const pb = /^(.*?)(\d+)$/.exec(b);
+  if (pa && pb) {
+    if (pa[1] !== pb[1]) return pa[1]! < pb[1]! ? -1 : 1;
+    const d = Number(pa[2]) - Number(pb[2]);
+    if (d !== 0) return d < 0 ? -1 : 1;
+  }
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+const byId = (a: { id: string }, b: { id: string }): number => compareIds(a.id, b.id);
 
 /**
  * Derive dependents and blocked state. Looks at direct dependencies only (no recursion),
@@ -73,7 +89,7 @@ export function deriveState(active: SpecDoc[], archived: SpecDoc[]): Map<string,
 
 async function readIfExists(file: string): Promise<string | null> {
   try {
-    return await fs.readFile(file, 'utf8');
+    return await withRetry(() => fs.readFile(file, 'utf8'));
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null;
     throw e;
@@ -103,7 +119,7 @@ async function loadLogs(dir: string, problems: string[]): Promise<Record<number,
     const m = /^(\d+)-.*\.md$/i.exec(name);
     if (!m) continue;
     try {
-      const text = await fs.readFile(path.join(dir, 'logs', name), 'utf8');
+      const text = await withRetry(() => fs.readFile(path.join(dir, 'logs', name), 'utf8'));
       logs[Number(m[1])] = parseLog(text);
     } catch (e) {
       problems.push(`Cannot read log ${name}: ${(e as Error).message}`);
@@ -139,6 +155,7 @@ async function loadSpecFolder(root: string, kind: 'specs' | 'archive', folder: s
       slug,
       progress: { done: doc.subtasks.filter((s) => s.done).length, total: doc.subtasks.length },
       logs,
+      bodyMd: specBodyMd(text),
     };
   } catch (e) {
     projectProblems.push(`${rel}: ${(e as Error).message}`);
