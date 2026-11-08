@@ -39,10 +39,10 @@ Yes (`ok-tools.jsonl`, `denied.jsonl`, `no-settings.jsonl`).
 
 ## Q3. `Bash(git commit:*)` and PowerShell
 
-- `Bash(git commit:*)` works under Git Bash. `git commit -m probe-commit` ran with no denial and the commit exists (`git log`). A compound `git add d.txt && git commit -m compound` also passed when both `Bash(git add:*)` and `Bash(git commit:*)` were listed (both commits landed).
-- **A `PowerShell` tool exists** in the tool list on Windows (`init.tools`). When told to use it, the model does. When just asked to "list the files with a shell command" it chose `Bash`.
-- Bash rules do NOT cover it: `PowerShell` running `git commit ...` was denied (`powershell-denied.jsonl`) and so was `Set-Content`. Read-only PowerShell commands such as `git status` ran without a rule (same read-only exemption as Bash).
-- `PowerShell(git commit:*)` as an allow rule works (the same command then passed). Decision for M3: do NOT add PowerShell rules; leaving PowerShell write access denied is the safe default. The skills should say "use the Bash tool".
+- `Bash(git commit:*)` works under Git Bash: a plain `git commit -m probe-commit` ran with no denial and the commit landed (checked with `git log`; not a committed fixture). A compound `git add d.txt && git commit -m compound` passed when `Bash(git add:*)` and `Bash(git commit:*)` were listed (`bash-compound.jsonl`: one `Bash` tool_use with the `&&` command, `permission_denials: []`, commit landed).
+- **A `PowerShell` tool exists** in the tool list on Windows (`init.tools`). When told to use it, the model does (`powershell-readonly.jsonl`). When just asked to "list the files with a shell command" it chose `Bash` (`shell-command-bash.jsonl`; one sample, the model could differ).
+- Bash rules do NOT cover it: `PowerShell` running `git commit ...` was denied (`powershell-denied.jsonl`) and so was `Set-Content`. The read-only PowerShell command `git status` ran with no PowerShell rule (`powershell-readonly.jsonl`, `permission_denials: []`).
+- `PowerShell(git commit:*)` as an allow rule works (the same command then passed: `powershell-allowed.jsonl`). Decision for M3: do NOT add PowerShell rules; leaving PowerShell write access denied is the safe default. The skills should say "use the Bash tool".
 
 ## Q4. SIGTERM / `taskkill`
 
@@ -61,23 +61,48 @@ Event order for a normal run (`ok-tools.jsonl`): `system/init`, `assistant` (thi
 - Other `assistant` keys: `session_id`, `uuid`, `timestamp`, `parent_tool_use_id` (null at top level), `request_id`.
 - `result` event (success): `type:"result"`, `subtype:"success"`, `is_error:false`, `result:"done"` (final assistant text), `num_turns`, `stop_reason:"end_turn"`, `terminal_reason:"completed"`, `session_id`, `total_cost_usd`, `duration_ms`, `usage`, `modelUsage`, `permission_denials:[]`.
 - `result` (failure, `error-max-turns.jsonl`, `--max-turns 1`): `subtype:"error_max_turns"`, `is_error:true`, `errors:["Reached maximum number of turns (1)"]`, `terminal_reason:"max_turns"`, process exit code **1**.
-- Bad model (`bad-model.jsonl`, `--model nosuchmodel`): exit code 1, stderr `[claude-code:unrecognized_model] {...}`, stream has `init`, a synthetic assistant message and an error `result`.
+- Bad model (`bad-model.jsonl`, `--model nosuchmodel`): exit code 1, stderr `[claude-code:unrecognized_model] {...}`. The stream is `init`, a synthetic assistant message, and a `result` with **`subtype:"success"` but `is_error:true`, `terminal_reason:"api_error"`, `api_error_status:404`**, error text in `result`. `subtype` is NOT the failure signal here: use `is_error`, `terminal_reason` and the exit code.
+- `system/permission_denied` (live event, emitted when a tool call is refused, before the matching `user` tool_result): `{"type":"system","subtype":"permission_denied","tool_name":"Bash","tool_use_id":"toolu_..","decision_reason_type":"mode"|"rule","message":"..","uuid":"..","session_id":".."}`. `decision_reason_type:"mode"` means no allow rule matched, so `dontAsk` refused it (message "...because Claude Code is running in don't ask mode..."). `"rule"` means an explicit `deny` rule matched (message "Permission to use Bash with command git status has been denied."). Present in denied, deny-rule, outside-write, claude-dir-write, powershell-denied, recommended. Caveat: a Write/Edit refused by an explicit deny rule on a path (`claude-dir-deny.jsonl`) emitted NO such event; it has only the `tool_use_error` tool_result and the `permission_denials` entry. So the final `permission_denials` array is the complete list; the events are not.
 - `--max-turns N` counts tool round trips; it stops with the failure above, so leave headroom.
 
 ## Denials (`denied.jsonl`, `deny-rule.jsonl`)
 
 - A denied tool call does **not** stop the run. The `tool_result` has `is_error:true` with text such as `Permission to use Bash has been denied because Claude Code is running in don't ask mode. IMPORTANT: You *may* attempt to ... other tools ...`; the model then continues and explains, ending with a normal `result`.
-- A denied run still ends with `subtype:"success"`, `is_error:false`, `terminal_reason:"completed"`, and **exit code 0**. The only machine-readable signal is `permission_denials`.
+- A denied run still ends with `subtype:"success"`, `is_error:false`, `terminal_reason:"completed"`, and **exit code 0**. Machine-readable signals are the live `system/permission_denied` events (see Stream shapes) and the `permission_denials` array in the final `result`.
 - `permission_denials` shape (array in the final `result`): `{"tool_name":"Bash","tool_use_id":"toolu_..","tool_input":{"command":"npm --version","description":"Print npm version"}}`. For Write it holds `file_path` and `content`; for Edit `file_path`, `old_string`, `new_string`, `replace_all`.
 - **Is that enough to build a rule?** Yes for Bash (exact `command` string, so `Bash(npm --version)` or a prefix `Bash(npm:*)`), and for Edit/Write (tool name and absolute `file_path`). It is complete per tool call, including compound or multi-line commands, so the UI should offer an exact or prefix rule and let the human choose. The list is only in the final `result`; a killed run has none.
 - `permissions.deny` beats `permissions.allow`: with `Bash(git status:*)` in both, `git status` was denied (`deny-rule.jsonl`; `tool_result` text `Permission to use Bash with command git status has been denied.`, and the denial is listed in `permission_denials`).
 
-## Can Edit/Write to `.claude/**` be blocked?
+## Dot-directories, `.specboard/` and `.claude/`
 
-Yes, two ways (`claude-dir-deny.jsonl`, `claude-dir-write.jsonl`):
+- `Write(./**)` and `Edit(./**)` DO match ordinary dot-directories. An Edit of the existing `.specboard/specs/x.md` (`todo` to `doing`, verified on disk) and a Write of a new `.specboard/specs/new.md` both succeeded with `permission_denials: []` (`dot-specboard-glob.jsonl`). A Write to `.foo/x.txt` also succeeded (`dot-other.jsonl`). No separate `Write(./.specboard/**)` rule is needed.
+- `.claude/` is the exception. With only `Write(./**)` allowed, a Write to `.claude/skills/probe/EXTRA.md` was refused with `decision_reason_type:"mode"` (`claude-dir-write.jsonl`): `./**` does not grant `.claude/` (a built-in protection for that directory; other dot paths are unaffected, as the two runs above show).
+- Explicit deny: `deny: ["Edit(./.claude/**)","Write(./.claude/**)"]` refuses a new-file Write and an Edit of `SKILL.md` with `<tool_use_error>File is in a directory that is denied by your permission settings.</tool_use_error>`, listed in `permission_denials` but with no `permission_denied` event (`claude-dir-deny.jsonl`). Ship the deny rules so the result does not depend on the built-in default.
+- **Recommended allow list** (`recommended.jsonl`, one run asking for four Writes): allow `Read(./**)`, `Edit(./**)`, `Write(./**)` plus the Bash prefixes the skills need (`git status`, `git add`, `git commit`, ...); deny `Edit(./.claude/**)`, `Write(./.claude/**)`. Result: `.specboard/specs/y.md` and `src/z.txt` were written; `.claude/hooks-test.md` (explicit deny) and a path outside the project (`mode`) were refused. Project files and `.specboard/` are writable; `.claude/` and the outside world are not.
 
-- With `deny: ["Edit(./.claude/**)","Write(./.claude/**)"]` plus broad allows, both a Write of a new file and an Edit of `SKILL.md` were refused. The tool_result is `<tool_use_error>File is in a directory that is denied by your permission settings.</tool_use_error>` (a different text from the dontAsk one) and both calls appear in `permission_denials`. The skill files were unchanged.
-- Even with only `Write(./**)` allowed and no deny rule, a Write to `.claude/skills/probe/EXTRA.md` was refused (listed in `permission_denials`). So `.claude/` seems protected by default under `dontAsk`. The explicit deny rules are still worth shipping so the behaviour does not depend on that default.
+## Settings JSON used per fixture
+
+Base set A = `{"permissions":{"allow":["Read(./**)","Edit(./**)","Write(./**)","Bash(git status:*)","Bash(git diff:*)","Bash(git commit:*)"]}}`. Every run used `--model haiku --output-format stream-json --verbose --permission-mode dontAsk --max-turns 8`, except error-max-turns (`--max-turns 1`) and bad-model (`--model nosuchmodel --max-turns 1`).
+
+| Fixture | --settings | Prompt gist |
+|---|---|---|
+| ok-tools | A | `/probe alpha42` |
+| no-settings | flag omitted | `/probe alpha42` |
+| denied | A | run `npm --version` |
+| deny-rule | allow Read/Edit/Write(./**), `Bash(git status:*)`, `Bash(git commit:*)`; deny `Bash(git status:*)` | run `git status` |
+| outside-write | A | Write to an existing folder outside the project |
+| claude-dir-write | A | Write `.claude/skills/probe/EXTRA.md` |
+| claude-dir-deny | allow Read/Edit/Write(./**); deny `Edit(./.claude/**)`, `Write(./.claude/**)` | Write EXTRA.md, Edit SKILL.md under `.claude` |
+| dot-specboard-glob | A | Edit `.specboard/specs/x.md`, Write `.specboard/specs/new.md` |
+| dot-other | A | Write `.foo/x.txt` |
+| recommended | A + `Bash(git add:*)` + the two `.claude` deny rules | four Writes: `.specboard`, `src`, `.claude`, outside |
+| bash-compound | allow Read/Edit/Write(./**), `Bash(git status:*)`, `Bash(git add:*)`, `Bash(git commit:*)`, `PowerShell(git commit:*)` | Bash: `git add d.txt && git commit -m compound` |
+| powershell-denied | A | PowerShell: `git commit --allow-empty ...` |
+| powershell-allowed | same as bash-compound | PowerShell: `git commit --allow-empty -m ps-commit` |
+| powershell-readonly | A | PowerShell: `git status` |
+| shell-command-bash | A | "list the files with a shell command" |
+| error-max-turns | A | `/probe gamma` |
+| bad-model | A | `hi` |
 
 ## Decision 1 check
 
