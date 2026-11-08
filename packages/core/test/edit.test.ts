@@ -44,6 +44,40 @@ describe.each([
     expect(parseSpec(setMetaField(text, 'current_subtask', 2)).currentSubtask).toBe(2);
     if (eol === '\r\n') expect(noLoneLf(out)).toBe(true);
   });
+  it('setMetaField leaves non-canonical untouched front matter lines byte-identical', () => {
+    const long = 'x'.repeat(100);
+    const odd = [
+      '---', 'id: T-1', 'title:   "Hello: there"   # c', 'status:   todo  # s', 'categories: [A,   B]',
+      'list:', '- a', '- b', 'summary: ' + long + ' ' + long, 'urgency: low', '---', '', 'body', '',
+    ].join(eol);
+    const rows = odd.split(/\r?\n/);
+    const out = setMetaField(odd, 'status', 'doing');
+    const idx = rows.findIndex((l) => l.startsWith('status:'));
+    expect(changedLines(odd, out)).toEqual([idx]);
+    expect(lineOf(out, idx)).toBe('status: doing');
+    if (eol === '\r\n') expect(noLoneLf(out)).toBe(true);
+    const list = setMetaField(odd, 'list' as 'status', ['q']);
+    expect(lineOf(list, rows.findIndex((l) => l.startsWith('list:')))).toBe('list: [q]');
+    expect(list.split(/\r?\n/).length).toBe(rows.length - 2);
+    expect(setMetaField(odd, 'categories', ['Frontend', 'Backend'])).toContain(
+      'categories: [Frontend, Backend]' + eol + 'list:',
+    );
+  });
+  it('setMetaField adds an absent key as exactly one line before the closing ---', () => {
+    const noUpd = text.replace(/^updated:.*\r?\n/m, '');
+    const out = setMetaField(noUpd, 'updated', '2026-12-01');
+    const before = noUpd.split(/\r?\n/);
+    const closing = before.indexOf('---', 1);
+    const expected = [...before.slice(0, closing), 'updated: 2026-12-01', ...before.slice(closing)];
+    expect(out.split(/\r?\n/)).toEqual(expected);
+    if (eol === '\r\n') expect(noLoneLf(out)).toBe(true);
+  });
+  it('setAnswers collapses newlines in values', () => {
+    const out = setAnswers(text, { Q1: 'a\nb\r\nc' });
+    expect(parseSpec(out).questions[0]!.answer).toBe('a b c');
+    expect(out.split(/\r?\n/).length).toBe(text.split(/\r?\n/).length);
+    if (eol === '\r\n') expect(noLoneLf(out)).toBe(true);
+  });
   it('setSubtaskDone', () => {
     const out = setSubtaskDone(text, 2, true);
     const line = parseSpec(text).subtasks[1]!.line;

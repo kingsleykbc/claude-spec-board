@@ -1,4 +1,4 @@
-import { parseDocument } from 'yaml';
+import { Document, parseDocument, visit } from 'yaml';
 import { splitFrontMatter } from './frontmatter.js';
 import { findSections } from './sections.js';
 
@@ -22,19 +22,46 @@ export function detectEol(text: string): '\n' | '\r\n' {
 
 const splitLines = (text: string): string[] => text.split(/\r?\n/);
 
-/** Set one front matter key via the yaml Document API (comments survive). Only the front matter block is rewritten. */
+const TOP_KEY = /^([A-Za-z_][\w-]*)[ \t]*:/;
+
+/** Serialise a single `key: value` entry; arrays use flow style so they stay on one line. */
+function serialiseEntry(key: string, value: unknown): string[] {
+  const doc = new Document({ [key]: value });
+  visit(doc, { Seq: (_k, node) => void (node.flow = true) });
+  return doc.toString({ lineWidth: 0, flowCollectionPadding: false }).replace(/\r?\n$/, '').split('\n');
+}
+
+/**
+ * Set one top-level front matter key. Only that key's own lines (its line plus any indented/list
+ * continuation lines) are replaced; every other front matter line stays byte-identical.
+ */
 export function setMetaField(text: string, key: MetaKey, value: unknown): string {
   const { yaml, bodyStartLine } = splitFrontMatter(text);
   if (yaml === null) throw new Error('No front matter');
-  const eol = detectEol(text);
-  const lines = splitLines(text);
   const doc = parseDocument(yaml);
   if (doc.errors.length > 0) throw new Error(`Front matter is not valid YAML: ${doc.errors[0]!.message}`);
-  doc.set(key, value);
-  const out = String(doc).replace(/\r?\n$/, '');
-  const inner = out === '' ? [] : out.split('\n');
-  // lines[0] is the opening ---, lines[bodyStartLine - 1] the closing ---
-  return [...lines.slice(0, 1), ...inner, ...lines.slice(bodyStartLine - 1)].join(eol);
+  const eol = detectEol(text);
+  const lines = splitLines(text);
+  const closing = bodyStartLine - 1; // lines[0] is the opening ---, lines[closing] the closing ---
+  const entry = serialiseEntry(key, value);
+  let start = -1;
+  for (let i = 1; i < closing; i++) {
+    const m = TOP_KEY.exec(lines[i]!);
+    if (m && m[1] === key) {
+      start = i;
+      break;
+    }
+  }
+  if (start === -1) {
+    lines.splice(closing, 0, ...entry);
+    return lines.join(eol);
+  }
+  let end = start + 1;
+  while (end < closing && !TOP_KEY.test(lines[end]!)) end++;
+  // Blank or column-0 comment lines just before the next key belong to that key, not this one.
+  while (end - 1 > start && /^(#.*|[ \t]*)$/.test(lines[end - 1]!)) end--;
+  lines.splice(start, end - start, ...entry);
+  return lines.join(eol);
 }
 
 export function setSubtaskDone(text: string, n: number, done: boolean): string {
@@ -67,7 +94,7 @@ export function setAnswers(text: string, answers: Record<string, string>): strin
   }
   // Bottom-up so insertions don't shift lines still to be edited.
   for (const { line, id } of targets.reverse()) {
-    const value = answers[id]!.trim();
+    const value = answers[id]!.replace(/(?:\r?\n)+/g, ' ').trim();
     const m = QUESTION.exec(lines[line]!)!;
     lines[line] = `- [${value === '' ? ' ' : 'x'}]${m[2]}${m[3]}${m[4]}`;
     const answerLine = value === '' ? '  > answer:' : `  > answer: ${value}`;
