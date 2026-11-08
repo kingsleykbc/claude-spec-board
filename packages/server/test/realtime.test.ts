@@ -1,0 +1,201 @@
+import fs from 'node:fs/promises';
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
+import os from 'node:os';
+import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import WebSocket from 'ws';
+import { hashText, loadProject, setMetaField, writeIfUnchanged } from '@specboard/core';
+import { attachRealtime } from '../src/app.js';
+import { Registry } from '../src/registry.js';
+
+const SAMPLE = path.resolve(import.meta.dirname, '../../../examples/recipe-box');
+
+let tmp: string;
+let proj: string;
+let pid: string;
+let registry: Registry;
+let server: http.Server;
+let port: number;
+let rt: Awaited<ReturnType<typeof attachRealtime>>;
+const sockets: WebSocket[] = [];
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Poll until `cond` holds or the deadline passes. */
+async function until(cond: () => boolean, ms = 2000): Promise<boolean> {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    if (cond()) return true;
+    await sleep(15);
+  }
+  return cond();
+}
+
+interface Client {
+  ws: WebSocket;
+  msgs: { type: string; pid?: string }[];
+  changed: () => number;
+}
+
+async function connect(origin?: string): Promise<Client> {
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`, {
+    headers: { Host: `127.0.0.1:${port}`, ...(origin ? { Origin: origin } : {}) },
+  });
+  sockets.push(ws);
+  const msgs: Client['msgs'] = [];
+  ws.on('message', (d) => msgs.push(JSON.parse(String(d))));
+  await new Promise<void>((res, rej) => {
+    ws.once('open', () => res());
+    ws.once('error', rej);
+  });
+  return { ws, msgs, changed: () => msgs.filter((m) => m.type === 'project-changed').length };
+}
+
+async function subscribed(pidToUse = pid): Promise<Client> {
+  const c = await connect();
+  c.ws.send(JSON.stringify({ type: 'subscribe', pid: pidToUse }));
+  await sleep(400); // let the watcher become ready
+  return c;
+}
+
+async function specFile(): Promise<string> {
+  const p = await loadProject(proj);
+  return p.specs[0]!.path;
+}
+
+async function editSpec(): Promise<void> {
+  const file = await specFile();
+  const text = await fs.readFile(file, 'utf8');
+  await writeIfUnchanged(file, hashText(text), (t) => setMetaField(t, 'urgency', /urgency: high/.test(t) ? 'low' : 'high'));
+}
+
+beforeEach(async () => {
+  tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'sb-rt-'));
+  proj = path.join(tmp, 'recipe-box');
+  await fs.cp(SAMPLE, proj, { recursive: true });
+  registry = new Registry(path.join(tmp, 'projects.json'));
+  pid = (await registry.add(proj)).id;
+  server = http.createServer((_q, s) => s.end());
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  port = (server.address() as AddressInfo).port;
+  rt = await attachRealtime(server, { registry, port: () => port, webDist: null });
+  await sleep(300); // initial watchers settle
+});
+
+afterEach(async () => {
+  for (const s of sockets.splice(0)) s.terminate();
+  await rt.close();
+  await new Promise<void>((r) => server.close(() => r()));
+  await fs.rm(tmp, { recursive: true, force: true });
+});
+
+describe('realtime', () => {
+  it('sends hello on connect', async () => {
+    const c = await connect();
+    expect(await until(() => c.msgs.some((m) => m.type === 'hello'))).toBe(true);
+    expect(c.msgs[0]).toEqual({ type: 'hello', app: 'specboard' });
+  });
+
+  it('notifies a subscribed client after a write through core', async () => {
+    const c = await subscribed();
+    const t0 = Date.now();
+    await editSpec();
+    expect(await until(() => c.changed() >= 1, 1000)).toBe(true);
+    expect(Date.now() - t0).toBeLessThan(1000);
+    expect(c.msgs.find((m) => m.type === 'project-changed')).toEqual({ type: 'project-changed', pid });
+  });
+
+  it('does not notify clients subscribed to another project', async () => {
+    const c = await subscribed('nope0000');
+    await editSpec();
+    await sleep(700);
+    expect(c.changed()).toBe(0);
+  });
+
+  it('collapses 20 quick writes into at most 2 events', async () => {
+    const c = await subscribed();
+    const file = await specFile();
+    const base = await fs.readFile(file, 'utf8');
+    for (let i = 0; i < 20; i++) {
+      await fs.writeFile(file, base + `\n<!-- ${i} -->\n`, 'utf8');
+      await sleep(3);
+    }
+    expect(await until(() => c.changed() >= 1, 1000)).toBe(true);
+    await sleep(600);
+    expect(c.changed()).toBeLessThanOrEqual(2);
+  });
+
+  it('ignores *.tmp and *.draft.md files', async () => {
+    const c = await subscribed();
+    await fs.writeFile(path.join(proj, '.specboard', 'x.tmp'), 'x', 'utf8');
+    await fs.writeFile(path.join(proj, '.specboard', 'specs', 'spec.draft.md'), '# d', 'utf8');
+    await sleep(800);
+    expect(c.changed()).toBe(0);
+  });
+
+  it('notifies when a linked reference file changes', async () => {
+    const c = await subscribed();
+    await fs.appendFile(path.join(proj, 'docs', 'RULES.md'), '\nmore\n', 'utf8');
+    expect(await until(() => c.changed() >= 1)).toBe(true);
+  });
+
+  it('picks up references added later via config.md', async () => {
+    const c = await subscribed();
+    await fs.writeFile(path.join(proj, 'docs', 'NEW.md'), '# new\n', 'utf8');
+    const cfg = path.join(proj, '.specboard', 'config.md');
+    const text = await fs.readFile(cfg, 'utf8');
+    await fs.writeFile(cfg, text.replace('references:\n', 'references:\n  - docs/NEW.md\n'), 'utf8');
+    expect(await until(() => c.changed() >= 1)).toBe(true);
+    await sleep(600);
+    const before = c.changed();
+    await fs.appendFile(path.join(proj, 'docs', 'NEW.md'), 'x\n', 'utf8');
+    expect(await until(() => c.changed() > before)).toBe(true);
+  });
+
+  it('never watches references outside the project', async () => {
+    const outside = path.join(tmp, 'outside.md');
+    await fs.writeFile(outside, '# o\n', 'utf8');
+    const cfg = path.join(proj, '.specboard', 'config.md');
+    const text = await fs.readFile(cfg, 'utf8');
+    await fs.writeFile(cfg, text.replace('references:\n', 'references:\n  - ../outside.md\n'), 'utf8');
+    const c = await subscribed();
+    await sleep(600);
+    const before = c.changed();
+    await fs.appendFile(outside, 'x\n', 'utf8');
+    await sleep(700);
+    expect(c.changed()).toBe(before);
+  });
+
+  it('watches a project registered after startup via watch(pid)', async () => {
+    const proj2 = path.join(tmp, 'second');
+    await fs.cp(SAMPLE, proj2, { recursive: true });
+    const pid2 = (await registry.add(proj2)).id;
+    await rt.watch(pid2);
+    const c = await subscribed(pid2);
+    await fs.appendFile(path.join(proj2, 'docs', 'RULES.md'), '\nmore\n', 'utf8');
+    expect(await until(() => c.changed() >= 1)).toBe(true);
+  });
+
+  it('rejects an upgrade with a foreign Origin (403)', async () => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`, { headers: { Host: `127.0.0.1:${port}`, Origin: 'http://evil.com' } });
+    sockets.push(ws);
+    const status = await new Promise<number>((res) => {
+      ws.once('unexpected-response', (_q, r) => res(r.statusCode ?? 0));
+      ws.once('open', () => res(101));
+      ws.once('error', () => res(-1));
+    });
+    expect(status).toBe(403);
+  });
+
+  it('rejects an upgrade with a bad Host (403)', async () => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`, { headers: { Host: 'evil.com' } });
+    sockets.push(ws);
+    const status = await new Promise<number>((res) => {
+      ws.once('unexpected-response', (_q, r) => res(r.statusCode ?? 0));
+      ws.once('open', () => res(101));
+      ws.once('error', () => res(-1));
+    });
+    expect(status).toBe(403);
+  });
+});

@@ -1,8 +1,12 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import type { Server } from 'node:http';
 import { Hono } from 'hono';
 import { compareIds, loadProject, nextId } from '@specboard/core';
-import type { Registry } from './registry.js';
+import type { ProjectEntry, Registry } from './registry.js';
+import { Hub } from './hub.js';
+import { PathError, safeProjectPath } from './safePath.js';
+import { watchProject } from './watch.js';
 import { guard } from './security.js';
 import { specRoutes } from './routes/specs.js';
 import { referenceRoutes } from './routes/references.js';
@@ -92,4 +96,63 @@ export function createApp(deps: AppDeps): Hono {
   }
 
   return app;
+}
+
+export interface Realtime {
+  /** Start watching a project (no-op if already watched or unknown). */
+  watch(pid: string): Promise<void>;
+  close(): Promise<void>;
+}
+
+/** Absolute paths of a project's safe, existing reference files. Anything unsafe or missing is skipped. */
+async function referenceFiles(entry: ProjectEntry): Promise<string[]> {
+  const { config } = await loadProject(entry.root);
+  const out: string[] = [];
+  for (const ref of config?.references ?? []) {
+    try {
+      const abs = safeProjectPath(entry.root, ref);
+      if ((await fs.stat(abs)).isFile()) out.push(abs);
+    } catch (e) {
+      if (!(e instanceof PathError) && (e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+    }
+  }
+  return out;
+}
+
+/** WebSocket `/ws` on `server` plus file watching for every registered project. */
+export async function attachRealtime(server: Server, deps: AppDeps): Promise<Realtime> {
+  const stops = new Map<string, Promise<(() => Promise<void>) | null>>();
+  let closed = false;
+  const hub = new Hub(server, deps.port, (pid) => void watch(pid));
+
+  async function watch(pid: string): Promise<void> {
+    if (closed || stops.has(pid)) return;
+    const started = (async () => {
+      const entry = await deps.registry.get(pid);
+      if (!entry || closed) return null;
+      return watchProject(entry, () => referenceFiles(entry), (id) => hub.broadcast(id));
+    })();
+    stops.set(pid, started);
+    try {
+      if ((await started) === null) stops.delete(pid);
+    } catch {
+      stops.delete(pid);
+    }
+  }
+
+  await Promise.all((await deps.registry.list()).map((e) => watch(e.id)));
+
+  return {
+    watch,
+    async close() {
+      closed = true;
+      await hub.close();
+      const all = [...stops.values()];
+      stops.clear();
+      for (const p of all) {
+        const stop = await p.catch(() => null);
+        if (stop) await stop();
+      }
+    },
+  };
 }
