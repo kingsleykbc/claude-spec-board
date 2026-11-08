@@ -190,12 +190,15 @@ export function replaceSection(text: string, heading: string, newBody: string): 
 // ---- Spec body: everything except front matter, the Spec heading, Open questions and Subtasks ----
 
 const FENCE_LINE = /^[ \t]*(```|~~~)/;
-const KEPT_HEADING = /^##[ \t]+(open questions|subtasks)[ \t]*#*[ \t]*$/i;
+const KEPT_HEADING = /^##[ \t]+(spec|open questions|subtasks)[ \t]*#*[ \t]*$/i;
 const HEADING_LINE = /^##[ \t]+(.+?)[ \t]*#*[ \t]*$/;
 const isBlank = (l: Line): boolean => l.text.trim() === '';
 
-/** Demote `## Open questions` / `## Subtasks` headings (outside code fences) to `###`. */
-function demoteKeptHeadings(md: string): string {
+/**
+ * Make `md` safe to place in a spec: `## Spec` / `## Open questions` / `## Subtasks` headings outside
+ * code fences become `###`, and a code fence still open at the end is closed with a matching fence line.
+ */
+function sanitizeBodyMd(md: string, eol: string): string {
   const parts = md.split(/(\r?\n)/);
   let fence: string | null = null;
   for (let i = 0; i < parts.length; i += 2) {
@@ -207,7 +210,8 @@ function demoteKeptHeadings(md: string): string {
     }
     if (fence === null && KEPT_HEADING.test(parts[i]!)) parts[i] = `#${parts[i]}`;
   }
-  return parts.join('');
+  const out = parts.join('');
+  return fence === null ? out : `${out}${eol}${fence}`;
 }
 
 interface BodySplit {
@@ -296,7 +300,7 @@ export function replaceSpecBody(text: string, md: string): string {
   if (md === specBodyMd(text)) return text;
   const eol = detectEol(text);
   const s = splitBody(text);
-  const normalised = demoteKeptHeadings(md.replace(/\r?\n/g, eol)).replace(/^(?:[ \t]*\r?\n)+/, '');
+  const normalised = sanitizeBodyMd(md.replace(/\r?\n/g, eol), eol).replace(/^(?:[ \t]*\r?\n)+/, '');
   const mdLines = toLines(normalised);
   for (const l of mdLines) if (l.eol === '') l.eol = eol;
   let aPart = mdLines;

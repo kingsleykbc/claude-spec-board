@@ -79,6 +79,21 @@ describe.each([
     expect(out).toContain('### Subtasks');
     expect(out).toContain('### Open questions');
   });
+  it('closes an unbalanced code fence so the kept sections survive', () => {
+    for (const open of ['```', '~~~']) {
+      const out = replaceSpecBody(t, `x\n${open}\ncode`);
+      expect(parseSpec(out).subtasks.length).toBe(parseSpec(t).subtasks.length);
+      expect(parseSpec(out).questions).toEqual(parseSpec(t).questions);
+      expect(keptBlocks(out)).toBe(keptBlocks(t));
+      expect(specBodyMd(out)).not.toContain('- [ ] 1.');
+      if (eol === '\r\n') expect(/(?<!\r)\n/.test(out)).toBe(false);
+    }
+  });
+  it('demotes a pasted Spec heading', () => {
+    const out = replaceSpecBody(t, '## Spec\nfoo');
+    expect(parseSpec(out).specMd).toContain('foo');
+    expect(out).toContain('### Spec');
+  });
 });
 
 describe('replaceSpecBody edge cases', () => {
