@@ -60,7 +60,7 @@ export async function start(opts: StartOptions): Promise<Started> {
   const root = path.resolve(opts.path);
   if (!fs.existsSync(path.join(root, '.specboard', 'config.md'))) {
     throw new Error(
-      `No .specboard folder in ${root}. Run the Claude Code /create-spec command or "specboard init" (coming in M3).`,
+      `No .specboard folder in ${root}. Run "specboard init" to set it up.`,
     );
   }
   const registry = new Registry(registryFile());

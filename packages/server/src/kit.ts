@@ -23,12 +23,12 @@ export async function kitSkills(): Promise<{ name: string; text: string }[]> {
 }
 
 /**
- * Refuse to install through a link: every existing component of `.claude/skills/<name>/SKILL.md` must be a real
+ * Refuse to write through a link: every existing component of `parts` (e.g. `.claude/skills/<name>/SKILL.md`) must be a real
  * file or folder (symlinks and Windows junctions both show up as links in lstat) inside the real project root.
  */
-async function assertNoLinks(realRoot: string, name: string): Promise<void> {
+export async function assertNoLinks(realRoot: string, parts: string[], what = 'install skills'): Promise<void> {
   let current = realRoot;
-  for (const part of ['.claude', 'skills', name, 'SKILL.md']) {
+  for (const part of parts) {
     current = path.join(current, part);
     let st;
     try {
@@ -38,7 +38,7 @@ async function assertNoLinks(realRoot: string, name: string): Promise<void> {
       throw err;
     }
     if (st.isSymbolicLink() || (await fs.realpath(current)) !== current) {
-      throw new Error(`Refusing to install skills: ${current} is a link, not a real file or folder`);
+      throw new Error(`Refusing to ${what}: ${current} is a link, not a real file or folder`);
     }
   }
 }
@@ -50,7 +50,7 @@ async function assertNoLinks(realRoot: string, name: string): Promise<void> {
 export async function installSkills(root: string, opts: { force?: boolean } = {}): Promise<InstallResult[]> {
   const realRoot = await fs.realpath(root);
   const kit = await kitSkills();
-  for (const { name } of kit) await assertNoLinks(realRoot, name); // check everything before writing anything
+  for (const { name } of kit) await assertNoLinks(realRoot, ['.claude', 'skills', name, 'SKILL.md']); // check everything before writing anything
   const results: InstallResult[] = [];
   for (const { name, text } of kit) {
     const file = path.join(realRoot, '.claude', 'skills', name, 'SKILL.md');
