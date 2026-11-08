@@ -111,3 +111,18 @@ Nothing contradicted Decision 1: approved settings passed via `--settings` with 
 ## Rough cost
 
 About $0.002 to $0.007 and 15 to 25 s per haiku probe, mostly startup. Plan on ~20 s per real run in any manual check.
+
+## Skills kit: loading the `specboard` rules under the allow-list (Task 3 probes)
+
+Probed 2026-11-08, haiku, `--permission-mode dontAsk`, allow `Read/Edit/Write(./**)`, `Bash(git status|diff|log|add|commit:*)` (and `Bash(npm test:*)`), deny `Edit/Write(./.claude/**)`. Run from Git Bash with `MSYS_NO_PATHCONV=1`, `CLAUDE*`/`ANTHROPIC*` variables unset, stdin ignored.
+
+- A skill with `disable-model-invocation: true` DOES run when the prompt is `/cmd ARG1` in `-p` mode. `$ARGUMENTS` is substituted. The model-invocation flag only hides the skill from the model; it does not block a slash command.
+- Both ways of loading the shared rules worked with no denial (`permission_denials: []`): (a) the command body says "Read `.claude/skills/specboard/SKILL.md`" and the model calls `Read` (reading `.claude/` is allowed; only writes to it are protected); (b) the body says "load the `specboard` skill with the Skill tool" and the model calls `Skill {skill:"specboard"}`, which needs no allow rule (matches Q1 above).
+- Decision: every command tells Claude to Read `.claude/skills/specboard/SKILL.md` first, and to load the `specboard` skill instead if that file is missing. Read is on the allow-list and does not depend on the model choosing to call a tool that might be gated in someone's settings. No build step, no shared text copied into each command.
+- **Task 4's default allow-list needs no change** for this: `Read(./**)` covers it, `Skill` stays off the list.
+- End-to-end check with the real kit (`/run-spec T-001`, two subtasks, haiku, max 40 turns): ended `status: review`, two commits `T-001 · 1. ...` and `T-001 · 2. ...`, two logs with hash and files, `permission_denials: []`. `/run-spec T-002` (one unanswered question) changed nothing and refused.
+- Lessons that shaped the skill wording (the first two runs stopped early with a "please allow Bash" question):
+  - The model reached for `cat`/`ls` through `Bash` to read the spec; that was denied and it then gave up on all of Bash. The rules now say to read and list with Read/Glob/Grep and to use Bash only for git and the tests.
+  - It chained `npm test && node -e "..."`; the compound was refused because `node` is not listed. The rules now say to run the test command alone and not to run ad-hoc scripts.
+- `Glob` and `Grep` work under `dontAsk` without allow rules.
+- Bookkeeping files under `.specboard/` are deliberately left out of the per-subtask commits (the commit message and log need the hash, so the log cannot be inside it); they remain uncommitted for the person to review.
