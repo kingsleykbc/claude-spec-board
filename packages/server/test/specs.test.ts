@@ -1,11 +1,23 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashText, loadProject } from '@specboard/core';
 import type { Spec } from '@specboard/core';
 import { createApp } from '../src/app.js';
 import { Registry } from '../src/registry.js';
+
+const boom = vi.hoisted(() => ({ on: false }));
+vi.mock('@specboard/core', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@specboard/core')>();
+  return {
+    ...real,
+    writeIfUnchanged: (...a: Parameters<typeof real.writeIfUnchanged>) => {
+      if (boom.on) throw new Error('boom');
+      return real.writeIfUnchanged(...a);
+    },
+  };
+});
 
 const SAMPLE = path.resolve(import.meta.dirname, '../../../examples/recipe-box');
 const HEADERS = { Host: '127.0.0.1:4949', 'Content-Type': 'application/json' };
@@ -66,12 +78,13 @@ describe('spec mutations', () => {
     const before = await fs.readFile(file, 'utf8');
     const res = await send('PATCH', '/specs/T-101/meta', { hash: 'stale', key: 'status', value: 'review' });
     expect(res.status).toBe(409);
-    expect(await res.json()).toEqual({ conflict: true, currentHash: hashText(before) });
+    expect(await res.json()).toEqual({ conflict: true, currentHash: hashText(before), currentText: before });
     expect(await fs.readFile(file, 'utf8')).toBe(before);
   });
 
   it('rejects invalid values, unknown keys and bad bodies with 400', async () => {
     const s = await get('T-101');
+    const untouched = await fs.readFile(specFile('T-101'), 'utf8');
     const bad = await send('PATCH', '/specs/T-101/meta', { hash: s.hash, key: 'status', value: 'wip' });
     expect(bad.status).toBe(400);
     expect(((await bad.json()) as { error: string }).error).toBe('Invalid value for status');
@@ -79,7 +92,7 @@ describe('spec mutations', () => {
     expect((await send('PATCH', '/specs/T-101/meta', { key: 'status', value: 'done' })).status).toBe(400);
     const raw = await app.request(`/api/projects/${pid}/specs/T-101/meta`, { method: 'PATCH', headers: HEADERS, body: '{nope' });
     expect(raw.status).toBe(400);
-    expect(await fs.readFile(specFile('T-101'), 'utf8')).toBe(await fs.readFile(s.path, 'utf8'));
+    expect(await fs.readFile(specFile('T-101'), 'utf8')).toBe(untouched);
   });
 
   it('ticks a subtask', async () => {
@@ -136,9 +149,15 @@ describe('spec mutations', () => {
     expect((await get(done.id)).archived).toBe(true);
     expect((await send('POST', `/specs/${done.id}/unarchive`)).status).toBe(204);
     expect((await get(done.id)).archived).toBe(false);
-    expect((await send('POST', '/specs/T-999/archive')).status).toBe(404);
-    expect((await send('PATCH', '/specs/T-999/meta', { hash: 'h', key: 'status', value: 'done' })).status).toBe(404);
-    expect((await send('POST', '/specs/T-999/draft-copy', { md: 'x' })).status).toBe(404);
+    const nf = { error: 'Spec T-999 not found' };
+    const r1 = await send('POST', '/specs/T-999/archive');
+    expect([r1.status, await r1.json()]).toEqual([404, nf]);
+    const r2 = await send('PATCH', '/specs/T-999/meta', { hash: 'h', key: 'status', value: 'done' });
+    expect([r2.status, await r2.json()]).toEqual([404, nf]);
+    const r3 = await send('POST', '/specs/T-999/draft-copy', { md: 'x' });
+    expect([r3.status, await r3.json()]).toEqual([404, nf]);
+    const r4 = await app.request('/api/projects/nope/specs', { method: 'POST', headers: HEADERS, body: JSON.stringify({ title: 't', description: '', draft: false }) });
+    expect([r4.status, await r4.json()]).toEqual([404, { error: 'Unknown project' }]);
   });
 
   it('patches an archived spec', async () => {
@@ -146,5 +165,26 @@ describe('spec mutations', () => {
     const res = await send('PATCH', '/specs/T-100/meta', { hash: s.hash, key: 'title', value: 'Renamed' });
     expect(res.status).toBe(200);
     expect(((await res.json()) as { spec: Spec }).spec.title).toBe('Renamed');
+  });
+
+  it('rejects an empty title with 400', async () => {
+    for (const title of ['', '   ']) {
+      const res = await send('POST', '/specs', { title, description: '', draft: false });
+      expect([res.status, await res.json()]).toEqual([400, { error: 'Title is required' }]);
+    }
+  });
+
+  it('maps unexpected errors to 500 and logs the stack', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const s = await get('T-101');
+    boom.on = true;
+    try {
+      const res = await send('PATCH', '/specs/T-101/meta', { hash: s.hash, key: 'status', value: 'review' });
+      expect([res.status, await res.json()]).toEqual([500, { error: 'Internal error' }]);
+      expect(spy).toHaveBeenCalledTimes(1);
+    } finally {
+      boom.on = false;
+      spy.mockRestore();
+    }
   });
 });

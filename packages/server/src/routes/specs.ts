@@ -19,6 +19,9 @@ import type { Registry, ProjectEntry } from '../registry.js';
 const META_KEYS = ['status', 'urgency', 'categories', 'title', 'draft'] as const;
 type MetaKey = (typeof META_KEYS)[number];
 
+/** Messages thrown by core for bad caller input; anything else is a server fault. */
+const CORE_400 = [/^Invalid value for /, /^Invalid key /, /^Cannot edit /, /^Only done specs can be archived/, /^(Subtask|Question) .+ not found$/];
+
 /** Raised for requests we reject on purpose; carries the HTTP status. */
 class HttpError extends Error {
   constructor(
@@ -78,7 +81,7 @@ export function specRoutes(registry: Registry): Hono {
   const mutate = async (c: Context, transform: (text: string) => string, hash: string): Promise<Response> => {
     const { entry, spec } = await locate(c);
     const res = await writeIfUnchanged(spec.path, hash, transform);
-    if (!res.ok) return c.json({ conflict: true, currentHash: res.currentHash }, 409);
+    if (!res.ok) return c.json({ conflict: true, currentHash: res.currentHash, currentText: res.currentText }, 409);
     const fresh = findSpec(await loadProject(entry.root), spec.id);
     if (!fresh) throw new Error(`Spec ${spec.id} missing after write`);
     return c.json({ hash: fresh.hash, spec: fresh });
@@ -137,6 +140,7 @@ export function specRoutes(registry: Registry): Hono {
   app.post('/api/projects/:pid/specs', async (c) => {
     const b = await readJson(c);
     const title = requireString(b, 'title');
+    if (title.trim() === '') throw new HttpError(400, 'Title is required');
     const description = requireString(b, 'description');
     if (typeof b.draft !== 'boolean') throw new HttpError(400, 'Missing or invalid "draft"');
     const entry = await project(c);
@@ -158,10 +162,9 @@ export function specRoutes(registry: Registry): Hono {
 
   app.onError((err, c) => {
     if (err instanceof HttpError) return c.json({ error: err.message }, err.status);
-    // Plain Errors thrown by core's validation (no system error code) are the caller's fault.
-    if (err instanceof Error && !('code' in err)) {
+    if (err instanceof Error) {
       if (/^Spec .+ not found$/.test(err.message)) return c.json({ error: err.message }, 404);
-      return c.json({ error: err.message }, 400);
+      if (CORE_400.some((re) => re.test(err.message))) return c.json({ error: err.message }, 400);
     }
     console.error(err instanceof Error ? err.stack : err);
     return c.json({ error: 'Internal error' }, 500);
