@@ -2,8 +2,8 @@ import fs from 'node:fs/promises';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { parseArgs } from '../src/cli.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { parseArgs, shutdown } from '../src/cli.js';
 import { start } from '../src/start.js';
 
 const SAMPLE = path.resolve(import.meta.dirname, '../../../examples/recipe-box');
@@ -46,6 +46,16 @@ afterEach(async () => {
 describe('parseArgs', () => {
   it('defaults', () => {
     expect(parseArgs([])).toEqual({ path: process.cwd(), port: 4949, open: true });
+  });
+  it('defaults the path to INIT_CWD when set', () => {
+    const saved = process.env.INIT_CWD;
+    process.env.INIT_CWD = path.join(os.tmpdir(), 'initcwd');
+    try {
+      expect(parseArgs([]).path).toBe(path.join(os.tmpdir(), 'initcwd'));
+    } finally {
+      if (saved === undefined) delete process.env.INIT_CWD;
+      else process.env.INIT_CWD = saved;
+    }
   });
   it('reads a path, --port and --no-open', () => {
     expect(parseArgs(['some/dir', '--port', '5050', '--no-open'])).toEqual({ path: 'some/dir', port: 5050, open: false });
@@ -99,5 +109,45 @@ describe('start', () => {
     await expect(start({ path: empty, port: await freePort(), open: false })).rejects.toThrow(
       `No .specboard folder in ${path.resolve(empty)}. Run the Claude Code /create-spec command or "specboard init" (coming in M3).`,
     );
+  });
+});
+
+describe('shutdown', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('exits 0 after close resolves', async () => {
+    const exit = vi.fn();
+    shutdown(async () => {}, exit as never);
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+  });
+
+  it('exits 1 and logs when close rejects', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const exit = vi.fn();
+    shutdown(async () => { throw new Error('boom'); }, exit as never);
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(1));
+    expect(err).toHaveBeenCalledWith('boom');
+  });
+
+  it('exits 1 after the timeout when close hangs', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const exit = vi.fn();
+    shutdown(() => new Promise<void>(() => {}), exit as never);
+    expect(exit).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+
+  it('ignores a second call', async () => {
+    const close = vi.fn(async () => {});
+    const exit = vi.fn();
+    shutdown(close, exit as never);
+    shutdown(close, exit as never);
+    await vi.waitFor(() => expect(exit).toHaveBeenCalled());
+    expect(close).toHaveBeenCalledTimes(1);
   });
 });

@@ -6,7 +6,7 @@ import type { AddressInfo } from 'node:net';
 import { createAdaptorServer } from '@hono/node-server';
 import getPort from 'get-port';
 import open from 'open';
-import { attachRealtime, createApp } from './app.js';
+import { attachRealtime, createApp, type Realtime } from './app.js';
 import { Registry } from './registry.js';
 
 export interface StartOptions {
@@ -73,20 +73,22 @@ export async function start(opts: StartOptions): Promise<Started> {
     });
   });
   bound = (server.address() as AddressInfo).port;
-
-  const entry = await registry.add(root);
-  const rt = await attachRealtime(server, deps);
-  await rt.watch(entry.id);
-
-  const url = `http://${HOST}:${bound}`;
-  if (opts.open) await open(`${url}/?project=${entry.id}`);
-
-  return {
-    url,
-    async close() {
-      await rt.close();
-      server.closeAllConnections();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
-    },
+  let rt: Realtime | undefined;
+  const close = async () => {
+    await rt?.close();
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
   };
+
+  try {
+    const entry = await registry.add(root);
+    rt = await attachRealtime(server, deps);
+    await rt.watch(entry.id);
+    const url = `http://${HOST}:${bound}`;
+    if (opts.open) await open(`${url}/?project=${entry.id}`);
+    return { url, close };
+  } catch (e) {
+    await close().catch(() => {});
+    throw e;
+  }
 }
