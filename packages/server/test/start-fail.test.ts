@@ -5,7 +5,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const rtClose = vi.fn(async () => {});
-let mode: 'attach' | 'watch' = 'attach';
+let mode: 'attach' | 'watch' | 'close' = 'attach';
 
 vi.mock('../src/app.js', async (orig) => {
   const real = await orig<typeof import('../src/app.js')>();
@@ -13,6 +13,7 @@ vi.mock('../src/app.js', async (orig) => {
     ...real,
     attachRealtime: async () => {
       if (mode === 'attach') throw new Error('attach failed');
+      if (mode === 'close') return { watch: async () => {}, close: async () => { throw new Error('rt close failed'); } };
       return { watch: async () => { throw new Error('watch failed'); }, close: rtClose };
     },
   };
@@ -65,6 +66,14 @@ describe('start failure after listen', () => {
     const port = await freePort();
     await expect(start({ path: path.join(tmp, 'p'), port, open: false })).rejects.toThrow('watch failed');
     expect(rtClose).toHaveBeenCalledTimes(1);
+    expect(await canListen(port)).toBe(true);
+  });
+
+  it('still frees the port when rt.close rejects on close()', async () => {
+    mode = 'close';
+    const port = await freePort();
+    const s = await start({ path: path.join(tmp, 'p'), port, open: false });
+    await expect(s.close()).rejects.toThrow('rt close failed');
     expect(await canListen(port)).toBe(true);
   });
 });

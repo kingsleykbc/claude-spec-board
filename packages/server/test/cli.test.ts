@@ -44,18 +44,25 @@ afterEach(async () => {
 });
 
 describe('parseArgs', () => {
+  let savedInit: string | undefined;
+  beforeEach(() => {
+    savedInit = process.env.INIT_CWD;
+    delete process.env.INIT_CWD;
+  });
+  afterEach(() => {
+    if (savedInit === undefined) delete process.env.INIT_CWD;
+    else process.env.INIT_CWD = savedInit;
+  });
+  it('treats an empty INIT_CWD as unset', () => {
+    process.env.INIT_CWD = '';
+    expect(parseArgs([]).path).toBe(process.cwd());
+  });
   it('defaults', () => {
     expect(parseArgs([])).toEqual({ path: process.cwd(), port: 4949, open: true });
   });
   it('defaults the path to INIT_CWD when set', () => {
-    const saved = process.env.INIT_CWD;
     process.env.INIT_CWD = path.join(os.tmpdir(), 'initcwd');
-    try {
-      expect(parseArgs([]).path).toBe(path.join(os.tmpdir(), 'initcwd'));
-    } finally {
-      if (saved === undefined) delete process.env.INIT_CWD;
-      else process.env.INIT_CWD = saved;
-    }
+    expect(parseArgs([]).path).toBe(path.join(os.tmpdir(), 'initcwd'));
   });
   it('reads a path, --port and --no-open', () => {
     expect(parseArgs(['some/dir', '--port', '5050', '--no-open'])).toEqual({ path: 'some/dir', port: 5050, open: false });
@@ -101,6 +108,16 @@ describe('start', () => {
     closers.push(s.close);
     expect(s.url).not.toBe(`http://127.0.0.1:${busy}`);
     expect((await fetch(`${s.url}/api/health`)).ok).toBe(true);
+  });
+
+  it('keeps running when the browser cannot be opened', async () => {
+    const proj = await copySample('a');
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const s = await start({ path: proj, port: await freePort(), open: true, opener: async () => { throw new Error('no browser'); } });
+    closers.push(s.close);
+    expect((await fetch(`${s.url}/api/health`)).ok).toBe(true);
+    expect(err).toHaveBeenCalledWith(`Could not open a browser. Open ${s.url} yourself.`);
+    err.mockRestore();
   });
 
   it('rejects a folder without .specboard', async () => {

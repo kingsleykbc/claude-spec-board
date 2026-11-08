@@ -2,7 +2,7 @@ import { pathToFileURL } from 'node:url';
 import { start } from './start.js';
 
 export function parseArgs(argv: string[]): { path: string; port: number; open: boolean } {
-  let dir = process.env.INIT_CWD ?? process.cwd();
+  let dir = process.env.INIT_CWD || process.cwd();
   let port = 4949;
   let open = true;
   for (let i = 0; i < argv.length; i++) {
@@ -31,8 +31,12 @@ export function shutdown(close: () => Promise<void>, exit: (code: number) => nev
   }, 5000);
   timer.unref();
   close().then(
-    () => exit(0),
+    () => {
+      clearTimeout(timer);
+      exit(0);
+    },
     (e: unknown) => {
+      clearTimeout(timer);
       console.error(e instanceof Error ? e.message : String(e));
       exit(1);
     },

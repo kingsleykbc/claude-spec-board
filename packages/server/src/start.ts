@@ -13,6 +13,8 @@ export interface StartOptions {
   path: string;
   port: number;
   open: boolean;
+  /** Browser launcher; defaults to the `open` package. Tests inject one. */
+  opener?: (url: string) => Promise<unknown>;
 }
 
 export interface Started {
@@ -45,6 +47,15 @@ function webDistDir(): string | null {
   return fs.existsSync(dir) ? dir : null;
 }
 
+async function tryOpen(opts: StartOptions, base: string, id: string): Promise<void> {
+  if (!opts.open) return;
+  try {
+    await (opts.opener ?? open)(`${base}/?project=${id}`);
+  } catch {
+    console.error(`Could not open a browser. Open ${base} yourself.`);
+  }
+}
+
 export async function start(opts: StartOptions): Promise<Started> {
   const root = path.resolve(opts.path);
   if (!fs.existsSync(path.join(root, '.specboard', 'config.md'))) {
@@ -57,7 +68,7 @@ export async function start(opts: StartOptions): Promise<Started> {
   if (opts.port !== 0 && (await isSpecBoard(opts.port))) {
     const entry = await registry.add(root);
     const url = `http://${HOST}:${opts.port}`;
-    if (opts.open) await open(`${url}/?project=${entry.id}`);
+    await tryOpen(opts, url, entry.id);
     return { url, close: async () => {} };
   }
 
@@ -75,9 +86,12 @@ export async function start(opts: StartOptions): Promise<Started> {
   bound = (server.address() as AddressInfo).port;
   let rt: Realtime | undefined;
   const close = async () => {
-    await rt?.close();
-    server.closeAllConnections();
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    try {
+      await rt?.close();
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   };
 
   try {
@@ -85,7 +99,7 @@ export async function start(opts: StartOptions): Promise<Started> {
     rt = await attachRealtime(server, deps);
     await rt.watch(entry.id);
     const url = `http://${HOST}:${bound}`;
-    if (opts.open) await open(`${url}/?project=${entry.id}`);
+    await tryOpen(opts, url, entry.id);
     return { url, close };
   } catch (e) {
     await close().catch(() => {});
