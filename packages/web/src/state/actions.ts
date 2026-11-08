@@ -21,16 +21,33 @@ export const CLAUDE_STUB_TOAST = 'Claude actions arrive in the next milestone';
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+/** Thrown inside the op of a move queued behind a conflicted one: it is dropped without a request. */
+class Superseded extends Error {}
+
 export function createSpecActions({ pid, client = api, mutate, refresh, toast }: ActionDeps) {
+  /**
+   * Per spec, how many status-move conflicts have been handled (Ruling 15b). A move remembers the
+   * count when it is made; if a conflict was handled since, the move was queued behind that
+   * conflict and fails silently (no request, no toast, no extra refresh).
+   */
+  const conflicts = new Map<string, number>();
+
   return {
     /** Prototype moveSpec (line 613): PATCH meta status with the spec's hash. */
     async move(spec: Spec, status: Status): Promise<void> {
       if (spec.status === status) return;
       const id = spec.id;
+      const seen = conflicts.get(id) ?? 0;
+      const superseded = () => (conflicts.get(id) ?? 0) > seen;
       try {
-        await mutate(id, spec.hash, (hash) => client.setMeta(pid, id, hash, 'status', status));
+        await mutate(id, spec.hash, (hash) => {
+          if (superseded()) throw new Superseded();
+          return client.setMeta(pid, id, hash, 'status', status);
+        });
       } catch (e) {
+        if (e instanceof Superseded || superseded()) return;
         if (e instanceof ConflictError) {
+          conflicts.set(id, seen + 1);
           await refresh();
           toast('err', `Couldn’t move ${id}`, 'The file changed. Try again.');
         } else {

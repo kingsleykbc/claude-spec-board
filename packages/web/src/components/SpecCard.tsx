@@ -141,6 +141,9 @@ export function SpecCard({
     // A drag library may claim the key first (dnd-kit picks up on Space).
     dragProps?.onKeyDown?.(e);
     if (e.defaultPrevented) return;
+    // During a keyboard drag, Space/Enter ends it. dnd-kit handles that on document, after this
+    // (React root) handler, so `dragging` is still true here: don't open the card as well.
+    if (dragging) return;
     if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
       e.preventDefault();
       onOpen();

@@ -8,7 +8,12 @@ const COLS = ['To-do', 'Doing', 'Review', 'Done'];
 function rectFor(el: Element): DOMRect {
   const section = el.closest('section[aria-label]');
   const i = section ? COLS.indexOf(section.getAttribute('aria-label')!) : -1;
-  if (i < 0) return new DOMRect(0, 0, 0, 0);
+  if (i < 0) {
+    // The DragOverlay starts where its source card is.
+    const lifted = el.matches('[aria-label^="T-"]') ? el : el.querySelector('[aria-label^="T-"]');
+    const src = lifted && [...document.querySelectorAll('section [aria-label^="T-"]')].find((x) => x.getAttribute('aria-label') === lifted.getAttribute('aria-label'));
+    return src ? rectFor(src) : new DOMRect(0, 0, 0, 0);
+  }
   if (el === section) return new DOMRect(i * 300, 0, 280, 800);
   return new DOMRect(i * 300 + 10, 50, 260, 100);
 }
@@ -148,5 +153,37 @@ describe('Board', () => {
     expect(card('T-106').style.background).toBe('');
     fireEvent.click(card('T-106'));
     expect(fns.onOpen).toHaveBeenCalledWith('T-106');
+  });
+
+  it('keyboard drag: Space, ArrowRight, Space moves Doing → Review without opening the card', async () => {
+    const fns = setup();
+    const c = card('T-104');
+    c.focus();
+    act(() => {
+      fireEvent.keyDown(c, { code: 'Space', key: ' ' });
+    });
+    // dnd-kit attaches its keydown listener on the next tick.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(c.getAttribute('aria-pressed')).toBe('true');
+    act(() => {
+      fireEvent.keyDown(c, { code: 'ArrowRight', key: 'ArrowRight' });
+    });
+    expect(screen.getByText('Drop to move to Review')).toBeTruthy();
+    act(() => {
+      fireEvent.keyDown(c, { code: 'Space', key: ' ' });
+    });
+    expect(fns.onMove).toHaveBeenCalledTimes(1);
+    expect(fns.onMove.mock.calls[0]![0]).toMatchObject({ id: 'T-104', status: 'doing' });
+    expect(fns.onMove.mock.calls[0]![1]).toBe('review');
+    expect(fns.onOpen).not.toHaveBeenCalled();
+  });
+
+  it('a plain Enter on a card that is not being dragged still opens it', () => {
+    const fns = setup();
+    fireEvent.keyDown(card('T-104'), { code: 'Enter', key: 'Enter' });
+    expect(fns.onOpen).toHaveBeenCalledWith('T-104');
+    expect(fns.onMove).not.toHaveBeenCalled();
   });
 });

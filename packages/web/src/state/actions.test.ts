@@ -49,6 +49,24 @@ describe('createSpecActions', () => {
     expect(toast).toHaveBeenCalledWith('err', 'Couldn’t move T-105', 'The file changed. Try again.');
   });
 
+  it('a conflict on one of 3 queued moves of a spec → exactly one toast and one refresh', async () => {
+    const { c, refresh, toast, actions } = setup({ setMeta: vi.fn(async () => Promise.reject(new ConflictError('x', 'y'))) });
+    const t105 = recipeSpec('T-105');
+    await Promise.all([actions.move(t105, 'doing'), actions.move(t105, 'review'), actions.move(t105, 'done')]);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledWith('err', 'Couldn’t move T-105', 'The file changed. Try again.');
+    // The queued moves are dropped without sending a request that would conflict again.
+    expect(c.setMeta).toHaveBeenCalledTimes(1);
+  });
+
+  it('a move made after a conflict was handled toasts normally again', async () => {
+    const { toast, actions } = setup({ setMeta: vi.fn(async () => Promise.reject(new ConflictError('x', 'y'))) });
+    await actions.move(recipeSpec('T-105'), 'doing');
+    await actions.move(recipeSpec('T-105'), 'review');
+    expect(toast).toHaveBeenCalledTimes(2);
+  });
+
   it('other errors show the message', async () => {
     const { toast, actions } = setup({ setMeta: vi.fn(async () => Promise.reject(new ApiError(400, 'Invalid value for status'))) });
     await actions.move(recipeSpec('T-105'), 'doing');

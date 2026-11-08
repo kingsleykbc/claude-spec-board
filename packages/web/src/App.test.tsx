@@ -65,7 +65,7 @@ beforeEach(() => {
 afterEach(async () => {
   cleanup();
   vi.restoreAllMocks();
-  vi.mocked(api.setMeta).mockClear();
+  vi.mocked(api.setMeta).mockReset(); // back to the factory implementation
   await new Promise((r) => setTimeout(r, 60));
 });
 
@@ -107,6 +107,43 @@ describe('App', () => {
     expect(location.search).toBe('?project=p1&spec=T-106');
     fireEvent.click(screen.getByText('3 questions for you'));
     expect(location.search).toBe('?project=p1&spec=T-105');
+  });
+
+  it('two quick moves of one spec: the card stays in the second target until its refresh', async () => {
+    const pendings: (() => void)[] = [];
+    vi.mocked(api.setMeta).mockImplementation(
+      (_pid, id) =>
+        new Promise((res) => {
+          pendings.push(() => res({ hash: `h${pendings.length}`, spec: recipeSpecs.find((s) => s.id === id)! }));
+        }),
+    );
+    render(<App />);
+    await board();
+    const o = { isPrimary: true, button: 0, pointerId: 1, bubbles: true };
+    const dragTo = async (x: number) => {
+      const card = screen.getByRole('button', { name: /^T-104 / });
+      act(() => void fireEvent.pointerDown(card, { ...o, clientX: 40, clientY: 80 }));
+      act(() => void fireEvent.pointerMove(document, { ...o, clientX: 50, clientY: 90 }));
+      act(() => void fireEvent.pointerMove(document, { ...o, clientX: x, clientY: 300 }));
+      act(() => void fireEvent.pointerUp(document, { ...o, clientX: x, clientY: 300 }));
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 60));
+      });
+    };
+    const colOf = () => screen.getByRole('button', { name: /^T-104 / }).closest('section')!.getAttribute('aria-label');
+    await dragTo(700); // → Review (first move in flight)
+    expect(colOf()).toBe('Review');
+    await dragTo(1000); // → Done (queued behind the first)
+    expect(colOf()).toBe('Done');
+    // The first move finishes (and refreshes); the second is still in flight.
+    await act(async () => pendings[0]!());
+    await screen.findByText('T-104 moved to Review');
+    expect(colOf()).toBe('Done');
+    // The second finishes; the refreshed data (the fixture still says doing) wins.
+    await waitFor(() => expect(pendings).toHaveLength(2));
+    await act(async () => pendings[1]!());
+    await screen.findByText('T-104 approved');
+    await waitFor(() => expect(colOf()).toBe('Doing'));
   });
 
   it('a drop on Review calls the mutator with status review and shows the toast', async () => {

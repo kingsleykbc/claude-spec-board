@@ -175,7 +175,9 @@ function ProjectView({ pid, projects, navigate, toast, theme, onToggleTheme, rel
     try {
       await actions.move(spec, status);
     } finally {
+      // Ruling 15a: a later move of the same spec may have set its own target; leave that one alone.
       setPending((p) => {
+        if (p[spec.id] !== status) return p;
         const rest = { ...p };
         delete rest[spec.id];
         return rest;
