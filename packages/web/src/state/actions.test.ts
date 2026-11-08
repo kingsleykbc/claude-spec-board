@@ -77,7 +77,7 @@ describe('createSpecActions', () => {
     const { c, toast, refresh, actions } = setup();
     await actions.archive(recipeSpec('T-101'));
     expect(c.archive).toHaveBeenCalledWith('p1', 'T-101');
-    expect(toast).toHaveBeenCalledWith('ok', 'T-101 archived', 'Hidden from the board. The file stays in specs/.');
+    expect(toast).toHaveBeenCalledWith('ok', 'T-101 archived', 'Hidden from the board. Moved to .specboard/archive/.');
     await actions.unarchive(recipeSpec('T-100'));
     expect(c.unarchive).toHaveBeenCalledWith('p1', 'T-100');
     expect(toast).toHaveBeenCalledWith('ok', 'T-100 restored', 'Back on the board.');

@@ -96,7 +96,7 @@ export function createSpecActions({ pid, client = api, mutate, refresh, toast, i
         return;
       }
       await refresh();
-      toast('ok', `${spec.id} archived`, 'Hidden from the board. The file stays in specs/.');
+      toast('ok', `${spec.id} archived`, 'Hidden from the board. Moved to .specboard/archive/.');
     },
 
     async unarchive(spec: Spec): Promise<void> {
