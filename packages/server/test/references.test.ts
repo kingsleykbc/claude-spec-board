@@ -257,3 +257,52 @@ describe('fix round 1', () => {
     await expect(fs.access(path.join(tmp, 'x.draft.md'))).rejects.toThrow();
   });
 });
+
+describe('route-level bad paths (F4.2)', () => {
+  /** Every file under `dir`, with its content, so any write shows up. */
+  const snapshot = async (dir: string): Promise<Record<string, string>> => {
+    const out: Record<string, string> = {};
+    for (const e of await fs.readdir(dir, { recursive: true, withFileTypes: true })) {
+      if (!e.isFile()) continue;
+      const f = path.join(e.parentPath, e.name);
+      out[path.relative(dir, f)] = await fs.readFile(f, 'utf8');
+    }
+    return out;
+  };
+
+  it.each(['../../x.md', 'C:\\x.md', '\\\\srv\\s\\x.md'])('%j: PUT content, DELETE and draft-copy are 4xx and write nothing', async (bad) => {
+    const before = await snapshot(tmp);
+    const responses = [
+      await send('PUT', '/references/content', { path: bad, hash: 'h', md: 'x' }),
+      await unlink(bad),
+      await send('POST', '/references/draft-copy', { path: bad, md: 'x' }),
+    ];
+    for (const r of responses) {
+      expect(r.status).toBeGreaterThanOrEqual(400);
+      expect(r.status).toBeLessThan(500);
+    }
+    expect(await snapshot(tmp)).toEqual(before);
+    await expect(fs.access('C:\\x.draft.md')).rejects.toThrow();
+  });
+});
+
+describe('reference saves keep line endings (F4.5)', () => {
+  it('a CRLF reference stays CRLF when the editor sends LF; the hash is of the bytes written', async () => {
+    const file = path.join(proj, 'docs', 'RULES.md');
+    const crlf = '# Rules\r\n\r\nOne.\r\n';
+    await fs.writeFile(file, crlf);
+    const res = await send('PUT', '/references/content', { path: 'docs/RULES.md', hash: hashText(crlf), md: '# Rules\n\nOne.\nTwo.\n' });
+    expect(res.status).toBe(200);
+    const written = await fs.readFile(file, 'utf8');
+    expect(written).toBe('# Rules\r\n\r\nOne.\r\nTwo.\r\n');
+    expect(await res.json()).toEqual({ hash: hashText(written) });
+  });
+
+  it('an LF reference stays LF when the editor sends CRLF', async () => {
+    const file = path.join(proj, 'docs', 'RULES.md');
+    await fs.writeFile(file, 'a\nb\n');
+    const res = await send('PUT', '/references/content', { path: 'docs/RULES.md', hash: hashText('a\nb\n'), md: 'a\r\nc\r\n' });
+    expect(res.status).toBe(200);
+    expect(await fs.readFile(file, 'utf8')).toBe('a\nc\n');
+  });
+});

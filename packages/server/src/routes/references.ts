@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { Hono } from 'hono';
 import type { Context } from 'hono';
-import { hashText, loadProject, parseConfig, setConfigReferences, writeIfUnchanged, writeSiblingDraft } from '@specboard/core';
+import { detectEol, hashText, loadProject, parseConfig, setConfigReferences, writeIfUnchanged, writeSiblingDraft } from '@specboard/core';
 import type { Registry, ProjectEntry } from '../registry.js';
 import { HttpError, onError, readJson, requireString } from '../http.js';
 import { PathError, safeProjectPath } from '../safePath.js';
@@ -108,12 +108,14 @@ export function referenceRoutes(registry: Registry): Hono {
     const md = requireString(b, 'md');
     const entry = await project(c);
     const { file } = await linked(entry.root, rel);
-    const res = await writeIfUnchanged(file, hash, () => md).catch((e: NodeJS.ErrnoException) => {
+    // Keep the file's own line endings: the editor always sends LF (F4.5).
+    const toEol = (current: string) => md.replace(/\r?\n/g, detectEol(current));
+    const res = await writeIfUnchanged(file, hash, toEol).catch((e: NodeJS.ErrnoException) => {
       if (e.code === 'ENOENT') throw new HttpError(404, 'File not found');
       throw e;
     });
     if (!res.ok) return c.json({ conflict: true, currentHash: res.currentHash, currentText: res.currentText }, 409);
-    return c.json({ hash: hashText(md) });
+    return c.json({ hash: res.hash });
   });
 
   app.post('/api/projects/:pid/references/link', async (c) => {
