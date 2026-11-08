@@ -3,8 +3,10 @@ import { useEffect, useRef } from 'react';
 // Esc closes the innermost layer only (pinned behaviour 14):
 // dialog → reference add menu → category input → open menus → modal.
 // Each open layer registers here; one document listener calls the top one.
+// An open spec/reference editor sits just above the modal (Ruling 17): Esc leaves the editor
+// (asking first if there are unsaved changes) before it closes the modal.
 
-export const ESC = { modal: 0, menu: 10, input: 20, refAdd: 30, dialog: 40 } as const;
+export const ESC = { modal: 0, editor: 5, menu: 10, input: 20, refAdd: 30, dialog: 40 } as const;
 
 interface Entry {
   priority: number;

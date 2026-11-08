@@ -41,12 +41,28 @@ export const Disabled: Story = {
   },
 };
 
+/** Replace the browser clipboard for one story (headless Chromium may refuse the real one). */
+const stubClipboard = (writeText: (t: string) => Promise<void>) =>
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
 export const Fallback: Story = {
   args: { state: 'fallback' },
   play: async ({ canvasElement }) => {
+    stubClipboard(async () => undefined);
     const c = within(canvasElement);
     expect(c.getByText('Claude Code not found')).toBeTruthy();
     await userEvent.click(c.getByRole('button', { name: '⧉ Copy command' }));
-    expect(c.getByRole('button', { name: '✓ Copied: paste it into Claude Code' })).toBeTruthy();
+    expect(await c.findByRole('button', { name: '✓ Copied: paste it into Claude Code' })).toBeTruthy();
+  },
+};
+
+export const CopyFailed: Story = {
+  args: { state: 'fallback' },
+  play: async ({ canvasElement }) => {
+    stubClipboard(() => Promise.reject(new Error('denied')));
+    const c = within(canvasElement);
+    await userEvent.click(c.getByRole('button', { name: '⧉ Copy command' }));
+    const note = await c.findByTestId('copy-failed');
+    expect(note.textContent).toBe('Copy failed: run claude "/run-spec T-104"');
   },
 };

@@ -21,6 +21,10 @@ describe('ConflictDialog', () => {
     expect(h.onKeepEditing).toHaveBeenCalledTimes(1);
     expect(h.onReloadKeepCopy).toHaveBeenCalledTimes(1);
     expect(h.onReload).toHaveBeenCalledTimes(1);
+    fireEvent.mouseDown(within(dlg).getByRole('button', { name: 'Reload' }));
+    fireEvent.click(dlg.parentElement!);
+    expect(h.onKeepEditing).toHaveBeenCalledTimes(1);
+    fireEvent.mouseDown(dlg.parentElement!);
     fireEvent.click(dlg.parentElement!);
     expect(h.onKeepEditing).toHaveBeenCalledTimes(2);
   });

@@ -13,31 +13,50 @@ export interface RunButtonProps {
 }
 
 export const COPIED_MS = 2600;
+/** How long "Copy failed: run …" stays, so the command can be selected by hand. */
+export const COPY_FAILED_MS = 6000;
 
 /** The header's Run control in its four states (prototype lines 128-131, 679-683). */
 export function RunButton({ id, state, runningId, onRun, onStop }: RunButtonProps) {
-  const [copied, setCopied] = useState(false);
+  const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(
-    () => () => {
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
       if (timer.current !== null) clearTimeout(timer.current);
-    },
-    [],
-  );
+    };
+  }, []);
 
-  const copy = () => {
-    try {
-      const p = navigator.clipboard?.writeText(`claude "/run-spec ${id}"`);
-      if (p) p.catch(() => undefined);
-    } catch {
-      // No clipboard access: the label still tells the user what to paste.
-    }
-    setCopied(true);
+  const command = `claude "/run-spec ${id}"`;
+  const show = (next: 'copied' | 'failed') => {
+    if (!alive.current) return;
+    setCopy(next);
     if (timer.current !== null) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      timer.current = null;
-      setCopied(false);
-    }, COPIED_MS);
+    timer.current = setTimeout(
+      () => {
+        timer.current = null;
+        setCopy('idle');
+      },
+      next === 'copied' ? COPIED_MS : COPY_FAILED_MS,
+    );
+  };
+  const doCopy = () => {
+    let p: Promise<void>;
+    try {
+      const clip = typeof navigator !== 'undefined' ? navigator.clipboard : undefined;
+      if (!clip) throw new Error('No clipboard');
+      p = clip.writeText(command);
+    } catch {
+      show('failed');
+      return;
+    }
+    // Confirm only once the browser says the text is on the clipboard.
+    Promise.resolve(p).then(
+      () => show('copied'),
+      () => show('failed'),
+    );
   };
 
   if (state === 'running') {
@@ -60,10 +79,17 @@ export function RunButton({ id, state, runningId, onRun, onStop }: RunButtonProp
     );
   }
   if (state === 'fallback') {
+    const copied = copy === 'copied';
     return (
       <>
-        <span className={s.runNote}>Claude Code not found</span>
-        <button type="button" className={s.copy} data-copied={copied} onClick={copy}>
+        {copy === 'failed' ? (
+          <span className={s.copyFailed} data-testid="copy-failed">
+            Copy failed: run <span style={{ userSelect: 'all', fontFamily: 'var(--mono)' }}>{command}</span>
+          </span>
+        ) : (
+          <span className={s.runNote}>Claude Code not found</span>
+        )}
+        <button type="button" className={s.copy} data-copied={copied} onClick={doCopy}>
           {copied ? '✓ Copied: paste it into Claude Code' : '⧉ Copy command'}
         </button>
       </>

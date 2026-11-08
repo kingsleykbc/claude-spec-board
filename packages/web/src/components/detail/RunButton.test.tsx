@@ -35,7 +35,9 @@ describe('RunButton', () => {
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     render(<RunButton id="T-104" state="fallback" onRun={() => undefined} onStop={() => undefined} />);
     expect(screen.getByText('Claude Code not found')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '⧉ Copy command' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '⧉ Copy command' }));
+    });
     expect(writeText).toHaveBeenCalledWith('claude "/run-spec T-104"');
     expect(screen.getByRole('button', { name: '✓ Copied: paste it into Claude Code' })).toBeTruthy();
     act(() => vi.advanceTimersByTime(2599));
@@ -44,7 +46,10 @@ describe('RunButton', () => {
     expect(screen.getByRole('button', { name: '⧉ Copy command' })).toBeTruthy();
   });
 
-  it('fallback still confirms when the clipboard throws', () => {
+  const failedNote = () => screen.getByTestId('copy-failed');
+
+  it('a clipboard that throws shows "Copy failed" with the selectable command for 6 s', () => {
+    vi.useFakeTimers();
     Object.defineProperty(navigator, 'clipboard', {
       value: {
         writeText: () => {
@@ -55,6 +60,34 @@ describe('RunButton', () => {
     });
     render(<RunButton id="T-104" state="fallback" onRun={() => undefined} onStop={() => undefined} />);
     fireEvent.click(screen.getByRole('button', { name: '⧉ Copy command' }));
-    expect(screen.getByRole('button', { name: '✓ Copied: paste it into Claude Code' })).toBeTruthy();
+    expect(failedNote().textContent).toBe('Copy failed: run claude "/run-spec T-104"');
+    expect(screen.getByText('claude "/run-spec T-104"').style.userSelect).toBe('all');
+    expect(screen.queryByText('✓ Copied: paste it into Claude Code')).toBeNull();
+    expect(screen.queryByText('Claude Code not found')).toBeNull();
+    act(() => vi.advanceTimersByTime(5999));
+    expect(failedNote()).toBeTruthy();
+    act(() => vi.advanceTimersByTime(1));
+    expect(screen.queryByTestId('copy-failed')).toBeNull();
+    expect(screen.getByText('Claude Code not found')).toBeTruthy();
+  });
+
+  it('a rejected clipboard promise shows "Copy failed"', async () => {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: () => Promise.reject(new Error('denied')) },
+      configurable: true,
+    });
+    render(<RunButton id="T-104" state="fallback" onRun={() => undefined} onStop={() => undefined} />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '⧉ Copy command' }));
+    });
+    expect(failedNote().textContent).toBe('Copy failed: run claude "/run-spec T-104"');
+    expect(screen.queryByText('✓ Copied: paste it into Claude Code')).toBeNull();
+  });
+
+  it('no clipboard API at all shows "Copy failed"', () => {
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+    render(<RunButton id="T-104" state="fallback" onRun={() => undefined} onStop={() => undefined} />);
+    fireEvent.click(screen.getByRole('button', { name: '⧉ Copy command' }));
+    expect(failedNote()).toBeTruthy();
   });
 });

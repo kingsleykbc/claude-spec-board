@@ -26,12 +26,20 @@ export function Dialog({ title, body, path, actions, onDismiss }: DialogProps) {
   const box = useRef<HTMLDivElement | null>(null);
   useEscape(true, onDismiss, ESC.dialog);
   const onKeyDown = useFocusTrap(box, { initial: 'first' });
+  // As in Modal: only a press that started and ended on the scrim dismisses.
+  const pressedScrim = useRef(false);
+  const onDown = (e: MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    pressedScrim.current = e.target === e.currentTarget;
+  };
   const onScrim = (e: MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    if (e.target === e.currentTarget) onDismiss();
+    const ok = pressedScrim.current && e.target === e.currentTarget;
+    pressedScrim.current = false;
+    if (ok) onDismiss();
   };
   return createPortal(
-    <div className={`${s.scrim} ${s.dScrim}`} onClick={onScrim}>
+    <div className={`${s.scrim} ${s.dScrim}`} onMouseDown={onDown} onClick={onScrim}>
       <div ref={box} role="alertdialog" aria-modal="true" aria-label={title} tabIndex={-1} className={s.dialog} onKeyDown={onKeyDown}>
         <span className={s.dTitle}>{title}</span>
         <span className={s.dBody}>{body}</span>

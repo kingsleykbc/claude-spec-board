@@ -100,6 +100,21 @@ export const Conflict: Story = {
   },
 };
 
+export const DiscardChanges: Story = {
+  // × goes through the same guard as Esc and the scrim (the Esc path is covered by CardDetail.test.tsx).
+  name: 'Close with unsaved changes',
+  play: async ({ canvasElement, args }) => {
+    const c = within(canvasElement);
+    await userEvent.click(c.getByRole('button', { name: '✎ Edit' }));
+    const ta = c.getByRole('textbox', { name: 'Spec markdown' });
+    await userEvent.type(ta, ' more');
+    await userEvent.click(c.getByRole('button', { name: 'Close' }));
+    const dlg = await within(document.body).findByRole('alertdialog', { name: 'Discard your changes?' });
+    expect(document.activeElement).toBe(within(dlg).getByRole('button', { name: 'Keep editing' }));
+    expect(args.onClose).not.toHaveBeenCalled();
+  },
+};
+
 export const Missing: Story = {
   args: { specId: 'T-999' },
   play: async ({ canvasElement }) => {

@@ -24,12 +24,12 @@ function setup(id: string, over: Partial<DetailClient> = {}, specs: Spec[] = [..
   const mutate = createMutator(() => Promise.reject(new Error('no default')));
   const actions = createSpecActions({ pid: 'p1', client, mutate, refresh, toast });
   const onClose = vi.fn();
-  render(
+  const el = (list: Spec[], down = false) => (
     <CardDetail
       pid="p1"
       specId={id}
       root={ROOT}
-      specs={specs}
+      specs={list}
       archived={recipeArchived}
       client={client}
       mutate={mutate}
@@ -37,10 +37,23 @@ function setup(id: string, over: Partial<DetailClient> = {}, specs: Spec[] = [..
       toast={toast}
       onMove={(s, k) => actions.move(s, k)}
       onClose={onClose}
-    />,
+      down={down}
+    />
   );
-  return { client, toast, refresh, onClose };
+  const r = render(el(specs));
+  /** Re-render with this spec replaced by `next` (a live update). */
+  const update = (next: Spec) => r.rerender(el(specs.map((x) => (x.id === id ? next : x))));
+  return { client, toast, refresh, onClose, update, rerenderDown: () => r.rerender(el(specs, true)) };
 }
+
+const startEdit = (text: string) => {
+  fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Spec markdown' }), { target: { value: text } });
+};
+const conflict = () =>
+  vi.fn(async () => {
+    throw new ConflictError('h9', 'theirs');
+  });
 
 afterEach(() => {
   cleanup();
@@ -266,8 +279,133 @@ describe('CardDetail', () => {
     expect(screen.getByRole('textbox', { name: 'Spec markdown' })).toBeTruthy();
     expect(onClose).not.toHaveBeenCalled();
 
+    // No changes: the first Esc closes the editor, the second the modal.
+    esc();
+    expect(screen.queryByRole('textbox', { name: 'Spec markdown' })).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
     esc();
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  describe('unsaved spec text (Ruling 17)', () => {
+    it('Esc with changes opens "Discard your changes?" and keeps the modal open; Keep editing is focused', () => {
+      const { onClose } = setup('T-104');
+      startEdit('changed');
+      fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+      const dlg = screen.getByRole('alertdialog', { name: 'Discard your changes?' });
+      expect(within(dlg).getAllByRole('button').map((b) => b.textContent)).toEqual(['Keep editing', 'Discard']);
+      expect(document.activeElement).toBe(within(dlg).getByRole('button', { name: 'Keep editing' }));
+      expect(onClose).not.toHaveBeenCalled();
+      fireEvent.click(within(dlg).getByRole('button', { name: 'Keep editing' }));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect((screen.getByRole('textbox', { name: 'Spec markdown' }) as HTMLTextAreaElement).value).toBe('changed');
+    });
+
+    it('Discard drops the edit but not the modal; a second Esc closes the modal', () => {
+      const { onClose } = setup('T-104');
+      startEdit('changed');
+      fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+      fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(screen.queryByRole('textbox', { name: 'Spec markdown' })).toBeNull();
+      expect(screen.getByRole('dialog', { name: 'Meal planner calendar' })).toBeTruthy();
+      expect(onClose).not.toHaveBeenCalled();
+      fireEvent.keyDown(document.body, { key: 'Escape' });
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('a press that starts in the textarea and ends on the scrim does not close', () => {
+      const { onClose } = setup('T-104');
+      startEdit('changed');
+      const scrim = screen.getByRole('dialog', { name: 'Meal planner calendar' }).parentElement!;
+      fireEvent.mouseDown(screen.getByRole('textbox', { name: 'Spec markdown' }));
+      fireEvent.click(scrim);
+      expect(onClose).not.toHaveBeenCalled();
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+    });
+
+    it('a scrim click with unsaved edits asks first; without edits it closes', () => {
+      const { onClose } = setup('T-104');
+      startEdit('changed');
+      const scrim = screen.getByRole('dialog', { name: 'Meal planner calendar' }).parentElement!;
+      fireEvent.mouseDown(scrim);
+      fireEvent.click(scrim);
+      expect(screen.getByRole('alertdialog', { name: 'Discard your changes?' })).toBeTruthy();
+      expect(onClose).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+      fireEvent.mouseDown(scrim);
+      fireEvent.click(scrim);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('save hash', () => {
+    it('status or answers changed mid-edit (body unchanged): Save sends the CURRENT hash', async () => {
+      const { client, toast, update } = setup('T-104');
+      startEdit('mine');
+      update({ ...recipeSpec('T-104'), status: 'review', hash: 'hNew' });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(toast).toHaveBeenCalledWith('ok', 'Spec saved', expect.any(String)));
+      expect(client.setBody).toHaveBeenCalledWith('p1', 'T-104', 'hNew', 'mine');
+    });
+
+    it('body changed mid-edit: Save sends the EDIT-START hash and the 409 opens the conflict dialog', async () => {
+      const setBody = conflict();
+      const { update } = setup('T-104', { setBody });
+      startEdit('mine');
+      update({ ...recipeSpec('T-104'), bodyMd: 'Claude rewrote this', hash: 'hNew' });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await screen.findByRole('alertdialog', { name: 'This spec changed outside the board' });
+      expect(setBody).toHaveBeenCalledWith('p1', 'T-104', recipeSpec('T-104').hash, 'mine');
+    });
+
+    it('after a 409, Keep editing refreshes, and the next Save is based on the version that conflicted', async () => {
+      let n = 0;
+      const setBody = vi.fn(async (_p: string, sid: string) => {
+        if (n++ === 0) throw new ConflictError('h9', 'theirs');
+        return { hash: 'h10', spec: recipeSpec(sid) };
+      });
+      const { refresh, update, toast } = setup('T-104', { setBody });
+      startEdit('mine');
+      update({ ...recipeSpec('T-104'), bodyMd: 'Claude rewrote this', hash: 'h9' });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Keep editing' }));
+      expect(refresh).toHaveBeenCalledTimes(1);
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(toast).toHaveBeenCalledWith('ok', 'Spec saved', expect.any(String)));
+      expect(setBody).toHaveBeenLastCalledWith('p1', 'T-104', 'h9', 'mine');
+    });
+  });
+
+  describe('Claude actions (Ruling 18)', () => {
+    it('while disconnected: offline toast, no API call', () => {
+      const { client, toast, rerenderDown } = setup('T-109');
+      rerenderDown();
+      fireEvent.click(screen.getByRole('button', { name: /Tell Claude to start/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Ask Claude to fix' }));
+      expect(client.claude).not.toHaveBeenCalled();
+      expect(toast).toHaveBeenCalledTimes(2);
+      expect(toast).toHaveBeenCalledWith('err', 'Disconnected from the local server.', 'Edits won’t save until it’s back.');
+    });
+
+    it('a real error shows an err toast with its message, not the stub toast', async () => {
+      const claude = vi.fn(async () => {
+        throw new Error('Server exploded');
+      });
+      const { toast } = setup('T-104', { claude });
+      fireEvent.click(screen.getByRole('button', { name: /Tell Claude to start/ }));
+      await waitFor(() => expect(toast).toHaveBeenCalledWith('err', 'Couldn’t reach Claude for T-104', 'Server exploded'));
+      expect(toast).not.toHaveBeenCalledWith('info', CLAUDE_STUB_TOAST);
+    });
+
+    it('a non-stub success shows no stub toast', async () => {
+      const claude = vi.fn(async () => ({ stub: false }));
+      const { toast } = setup('T-104', { claude });
+      fireEvent.click(screen.getByRole('button', { name: /Tell Claude to start/ }));
+      await waitFor(() => expect(claude).toHaveBeenCalled());
+      await new Promise((r) => setTimeout(r, 0));
+      expect(toast).not.toHaveBeenCalled();
+    });
   });
 
   it('while disconnected, edits show the offline toast and send nothing', () => {

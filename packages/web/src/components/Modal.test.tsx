@@ -50,7 +50,16 @@ describe('Modal', () => {
     expect(dlg.getAttribute('aria-modal')).toBe('true');
     fireEvent.click(screen.getByText('First'));
     expect(onClose).not.toHaveBeenCalled();
-    fireEvent.click(dlg.parentElement!);
+    const scrim = dlg.parentElement!;
+    // A press that starts inside (e.g. selecting text) and ends on the scrim does not close.
+    fireEvent.mouseDown(screen.getByText('First'));
+    fireEvent.click(scrim);
+    expect(onClose).not.toHaveBeenCalled();
+    // A click without a press on the scrim (synthetic) does not close either.
+    fireEvent.click(scrim);
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.mouseDown(scrim);
+    fireEvent.click(scrim);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

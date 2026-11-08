@@ -21,11 +21,19 @@ export function Modal({ label, width, height = 'min(900px, calc(100vh - 64px))',
   const box = useRef<HTMLDivElement | null>(null);
   useEscape(true, onClose, ESC.modal);
   const onKeyDown = useFocusTrap(box, returnFocus ? { returnFocus } : {});
+  // Close only for a press that both started and ended on the scrim, so a text selection
+  // dragged out of the box does not close it (Ruling 17).
+  const pressedScrim = useRef(false);
+  const onDown = (e: MouseEvent<HTMLDivElement>) => {
+    pressedScrim.current = e.target === e.currentTarget;
+  };
   const onScrim = (e: MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) onClose();
+    const ok = pressedScrim.current && e.target === e.currentTarget;
+    pressedScrim.current = false;
+    if (ok) onClose();
   };
   return (
-    <div className={s.scrim} onClick={onScrim}>
+    <div className={s.scrim} onMouseDown={onDown} onClick={onScrim}>
       <div ref={box} role="dialog" aria-modal="true" aria-label={label} tabIndex={-1} className={s.box} style={{ width, height }} onKeyDown={onKeyDown}>
         {children}
       </div>
