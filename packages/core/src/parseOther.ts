@@ -1,4 +1,4 @@
-import { parseDocument } from 'yaml';
+import { isScalar, parseDocument, type Document } from 'yaml';
 import { splitFrontMatter } from './frontmatter.js';
 
 export interface LogEntry { at: string; text: string }
@@ -7,14 +7,14 @@ export interface ProjectConfig { name: string; references: string[]; description
 export interface Overview { updated: string | null; summaryMd: string }
 
 /** Parse YAML into a mapping. Never throws; returns null data plus problems when unusable. */
-function parseMapping(yaml: string | null): { data: Record<string, unknown> | null; problems: string[] } {
+function parseMapping(yaml: string | null): { data: Record<string, unknown> | null; problems: string[]; doc?: Document } {
   if (yaml === null) return { data: null, problems: ['Missing front matter'] };
   const doc = parseDocument(yaml);
   if (doc.errors.length > 0) return { data: null, problems: [`Invalid front matter: ${doc.errors[0]!.message}`] };
   const data: unknown = doc.toJS();
   if (data === null || data === undefined) return { data: {}, problems: [] };
   if (typeof data !== 'object' || Array.isArray(data)) return { data: null, problems: ['Front matter must be a mapping'] };
-  return { data: data as Record<string, unknown>, problems: [] };
+  return { data: data as Record<string, unknown>, problems: [], doc };
 }
 
 function optionalString(value: unknown): string | null {
@@ -29,7 +29,8 @@ function stringList(value: unknown): string[] {
   return items.filter((v) => v !== null && typeof v !== 'object').map((v) => String(v));
 }
 
-const ENTRY_HEADING = /^### (\d{4}-\d{2}-\d{2} \d{2}:\d{2})[ \t]*$/;
+// `YYYY-MM-DD HH:mm`, optional `:ss`, space or `T` between date and time, optional `Z` or `±HH:mm`.
+const ENTRY_HEADING = /^### (\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:\d{2})?)[ \t]*$/;
 
 function parseEntries(body: string): LogEntry[] {
   const entries: LogEntry[] = [];
@@ -53,7 +54,7 @@ function parseEntries(body: string): LogEntry[] {
 /** Parse a subtask log file. Never throws. */
 export function parseLog(text: string): SubtaskLog {
   const { yaml, body } = splitFrontMatter(text);
-  const { data, problems } = parseMapping(yaml);
+  const { data, problems, doc } = parseMapping(yaml);
   const log: SubtaskLog = { subtask: null, commit: null, files: [], entries: parseEntries(body), problems };
   if (!data) return log;
   if (data.subtask !== undefined && data.subtask !== null) {
@@ -63,7 +64,12 @@ export function parseLog(text: string): SubtaskLog {
   } else {
     problems.push('Missing subtask');
   }
-  log.commit = optionalString(data.commit);
+  // Use the scalar as written: YAML would turn hashes like 12e4567 or 0012345 into numbers.
+  const commit = doc?.get('commit', true);
+  log.commit =
+    isScalar(commit) && commit.value !== null && typeof commit.source === 'string'
+      ? optionalString(commit.source)
+      : optionalString(data.commit);
   log.files = stringList(data.files);
   return log;
 }

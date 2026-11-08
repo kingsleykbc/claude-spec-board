@@ -94,3 +94,18 @@ describe('parseOverview', () => {
     expect(parseOverview('---\nupdated: [x\n---\nBody\n')).toEqual({ updated: null, summaryMd: 'Body' });
   });
 });
+
+describe('final fixes: logs', () => {
+  it('F7: keeps numeric-looking commit hashes as written', () => {
+    expect(parseLog('---\nsubtask: 1\ncommit: 12e4567\n---\n').commit).toBe('12e4567');
+    expect(parseLog('---\nsubtask: 1\ncommit: 0012345\n---\n').commit).toBe('0012345');
+    expect(parseLog('---\nsubtask: 1\ncommit: "0x1F"\n---\n').commit).toBe('0x1F');
+  });
+  it('F10: accepts heading variants and keeps the text as written', () => {
+    for (const h of ['2026-11-08 14:02:33', '2026-11-08T14:02', '2026-11-08T14:02:33+01:00', '2026-11-08T14:02Z']) {
+      const log = parseLog('---\nsubtask: 1\n---\n### ' + h + '\nbody\n');
+      expect(log.entries).toEqual([{ at: h, text: 'body' }]);
+    }
+    expect(parseLog('---\nsubtask: 1\n---\n### 2026-11-08 14\nbody\n').entries).toEqual([]);
+  });
+});

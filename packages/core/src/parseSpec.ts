@@ -5,7 +5,8 @@ import type { Question, QuestionType, SpecDoc, Subtask } from './types.js';
 const QUESTION = /^- \[([ xX])\][ \t]+(Q\d+)[ \t]*\(([^)]*)\)[ \t]*:[ \t]*(.*?)[ \t]*$/;
 const ANSWER = /^[ \t]+>[ \t]*answer[ \t]*:[ \t]*(.*?)[ \t]*$/i;
 const SUBTASK = /^- \[([ xX])\][ \t]+(\d+)\.[ \t]+(.*?)[ \t]*$/;
-const LIST_ITEM = /^[ \t]*[-*+][ \t]/;
+// Only column-0 list items can be questions or subtasks; indented bullets are free-form detail.
+const LIST_ITEM = /^[-*+][ \t]/;
 const TYPES: readonly QuestionType[] = ['yesno', 'number', 'text', 'choice'];
 
 function sectionText(lines: string[], range: SectionRange | undefined): string {

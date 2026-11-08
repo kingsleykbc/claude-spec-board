@@ -101,3 +101,17 @@ describe('findSections', () => {
     expect([...m.keys()]).toEqual(['a']);
   });
 });
+
+describe('F8: nested bullets', () => {
+  it('ignores indented bullets under subtasks and questions', () => {
+    const t = FM + '\n## Open questions\n\n- [ ] Q1 (text): Why?\n  > answer: x\n  - context\n\n## Subtasks\n\n- [ ] 1. one\n  - detail\n    * deeper\n- [ ] 2. two\n';
+    const d = parseSpec(t);
+    expect(d.problems).toEqual([]);
+    expect(d.subtasks).toHaveLength(2);
+    expect(d.questions).toHaveLength(1);
+    expect(d.questions[0]!.answer).toBe('x');
+  });
+  it('still flags a column-0 bullet that is not a subtask', () => {
+    expect(parseSpec(FM + '\n## Subtasks\n\n- not a subtask\n').problems).toEqual(['Unrecognised subtask line 8']);
+  });
+});
