@@ -96,6 +96,15 @@ describe('kit content', () => {
     }
   });
 
+  it('run-spec takes the test command from the allow-list and never invents one', async () => {
+    const text = (await kitSkills()).find((s) => s.name === 'run-spec')!.text;
+    expect(text).toContain('.claude/settings.json');
+    expect(text).toContain('permissions.allow');
+    expect(text).toContain('No test command is set up');
+    expect(text).toMatch(/do not run or add tests/);
+    expect(text).toMatch(/do not edit `package.json`/);
+  });
+
   it('no skill tells Claude to run shell commands outside the default allow-list', async () => {
     for (const { name, text } of await kitSkills()) {
       const instructions = text
@@ -163,5 +172,52 @@ describe('installSkills', () => {
     }
     await installSkills(tmp, { force: true });
     for (const f of others) expect(await fs.readFile(f, 'utf8')).toBe(`keep ${path.basename(f)}`);
+  });
+
+  describe('links', () => {
+    // A junction works unprivileged on Windows; on other systems it is a plain directory symlink.
+    const link = (target: string, at: string) => fs.symlink(target, at, 'junction');
+    let outside: string;
+    beforeEach(async () => {
+      outside = await fs.mkdtemp(path.join(os.tmpdir(), 'specboard-outside-'));
+    });
+    afterEach(async () => {
+      await fs.rm(outside, { recursive: true, force: true });
+    });
+
+    async function expectRefused(): Promise<void> {
+      await expect(installSkills(tmp)).rejects.toThrow(/is a link/);
+      expect(await fs.readdir(outside)).toEqual([]);
+    }
+
+    it('refuses when .claude is a link', async () => {
+      await link(outside, path.join(tmp, '.claude'));
+      await expectRefused();
+    });
+
+    it('refuses when .claude/skills is a link', async () => {
+      await fs.mkdir(path.join(tmp, '.claude'));
+      await link(outside, path.join(tmp, '.claude', 'skills'));
+      await expectRefused();
+    });
+
+    it('refuses when a skill folder is a link, before writing any skill', async () => {
+      await fs.mkdir(path.join(tmp, '.claude', 'skills'), { recursive: true });
+      await link(outside, path.join(tmp, '.claude', 'skills', 'run-spec'));
+      await expect(installSkills(tmp)).rejects.toThrow(/run-spec/);
+      expect(await fs.readdir(outside)).toEqual([]);
+      expect(await fs.readdir(path.join(tmp, '.claude', 'skills'))).toEqual(['run-spec']);
+    });
+
+    it('refuses when SKILL.md is a link and leaves its target untouched', async () => {
+      const target = path.join(outside, 'secret.md');
+      await fs.writeFile(target, 'precious');
+      const dir = path.join(tmp, '.claude', 'skills', 'next');
+      await fs.mkdir(dir, { recursive: true });
+      await fs.symlink(target, path.join(dir, 'SKILL.md'), 'file').catch(() => undefined);
+      if (!(await fs.lstat(path.join(dir, 'SKILL.md')).catch(() => null))?.isSymbolicLink()) return; // file symlinks need privileges on some systems
+      await expect(installSkills(tmp, { force: true })).rejects.toThrow(/is a link/);
+      expect(await fs.readFile(target, 'utf8')).toBe('precious');
+    });
   });
 });

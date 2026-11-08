@@ -21,7 +21,7 @@ Run the spec whose ID is: $ARGUMENTS
 4. For each unticked subtask, in order:
    1. Set `current_subtask: <n>`.
    2. Do the work the subtask describes, using the Spec and Features sections and the answers.
-   3. Run the project's tests with its test command (from its `package.json`, README or config), as a single command on its own. If the subtask needs checking and the tests do not cover it, add a test to the project and run that; do not run ad-hoc scripts. If they fail, fix the cause. If you cannot, treat it as step 5 and do not commit failing work.
+   3. Run the project's tests. Read `.claude/settings.json`, take the test command from the `Bash(...)` entries in `permissions.allow` (the entry that runs the tests, for example `Bash(npm test)` means `npm test`), and run exactly that command, alone, with the Bash tool. Do not pick another test command and do not chain anything onto it. If it fails, fix the cause. If you cannot, treat it as step 5 and do not commit failing work. If no test command is listed, do not run or add tests and do not edit `package.json` to create a test script; write "No test command is set up" in the subtask's log entry and carry on.
    4. Commit only this subtask's code with the Bash tool: `git add <the files you changed>`, then `git commit -m "<ID> · <n>. <subtask title>"`. Do not add `.specboard/` files to the commit.
    5. Get the short hash with `git log -1 --format=%h` and the changed files with `git diff --name-only HEAD~1 HEAD`.
    6. Write `.specboard/specs/<ID>-<slug>/logs/<n>-<slug>.md` in the log format: `subtask`, `commit`, `files`, and a dated entry (`### YYYY-MM-DD HH:mm`) of what you did.
