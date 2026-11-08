@@ -7,9 +7,16 @@ const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
  * Host must be exactly `127.0.0.1:<port>` or `localhost:<port>` (defeats DNS rebinding).
  * For mutating methods Origin must be absent or exactly `http://127.0.0.1:<port>` / `http://localhost:<port>`.
  */
-export function isAllowedRequest(host: string | undefined, origin: string | undefined, method: string, port: number): boolean {
+export function isAllowedRequest(
+  host: string | undefined,
+  origin: string | undefined,
+  method: string,
+  port: number,
+  opts?: { upgrade?: boolean },
+): boolean {
   if (host !== `127.0.0.1:${port}` && host !== `localhost:${port}`) return false;
-  if (MUTATING.has(method.toUpperCase()) && origin !== undefined) {
+  // WebSocket upgrades are GETs but must be treated as mutating (cross-site WebSocket hijacking).
+  if ((opts?.upgrade === true || MUTATING.has(method.toUpperCase())) && origin !== undefined) {
     if (origin !== `http://127.0.0.1:${port}` && origin !== `http://localhost:${port}`) return false;
   }
   return true;

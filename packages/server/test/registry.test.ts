@@ -41,6 +41,34 @@ describe('Registry', () => {
     expect((await reg.add(named)).name).toBe('Fancy Name');
   });
 
+  it('backs up a corrupt registry file before writing', async () => {
+    const file = path.join(tmp, 'projects.json');
+    for (const bad of ['{not json', '{"a":1}']) {
+      await fs.rm(file + '.bak', { force: true });
+      await fs.writeFile(file, bad);
+      const reg = new Registry(file);
+      expect(await reg.list()).toEqual([]);
+      const proj = path.join(tmp, 'p');
+      await fs.mkdir(proj, { recursive: true });
+      const e = await reg.add(proj);
+      expect(await fs.readFile(file + '.bak', 'utf8')).toBe(bad);
+      expect(JSON.parse(await fs.readFile(file, 'utf8'))).toEqual([e]);
+    }
+  });
+
+  it('keeps malformed entries inside a valid array when writing', async () => {
+    const file = path.join(tmp, 'projects.json');
+    const good = { id: 'abcd1234', name: 'g', root: path.join(tmp, 'g') };
+    await fs.writeFile(file, JSON.stringify([{ weird: true }, good]));
+    const reg = new Registry(file);
+    expect(await reg.list()).toEqual([good]);
+    const proj = path.join(tmp, 'p');
+    await fs.mkdir(proj);
+    const e = await reg.add(proj);
+    expect(JSON.parse(await fs.readFile(file, 'utf8'))).toEqual([{ weird: true }, good, e]);
+    await expect(fs.access(file + '.bak')).rejects.toThrow();
+  });
+
   it('survives a second instance reading the same file and concurrent adds', async () => {
     const file = path.join(tmp, 'projects.json');
     const reg = new Registry(file);

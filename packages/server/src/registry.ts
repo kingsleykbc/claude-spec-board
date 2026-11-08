@@ -26,20 +26,21 @@ export class Registry {
 
   constructor(private readonly file: string) {}
 
-  private async read(): Promise<{ entries: ProjectEntry[]; text: string | null }> {
+  private async read(): Promise<{ entries: ProjectEntry[]; raw: unknown[]; corrupt: boolean; text: string | null }> {
     let text: string;
     try {
       text = await fs.readFile(this.file, 'utf8');
     } catch (e) {
-      if ((e as NodeJS.ErrnoException).code === 'ENOENT') return { entries: [], text: null };
+      if ((e as NodeJS.ErrnoException).code === 'ENOENT') return { entries: [], raw: [], corrupt: false, text: null };
       throw e;
     }
     try {
       const data: unknown = JSON.parse(text);
-      return { entries: Array.isArray(data) ? data.filter(isEntry) : [], text };
+      if (Array.isArray(data)) return { entries: data.filter(isEntry), raw: data, corrupt: false, text };
     } catch {
-      return { entries: [], text };
+      // fall through: unparsable
     }
+    return { entries: [], raw: [], corrupt: true, text };
   }
 
   async list(): Promise<ProjectEntry[]> {
@@ -60,12 +61,13 @@ export class Registry {
     const root = path.resolve(rootInput);
     const id = projectId(root);
     for (let attempt = 0; attempt < 5; attempt++) {
-      const { entries, text } = await this.read();
+      const { entries, raw, corrupt, text } = await this.read();
       const existing = entries.find((e) => e.id === id);
       if (existing) return existing;
       const project = await loadProject(root);
       const entry: ProjectEntry = { id, name: project.config?.name || path.basename(root), root };
-      const next = JSON.stringify([...entries, entry], null, 2) + '\n';
+      const next = JSON.stringify([...raw, entry], null, 2) + '\n';
+      if (corrupt && text !== null) await fs.writeFile(this.file + '.bak', text, 'utf8'); // keep the bad file before replacing it
       if (text === null) {
         // First write: temp file, then a link that fails rather than overwrite a file created meanwhile.
         await fs.mkdir(path.dirname(this.file), { recursive: true });

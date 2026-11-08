@@ -92,6 +92,14 @@ describe('guard', () => {
     // Origin is only enforced for mutating methods
     expect(isAllowedRequest('127.0.0.1:4949', 'http://evil.com', 'GET', 4949)).toBe(true);
   });
+
+  it('enforces Origin on WebSocket upgrades even though they are GETs', () => {
+    const up = { upgrade: true };
+    expect(isAllowedRequest('127.0.0.1:4949', 'http://evil.com', 'GET', 4949, up)).toBe(false);
+    expect(isAllowedRequest('127.0.0.1:4949', 'http://127.0.0.1:4949', 'GET', 4949, up)).toBe(true);
+    expect(isAllowedRequest('localhost:4949', undefined, 'GET', 4949, up)).toBe(true);
+    expect(isAllowedRequest('evil.com', undefined, 'GET', 4949, up)).toBe(false);
+  });
 });
 
 describe('static files', () => {
