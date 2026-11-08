@@ -39,6 +39,31 @@ describe('api client', () => {
     expect((f.mock.calls[0] as unknown as [string])[0]).toBe('/api/projects/p/references?path=docs%2FA%20B.md');
   });
 
+  it('every mutating request is application/json; body-less ones send {}', async () => {
+    const f = reply(204);
+    vi.stubGlobal('fetch', f);
+    await api.archive('p', 'T-1');
+    await api.unarchive('p', 'T-1');
+    await api.removeReference('p', 'docs/A.md');
+    const c = reply(501, { stub: true });
+    vi.stubGlobal('fetch', c);
+    await api.claude('stop');
+    const calls = [...f.mock.calls, ...c.mock.calls] as unknown as Array<[string, RequestInit]>;
+    expect(calls).toHaveLength(4);
+    for (const [, init] of calls) {
+      expect((init.headers as Record<string, string>)['content-type']).toBe('application/json');
+      expect(init.body).toBe('{}');
+    }
+    expect(calls[2]![1].method).toBe('DELETE');
+    // GETs carry no body or content-type.
+    const g = reply(200, []);
+    vi.stubGlobal('fetch', g);
+    await api.projects();
+    const [, gi] = g.mock.calls[0] as unknown as [string, RequestInit];
+    expect(gi.body).toBeUndefined();
+    expect((gi.headers as Record<string, string>)['content-type']).toBeUndefined();
+  });
+
   it('claude stubs resolve as { stub: true } on 501', async () => {
     vi.stubGlobal('fetch', reply(501, { stub: true, action: 'run' }));
     await expect(api.claude('run', { id: 'T-1' })).resolves.toEqual({ stub: true });

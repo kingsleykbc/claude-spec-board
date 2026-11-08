@@ -59,9 +59,10 @@ const spec = (pid: string, id: string) => `${proj(pid)}/specs/${enc(id)}`;
 
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
   const init: RequestInit = { method, headers: { accept: 'application/json' } };
-  if (body !== undefined) {
+  // The server requires JSON on every mutating call (CSRF defence), so body-less ones send `{}`.
+  if (method !== 'GET') {
     init.headers = { ...init.headers, 'content-type': 'application/json' };
-    init.body = JSON.stringify(body);
+    init.body = JSON.stringify(body ?? {});
   }
   const res = await fetch(url, init);
   const text = await res.text();

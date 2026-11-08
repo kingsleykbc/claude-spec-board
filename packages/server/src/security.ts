@@ -22,10 +22,20 @@ export function isAllowedRequest(
   return true;
 }
 
+/** True when a Content-Type header names JSON (`application/json`, any parameters, any case). */
+export function isJsonContentType(value: string | undefined): boolean {
+  return (value ?? '').split(';')[0]!.trim().toLowerCase() === 'application/json';
+}
+
 export function guard(port: () => number): MiddlewareHandler {
   return async (c, next) => {
     if (!isAllowedRequest(c.req.header('host'), c.req.header('origin'), c.req.method, port())) {
       return c.json({ error: 'Forbidden' }, 403);
+    }
+    // Every mutating /api call must be JSON, body or not. A cross-site page can only send JSON after a
+    // CORS preflight, which this server never answers, so simple (no-cors) requests cannot mutate anything.
+    if (MUTATING.has(c.req.method.toUpperCase()) && c.req.path.startsWith('/api/') && !isJsonContentType(c.req.header('content-type'))) {
+      return c.json({ error: 'Content-Type must be application/json' }, 415);
     }
     await next();
   };

@@ -73,7 +73,10 @@ describe('guard', () => {
   });
 
   it('lets a POST with the board origin through the guard', async () => {
-    const res = await app.request('/api/nothing', { method: 'POST', headers: { ...HOST, Origin: 'http://127.0.0.1:4949' } });
+    const res = await app.request('/api/nothing', {
+      method: 'POST',
+      headers: { ...HOST, Origin: 'http://127.0.0.1:4949', 'Content-Type': 'application/json' },
+    });
     expect(res.status).toBe(404);
   });
 
@@ -99,6 +102,51 @@ describe('guard', () => {
     expect(isAllowedRequest('127.0.0.1:4949', 'http://127.0.0.1:4949', 'GET', 4949, up)).toBe(true);
     expect(isAllowedRequest('localhost:4949', undefined, 'GET', 4949, up)).toBe(true);
     expect(isAllowedRequest('evil.com', undefined, 'GET', 4949, up)).toBe(false);
+  });
+});
+
+describe('content-type guard', () => {
+  const NEED = { error: 'Content-Type must be application/json' };
+
+  it('rejects mutating /api requests that are not application/json with 415 and changes nothing', async () => {
+    const entry = await reg.add(proj);
+    const base = `/api/projects/${entry.id}`;
+    const cases: Array<[string, string, Record<string, string>, string | undefined]> = [
+      ['POST', `${base}/specs/T-101/archive`, { 'Content-Type': 'text/plain' }, '{}'],
+      ['POST', `${base}/specs/T-101/archive`, {}, undefined],
+      ['POST', `${base}/specs`, { 'Content-Type': 'text/plain' }, JSON.stringify({ title: 't', description: '', draft: false })],
+      ['PATCH', `${base}/specs/T-103/meta`, { 'Content-Type': 'application/x-www-form-urlencoded' }, 'a=b'],
+      ['PUT', `${base}/references/content`, { 'Content-Type': 'multipart/form-data' }, '{}'],
+      ['DELETE', `${base}/references?path=CLAUDE.md`, {}, undefined],
+      ['DELETE', `${base}/references?path=CLAUDE.md`, { 'Content-Type': 'text/plain' }, undefined],
+      ['POST', '/api/claude/run', { 'Content-Type': 'text/plain' }, '{}'],
+      ['POST', '/api/claude/run', {}, undefined],
+    ];
+    for (const [method, url, extra, body] of cases) {
+      const res = await app.request(url, { method, headers: { ...HOST, ...extra }, body });
+      expect(res.status, `${method} ${url} ${JSON.stringify(extra)}`).toBe(415);
+      expect(await res.json()).toEqual(NEED);
+    }
+    const res = await app.request(base, { headers: HOST });
+    const data = (await res.json()) as { project: { specs: Array<{ id: string }>; config: { references: string[] } } };
+    expect(data.project.specs.map((s) => s.id)).toContain('T-101');
+    expect(data.project.specs).toHaveLength(8);
+    expect(data.project.config.references).toContain('CLAUDE.md');
+  });
+
+  it('accepts application/json with parameters and leaves GETs alone', async () => {
+    const res = await app.request('/api/claude/run', {
+      method: 'POST',
+      headers: { ...HOST, 'Content-Type': 'Application/JSON; charset=utf-8' },
+      body: '{}',
+    });
+    expect(res.status).toBe(501);
+    expect((await app.request('/api/health', { headers: { ...HOST, 'Content-Type': 'text/plain' } })).status).toBe(200);
+  });
+
+  it('answers 403 before 415 for a foreign Origin', async () => {
+    const res = await app.request('/api/claude/run', { method: 'POST', headers: { ...HOST, Origin: 'http://evil.com' } });
+    expect(res.status).toBe(403);
   });
 });
 
