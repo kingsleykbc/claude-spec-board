@@ -1,0 +1,88 @@
+# M3: how the real `claude` CLI behaves
+
+Captured 2026-11-08 on Windows 11 with Claude Code 2.1.302 (`claude auth status`: logged in, claude.ai subscription), model `--model haiku` (resolves to `claude-haiku-5-5`). Fixtures: `packages/server/test/fixtures/claude/*.jsonl`.
+
+## How the probes ran
+
+- Every probe ran from a Node script using `child_process.spawn('claude', args, { stdio: ['ignore','pipe','pipe'], shell: false })`. `claude` resolves to `claude.exe`, so no shell is needed.
+- All `CLAUDE*` and `ANTHROPIC*` variables were removed from the child environment (the probes were launched from inside a Claude Code session).
+- The cwd was a fresh temp git repo outside the Spec Board repo, with `.claude/skills/probe/SKILL.md` (takes `$ARGUMENTS`; asks for Read `notes.txt`, Write `out.txt`, Bash `git status`). I never answered a trust dialog and never touched trust settings or `~/.claude*`. I did not inspect whether the folder is recorded as trusted; in `-p` mode there is no dialog at all (see Q1).
+- Command line that worked (argument array, no shell):
+
+```
+claude -p "/probe alpha42" --model haiku --output-format stream-json --verbose \
+  --permission-mode dontAsk --max-turns 8 --settings '<json>'
+```
+
+`<json>` for the main probes: `{"permissions":{"allow":["Read(./**)","Edit(./**)","Write(./**)","Bash(git status:*)","Bash(git diff:*)","Bash(git commit:*)"]}}`. `--settings` accepts inline JSON. `--verbose` is required for stream-json with `-p`.
+
+- Fixture trimming: `system` events with subtype `hook_started`, `hook_response` and `thinking_tokens` were dropped (the hook output is huge and personal), as were `rate_limit_event` lines. The `init` event keeps its keys but `skills`, `plugins`, `mcp_servers`, `slash_commands`, `agents`, `memory_paths` are emptied and `mcp__*` tools removed. Thinking `signature`s are replaced by `<SIGNATURE>`. Paths are `<ROOT>` (the project cwd) and `<SCRATCH>` (its parent), session ids are `<SESSION>`, e-mail addresses `<EMAIL>`. Everything else is verbatim, one real JSON object per line. Grep for `Kingsley`, `xaviourchubie`, `@`, `AppData` is clean.
+
+## Gotcha: Git Bash rewrites a leading `/` argument
+
+Running the same command from Git Bash turned `"/probe alpha42"` into `C:/Program Files/Git/probe alpha42` (MSYS path conversion), and the model then called the `Skill` tool with that garbage. That is a shell artefact, not a CLI one: spawning from Node with an argument array passes `/probe alpha42` unchanged. Tests and manual probes must not go through Git Bash without `MSYS_NO_PATHCONV=1`.
+
+## Q1. Does `--settings` + `dontAsk` allow listed tools and refuse others in an untrusted folder?
+
+Yes (`ok-tools.jsonl`, `denied.jsonl`, `no-settings.jsonl`).
+
+- `-p` (print) mode shows no trust dialog and the project skill still loaded and ran. Listed rules applied: `Read(./**)`, `Write(./**)`, `Bash(git status:*)` ran with `permission_denials: []`, exit code 0, and `out.txt` was created.
+- Unlisted: `npm --version` was refused (`denied.jsonl`).
+- Without any `--settings` (`no-settings.jsonl`), `dontAsk` still permits read-only things (Read, `git status`) but refuses Write. So the approved list is what grants write/exec power.
+- Skill invocation: with a correct `/probe alpha42` prompt the CLI expands the skill before the model runs. There is no `Skill` tool_use and no extra `user` event in the stream; `$ARGUMENTS` was substituted (`out.txt` contained `hello alpha42`). The `Skill` tool needs no allow rule.
+
+## Q2. Rule syntax for Edit/Write; writes outside the project
+
+- `Edit(./**)` and `Write(./**)` scope to the project directory. A `Write` to an absolute path outside the project (a sibling folder that exists) was refused and nothing was created (`outside-write.jsonl`).
+- Tool inputs carry absolute Windows paths with backslashes (`"file_path":"<ROOT>\\out.txt"`), and the rules still matched.
+- Keep rules in this `Tool(specifier)` form; a `:*` suffix on Bash rules is a prefix match.
+
+## Q3. `Bash(git commit:*)` and PowerShell
+
+- `Bash(git commit:*)` works under Git Bash. `git commit -m probe-commit` ran with no denial and the commit exists (`git log`). A compound `git add d.txt && git commit -m compound` also passed when both `Bash(git add:*)` and `Bash(git commit:*)` were listed (both commits landed).
+- **A `PowerShell` tool exists** in the tool list on Windows (`init.tools`). When told to use it, the model does. When just asked to "list the files with a shell command" it chose `Bash`.
+- Bash rules do NOT cover it: `PowerShell` running `git commit ...` was denied (`powershell-denied.jsonl`) and so was `Set-Content`. Read-only PowerShell commands such as `git status` ran without a rule (same read-only exemption as Bash).
+- `PowerShell(git commit:*)` as an allow rule works (the same command then passed). Decision for M3: do NOT add PowerShell rules; leaving PowerShell write access denied is the safe default. The skills should say "use the Bash tool".
+
+## Q4. SIGTERM / `taskkill`
+
+- `child.kill('SIGTERM')` from Node on Windows terminates `claude.exe` immediately. Node reports `code: null, signal: 'SIGTERM'`. The stream stops mid-way, with no `result` event (`sigterm.jsonl` was only checked, not committed: it holds only startup lines). The `close` event came about 6 s after the kill, probably because child processes held the stdout pipe open. Use `exit` plus a timeout, or kill the tree, rather than waiting on `close`.
+- `taskkill /PID <pid>` (no `/F`) fails: "can only be terminated forcefully". The run kept going and finished normally (exit 0).
+- `taskkill /PID <pid> /T /F` kills `claude.exe` and its child processes (8 processes in total). Exit code seen by Node: `1`, signal `null`. No stray `claude.exe` remained afterwards.
+- So for cancel: use `taskkill /PID <pid> /T /F` (tree) on Windows. Do not rely on a graceful stop and do not expect a `result` event.
+
+## Stream shapes (see fixtures)
+
+Event order for a normal run (`ok-tools.jsonl`): `system/init`, `assistant` (thinking block), `assistant` (tool_use), `user` (tool_result), ..., `assistant` (text), `result`. Each content block of one model message arrives as its own `assistant` line, all sharing `message.id`. Parallel tool calls appear as consecutive assistant lines before the matching `user` lines.
+
+- `init`: `session_id`, `cwd`, `tools`, `model`, `permissionMode` ("dontAsk"), `claude_code_version`, `apiKeySource`.
+- tool_use block: `{"type":"tool_use","id":"toolu_..","name":"Read","input":{"file_path":"<ROOT>\\notes.txt"},"caller":{"type":"direct"}}`. Names seen: `Read`, `Write`, `Edit`, `Bash` (input `command`, `description`), `PowerShell`, `Skill` (input `skill`, `args`).
+- tool_result is a `user` line: `message.content[0] = {"tool_use_id","type":"tool_result","content":"<string>","is_error":false}` (`is_error` can be absent on success, `true` on a denial). The `user` line also has a top-level `tool_use_result` object with richer data (for Read: `{type:"text", file:{filePath, content, numLines,...}}`).
+- Other `assistant` keys: `session_id`, `uuid`, `timestamp`, `parent_tool_use_id` (null at top level), `request_id`.
+- `result` event (success): `type:"result"`, `subtype:"success"`, `is_error:false`, `result:"done"` (final assistant text), `num_turns`, `stop_reason:"end_turn"`, `terminal_reason:"completed"`, `session_id`, `total_cost_usd`, `duration_ms`, `usage`, `modelUsage`, `permission_denials:[]`.
+- `result` (failure, `error-max-turns.jsonl`, `--max-turns 1`): `subtype:"error_max_turns"`, `is_error:true`, `errors:["Reached maximum number of turns (1)"]`, `terminal_reason:"max_turns"`, process exit code **1**.
+- Bad model (`bad-model.jsonl`, `--model nosuchmodel`): exit code 1, stderr `[claude-code:unrecognized_model] {...}`, stream has `init`, a synthetic assistant message and an error `result`.
+- `--max-turns N` counts tool round trips; it stops with the failure above, so leave headroom.
+
+## Denials (`denied.jsonl`, `deny-rule.jsonl`)
+
+- A denied tool call does **not** stop the run. The `tool_result` has `is_error:true` with text such as `Permission to use Bash has been denied because Claude Code is running in don't ask mode. IMPORTANT: You *may* attempt to ... other tools ...`; the model then continues and explains, ending with a normal `result`.
+- A denied run still ends with `subtype:"success"`, `is_error:false`, `terminal_reason:"completed"`, and **exit code 0**. The only machine-readable signal is `permission_denials`.
+- `permission_denials` shape (array in the final `result`): `{"tool_name":"Bash","tool_use_id":"toolu_..","tool_input":{"command":"npm --version","description":"Print npm version"}}`. For Write it holds `file_path` and `content`; for Edit `file_path`, `old_string`, `new_string`, `replace_all`.
+- **Is that enough to build a rule?** Yes for Bash (exact `command` string, so `Bash(npm --version)` or a prefix `Bash(npm:*)`), and for Edit/Write (tool name and absolute `file_path`). It is complete per tool call, including compound or multi-line commands, so the UI should offer an exact or prefix rule and let the human choose. The list is only in the final `result`; a killed run has none.
+- `permissions.deny` beats `permissions.allow`: with `Bash(git status:*)` in both, `git status` was denied (`deny-rule.jsonl`; `tool_result` text `Permission to use Bash with command git status has been denied.`, and the denial is listed in `permission_denials`).
+
+## Can Edit/Write to `.claude/**` be blocked?
+
+Yes, two ways (`claude-dir-deny.jsonl`, `claude-dir-write.jsonl`):
+
+- With `deny: ["Edit(./.claude/**)","Write(./.claude/**)"]` plus broad allows, both a Write of a new file and an Edit of `SKILL.md` were refused. The tool_result is `<tool_use_error>File is in a directory that is denied by your permission settings.</tool_use_error>` (a different text from the dontAsk one) and both calls appear in `permission_denials`. The skill files were unchanged.
+- Even with only `Write(./**)` allowed and no deny rule, a Write to `.claude/skills/probe/EXTRA.md` was refused (listed in `permission_denials`). So `.claude/` seems protected by default under `dontAsk`. The explicit deny rules are still worth shipping so the behaviour does not depend on that default.
+
+## Decision 1 check
+
+Nothing contradicted Decision 1: approved settings passed via `--settings` with `--permission-mode dontAsk` work from a never-trusted folder in `-p` mode, grant exactly the listed tools, refuse the rest and write outside the project, `deny` wins, and no `--dangerously-skip-permissions` or trust writes were needed. Scope facts for later tasks: a `PowerShell` tool exists (leave it unlisted), the denial exit code is 0, and cancel needs `taskkill /T /F`.
+
+## Rough cost
+
+About $0.002 to $0.007 and 15 to 25 s per haiku probe, mostly startup. Plan on ~20 s per real run in any manual check.
