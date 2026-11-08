@@ -14,6 +14,8 @@ function setup(id: string, over: Partial<DetailClient> = {}, specs: Spec[] = [..
     setMeta: vi.fn(async (_pid: string, sid: string) => ({ hash: 'h2', spec: recipeSpec(sid) })),
     setBody: vi.fn(async (_pid: string, sid: string) => ({ hash: 'h2', spec: recipeSpec(sid) })),
     specDraftCopy: vi.fn(async () => ({ path: '.specboard/specs/T-105-shopping-list-export/spec.draft.md' })),
+    setAnswers: vi.fn(async (_pid: string, sid: string) => ({ hash: 'h2', spec: recipeSpec(sid) })),
+    setSubtask: vi.fn(async (_pid: string, sid: string) => ({ hash: 'h2', spec: recipeSpec(sid) })),
     claude: vi.fn(async () => ({ stub: true })),
     archive: vi.fn(async () => undefined),
     unarchive: vi.fn(async () => undefined),
@@ -24,6 +26,7 @@ function setup(id: string, over: Partial<DetailClient> = {}, specs: Spec[] = [..
   const mutate = createMutator(() => Promise.reject(new Error('no default')));
   const actions = createSpecActions({ pid: 'p1', client, mutate, refresh, toast });
   const onClose = vi.fn();
+  const onOpenSpec = vi.fn();
   const el = (list: Spec[], down = false) => (
     <CardDetail
       pid="p1"
@@ -37,13 +40,14 @@ function setup(id: string, over: Partial<DetailClient> = {}, specs: Spec[] = [..
       toast={toast}
       onMove={(s, k) => actions.move(s, k)}
       onClose={onClose}
+      onOpenSpec={onOpenSpec}
       down={down}
     />
   );
   const r = render(el(specs));
   /** Re-render with this spec replaced by `next` (a live update). */
   const update = (next: Spec) => r.rerender(el(specs.map((x) => (x.id === id ? next : x))));
-  return { client, toast, refresh, onClose, update, rerenderDown: () => r.rerender(el(specs, true)) };
+  return { client, toast, refresh, onClose, onOpenSpec, update, rerenderWith: (list: Spec[]) => r.rerender(el(list)), rerenderDown: () => r.rerender(el(specs, true)) };
 }
 
 const startEdit = (text: string) => {
@@ -75,6 +79,26 @@ describe('CardDetail', () => {
     expect(screen.getByText('This spec was removed or archived')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('a spec that disappears after a refresh shows the removed message (Review Focus 4)', () => {
+    const { rerenderWith, onClose } = setup('T-104');
+    expect(screen.getByRole('dialog', { name: 'Meal planner calendar' })).toBeTruthy();
+    rerenderWith([...recipeSpecs, fileProblemSpec].filter((x) => x.id !== 'T-104'));
+    expect(screen.queryByRole('dialog', { name: 'Meal planner calendar' })).toBeNull();
+    expect(screen.getByText('This spec was removed or archived')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('shows Open questions, Dependencies and Subtasks; a dependency opens that spec', () => {
+    const { onOpenSpec } = setup('T-105');
+    const q = document.querySelector('[data-section="questions"]') as HTMLElement;
+    expect(within(q).getByText('3 waiting on you')).toBeTruthy();
+    const deps = document.querySelector('[data-section="dependencies"]') as HTMLElement;
+    fireEvent.click(within(deps).getByRole('button', { name: /T-104/ }));
+    expect(onOpenSpec).toHaveBeenCalledWith('T-104');
+    expect(screen.getByText('0 of 5 done')).toBeTruthy();
   });
 
   it('opens archived specs', () => {

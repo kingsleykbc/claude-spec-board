@@ -9,13 +9,16 @@ import { ConflictDialog } from '../ConflictDialog';
 import { Dialog } from '../Dialog';
 import { Modal } from '../Modal';
 import { BlockedBanner, type BlockReason } from './BlockedBanner';
+import { Dependencies } from './Dependencies';
 import { DetailHeader } from './DetailHeader';
 import { FileProblem } from './FileProblem';
 import type { RunState } from './RunButton';
+import { Questions } from './Questions';
 import { SpecSection } from './SpecSection';
+import { Subtasks } from './Subtasks';
 import s from './detail.module.css';
 
-export type DetailClient = Pick<typeof api, 'setMeta' | 'setBody' | 'specDraftCopy' | 'claude'>;
+export type DetailClient = Pick<typeof api, 'setMeta' | 'setBody' | 'specDraftCopy' | 'claude' | 'setAnswers' | 'setSubtask'>;
 
 export interface CardDetailProps {
   pid: string;
@@ -39,8 +42,18 @@ export interface CardDetailProps {
   runState?: RunState;
   /** The spec Claude is working on, for the disabled Run note. */
   runningId?: string | null;
-  /** The run column (Task 11); widens the modal when present. */
+  /** A run is working on this spec (the subtask "In progress" pill). Always false in M2. */
+  runActive?: boolean;
+  /** The run column, e.g. a RunPanel; widens the modal when present. */
   aside?: ReactNode;
+  /** Open another spec (`?spec=<id>`), from Dependencies. */
+  onOpenSpec?: (id: string) => void;
+  /** Keys changed by the last live update (`${id}:${n}` subtask rows flash). */
+  changed?: ReadonlySet<string>;
+  /** `${specId}:${qid}` for questions first seen through a live update (the New badge). */
+  newQuestions?: ReadonlySet<string>;
+  /** The New keys cleared by a successful answers save. */
+  onQuestionsSeen?: (keys: string[]) => void;
   /** Where focus goes on close if the opening element is gone. */
   returnFocus?: () => HTMLElement | null;
 }
@@ -85,7 +98,12 @@ function SpecDetail({
   down = false,
   runState = 'ready',
   runningId = null,
+  runActive = false,
   aside,
+  onOpenSpec = () => undefined,
+  changed,
+  newQuestions,
+  onQuestionsSeen,
   returnFocus,
 }: CardDetailProps & { spec: Spec }) {
   const id = spec.id;
@@ -257,7 +275,6 @@ function SpecDetail({
 
   const allCategories = [...new Set(all.flatMap((x) => x.categories))];
   const problem = spec.problems[0];
-  const border = (k: Section) => ({ borderColor: hl === k ? 'var(--accent)' : 'var(--line)' });
 
   return (
     <Modal
@@ -298,31 +315,32 @@ function SpecDetail({
                 onCancel={() => setEditText(null)}
                 onSave={() => void save()}
               />
-              {/* Placeholders that Task 11 fills: Open questions and Dependencies. */}
-              <section
-                ref={sectionRefs.questions}
-                id={`${id}-questions`}
-                data-section="questions"
-                aria-label="Open questions"
-                className={s.section}
-                style={border('questions')}
-              >
-                <div className={s.sectionHead}>
-                  <span className={s.label}>OPEN QUESTIONS</span>
-                </div>
-              </section>
-              <section
-                ref={sectionRefs.dependencies}
-                id={`${id}-dependencies`}
-                data-section="dependencies"
-                aria-label="Dependencies"
-                className={s.section}
-                style={border('dependencies')}
-              >
-                <div className={s.sectionHead}>
-                  <span className={s.label}>DEPENDENCIES</span>
-                </div>
-              </section>
+              <Questions
+                pid={pid}
+                spec={spec}
+                path={path}
+                client={client}
+                mutate={mutate}
+                refresh={refresh}
+                toast={toast}
+                down={down}
+                {...(newQuestions ? { newQuestions } : {})}
+                {...(onQuestionsSeen ? { onSeen: onQuestionsSeen } : {})}
+                sectionRef={sectionRefs.questions}
+                highlight={hl === 'questions'}
+              />
+              <Dependencies spec={spec} all={all} onOpen={onOpenSpec} sectionRef={sectionRefs.dependencies} highlight={hl === 'dependencies'} />
+              <Subtasks
+                pid={pid}
+                spec={spec}
+                client={client}
+                mutate={mutate}
+                refresh={refresh}
+                toast={toast}
+                down={down}
+                {...(changed ? { changed } : {})}
+                runActive={runActive}
+              />
             </div>
             {reasons.length > 0 && <BlockedBanner reasons={reasons} />}
           </div>

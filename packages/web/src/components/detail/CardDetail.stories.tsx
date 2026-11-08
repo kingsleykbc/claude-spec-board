@@ -4,12 +4,15 @@ import { ConflictError } from '../../api/client';
 import { fileProblemSpec, recipeArchived, recipeSpec, recipeSpecs } from '../../fixtures/recipeBox';
 import { createMutator } from '../../state/mutate';
 import { CardDetail, type DetailClient } from './CardDetail';
+import { RUN_LINES, RunPanel } from './RunPanel';
 
 const client = (over: Partial<DetailClient> = {}): DetailClient => ({
   setMeta: fn(async (_pid: string, id: string) => ({ hash: 'h2', spec: recipeSpec(id) })) as unknown as DetailClient['setMeta'],
   setBody: fn(async (_pid: string, id: string) => ({ hash: 'h2', spec: recipeSpec(id) })),
   specDraftCopy: fn(async () => ({ path: '.specboard/specs/T-104-meal-planner-calendar/spec.draft.md' })),
   claude: fn(async () => ({ stub: true })),
+  setAnswers: fn(async (_pid: string, id: string) => ({ hash: 'h2', spec: recipeSpec(id) })),
+  setSubtask: fn(async (_pid: string, id: string) => ({ hash: 'h2', spec: recipeSpec(id) })),
   ...over,
 });
 
@@ -143,5 +146,21 @@ export const RunFallback: Story = {
   args: { runState: 'fallback' },
   play: async ({ canvasElement }) => {
     expect(within(canvasElement).getByText('Claude Code not found')).toBeTruthy();
+  },
+};
+
+export const WithRunPanel: Story = {
+  name: 'With run output',
+  args: {
+    runState: 'running',
+    runActive: true,
+    aside: <RunPanel status="running" lines={RUN_LINES} onDismiss={() => undefined} onAction={() => undefined} />,
+  },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    const dlg = c.getByRole('dialog', { name: 'Meal planner calendar' });
+    expect(within(dlg).getByRole('complementary', { name: 'Run output' })).toBeTruthy();
+    expect(dlg.style.width).toBe('min(1240px, 100%)');
+    expect(within(dlg).getByText('In progress')).toBeTruthy();
   },
 };

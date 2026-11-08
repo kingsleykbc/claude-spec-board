@@ -28,3 +28,13 @@ describe('diffProjects', () => {
     expect(d.newQuestions.size).toBe(0);
   });
 });
+
+describe('diffProjects: new specs (Task 7 carry-over a)', () => {
+  it('questions of a spec that is new in this load are new questions', () => {
+    const prev = project([spec('T-1', 'a')]);
+    const next = project([spec('T-1', 'a'), spec('T-2', 'b', { questions: [q('Q1'), q('Q2')] })]);
+    const d = diffProjects(prev, next);
+    expect([...d.changed]).toEqual(['T-2']);
+    expect([...d.newQuestions].sort()).toEqual(['T-2:Q1', 'T-2:Q2']);
+  });
+});

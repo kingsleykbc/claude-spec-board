@@ -28,7 +28,9 @@ export function diffProjects(prev: Project, next: Project): LiveDiff {
   for (const [id, s] of allSpecs(next)) {
     const old = before.get(id);
     if (!old) {
+      // A spec that appears through a live update: its questions are new too.
       changed.add(id);
+      for (const q of s.questions) newQuestions.add(`${id}:${q.id}`);
       continue;
     }
     if (old.hash === s.hash && old.archived === s.archived) continue;
@@ -77,9 +79,16 @@ export function useProject(pid: string): UseProject {
   /** Bumped by reconnect() to restart the socket. */
   const [attempt, setAttempt] = useState(0);
   const manual = useRef(false);
+  /**
+   * A live load was started and no load has been applied since. A newer load (e.g. a manual
+   * refresh) that supersedes it still highlights, diffing against the last applied snapshot,
+   * so the live update's highlights are not lost (Task 7 review, carry-over b).
+   */
+  const pendingLive = useRef(false);
 
   const load = useCallback(async (forPid: string, live: boolean) => {
     const mine = ++seq.current;
+    if (live) pendingLive.current = true;
     let next: ProjectData;
     try {
       next = await api.project(forPid);
@@ -90,10 +99,12 @@ export function useProject(pid: string): UseProject {
     // Drop stale answers: a newer request was started, or the project was switched.
     if (mine !== seq.current || forPid !== pidRef.current) return;
     const prev = dataRef.current;
+    const highlight = live || pendingLive.current;
+    pendingLive.current = false;
     dataRef.current = next;
     setData(next);
     setError(null);
-    if (live && prev && prev.entry.id === next.entry.id) {
+    if (highlight && prev && prev.entry.id === next.entry.id) {
       const diff = diffProjects(prev.project, next.project);
       if (diff.newQuestions.size > 0) setNewQuestions((s) => new Set([...s, ...diff.newQuestions]));
       if (diff.changed.size > 0) {
@@ -115,6 +126,7 @@ export function useProject(pid: string): UseProject {
     setNewQuestions(EMPTY);
     setConn('live');
     manual.current = false;
+    pendingLive.current = false;
     void load(pid, false);
     return () => {
       seq.current++;

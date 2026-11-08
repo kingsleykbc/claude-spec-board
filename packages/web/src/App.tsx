@@ -139,7 +139,10 @@ interface ProjectViewProps {
 
 /** One project's board. Keyed by project ID, so filters and menus reset on a switch (pinned behaviour 4). */
 function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onToggleTheme, reloadProjects }: ProjectViewProps) {
-  const { data, conn, changed, refresh, error, reconnect } = useProject(pid);
+  const { data, conn, changed, newQuestions, refresh, error, reconnect } = useProject(pid);
+  /** New-question badges cleared by saving answers (useProject keeps the session's full set). */
+  const [seenQuestions, setSeenQuestions] = useState<ReadonlySet<string>>(() => new Set());
+  const unseenQuestions = useMemo(() => new Set([...newQuestions].filter((k) => !seenQuestions.has(k))), [newQuestions, seenQuestions]);
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [menu, setMenu] = useState<'switcher' | Exclude<FilterMenu, null> | null>(null);
   /** Optimistic status while a move is in flight, so the card does not snap back before the refresh. */
@@ -280,6 +283,10 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
               toast={toast}
               onMove={move}
               onClose={closeSpec}
+              onOpenSpec={openSpec}
+              changed={changed}
+              newQuestions={unseenQuestions}
+              onQuestionsSeen={(keys) => setSeenQuestions((x) => new Set([...x, ...keys]))}
               down={down}
               returnFocus={() => cardElement(openId)}
             />
