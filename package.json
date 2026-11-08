@@ -1,8 +1,14 @@
 {
   "name": "spec-board",
   "private": true,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present",
+    "board": "npm run build -w @specboard/web --if-present && tsx packages/server/src/cli.ts"
+  },
+  "devDependencies": {
+    "tsx": "4.20.5"
   }
 }
