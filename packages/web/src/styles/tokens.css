@@ -1,0 +1,13 @@
+/* Copied as-is from docs/design/Spec Board.dc.html lines 15-26. Do not edit by hand. */
+:root{--sans:'Geist',ui-sans-serif,system-ui,sans-serif;--mono:'Geist Mono',ui-monospace,Menlo,monospace}
+[data-theme=light]{color-scheme:light;--bg:oklch(0.975 0.004 75);--panel:oklch(0.953 0.005 75);--card:oklch(0.995 0.002 75);--raise:oklch(1 0 0);--line:oklch(0.9 0.006 75);--line2:oklch(0.82 0.008 75);--fg:oklch(0.23 0.012 60);--fg2:oklch(0.44 0.012 60);--fg3:oklch(0.55 0.01 60);--accent:oklch(0.63 0.18 42);--accent-hover:oklch(0.57 0.18 42);--accent-fg:oklch(0.99 0.01 60);--accent-soft:oklch(0.63 0.18 42 / 0.1);--accent-ink:oklch(0.5 0.16 42);--doing:oklch(0.56 0.14 255);--doing-soft:oklch(0.56 0.14 255 / 0.09);--doing-ink:oklch(0.47 0.14 255);--review:oklch(0.75 0.15 78);--review-soft:oklch(0.8 0.14 82 / 0.17);--review-ink:oklch(0.48 0.1 68);--done:oklch(0.6 0.13 150);--done-soft:oklch(0.6 0.13 150 / 0.1);--done-ink:oklch(0.45 0.11 150);--block:oklch(0.62 0.19 5);--block-soft:oklch(0.62 0.19 5 / 0.08);--block-ink:oklch(0.5 0.18 5);--scrim:oklch(0.22 0.01 60 / 0.32);--code:oklch(0.955 0.006 75);--shadow-lg:0 24px 64px oklch(0.2 0.01 60 / 0.16),0 2px 6px oklch(0.2 0.01 60 / 0.06)}
+[data-theme=dark]{color-scheme:dark;--bg:oklch(0.17 0.006 60);--panel:oklch(0.2 0.006 60);--card:oklch(0.232 0.007 60);--raise:oklch(0.265 0.008 60);--line:oklch(0.3 0.008 60);--line2:oklch(0.39 0.01 60);--fg:oklch(0.94 0.006 75);--fg2:oklch(0.76 0.008 75);--fg3:oklch(0.64 0.008 75);--accent:oklch(0.7 0.17 45);--accent-hover:oklch(0.75 0.16 45);--accent-fg:oklch(0.18 0.02 45);--accent-soft:oklch(0.7 0.17 45 / 0.14);--accent-ink:oklch(0.78 0.14 50);--doing:oklch(0.7 0.13 255);--doing-soft:oklch(0.7 0.13 255 / 0.13);--doing-ink:oklch(0.78 0.11 255);--review:oklch(0.8 0.14 82);--review-soft:oklch(0.8 0.14 82 / 0.12);--review-ink:oklch(0.84 0.13 85);--done:oklch(0.72 0.14 150);--done-soft:oklch(0.72 0.14 150 / 0.12);--done-ink:oklch(0.79 0.13 150);--block:oklch(0.7 0.17 8);--block-soft:oklch(0.7 0.17 8 / 0.12);--block-ink:oklch(0.79 0.13 8);--scrim:oklch(0.08 0 0 / 0.55);--code:oklch(0.2 0.006 60);--shadow-lg:0 24px 64px oklch(0 0 0 / 0.5),0 2px 6px oklch(0 0 0 / 0.3)}
+*{box-sizing:border-box}
+body{margin:0;-webkit-font-smoothing:antialiased}
+button,input,textarea,select{font:inherit;color:inherit}
+a{color:var(--accent-ink)} a:hover{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type=checkbox],input[type=radio]{accent-color:var(--accent)}
+@keyframes sbPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+@keyframes sbSpin{to{transform:rotate(360deg)}}
+@keyframes sbIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}

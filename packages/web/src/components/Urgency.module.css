@@ -1,0 +1,4 @@
+.root { display: inline-flex; align-items: center; gap: 5px; border-radius: 5px; }
+.bars { display: flex; align-items: flex-end; gap: 1.5px; height: 11px; }
+.bar { width: 3px; border-radius: 1px; }
+.label { font-size: 11.5px; }
