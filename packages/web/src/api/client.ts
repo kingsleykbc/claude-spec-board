@@ -99,7 +99,9 @@ export const api = {
     request<SpecWrite>('PATCH', `${spec(pid, id)}/subtasks/${n}`, { hash, done }),
   setAnswers: (pid: string, id: string, hash: string, answers: Record<string, string>) =>
     request<SpecWrite>('PATCH', `${spec(pid, id)}/answers`, { hash, answers }),
-  setBody: (pid: string, id: string, hash: string, md: string) => request<SpecWrite>('PATCH', `${spec(pid, id)}/body`, { hash, md }),
+  /** `bodyHash` is `spec.bodyHash` from when editing began: the server 409s if the body changed since. */
+  setBody: (pid: string, id: string, hash: string, bodyHash: string, md: string) =>
+    request<SpecWrite>('PATCH', `${spec(pid, id)}/body`, { hash, bodyHash, md }),
   specDraftCopy: (pid: string, id: string, md: string) => request<{ path: string }>('POST', `${spec(pid, id)}/draft-copy`, { md }),
   createSpec: (pid: string, body: { title: string; description: string; draft: boolean }) =>
     request<{ spec: Spec }>('POST', `${proj(pid)}/specs`, body),

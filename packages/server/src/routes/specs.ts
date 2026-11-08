@@ -4,8 +4,10 @@ import type { Context } from 'hono';
 import {
   archiveSpec,
   createSpec,
+  hashText,
   loadProject,
   replaceSpecBody,
+  specBodyMd,
   setAnswers,
   setMetaField,
   setSubtaskDone,
@@ -24,6 +26,13 @@ function today(): string {
   const d = new Date();
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** The body changed on disk since the editor opened; thrown from inside the locked write transform. */
+class BodyConflict extends Error {
+  constructor(readonly currentText: string) {
+    super('Spec body changed since editing started');
+  }
 }
 
 function findSpec(p: { specs: Spec[]; archived: Spec[] }, id: string): Spec | undefined {
@@ -48,14 +57,23 @@ export function specRoutes(registry: Registry): Hono {
     return { entry, spec };
   };
 
-  /** Run a hash-checked transform, then reload and answer with the new spec. */
+  /**
+   * Run a hash-checked transform, then reload and answer with the new spec. `hash` is the hash of the
+   * text actually written (the reload may already see a later write by someone else).
+   */
   const mutate = async (c: Context, transform: (text: string) => string, hash: string): Promise<Response> => {
     const { entry, spec } = await locate(c);
-    const res = await writeIfUnchanged(spec.path, hash, transform);
+    let res;
+    try {
+      res = await writeIfUnchanged(spec.path, hash, transform);
+    } catch (e) {
+      if (e instanceof BodyConflict) return c.json({ conflict: true, currentHash: hashText(e.currentText), currentText: e.currentText }, 409);
+      throw e;
+    }
     if (!res.ok) return c.json({ conflict: true, currentHash: res.currentHash, currentText: res.currentText }, 409);
     const fresh = findSpec(await loadProject(entry.root), spec.id);
     if (!fresh) throw new Error(`Spec ${spec.id} missing after write`);
-    return c.json({ hash: fresh.hash, spec: fresh });
+    return c.json({ hash: res.hash, spec: fresh });
   };
 
   app.patch('/api/projects/:pid/specs/:id/meta', async (c) => {
@@ -96,8 +114,18 @@ export function specRoutes(registry: Registry): Hono {
   app.patch('/api/projects/:pid/specs/:id/body', async (c) => {
     const b = await readJson(c);
     const hash = requireString(b, 'hash', false);
+    const bodyHash = requireString(b, 'bodyHash', false);
     const md = requireString(b, 'md');
-    return mutate(c, (text) => replaceSpecBody(text, md), hash);
+    // `hash` may be newer than the edit (a status move landed meanwhile); `bodyHash` is from edit start,
+    // and is checked against the locked, re-read text so a body change by anyone else is never overwritten.
+    return mutate(
+      c,
+      (text) => {
+        if (hashText(specBodyMd(text)) !== bodyHash) throw new BodyConflict(text);
+        return replaceSpecBody(text, md);
+      },
+      hash,
+    );
   });
 
   app.post('/api/projects/:pid/specs/:id/draft-copy', async (c) => {

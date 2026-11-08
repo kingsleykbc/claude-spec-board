@@ -62,6 +62,7 @@ export const recipeSpecs: Spec[] = [
     },
     "logs": {},
     "bodyMd": "A grid of saved recipes with photo, cook time and tags. Loads from the local API and handles empty and loading states.\n\n## Features\n\n- Responsive grid, 1 to 4 columns\n- Card shows photo, title, cook time and tags\n- Skeleton cards while loading",
+    "bodyHash": "e9986a4b6d3f9ce4c265da128d0cb0a574a29b6b8814fca8f53cbed6ef61a844",
     "dependents": [],
     "blocked": false,
     "blockedReasons": []
@@ -131,6 +132,7 @@ export const recipeSpecs: Spec[] = [
     },
     "logs": {},
     "bodyMd": "Form to add a recipe with ingredients, steps and an optional photo. Validates required fields and saves through the API.\n\n## Features\n\n- Ingredient rows with quantity, unit and name\n- Reorderable steps\n- Optional photo, resized on upload",
+    "bodyHash": "4285698681ed13fa387e6329dcfb1ad3f671bc47c7cceea02d7e30710e1d2248",
     "dependents": [
       "T-103"
     ],
@@ -212,6 +214,7 @@ export const recipeSpecs: Spec[] = [
     },
     "logs": {},
     "bodyMd": "Full-text search over titles and ingredients, plus filters for **tags** and **cook time**. Results update as you type.\n\n## Features\n\n- SQLite FTS5 index on title and ingredients\n- 200 ms debounce on the search input\n- Filters combine with search, shown as removable chips\n\n## Review notes\n\nTry searching for `tomato` with the **Under 30 min** filter on. Results should update without a page reload.",
+    "bodyHash": "361c6d7dd058430734a43d62192318b4a3696cdda5a1c930d2b9c70892b50cf6",
     "dependents": [],
     "blocked": false,
     "blockedReasons": []
@@ -322,6 +325,7 @@ export const recipeSpecs: Spec[] = [
       }
     },
     "bodyMd": "A weekly calendar where recipes can be dragged onto days. Planned meals are saved per user and feed the **shopping list** (T-105).\n\n## Features\n\n- Week view, Monday to Sunday, with breakfast, lunch and dinner slots\n- Drag a recipe from the sidebar onto any slot\n- Planned meals persist in `planned_meals` and survive reloads\n- Previous and next week navigation, with **Today** to jump back\n\n## Notes\n\nReuse the card component from the recipe list. Keep the grid keyboard accessible: arrow keys move between slots and `Enter` opens the recipe picker.",
+    "bodyHash": "4cc8048d40d6cbaf4834419486771032763003a9e900c3c494798d0d57574918",
     "dependents": [
       "T-105"
     ],
@@ -424,6 +428,7 @@ export const recipeSpecs: Spec[] = [
     },
     "logs": {},
     "bodyMd": "Combine the ingredients from every meal in the planned week into one shopping list, then export it so it can be printed or sent to a phone.\n\n## Features\n\n- Collects ingredients from all planned meals in the chosen range\n- Merges duplicates, so **2 x 200 g flour** becomes **400 g flour**\n- Groups items by aisle: produce, dairy, pantry, other\n- Exports in the format chosen below\n\n## Depends on\n\nNeeds saved meals from T-104 (the `planned_meals` table).",
+    "bodyHash": "35a6304cc735652e2af32a41052dee35e5769b38dc5d2a06e76946978d224cfd",
     "dependents": [],
     "blocked": true,
     "blockedReasons": [
@@ -520,6 +525,7 @@ export const recipeSpecs: Spec[] = [
     },
     "logs": {},
     "bodyMd": "Sign up, sign in and sessions so recipes and plans belong to a person. Email and password first, OAuth later.\n\n## Features\n\n- Passwords hashed with `argon2`\n- HTTP-only session cookie, 30-day expiry\n- All `/api` routes require a session except auth",
+    "bodyHash": "64031ce5f1af8ce403f92f9770a14f345bfa603499992599f9aebf84efed48c1",
     "dependents": [
       "T-108"
     ],
@@ -555,6 +561,7 @@ export const recipeSpecs: Spec[] = [
     },
     "logs": {},
     "bodyMd": "Respect the system theme and add a manual toggle in settings.\n\n## Features",
+    "bodyHash": "5fade2a2538b3d7b7393ab138dfceca0d427a16efd6016db8e8b9de0d990cc50",
     "dependents": [],
     "blocked": false,
     "blockedReasons": []
@@ -619,6 +626,7 @@ export const recipeSpecs: Spec[] = [
     },
     "logs": {},
     "bodyMd": "Generate a public, read-only link for a single recipe that anyone can open without an account.\n\n## Features\n\n- Unguessable token per recipe\n- Owner can revoke the link\n- Shared page hides edit controls",
+    "bodyHash": "e07afe649fd1a361aea842b1ca67c42a4a3ae11952e253c0a5e71550c3c5d942",
     "dependents": [],
     "blocked": true,
     "blockedReasons": [
@@ -686,6 +694,7 @@ export const recipeArchived: Spec[] = [
     },
     "logs": {},
     "bodyMd": "Vite, React and TypeScript setup with routing, linting and a CI check on every push.\n\n## Features\n\n- Vite dev server and production build\n- React Router with a layout route\n- ESLint and Prettier on commit",
+    "bodyHash": "68bd67acd57d9dd71890146e84c64a143ec285b3a45fc44562cfeea6ff6a003e",
     "dependents": [],
     "blocked": false,
     "blockedReasons": []
@@ -739,6 +748,7 @@ export const fileProblemSpec: Spec = {
   },
   "logs": {},
   "bodyMd": "Import a folder of recipe files in one go. Skips duplicates and reports what it could not read.\n\n## Features\n\n- Accepts JSON and plain text\n- Skips duplicates",
+  "bodyHash": "391e772d6d8e4bb970fef61a743613df43e5f3d973d9c246d06b5750d11870d1",
   "dependents": [],
   "blocked": false,
   "blockedReasons": []

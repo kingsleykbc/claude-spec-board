@@ -8,13 +8,17 @@ import { createApp } from '../src/app.js';
 import { Registry } from '../src/registry.js';
 
 const boom = vi.hoisted(() => ({ on: false }));
+/** When set, runs right after a successful write (simulates another writer, e.g. Claude, landing next). */
+const afterWrite = vi.hoisted(() => ({ fn: null as null | ((file: string) => Promise<void>) }));
 vi.mock('@specboard/core', async (importOriginal) => {
   const real = await importOriginal<typeof import('@specboard/core')>();
   return {
     ...real,
-    writeIfUnchanged: (...a: Parameters<typeof real.writeIfUnchanged>) => {
+    writeIfUnchanged: async (...a: Parameters<typeof real.writeIfUnchanged>) => {
       if (boom.on) throw new Error('boom');
-      return real.writeIfUnchanged(...a);
+      const res = await real.writeIfUnchanged(...a);
+      if (res.ok && afterWrite.fn) await afterWrite.fn(a[0]);
+      return res;
     },
   };
 });
@@ -113,9 +117,63 @@ describe('spec mutations', () => {
     expect(spec.spec.questions.find((q) => q.id === 'Q1')?.answer).toBe('Yes');
   });
 
+  it('response hash is the hash of the text written, even if the file changes again before the reload', async () => {
+    const file = specFile('T-101');
+    let written = '';
+    afterWrite.fn = async (f) => {
+      written = await fs.readFile(f, 'utf8');
+      await fs.writeFile(f, written + '\nClaude was here.\n');
+    };
+    try {
+      const s = await get('T-101');
+      const res = await send('PATCH', '/specs/T-101/meta', { hash: s.hash, key: 'urgency', value: 'high' });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { hash: string; spec: Spec };
+      expect(written).toMatch(/^urgency: high$/m);
+      expect(body.hash).toBe(hashText(written));
+      expect(body.hash).not.toBe(hashText(await fs.readFile(file, 'utf8')));
+    } finally {
+      afterWrite.fn = null;
+    }
+  });
+
+  it('body save with a stale bodyHash is a 409 and leaves the file unchanged', async () => {
+    const file = specFile('T-105');
+    const s = await get('T-105');
+    // Claude edits the body after the user started editing.
+    const claude = (await fs.readFile(file, 'utf8')).replace('## Features', 'Claude added this.\n\n## Features');
+    await fs.writeFile(file, claude);
+    const now = await get('T-105');
+    expect(now.bodyHash).not.toBe(s.bodyHash);
+    const res = await send('PATCH', '/specs/T-105/body', { hash: now.hash, bodyHash: s.bodyHash, md: s.bodyMd + '\nMine.\n' });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ conflict: true, currentHash: hashText(claude), currentText: claude });
+    expect(await fs.readFile(file, 'utf8')).toBe(claude);
+  });
+
+  it('body save succeeds when only front matter changed since edit start (matching bodyHash, newer file hash)', async () => {
+    const s = await get('T-105');
+    const moved = await send('PATCH', '/specs/T-105/meta', { hash: s.hash, key: 'status', value: 'doing' });
+    const { hash: h1 } = (await moved.json()) as { hash: string };
+    expect(h1).not.toBe(s.hash);
+    const res = await send('PATCH', '/specs/T-105/body', { hash: h1, bodyHash: s.bodyHash, md: s.bodyMd + '\nMine.\n' });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { hash: string; spec: Spec };
+    const text = await fs.readFile(specFile('T-105'), 'utf8');
+    expect(body.hash).toBe(hashText(text));
+    expect(text).toContain('Mine.');
+    expect(text).toMatch(/^status: doing$/m);
+  });
+
+  it('body save still 409s on a stale file hash and requires bodyHash', async () => {
+    const s = await get('T-105');
+    expect((await send('PATCH', '/specs/T-105/body', { hash: 'stale', bodyHash: s.bodyHash, md: 'x' })).status).toBe(409);
+    expect((await send('PATCH', '/specs/T-105/body', { hash: s.hash, md: 'x' })).status).toBe(400);
+  });
+
   it('body round-trip keeps questions and subtasks', async () => {
     const s = await get('T-105');
-    const res = await send('PATCH', '/specs/T-105/body', { hash: s.hash, md: s.bodyMd + '\nExtra line.\n' });
+    const res = await send('PATCH', '/specs/T-105/body', { hash: s.hash, bodyHash: s.bodyHash, md: s.bodyMd + '\nExtra line.\n' });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { spec: Spec };
     expect(body.spec.bodyMd).toContain('Extra line.');

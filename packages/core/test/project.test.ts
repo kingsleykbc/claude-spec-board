@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deriveState, hashText, loadProject, type Project } from '../src/project.js';
 import { parseSpec } from '../src/parseSpec.js';
+import { specBodyMd } from '../src/edit.js';
 
 const SAMPLE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../examples/recipe-box');
 
@@ -64,6 +65,22 @@ describe('sample project', () => {
     expect(path.basename(t104.dir)).toBe('T-104-meal-planner-calendar');
     expect(path.basename(t104.path)).toBe('spec.md');
     expect(get('T-107').draft).toBe(true);
+  });
+
+  it('bodyHash is hashText(specBodyMd(text)) and ignores front matter and question/subtask edits', async () => {
+    const t104 = get('T-104');
+    const text = await fs.readFile(t104.path, 'utf8');
+    expect(t104.bodyHash).toBe(hashText(specBodyMd(text)));
+    expect(t104.bodyHash).not.toBe(t104.hash);
+    const root = await makeProject({ 'specs/T-001-a/spec.md': specText('T-001') });
+    const before = (await loadProject(root)).specs[0]!;
+    const file = before.path;
+    await fs.writeFile(file, specText('T-001', { status: 'doing', questions: '1. Why?' }));
+    const after = (await loadProject(root)).specs[0]!;
+    expect(after.hash).not.toBe(before.hash);
+    expect(after.bodyHash).toBe(before.bodyHash);
+    await fs.writeFile(file, specText('T-001').replace('\nx\n', '\ny\n'));
+    expect((await loadProject(root)).specs[0]!.bodyHash).not.toBe(before.bodyHash);
   });
 
   it('blocked by questions', () => {

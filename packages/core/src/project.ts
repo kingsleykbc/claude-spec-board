@@ -22,6 +22,8 @@ export interface Spec extends SpecDoc {
   logs: Record<number, SubtaskLog>;
   /** Body Markdown without Open questions and Subtasks; what the SPEC panel shows and edits. */
   bodyMd: string;
+  /** `hashText(bodyMd)`: changes only when the editable body changes, not front matter, questions or subtasks. */
+  bodyHash: string;
 }
 
 export interface Project {
@@ -146,6 +148,7 @@ async function loadSpecFolder(root: string, kind: 'specs' | 'archive', folder: s
     const slug = doc.id !== '' && folder.startsWith(`${doc.id}-`) ? folder.slice(doc.id.length + 1) : (fm?.[2] ?? folder);
     const logs = await loadLogs(dir, doc.problems);
     for (const st of doc.subtasks) st.hasLog = logs[st.n] !== undefined;
+    const bodyMd = specBodyMd(text);
     return {
       ...doc,
       dir,
@@ -155,7 +158,8 @@ async function loadSpecFolder(root: string, kind: 'specs' | 'archive', folder: s
       slug,
       progress: { done: doc.subtasks.filter((s) => s.done).length, total: doc.subtasks.length },
       logs,
-      bodyMd: specBodyMd(text),
+      bodyMd,
+      bodyHash: hashText(bodyMd),
     };
   } catch (e) {
     projectProblems.push(`${rel}: ${(e as Error).message}`);

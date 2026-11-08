@@ -116,8 +116,8 @@ function SpecDetail({
   const categories = local.categories ?? spec.categories;
 
   const [editText, setEditText] = useState<string | null>(null);
-  /** Body and hash when editing began: a save conflicts only if the body changed since. */
-  const editBase = useRef<{ md: string; hash: string }>({ md: '', hash: '' });
+  /** Body and its hash when editing began: the server rejects a save if the body changed since (F2). */
+  const editBase = useRef<{ md: string; bodyHash: string }>({ md: '', bodyHash: '' });
   const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState(false);
   const dirty = editText !== null && editText !== editBase.current.md;
@@ -166,7 +166,7 @@ function SpecDetail({
     askClaude({ client, toast, isDown: () => down }, action, { pid, id }, `Couldn’t reach Claude for ${id}`);
 
   const startEdit = () => {
-    editBase.current = { md: spec.bodyMd, hash: spec.hash };
+    editBase.current = { md: spec.bodyMd, bodyHash: spec.bodyHash };
     setEditText(spec.bodyMd);
   };
 
@@ -174,11 +174,12 @@ function SpecDetail({
     if (editText === null || saving) return;
     if (down) return offline();
     const text = editText;
-    // Writes that left the body alone (status, answers, Claude ticking subtasks) are kept by the body write.
-    const base = spec.bodyMd === editBase.current.md ? spec.hash : editBase.current.hash;
+    const { bodyHash } = editBase.current;
     setSaving(true);
     try {
-      await mutate(id, base, (h) => client.setBody(pid, id, h, text));
+      // Any file hash will do (chain or current): writes that left the body alone are kept, and the
+      // server 409s if the body itself changed since editing began.
+      await mutate(id, spec.hash, (h) => client.setBody(pid, id, h, bodyHash, text));
     } catch (e) {
       setSaving(false);
       if (e instanceof ConflictError) setConflict(true);

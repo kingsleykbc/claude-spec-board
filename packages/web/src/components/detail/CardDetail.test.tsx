@@ -47,7 +47,7 @@ function setup(id: string, over: Partial<DetailClient> = {}, specs: Spec[] = [..
   const r = render(el(specs));
   /** Re-render with this spec replaced by `next` (a live update). */
   const update = (next: Spec) => r.rerender(el(specs.map((x) => (x.id === id ? next : x))));
-  return { client, toast, refresh, onClose, onOpenSpec, update, rerenderWith: (list: Spec[]) => r.rerender(el(list)), rerenderDown: () => r.rerender(el(specs, true)) };
+  return { client, toast, refresh, mutate, onClose, onOpenSpec, update, rerenderWith: (list: Spec[]) => r.rerender(el(list)), rerenderDown: () => r.rerender(el(specs, true)) };
 }
 
 const startEdit = (text: string) => {
@@ -176,7 +176,7 @@ describe('CardDetail', () => {
     expect(client.setMeta).toHaveBeenNthCalledWith(2, 'p1', 'T-103', 'h2', 'categories', ['Frontend', 'Backend', 'X', 'Y']);
   });
 
-  it('saving an edit sends PATCH body with the hash from when editing began', async () => {
+  it('saving an edit sends PATCH body with the current hash and the bodyHash from when editing began', async () => {
     const { client, toast } = setup('T-104');
     fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
     expect(screen.getByText('Markdown · preview on the right')).toBeTruthy();
@@ -185,7 +185,7 @@ describe('CardDetail', () => {
     fireEvent.change(ta, { target: { value: 'New **text**' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(toast).toHaveBeenCalledWith('ok', 'Spec saved', '.specboard/specs/T-104-meal-planner-calendar/spec.md'));
-    expect(client.setBody).toHaveBeenCalledWith('p1', 'T-104', recipeSpec('T-104').hash, 'New **text**');
+    expect(client.setBody).toHaveBeenCalledWith('p1', 'T-104', recipeSpec('T-104').hash, recipeSpec('T-104').bodyHash, 'New **text**');
     expect(screen.queryByRole('textbox', { name: 'Spec markdown' })).toBeNull();
   });
 
@@ -363,33 +363,51 @@ describe('CardDetail', () => {
     });
   });
 
-  describe('save hash', () => {
-    it('status or answers changed mid-edit (body unchanged): Save sends the CURRENT hash', async () => {
-      const { client, toast, update } = setup('T-104');
+  describe('save hash (F2: the server checks bodyHash)', () => {
+    /** A fake server: body saves conflict when `bodyHash` is not the body currently on disk. */
+    const server = (disk: { hash: string }) =>
+      vi.fn(async (_p: string, sid: string, _hash: string, bodyHash: string, _md: string) => {
+        if (bodyHash !== disk.hash) throw new ConflictError('h9', 'theirs');
+        return { hash: 'h10', spec: recipeSpec(sid) };
+      });
+
+    it('status changed mid-edit (body unchanged): Save sends the current hash and the edit-start bodyHash, and succeeds', async () => {
+      const start = recipeSpec('T-104');
+      const setBody = server({ hash: start.bodyHash });
+      const { toast, update } = setup('T-104', { setBody });
       startEdit('mine');
-      update({ ...recipeSpec('T-104'), status: 'review', hash: 'hNew' });
+      update({ ...start, status: 'review', hash: 'hNew' });
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
       await waitFor(() => expect(toast).toHaveBeenCalledWith('ok', 'Spec saved', expect.any(String)));
-      expect(client.setBody).toHaveBeenCalledWith('p1', 'T-104', 'hNew', 'mine');
+      expect(setBody).toHaveBeenCalledWith('p1', 'T-104', 'hNew', start.bodyHash, 'mine');
+      expect(screen.queryByRole('alertdialog')).toBeNull();
     });
 
-    it('body changed mid-edit: Save sends the EDIT-START hash and the 409 opens the conflict dialog', async () => {
-      const setBody = conflict();
-      const { update } = setup('T-104', { setBody });
+    it('body changed mid-edit while another op on the spec is in flight: Save sends the edit-start bodyHash and opens the conflict dialog', async () => {
+      const start = recipeSpec('T-104');
+      const disk = { hash: start.bodyHash };
+      const setBody = server(disk);
+      const { update, mutate, toast } = setup('T-104', { setBody });
       startEdit('mine');
-      update({ ...recipeSpec('T-104'), bodyMd: 'Claude rewrote this', hash: 'hNew' });
+      // Another write on T-104 is still running, so the chain is active when Save is pressed.
+      let finish: ((v: { hash: string }) => void) | undefined;
+      const other = mutate('T-104', start.hash, () => new Promise<{ hash: string }>((r) => (finish = r)));
+      await waitFor(() => expect(finish).toBeDefined());
+      // Claude rewrites the body meanwhile.
+      disk.hash = 'bodyByClaude';
+      update({ ...start, bodyMd: 'Claude rewrote this', bodyHash: 'bodyByClaude', hash: 'hClaude' });
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(setBody).not.toHaveBeenCalled(); // queued behind the in-flight op
+      await act(async () => finish!({ hash: 'hChain' }));
+      await other;
       await screen.findByRole('alertdialog', { name: 'This spec changed outside the board' });
-      expect(setBody).toHaveBeenCalledWith('p1', 'T-104', recipeSpec('T-104').hash, 'mine');
+      expect(setBody).toHaveBeenCalledWith('p1', 'T-104', 'hChain', start.bodyHash, 'mine');
+      expect(toast).not.toHaveBeenCalledWith('ok', 'Spec saved', expect.anything());
     });
 
     it('after a 409, Keep editing only refreshes; a Save over a changed body conflicts again, never overwrites', async () => {
-      const startHash = recipeSpec('T-104').hash;
-      // The server holds h9: a write based on any other hash conflicts.
-      const setBody = vi.fn(async (_p: string, sid: string, hash: string) => {
-        if (hash !== 'h9') throw new ConflictError('h9', 'theirs');
-        return { hash: 'h10', spec: recipeSpec(sid) };
-      });
+      const start = recipeSpec('T-104');
+      const setBody = server({ hash: 'bodyByClaude' });
       const { refresh, update, toast } = setup('T-104', { setBody });
       startEdit('mine');
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -397,11 +415,11 @@ describe('CardDetail', () => {
       expect(refresh).toHaveBeenCalledTimes(1);
       expect(screen.queryByRole('alertdialog')).toBeNull();
       // The refresh delivers Claude's version, whose body the user has not seen.
-      update({ ...recipeSpec('T-104'), bodyMd: 'Claude rewrote this', hash: 'h9' });
+      update({ ...start, bodyMd: 'Claude rewrote this', bodyHash: 'bodyByClaude', hash: 'h9' });
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
       await screen.findByRole('alertdialog', { name: 'This spec changed outside the board' });
       expect(setBody).toHaveBeenCalledTimes(2);
-      expect(setBody).toHaveBeenLastCalledWith('p1', 'T-104', startHash, 'mine');
+      expect(setBody).toHaveBeenLastCalledWith('p1', 'T-104', 'h9', start.bodyHash, 'mine');
       await expect(setBody.mock.results[1]!.value).rejects.toBeInstanceOf(ConflictError);
       expect(toast).not.toHaveBeenCalledWith('ok', 'Spec saved', expect.anything());
     });
