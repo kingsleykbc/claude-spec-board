@@ -195,4 +195,45 @@ describe('App', () => {
     expect(screen.getByText('It will appear in this list.')).toBeTruthy();
     expect(screen.queryByRole('menu')).toBeNull();
   });
+it('?spec= opens the card detail; Esc closes it, clears ?spec= and returns focus to the card', async () => {
+    render(<App />);
+    await board();
+    const card = screen.getByRole('button', { name: /^T-105 / });
+    card.focus();
+    fireEvent.click(card);
+    const dlg = await screen.findByRole('dialog', { name: 'Shopping list export' });
+    expect(within(dlg).getByText((t) => t.endsWith('T-105-shopping-list-export/spec.md'))).toBeTruthy();
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(location.search).toBe('?project=p1');
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /^T-105 / }));
+  });
+
+  it('an open menu closes on Esc before the board does anything else', async () => {
+    render(<App />);
+    await board();
+    fireEvent.click(screen.getByRole('button', { name: /Recipe Box/ }));
+    expect(screen.getByRole('menu')).toBeTruthy();
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('a ?spec= that is in neither active nor archived shows the removed message', async () => {
+    history.replaceState(null, '', '/?project=p1&spec=T-999');
+    render(<App />);
+    expect(await screen.findByText('This spec was removed or archived')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(location.search).toBe('?project=p1');
+  });
+
+  it('the status menu in the detail moves through the board action', async () => {
+    history.replaceState(null, '', '/?project=p1&spec=T-103');
+    render(<App />);
+    const dlg = await screen.findByRole('dialog', { name: 'Search & filters' });
+    fireEvent.click(within(dlg).getByRole('button', { name: /Review/ }));
+    fireEvent.click(within(dlg).getByRole('menuitemradio', { name: /Done/ }));
+    await waitFor(() => expect(screen.getByText('T-103 approved')).toBeTruthy());
+    expect(api.setMeta).toHaveBeenCalledWith('p1', 'T-103', expect.any(String), 'status', 'done');
+  });
 });
+

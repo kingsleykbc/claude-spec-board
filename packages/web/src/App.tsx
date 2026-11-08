@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Spec, Status } from '@specboard/core';
 import { api, type ProjectSummary } from './api/client';
 import { applyTheme, initialTheme, type Theme } from './lib/theme';
-import { createSpecActions } from './state/actions';
+import { createSpecActions, OFFLINE_TOAST } from './state/actions';
+import { ESC, useEscape } from './lib/escape';
 import { categoryOptions, NO_FILTERS, waitItems, type Filters, type WaitItem } from './state/filters';
 import { createMutator } from './state/mutate';
 import { useToasts, type PushToast } from './state/toasts';
 import { useProject } from './state/useProject';
 import { Board } from './components/Board';
+import { CardDetail } from './components/detail/CardDetail';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { FilterBar, type FilterMenu } from './components/FilterBar';
 import { Toasts } from './components/Toasts';
@@ -35,6 +37,14 @@ function urlFor(next: UrlState): string {
   }
   const qs = q.toString();
   return location.pathname + (qs ? `?${qs}` : '') + location.hash;
+}
+
+/** The board card for a spec, to return focus to when its detail closes. */
+function cardElement(id: string): HTMLElement | null {
+  for (const el of document.querySelectorAll<HTMLElement>('[role="button"][aria-label]')) {
+    if (el.getAttribute('aria-label')!.startsWith(id + ' ')) return el;
+  }
+  return null;
 }
 
 type Navigate = (next: UrlState, replace?: boolean) => void;
@@ -94,6 +104,7 @@ export function App() {
       <ProjectView
         key={pid}
         pid={pid}
+        spec={url.spec}
         projects={projects}
         navigate={navigate}
         toast={push}
@@ -116,6 +127,8 @@ export function App() {
 
 interface ProjectViewProps {
   pid: string;
+  /** `?spec=`: the open card detail. */
+  spec: string | null;
   projects: ProjectSummary[];
   navigate: Navigate;
   toast: PushToast;
@@ -125,7 +138,7 @@ interface ProjectViewProps {
 }
 
 /** One project's board. Keyed by project ID, so filters and menus reset on a switch (pinned behaviour 4). */
-function ProjectView({ pid, projects, navigate, toast, theme, onToggleTheme, reloadProjects }: ProjectViewProps) {
+function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onToggleTheme, reloadProjects }: ProjectViewProps) {
   const { data, conn, changed, refresh, error, reconnect } = useProject(pid);
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [menu, setMenu] = useState<'switcher' | Exclude<FilterMenu, null> | null>(null);
@@ -144,15 +157,8 @@ function ProjectView({ pid, projects, navigate, toast, theme, onToggleTheme, rel
     }
   }, [conn, toast]);
 
-  // Esc closes open menus (pinned behaviour 14; dialogs and the modal arrive with Tasks 10-12).
-  useEffect(() => {
-    if (!menu) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenu(null);
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [menu]);
+  // Esc closes open menus (pinned behaviour 14), below dialogs and inputs in the Esc stack.
+  useEscape(menu !== null, () => setMenu(null), ESC.menu);
 
   const summary = projects.find((p) => p.id === pid);
   const project = data?.project ?? null;
@@ -167,7 +173,8 @@ function ProjectView({ pid, projects, navigate, toast, theme, onToggleTheme, rel
     : (summary?.progress ?? { done: 0, total: 0 });
 
   const openSpec = (id: string) => navigate({ project: pid, spec: id });
-  const offline = () => toast('err', 'Disconnected from the local server.', 'Edits won’t save until it’s back.');
+  const offline = () => toast('err', ...OFFLINE_TOAST);
+  const closeSpec = () => navigate({ project: pid, spec: null });
 
   const move = async (spec: Spec, status: Status) => {
     if (down) return offline();
@@ -255,6 +262,23 @@ function ProjectView({ pid, projects, navigate, toast, theme, onToggleTheme, rel
           <button type="button" className={boardCss.fab} onClick={openAdd}>
             <span className={boardCss.fabPlus}>+</span>Add new spec
           </button>
+          {openId && (
+            <CardDetail
+              key={openId}
+              pid={pid}
+              specId={openId}
+              root={project.root}
+              specs={specs}
+              archived={archived}
+              mutate={mutate}
+              refresh={refresh}
+              toast={toast}
+              onMove={move}
+              onClose={closeSpec}
+              down={down}
+              returnFocus={() => cardElement(openId)}
+            />
+          )}
         </>
       ) : (
         <div style={muted}>{error ? error.message : 'Loading…'}</div>

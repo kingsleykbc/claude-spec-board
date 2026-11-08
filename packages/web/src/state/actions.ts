@@ -18,6 +18,8 @@ export interface ActionDeps {
 }
 
 export const CLAUDE_STUB_TOAST = 'Claude actions arrive in the next milestone';
+/** Shown when an edit is tried while disconnected (pinned behaviour 15). */
+export const OFFLINE_TOAST = ['Disconnected from the local server.', 'Edits won’t save until it’s back.'] as const;
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 

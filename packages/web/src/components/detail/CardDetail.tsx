@@ -1,0 +1,304 @@
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import type { Spec, Status, Urgency } from '@specboard/core';
+import { api, ConflictError, type SpecWrite } from '../../api/client';
+import { CLAUDE_STUB_TOAST, OFFLINE_TOAST, type Mutate } from '../../state/actions';
+import type { PushToast } from '../../state/toasts';
+import { relPath, ST, truncate } from '../../lib/vm';
+import { ConflictDialog } from '../ConflictDialog';
+import { Modal } from '../Modal';
+import { BlockedBanner, type BlockReason } from './BlockedBanner';
+import { DetailHeader } from './DetailHeader';
+import { FileProblem } from './FileProblem';
+import type { RunState } from './RunButton';
+import { SpecSection } from './SpecSection';
+import s from './detail.module.css';
+
+export type DetailClient = Pick<typeof api, 'setMeta' | 'setBody' | 'specDraftCopy' | 'claude'>;
+
+export interface CardDetailProps {
+  pid: string;
+  specId: string;
+  /** Project root, to show paths relative to it. */
+  root: string;
+  /** Active specs (with any optimistic status applied) and archived specs. */
+  specs: Spec[];
+  archived: Spec[];
+  client?: DetailClient;
+  /** The per-spec mutator every write goes through (Review Focus 3). */
+  mutate: Mutate;
+  refresh: () => Promise<void>;
+  toast: PushToast;
+  /** The board's move action (same toasts as a drag). */
+  onMove: (spec: Spec, status: Status) => void | Promise<void>;
+  onClose: () => void;
+  /** Disconnected from the server: edits are refused with a toast. */
+  down?: boolean;
+  /** Run button state; not wired to anything in M2. */
+  runState?: RunState;
+  /** The spec Claude is working on, for the disabled Run note. */
+  runningId?: string | null;
+  /** The run column (Task 11); widens the modal when present. */
+  aside?: ReactNode;
+  /** Where focus goes on close if the opening element is gone. */
+  returnFocus?: () => HTMLElement | null;
+}
+
+const HIGHLIGHT_MS = 1600;
+const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/** The card detail modal, opened from `?spec=<id>`. */
+export function CardDetail(props: CardDetailProps) {
+  const spec = props.specs.find((x) => x.id === props.specId) ?? props.archived.find((x) => x.id === props.specId);
+  if (!spec) {
+    // Review Focus 4: the open spec was deleted or archived away.
+    const close = props.onClose;
+    return (
+      <Modal label="Spec not found" width="min(460px, 100%)" height="auto" onClose={close} {...(props.returnFocus ? { returnFocus: props.returnFocus } : {})}>
+        <div className={s.missing}>
+          <span>This spec was removed or archived</span>
+          <button type="button" className={s.missingBtn} onClick={close}>
+            Close
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+  return <SpecDetail {...props} spec={spec} />;
+}
+
+type Section = 'questions' | 'dependencies';
+
+function SpecDetail({
+  pid,
+  spec,
+  root,
+  specs,
+  archived,
+  client = api,
+  mutate,
+  refresh,
+  toast,
+  onMove,
+  onClose,
+  down = false,
+  runState = 'ready',
+  runningId = null,
+  aside,
+  returnFocus,
+}: CardDetailProps & { spec: Spec }) {
+  const id = spec.id;
+  const path = relPath(root, spec.path);
+  const all = [...specs, ...archived];
+
+  // Optimistic urgency/categories while writes are in flight, so rapid clicks build on each other.
+  const [local, setLocal] = useState<{ urgency?: Urgency; categories?: string[] }>({});
+  const inFlight = useRef(0);
+  const urgency = local.urgency ?? spec.urgency;
+  const categories = local.categories ?? spec.categories;
+
+  const [editText, setEditText] = useState<string | null>(null);
+  /** Body and hash when editing began: a save conflicts only if the body changed since. */
+  const editBase = useRef<{ md: string; hash: string }>({ md: '', hash: '' });
+  const [saving, setSaving] = useState(false);
+  const [conflict, setConflict] = useState(false);
+
+  const [hl, setHl] = useState<Section | null>(null);
+  const hlTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const sectionRefs = { questions: useRef<HTMLElement | null>(null), dependencies: useRef<HTMLElement | null>(null) };
+  useEffect(
+    () => () => {
+      if (hlTimer.current !== null) clearTimeout(hlTimer.current);
+    },
+    [],
+  );
+
+  const offline = () => toast('err', ...OFFLINE_TOAST);
+
+  const writeMeta = async (patch: { urgency?: Urgency; categories?: string[] }, op: (hash: string) => Promise<SpecWrite>) => {
+    if (down) return offline();
+    setLocal((l) => ({ ...l, ...patch }));
+    inFlight.current += 1;
+    try {
+      await mutate(id, spec.hash, op);
+    } catch (e) {
+      if (e instanceof ConflictError) toast('err', `Couldn’t update ${id}`, 'The file changed. Try again.');
+      else toast('err', `Couldn’t update ${id}`, message(e));
+    }
+    await refresh();
+    inFlight.current -= 1;
+    if (inFlight.current === 0) setLocal({});
+  };
+
+  const setUrgency = (u: Urgency) => void writeMeta({ urgency: u }, (h) => client.setMeta(pid, id, h, 'urgency', u));
+  const setCategories = (next: string[]) => void writeMeta({ categories: next }, (h) => client.setMeta(pid, id, h, 'categories', next));
+
+  const claude = async (action: 'run' | 'stop' | 'fix-file') => {
+    try {
+      await client.claude(action, { pid, id });
+    } catch {
+      // M2 stub: the toast below is all there is.
+    }
+    toast('info', CLAUDE_STUB_TOAST);
+  };
+
+  const startEdit = () => {
+    editBase.current = { md: spec.bodyMd, hash: spec.hash };
+    setEditText(spec.bodyMd);
+  };
+
+  const save = async () => {
+    if (editText === null || saving) return;
+    if (down) return offline();
+    const text = editText;
+    // Writes that left the body alone (status, answers, Claude ticking subtasks) are kept by the body write.
+    const base = spec.bodyMd === editBase.current.md ? spec.hash : editBase.current.hash;
+    setSaving(true);
+    try {
+      await mutate(id, base, (h) => client.setBody(pid, id, h, text));
+    } catch (e) {
+      setSaving(false);
+      if (e instanceof ConflictError) setConflict(true);
+      else toast('err', `Couldn’t save ${id}`, message(e));
+      return;
+    }
+    await refresh();
+    setSaving(false);
+    setEditText(null);
+    toast('ok', 'Spec saved', path);
+  };
+
+  const reloadKeepCopy = async () => {
+    if (editText === null) return;
+    let copy: string;
+    try {
+      copy = (await client.specDraftCopy(pid, id, editText)).path;
+    } catch (e) {
+      toast('err', 'Couldn’t save your copy', message(e));
+      return;
+    }
+    setConflict(false);
+    setEditText(null);
+    await refresh();
+    toast('ok', 'Reloaded latest version', `Your text is saved as ${copy}`);
+  };
+
+  const reload = () => {
+    setConflict(false);
+    setEditText(null);
+    void refresh();
+    toast('info', 'Reloaded latest version', 'Your unsaved changes were discarded.');
+  };
+
+  const scrollTo = (key: Section) => {
+    const c = scrollRef.current;
+    const el = sectionRefs[key].current;
+    if (c && el && typeof c.scrollTo === 'function') c.scrollTo({ top: el.offsetTop - 16, behavior: 'smooth' });
+    setHl(key);
+    if (hlTimer.current !== null) clearTimeout(hlTimer.current);
+    hlTimer.current = setTimeout(() => {
+      hlTimer.current = null;
+      setHl(null);
+    }, HIGHLIGHT_MS);
+  };
+
+  // Blocked reasons (pinned behaviour 8).
+  const reasons: BlockReason[] = [];
+  const open = spec.questions.filter((q) => q.answer === null || q.answer === '');
+  if (open.length > 0) {
+    reasons.push({
+      key: 'q',
+      text: `Awaiting answers on: ${open.map((q) => truncate(q.text, 40)).join(', ')}`,
+      onClick: () => scrollTo('questions'),
+    });
+  }
+  for (const dep of spec.dependsOn) {
+    const d = all.find((x) => x.id === dep);
+    let text: string;
+    if (dep === id) text = 'Depends on itself';
+    else if (!d) text = `${dep} not found`;
+    else if (!d.archived && d.status !== 'done') text = `Waiting on ${d.id} ${d.title} (${ST[d.status].label})`;
+    else continue;
+    reasons.push({ key: `dep:${dep}`, text, onClick: () => scrollTo('dependencies') });
+  }
+
+  const allCategories = [...new Set(all.flatMap((x) => x.categories))];
+  const problem = spec.problems[0];
+  const border = (k: Section) => ({ borderColor: hl === k ? 'var(--accent)' : 'var(--line)' });
+
+  return (
+    <Modal
+      label={spec.title}
+      width={aside ? 'min(1240px, 100%)' : 'min(900px, 100%)'}
+      onClose={onClose}
+      {...(returnFocus ? { returnFocus } : {})}
+    >
+      <div className={s.root}>
+        <DetailHeader
+          id={id}
+          path={path}
+          title={spec.title}
+          status={spec.status}
+          urgency={urgency}
+          categories={categories}
+          allCategories={allCategories}
+          runState={runState}
+          runningId={runningId}
+          onRun={() => void claude('run')}
+          onStop={() => void claude('stop')}
+          onStatus={(k) => void onMove(spec, k)}
+          onUrgency={setUrgency}
+          onAddCategory={(c) => setCategories([...categories, c])}
+          onRemoveCategory={(c) => setCategories(categories.filter((x) => x !== c))}
+          onClose={onClose}
+        />
+        <div className={s.body} style={{ gridTemplateColumns: aside ? 'minmax(0,1fr) 380px' : 'minmax(0,1fr)' }}>
+          <div className={s.main}>
+            <div ref={scrollRef} className={s.scroll} data-detail-scroll="">
+              {problem !== undefined && <FileProblem message={problem} path={path} onFix={() => void claude('fix-file')} />}
+              <SpecSection
+                md={spec.bodyMd}
+                text={editText}
+                saving={saving}
+                onEdit={startEdit}
+                onChange={setEditText}
+                onCancel={() => setEditText(null)}
+                onSave={() => void save()}
+              />
+              {/* Placeholders that Task 11 fills: Open questions and Dependencies. */}
+              <section
+                ref={sectionRefs.questions}
+                id={`${id}-questions`}
+                data-section="questions"
+                aria-label="Open questions"
+                className={s.section}
+                style={border('questions')}
+              >
+                <div className={s.sectionHead}>
+                  <span className={s.label}>OPEN QUESTIONS</span>
+                </div>
+              </section>
+              <section
+                ref={sectionRefs.dependencies}
+                id={`${id}-dependencies`}
+                data-section="dependencies"
+                aria-label="Dependencies"
+                className={s.section}
+                style={border('dependencies')}
+              >
+                <div className={s.sectionHead}>
+                  <span className={s.label}>DEPENDENCIES</span>
+                </div>
+              </section>
+            </div>
+            {reasons.length > 0 && <BlockedBanner reasons={reasons} />}
+          </div>
+          {aside}
+        </div>
+      </div>
+      {conflict && editText !== null && (
+        <ConflictDialog path={path} onKeepEditing={() => setConflict(false)} onReloadKeepCopy={() => void reloadKeepCopy()} onReload={reload} />
+      )}
+    </Modal>
+  );
+}

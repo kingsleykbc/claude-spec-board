@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { catColor, firstParagraph, fmtLogTime, relTime, statusMeta, truncate, urgVm } from './vm';
+import { catColor, firstParagraph, fmtLogTime, relPath, relTime, statusMeta, truncate, urgVm } from './vm';
 
 // The prototype's hue(), copied as-is, to pin catColor to it.
 const hue = (n: string) => {
@@ -73,5 +73,14 @@ describe('vm', () => {
     expect(relTime('2026-11-06 12:00', now)).toBe('2d ago');
     expect(relTime('2026-09-01', now)).toBe('Sep 1');
     expect(relTime(null, now)).toBe('');
+  });
+});
+
+describe('relPath', () => {
+  it('makes a path project-relative with forward slashes', () => {
+    expect(relPath('C:\\proj\\box', 'C:\\proj\\box\\.specboard\\specs\\T-1-a\\spec.md')).toBe('.specboard/specs/T-1-a/spec.md');
+    expect(relPath('c:/proj/box/', 'C:\\proj\\box\\x.md')).toBe('x.md');
+    expect(relPath('/home/u/box', '/home/u/box/.specboard/specs/T-1/spec.md')).toBe('.specboard/specs/T-1/spec.md');
+    expect(relPath('/home/u/box', '/elsewhere/x.md')).toBe('/elsewhere/x.md');
   });
 });

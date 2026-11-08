@@ -126,3 +126,12 @@ export function relTime(s: string | null | undefined, now: Date = new Date()): s
   if (sec < 30 * 86400) return `${Math.floor(sec / 86400)}d ago`;
   return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
 }
+
+/** A path shown to the user: relative to the project root, with forward slashes (as is when outside the root). */
+export function relPath(root: string, p: string): string {
+  const norm = (s: string) => s.replace(/\\/g, '/').replace(/\/+$/, '');
+  const r = norm(root);
+  const f = norm(p);
+  if (r !== '' && f.toLowerCase().startsWith(r.toLowerCase() + '/')) return f.slice(r.length + 1);
+  return f;
+}
