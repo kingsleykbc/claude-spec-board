@@ -1,11 +1,23 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashText, loadProject } from '@specboard/core';
 import { createApp } from '../src/app.js';
 import { Registry } from '../src/registry.js';
 import { PathError, safeProjectPath } from '../src/safePath.js';
+
+const failConfig = vi.hoisted(() => ({ on: false }));
+vi.mock('@specboard/core', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@specboard/core')>();
+  return {
+    ...real,
+    writeIfUnchanged: (...a: Parameters<typeof real.writeIfUnchanged>) => {
+      if (failConfig.on && a[0].endsWith('config.md')) throw new Error('boom');
+      return real.writeIfUnchanged(...a);
+    },
+  };
+});
 
 const SAMPLE = path.resolve(import.meta.dirname, '../../../examples/recipe-box');
 const HEADERS = { Host: '127.0.0.1:4949', 'Content-Type': 'application/json' };
@@ -28,6 +40,7 @@ afterEach(async () => {
 
 const send = (method: string, url: string, body?: unknown) =>
   app.request(`/api/projects/${pid}${url}`, { method, headers: HEADERS, body: body === undefined ? undefined : JSON.stringify(body) });
+const unlink = (p: string) => send('DELETE', '/references?path=' + encodeURIComponent(p));
 const configText = () => fs.readFile(path.join(proj, '.specboard', 'config.md'), 'utf8');
 const refs = async () => (await loadProject(proj)).config?.references ?? [];
 
@@ -166,5 +179,81 @@ describe('claude stubs', () => {
   });
   it('unknown action is 404', async () => {
     expect((await app.request('/api/claude/nope', { method: 'POST', headers: HEADERS })).status).toBe(404);
+  });
+});
+
+describe('fix round 1', () => {
+  it('concurrent link and create both succeed and both are in config', async () => {
+    await unlink('docs/RULES.md');
+    const [a, b] = await Promise.all([
+      send('POST', '/references/link', { path: 'docs/RULES.md' }),
+      send('POST', '/references/create', { name: 'race' }),
+    ]);
+    expect(a.status).toBe(200);
+    expect(b.status).toBe(201);
+    const r = await refs();
+    expect(r).toContain('docs/RULES.md');
+    expect(r).toContain('docs/RACE.md');
+  });
+
+  it('create removes the new file when linking fails', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    failConfig.on = true;
+    try {
+      const res = await send('POST', '/references/create', { name: 'orphan' });
+      expect(res.status).toBe(500);
+    } finally {
+      failConfig.on = false;
+      spy.mockRestore();
+    }
+    await expect(fs.access(path.join(proj, 'docs', 'ORPHAN.md'))).rejects.toThrow();
+    expect((await send('POST', '/references/create', { name: 'orphan' })).status).toBe(201);
+  });
+
+  it('draft-copy stays inside the root (plain case)', async () => {
+    const { path: p } = (await (await send('POST', '/references/draft-copy', { path: 'docs/RULES.md', md: 'd' })).json()) as { path: string };
+    expect(path.relative(proj, path.join(proj, p)).startsWith('..')).toBe(false);
+  });
+
+  it('draft-copy refuses a draft path that is a link out of the root', async (ctx) => {
+    const outside = path.join(tmp, 'outside');
+    await fs.mkdir(outside);
+    try {
+      await fs.symlink(outside, path.join(proj, 'docs', 'RULES.draft.md'), 'junction');
+    } catch {
+      return ctx.skip();
+    }
+    const res = await send('POST', '/references/draft-copy', { path: 'docs/RULES.md', md: 'd' });
+    expect(res.status).toBe(400);
+    expect(await fs.readdir(outside)).toEqual([]);
+  });
+
+  it('PUT and draft-copy on an unlinked path are 404 and change nothing', async () => {
+    await unlink('docs/API-NOTES.md');
+    const file = path.join(proj, 'docs', 'API-NOTES.md');
+    const old = await fs.readFile(file, 'utf8');
+    const put = await send('PUT', '/references/content', { path: 'docs/API-NOTES.md', hash: hashText(old), md: 'x' });
+    expect(put.status).toBe(404);
+    expect(await put.json()).toEqual({ error: 'Not a linked reference' });
+    expect((await send('POST', '/references/draft-copy', { path: 'docs/API-NOTES.md', md: 'x' })).status).toBe(404);
+    expect(await fs.readFile(file, 'utf8')).toBe(old);
+    await expect(fs.access(path.join(proj, 'docs', 'API-NOTES.draft.md'))).rejects.toThrow();
+  });
+
+  it('refuses to link .specboard files', async () => {
+    const res = await send('POST', '/references/link', { path: '.specboard/config.md' });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'Cannot link .specboard files' });
+  });
+
+  it('traversal in PUT, DELETE and draft-copy is a 4xx and writes nothing', async () => {
+    const before = await configText();
+    const r1 = await send('PUT', '/references/content', { path: '../../x.md', hash: 'h', md: 'x' });
+    const r2 = await unlink('../../x.md');
+    const r3 = await send('POST', '/references/draft-copy', { path: '../../x.md', md: 'x' });
+    for (const r of [r1, r2, r3]) expect(r.status).toBe(400);
+    expect(await configText()).toBe(before);
+    await expect(fs.access(path.join(tmp, 'x.md'))).rejects.toThrow();
+    await expect(fs.access(path.join(tmp, 'x.draft.md'))).rejects.toThrow();
   });
 });

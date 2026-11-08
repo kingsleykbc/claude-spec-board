@@ -30,6 +30,16 @@ async function walk(root: string, dir: string, depth: number, out: string[]): Pr
   }
 }
 
+/** Config kept changing under us; surfaces as a 409 with the current text. */
+class RefConflict extends Error {
+  constructor(
+    readonly currentHash: string,
+    readonly currentText: string,
+  ) {
+    super('config.md changed during update');
+  }
+}
+
 export function referenceRoutes(registry: Registry): Hono {
   const app = new Hono();
 
@@ -52,12 +62,26 @@ export function referenceRoutes(registry: Registry): Hono {
   /** Rewrite config.md's references list under a hash check; `change` returns null for "no change". */
   const updateRefs = async (root: string, change: (refs: string[]) => string[] | null): Promise<void> => {
     const config = path.join(root, '.specboard', 'config.md');
-    const text = await fs.readFile(config, 'utf8');
-    const res = await writeIfUnchanged(config, hashText(text), (t) => {
-      const next = change(parseConfig(t).references);
-      return next === null ? t : setConfigReferences(t, next);
-    });
-    if (!res.ok) throw new Error('config.md changed during update');
+    let last: { currentHash: string; currentText: string } = { currentHash: '', currentText: '' };
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const text = await fs.readFile(config, 'utf8');
+      const res = await writeIfUnchanged(config, hashText(text), (t) => {
+        const next = change(parseConfig(t).references);
+        return next === null ? t : setConfigReferences(t, next);
+      });
+      if (res.ok) return;
+      last = res;
+    }
+    throw new RefConflict(last.currentHash, last.currentText);
+  };
+
+  /** The normalised, safe, project-relative path; it must currently be linked in config. */
+  const linked = async (root: string, rel: string): Promise<{ file: string; norm: string }> => {
+    const file = safe(root, rel);
+    const norm = toRel(root, file);
+    const refs = (await loadProject(root)).config?.references ?? [];
+    if (!refs.some((r) => r.replace(/\\/g, '/') === norm)) throw new HttpError(404, 'Not a linked reference');
+    return { file, norm };
   };
 
   app.get('/api/projects/:pid/references', async (c) => {
@@ -83,7 +107,7 @@ export function referenceRoutes(registry: Registry): Hono {
     const hash = requireString(b, 'hash', false);
     const md = requireString(b, 'md');
     const entry = await project(c);
-    const file = safe(entry.root, rel);
+    const { file } = await linked(entry.root, rel);
     const res = await writeIfUnchanged(file, hash, () => md).catch((e: NodeJS.ErrnoException) => {
       if (e.code === 'ENOENT') throw new HttpError(404, 'File not found');
       throw e;
@@ -100,6 +124,7 @@ export function referenceRoutes(registry: Registry): Hono {
     const stat = await fs.stat(file).catch(() => null);
     if (!stat?.isFile()) throw new HttpError(404, 'File not found');
     const norm = toRel(entry.root, file);
+    if (/^\.specboard\//i.test(norm)) throw new HttpError(400, 'Cannot link .specboard files');
     await updateRefs(entry.root, (refs) => (refs.includes(norm) ? null : [...refs, norm]));
     return c.json({ path: norm });
   });
@@ -119,7 +144,12 @@ export function referenceRoutes(registry: Registry): Hono {
       if ((e as NodeJS.ErrnoException).code === 'EEXIST') return c.json({ error: 'Already exists' }, 409);
       throw e;
     }
-    await updateRefs(entry.root, (refs) => (refs.includes(rel) ? null : [...refs, rel]));
+    try {
+      await updateRefs(entry.root, (refs) => (refs.includes(rel) ? null : [...refs, rel]));
+    } catch (e) {
+      await fs.rm(file, { force: true });
+      throw e;
+    }
     return c.json({ path: rel }, 201);
   });
 
@@ -143,9 +173,12 @@ export function referenceRoutes(registry: Registry): Hono {
     const rel = requireString(b, 'path', false);
     const md = requireString(b, 'md');
     const entry = await project(c);
-    const file = safe(entry.root, rel);
+    const { file } = await linked(entry.root, rel);
     const stat = await fs.stat(file).catch(() => null);
     if (!stat?.isFile()) throw new HttpError(404, 'File not found');
+    const { dir, name } = path.parse(file);
+    const draftRel = toRel(entry.root, path.join(dir, name + '.draft.md'));
+    safe(entry.root, draftRel);
     const draft = await writeSiblingDraft(file, md);
     return c.json({ path: toRel(entry.root, draft) });
   });
@@ -158,6 +191,8 @@ export function referenceRoutes(registry: Registry): Hono {
     return c.json(all.filter((p) => p.toLowerCase().includes(q)).sort().slice(0, MAX_RESULTS));
   });
 
-  app.onError(onError);
+  app.onError((err, c) =>
+    err instanceof RefConflict ? c.json({ conflict: true, currentHash: err.currentHash, currentText: err.currentText }, 409) : onError(err, c),
+  );
   return app;
 }
