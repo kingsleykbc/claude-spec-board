@@ -166,7 +166,49 @@ describe('matchesDeny', () => {
   it('does not match unrelated rules, other tools, or look-alike prefixes', () => {
     expect(matchesDeny('Bash(git status:*)', ['Bash(git push:*)'])).toBe(false);
     expect(matchesDeny('Bash(git pushd:*)', ['Bash(git push:*)'])).toBe(false);
-    expect(matchesDeny('PowerShell(git push:*)', ['Bash(git push:*)'])).toBe(false);
     expect(matchesDeny('Bash(ls:*)', [])).toBe(false);
+  });
+});
+
+describe('deny matching hardening', () => {
+  const push = ['Bash(git push:*)'];
+
+  it.each(['git.exe push', 'GIT push', 'Git Push', 'git.cmd push', 'GIT.EXE push origin'])('%s is caught by a git push deny', (command) => {
+    const rule = suggestRule(bash(command))!;
+    expect(rule).toMatch(/^Bash\(.+ [Pp][Uu][Ss][Hh]:\*\)$/);
+    expect(matchesDeny(rule, push)).toBe(true);
+    expect(end({ result: res({ denials: [bash(command)] }), after: spec(), denyRules: push }).fix).toBeUndefined();
+  });
+
+  it('normalises the program name on the deny side too', () => {
+    expect(matchesDeny('Bash(git push:*)', ['Bash(GIT.exe push:*)'])).toBe(true);
+    expect(matchesDeny('Bash(git status:*)', ['Bash(GIT.exe push:*)'])).toBe(false);
+  });
+
+  it.each(['command git push', 'timeout 5 git push', 'nohup git push', 'time git push', 'nice git push', 'wsl git push', 'busybox sh', 'builtin cd', 'env git push', 'xargs rm', 'exec x', 'pwsh -c x', 'zsh x', 'cmd /c x'])('wrapper %s gets no rule', (command) => {
+    expect(suggestRule(bash(command))).toBeNull();
+    const e = end({ result: res({ denials: [bash(command)] }), after: spec() });
+    expect(e.status).toBe('permission');
+    expect(e.fix).toBeUndefined();
+  });
+
+  it('treats a mid-pattern wildcard deny as overlapping every rule for that program', () => {
+    expect(matchesDeny('Bash(git status:*)', ['Bash(git * --force)'])).toBe(true);
+    expect(matchesDeny('Bash(git push:*)', ['Bash(git * --force)'])).toBe(true);
+    expect(matchesDeny('Bash(ls:*)', ['Bash(git * --force)'])).toBe(false);
+  });
+
+  it('treats a leading wildcard deny as overlapping every rule for the tool', () => {
+    expect(matchesDeny('Bash(npm install:*)', ['Bash(* push)'])).toBe(true);
+    expect(matchesDeny('PowerShell(ls:*)', ['Bash(* push)'])).toBe(true);
+    expect(matchesDeny('WebFetch', ['Bash(* push)'])).toBe(false);
+  });
+
+  it('checks Bash and PowerShell rules against each other\'s denies', () => {
+    expect(matchesDeny('PowerShell(git push:*)', ['Bash(git push:*)'])).toBe(true);
+    expect(matchesDeny('Bash(git:*)', ['PowerShell(git push:*)'])).toBe(true);
+    expect(matchesDeny('PowerShell(git status:*)', ['Bash(git push:*)'])).toBe(false);
+    const e = end({ result: res({ denials: [{ tool: 'PowerShell', input: { command: 'git push origin' } }] }), after: spec(), denyRules: push });
+    expect(e.fix).toBeUndefined();
   });
 });

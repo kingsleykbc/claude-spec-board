@@ -13,7 +13,12 @@ const MULTI_WORD = new Set([
   'git', 'npm', 'npx', 'yarn', 'pnpm', 'cargo', 'go', 'pip', 'pip3', 'docker', 'gh', 'dotnet', 'bun', 'deno', 'kubectl', 'poetry', 'uv',
 ]);
 // A prefix rule on these would let Claude run anything.
-const NEVER_PREFIX = new Set(['sh', 'bash', 'zsh', 'dash', 'fish', 'cmd', 'cmd.exe', 'powershell', 'powershell.exe', 'pwsh', 'eval', 'exec', 'sudo', 'su', 'env', 'xargs', 'source']);
+const NEVER_PREFIX = new Set([
+  'sh', 'bash', 'zsh', 'dash', 'fish', 'cmd', 'powershell', 'pwsh', 'eval', 'exec', 'sudo', 'su', 'env', 'xargs', 'source',
+  'command', 'builtin', 'time', 'nohup', 'timeout', 'nice', 'wsl', 'busybox',
+]);
+/** Lowercase, without a Windows executable extension: GIT, git.exe and git.cmd are all git. */
+const normProg = (p: string): string => p.toLowerCase().replace(/\.(?:exe|cmd|bat|com)$/, '');
 const FILE_TOOLS = new Set(['Read', 'Glob', 'Grep', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const SHELL_TOOLS = new Set(['Bash', 'PowerShell']);
 
@@ -51,9 +56,9 @@ function segmentPrefix(seg: string): string | null {
   while (words.length > 0 && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[0]!)) words.shift();
   const prog = words[0];
   if (!prog || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(prog)) return null;
-  if (NEVER_PREFIX.has(prog.toLowerCase())) return null;
+  if (NEVER_PREFIX.has(normProg(prog))) return null;
   const second = words[1];
-  if (MULTI_WORD.has(prog) && second && /^[A-Za-z][A-Za-z0-9:_-]*$/.test(second)) return `${prog} ${second}`;
+  if (MULTI_WORD.has(normProg(prog)) && second && /^[A-Za-z][A-Za-z0-9:_-]*$/.test(second)) return `${prog} ${second}`;
   return prog;
 }
 
@@ -95,15 +100,25 @@ function parseRule(rule: string): ParsedRule | null {
   return m ? { tool: m[1]!, spec: m[2] === undefined || m[2] === '' ? null : m[2].trim() } : null;
 }
 
-function normSpec(spec: string): { s: string; prefix: boolean } {
+interface NormSpec { s: string; prefix: boolean; inner: boolean; leading: boolean }
+
+/** Lowercased, program name without .exe etc. `inner`: a wildcard before the end; `leading`: starts with one. */
+function normSpec(spec: string): NormSpec {
   const m = /^(.*?)(?::\*|\s\*|\*)$/.exec(spec);
-  return m ? { s: m[1]!.trim().replace(/\s+/g, ' '), prefix: true } : { s: spec.replace(/\s+/g, ' '), prefix: false };
+  const body = (m ? m[1]! : spec).trim().replace(/\s+/g, ' ').toLowerCase();
+  const words = body.split(' ');
+  words[0] = normProg(words[0]!);
+  const s = words.join(' ');
+  return { s, prefix: m !== null, inner: s.includes('*'), leading: s.startsWith('*') };
 }
 
-function covers(a: { s: string; prefix: boolean }, b: { s: string; prefix: boolean }): boolean {
+function covers(a: NormSpec, b: NormSpec): boolean {
   if (a.s === b.s) return a.prefix || !b.prefix;
   return a.prefix && (a.s === '' || b.s.startsWith(a.s + ' '));
 }
+
+const SHELLS = new Set(['Bash', 'PowerShell']);
+const sameTool = (a: string, b: string): boolean => a === b || (SHELLS.has(a) && SHELLS.has(b));
 
 /** True when `rule` overlaps any deny rule: same tool, and one covers the other. Overlap is treated as denied. */
 export function matchesDeny(rule: string, deny: string[]): boolean {
@@ -111,10 +126,13 @@ export function matchesDeny(rule: string, deny: string[]): boolean {
   if (!r) return true; // unreadable: do not offer it
   for (const raw of deny) {
     const d = parseRule(raw);
-    if (!d || d.tool !== r.tool) continue;
+    if (!d || !sameTool(d.tool, r.tool)) continue;
     if (d.spec === null || r.spec === null) return true;
     const a = normSpec(r.spec);
     const b = normSpec(d.spec);
+    // Wildcards we can't compare literally: a leading one hits every rule of the tool, a mid-pattern one every rule of the same program.
+    if (a.leading || b.leading) return true;
+    if ((a.inner || b.inner) && a.s.split(' ')[0] === b.s.split(' ')[0]) return true;
     if (covers(a, b) || covers(b, a)) return true;
   }
   return false;
