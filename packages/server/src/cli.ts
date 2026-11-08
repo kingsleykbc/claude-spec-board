@@ -1,8 +1,11 @@
+import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { start } from './start.js';
 
 export function parseArgs(argv: string[]): { path: string; port: number; open: boolean } {
-  let dir = process.env.INIT_CWD || process.cwd();
+  // npm runs root scripts from the repo root; INIT_CWD is where the user typed the command.
+  const base = process.env.INIT_CWD || process.cwd();
+  let dir = base;
   let port = 4949;
   let open = true;
   for (let i = 0; i < argv.length; i++) {
@@ -14,7 +17,7 @@ export function parseArgs(argv: string[]): { path: string; port: number; open: b
       if (raw === undefined || !Number.isInteger(n) || n < 0 || n > 65535) throw new Error(`Invalid port: ${raw ?? '(missing)'}`);
       port = n;
     } else if (a.startsWith('--')) throw new Error(`Unknown option: ${a}`);
-    else dir = a;
+    else dir = path.resolve(base, a);
   }
   return { path: dir, port, open };
 }

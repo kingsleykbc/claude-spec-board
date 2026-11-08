@@ -65,7 +65,18 @@ describe('parseArgs', () => {
     expect(parseArgs([]).path).toBe(path.join(os.tmpdir(), 'initcwd'));
   });
   it('reads a path, --port and --no-open', () => {
-    expect(parseArgs(['some/dir', '--port', '5050', '--no-open'])).toEqual({ path: 'some/dir', port: 5050, open: false });
+    expect(parseArgs(['some/dir', '--port', '5050', '--no-open'])).toEqual({ path: path.resolve(process.cwd(), 'some/dir'), port: 5050, open: false });
+  });
+  it('resolves a relative path argument against INIT_CWD (npm runs scripts from the repo root)', () => {
+    const init = path.join(os.tmpdir(), 'initcwd');
+    process.env.INIT_CWD = init;
+    expect(parseArgs(['examples/recipe-box']).path).toBe(path.join(init, 'examples', 'recipe-box'));
+    expect(parseArgs(['..']).path).toBe(os.tmpdir());
+    const abs = path.join(os.tmpdir(), 'elsewhere');
+    expect(parseArgs([abs]).path).toBe(abs);
+  });
+  it('resolves a relative path argument against cwd when INIT_CWD is unset', () => {
+    expect(parseArgs(['some/dir']).path).toBe(path.join(process.cwd(), 'some', 'dir'));
   });
   it('rejects a bad port', () => {
     expect(() => parseArgs(['--port', 'abc'])).toThrow('Invalid port');
