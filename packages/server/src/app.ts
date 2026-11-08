@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 import { compareIds, loadProject, nextId } from '@specboard/core';
 import type { Registry } from './registry.js';
 import { guard } from './security.js';
+import { specRoutes } from './routes/specs.js';
 
 /** Placeholder for the Claude Code bridge; filled in by the M3 work. Unused until then. */
 export interface ClaudeBridge {}
@@ -72,6 +73,8 @@ export function createApp(deps: AppDeps): Hono {
     project.archived.sort((a, b) => compareIds(a.id, b.id));
     return c.json({ entry, project, nextId: await nextId(entry.root) });
   });
+
+  app.route('/', specRoutes(deps.registry));
 
   if (deps.webDist !== null) {
     const root = path.resolve(deps.webDist);
