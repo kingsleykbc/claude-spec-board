@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { detectEol, replaceSection, setAnswers, setMetaField, setSubtaskDone } from '../src/edit.js';
 import { parseSpec } from '../src/parseSpec.js';
+import { demoteH2 } from '../src/sections.js';
 
 const fixture = readFileSync(new URL('./fixtures/spec-full.md', import.meta.url), 'utf8');
 const crlf = fixture.replace(/\n/g, '\r\n');
@@ -48,7 +49,7 @@ describe.each([
     const long = 'x'.repeat(100);
     const odd = [
       '---', 'id: T-1', 'title:   "Hello: there"   # c', 'status:   todo  # s', 'categories: [A,   B]',
-      'list:', '- a', '- b', 'summary: ' + long + ' ' + long, 'urgency: low', '---', '', 'body', '',
+      'depends_on:', '- a', '- b', 'summary: ' + long + ' ' + long, 'urgency: low', '---', '', 'body', '',
     ].join(eol);
     const rows = odd.split(/\r?\n/);
     const out = setMetaField(odd, 'status', 'doing');
@@ -56,11 +57,11 @@ describe.each([
     expect(changedLines(odd, out)).toEqual([idx]);
     expect(lineOf(out, idx)).toBe('status: doing');
     if (eol === '\r\n') expect(noLoneLf(out)).toBe(true);
-    const list = setMetaField(odd, 'list' as 'status', ['q']);
-    expect(lineOf(list, rows.findIndex((l) => l.startsWith('list:')))).toBe('list: [q]');
+    const list = setMetaField(odd, 'depends_on', ['q']);
+    expect(lineOf(list, rows.findIndex((l) => l.startsWith('depends_on:')))).toBe('depends_on: [q]');
     expect(list.split(/\r?\n/).length).toBe(rows.length - 2);
     expect(setMetaField(odd, 'categories', ['Frontend', 'Backend'])).toContain(
-      'categories: [Frontend, Backend]' + eol + 'list:',
+      'categories: [Frontend, Backend]' + eol + 'depends_on:',
     );
   });
   it('setMetaField adds an absent key as exactly one line before the closing ---', () => {
@@ -142,5 +143,110 @@ describe('misc', () => {
   });
   it('round trip', () => {
     expect(parseSpec(setAnswers(fixture, { Q1: 'Yes' })).questions[0]!.answer).toBe('Yes');
+  });
+});
+
+describe('F2: UTF-8 BOM', () => {
+  const bom = '\uFEFF' + fixture;
+  it('a BOM spec parses its id, title and status', () => {
+    const d = parseSpec(bom);
+    expect(d.id).toBe('T-105');
+    expect(d.title).toBe('Shopping list export');
+    expect(d.status).toBe('todo');
+    expect(d.problems).toEqual([]);
+  });
+  it('setMetaField on a BOM spec keeps the BOM', () => {
+    const out = setMetaField(bom, 'status', 'done');
+    expect(out.startsWith('\uFEFF---')).toBe(true);
+    expect(parseSpec(out).status).toBe('done');
+    expect(out).toBe(bom.replace('status: todo', 'status: done'));
+  });
+});
+
+describe('F3: front matter without a final newline', () => {
+  it('replaces the key instead of duplicating it', () => {
+    expect(setMetaField('---\nid: T-1\nstatus: todo\n---', 'status', 'done')).toBe('---\nid: T-1\nstatus: done\n---');
+  });
+  it('empty front matter still works', () => {
+    expect(setMetaField('---\n---\n', 'status', 'done')).toBe('---\nstatus: done\n---\n');
+    expect(setMetaField('---\n---', 'status', 'done')).toBe('---\nstatus: done\n---');
+  });
+});
+
+describe('F4: setMetaField validation', () => {
+  const t = '---\nid: T-1\nstatus: todo\n---\n';
+  const bad = (key: string, value: unknown) => () => setMetaField(t, key as 'status', value as 'todo');
+  it('rejects undefined and unknown enum values', () => {
+    expect(bad('status', undefined)).toThrow('Invalid value for status');
+    expect(bad('status', 'wip')).toThrow('Invalid value for status');
+    expect(bad('urgency', 'meh')).toThrow('Invalid value for urgency');
+  });
+  it('rejects other bad values', () => {
+    expect(bad('categories', 'a')).toThrow('Invalid value for categories');
+    expect(bad('depends_on', [1])).toThrow('Invalid value for depends_on');
+    expect(bad('draft', 'yes')).toThrow('Invalid value for draft');
+    expect(bad('current_subtask', 0)).toThrow('Invalid value for current_subtask');
+    expect(bad('current_subtask', 1.5)).toThrow('Invalid value for current_subtask');
+    expect(bad('title', '  ')).toThrow('Invalid value for title');
+    expect(bad('updated', '2026-1-1')).toThrow('Invalid value for updated');
+    expect(bad('nope', 'x')).toThrow('Invalid key nope');
+  });
+  it('accepts good values', () => {
+    expect(setMetaField(t, 'current_subtask', null)).toContain('current_subtask: null');
+    expect(setMetaField(t, 'current_subtask', 3)).toContain('current_subtask: 3');
+    expect(setMetaField(t, 'draft', true)).toContain('draft: true');
+    expect(setMetaField(t, 'updated', '2026-12-01')).toContain('updated: 2026-12-01');
+  });
+  it('refuses a quoted key it cannot edit line by line', () => {
+    expect(() => setMetaField('---\nid: T-1\n"status": todo\n---\n', 'status', 'done')).toThrow('Cannot edit status safely');
+  });
+});
+
+describe('F5: ## headings in section bodies are demoted', () => {
+  it('demoteH2 leaves ### and fenced lines alone', () => {
+    expect(demoteH2('## a\n### b\n```\n## c\n```\n##\td\r\n## e')).toBe('### a\n### b\n```\n## c\n```\n###\td\r\n### e');
+  });
+  it('replaceSection demotes ## lines in the new body', () => {
+    const d = parseSpec(replaceSection(fixture, 'Spec', 'intro\n## Notes\nmore'));
+    expect(d.specMd).toContain('### Notes');
+    expect(d.specMd).toContain('more');
+  });
+  it('a fake ## Subtasks in the body does not change the subtasks', () => {
+    const before = parseSpec(fixture).subtasks.map(({ n, title, done }) => ({ n, title, done }));
+    const d = parseSpec(replaceSection(fixture, 'Spec', '## Subtasks\n- [ ] 1. fake'));
+    expect(d.subtasks.map(({ n, title, done }) => ({ n, title, done }))).toEqual(before);
+  });
+  it('a fenced ## line is kept', () => {
+    const out = replaceSection(fixture, 'Spec', '```\n## x\n```');
+    expect(out).toContain('```\n## x\n```');
+    expect(parseSpec(out).specMd).toBe('```\n## x\n```');
+  });
+});
+
+describe('F9: mixed line endings', () => {
+  const rows = fixture.split('\n');
+  const mixed = rows.map((r, i) => r + (i === rows.length - 1 ? '' : i % 2 === 0 ? '\r\n' : '\n')).join('');
+  const parts = (s: string) => s.split(/(\r?\n)/);
+  it('setSubtaskDone changes only the target line bytes', () => {
+    const line = parseSpec(mixed).subtasks[1]!.line;
+    const out = setSubtaskDone(mixed, 2, true);
+    const a = parts(mixed);
+    const b = parts(out);
+    expect(b.length).toBe(a.length);
+    const diff = a.map((p, i) => (p === b[i] ? -1 : i)).filter((i) => i >= 0);
+    expect(diff).toEqual([line * 2]);
+    expect(b[line * 2]).toBe('- [x] 2. Merge duplicate ingredients');
+  });
+  it('setMetaField and setAnswers keep every other ending', () => {
+    const a = parts(mixed);
+    const out = setAnswers(setMetaField(mixed, 'status', 'doing'), { Q2: '3' });
+    const b = parts(out);
+    expect(b.length).toBe(a.length);
+    for (let i = 1; i < a.length; i += 2) expect(b[i]).toBe(a[i]);
+  });
+  it('an inserted answer line takes the ending of the line before it', () => {
+    const t = '---\nid: T-9\n---\r\n\r\n## Open questions\r\n\r\n- [ ] Q1 (text): Why?\n- [ ] Q2 (text): How?\r\n';
+    expect(setAnswers(t, { Q1: 'a' })).toBe(t.replace('- [ ] Q1 (text): Why?\n', '- [x] Q1 (text): Why?\n  > answer: a\n'));
+    expect(setAnswers(t, { Q2: 'b' })).toBe(t.replace('- [ ] Q2 (text): How?\r\n', '- [x] Q2 (text): How?\r\n  > answer: b\r\n'));
   });
 });

@@ -11,6 +11,26 @@ const HEADING = /^##[ \t]+(.+?)[ \t]*#*[ \t]*$/;
 const FENCE = /^[ \t]*(```|~~~)/;
 
 /**
+ * Turn every `## ` heading line outside fenced code blocks into `### `, so user text written into a
+ * section can never start a new section. Line endings are kept as they are.
+ */
+export function demoteH2(md: string): string {
+  const parts = md.split(/(\r?\n)/);
+  let fence: string | null = null;
+  for (let i = 0; i < parts.length; i += 2) {
+    const line = parts[i]!;
+    const f = FENCE.exec(line);
+    if (f) {
+      if (fence === null) fence = f[1]!;
+      else if (fence === f[1]) fence = null;
+      continue;
+    }
+    if (fence === null && /^##[ \t]/.test(line)) parts[i] = `#${line}`;
+  }
+  return parts.join('');
+}
+
+/**
  * Find `## ` sections. Keys are lowercase heading text; line numbers are 0-based indices into `lines`.
  * `fromLine` skips leading lines (e.g. front matter). Headings inside code fences are ignored;
  * if a heading repeats, the first one wins.

@@ -66,7 +66,7 @@ describe('parseSpecMeta', () => {
 
 describe('splitFrontMatter', () => {
   it('returns null yaml when there is no front matter', () => {
-    expect(splitFrontMatter('# Hi')).toEqual({ yaml: null, body: '# Hi', bodyStartLine: 0 });
+    expect(splitFrontMatter('# Hi')).toEqual({ yaml: null, body: '# Hi', bodyStartLine: 0, closingLine: null });
   });
 
   it('splits LF front matter', () => {
@@ -74,6 +74,7 @@ describe('splitFrontMatter', () => {
       yaml: 'id: T-001',
       body: 'body',
       bodyStartLine: 3,
+      closingLine: 2,
     });
   });
 
@@ -82,5 +83,15 @@ describe('splitFrontMatter', () => {
     expect(r.yaml).toBe('id: T-001');
     expect(r.body).toBe('body');
     expect(r.bodyStartLine).toBe(3);
+  });
+});
+
+describe('splitFrontMatter edge cases', () => {
+  it('F3: reports the closing line, also without a final newline', () => {
+    expect(splitFrontMatter('---\nid: T-1\n---')).toEqual({ yaml: 'id: T-1', body: '', bodyStartLine: 3, closingLine: 2 });
+    expect(splitFrontMatter('---\n---\n')).toMatchObject({ yaml: '', bodyStartLine: 2, closingLine: 1 });
+  });
+  it('F2: accepts a leading BOM', () => {
+    expect(splitFrontMatter('﻿---\nid: T-1\n---\nbody')).toEqual({ yaml: 'id: T-1', body: 'body', bodyStartLine: 3, closingLine: 2 });
   });
 });

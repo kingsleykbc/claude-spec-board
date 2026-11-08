@@ -1,18 +1,23 @@
 import { parseDocument } from 'yaml';
 import type { SpecMeta, Status, Urgency } from './types.js';
 
-const STATUSES: readonly Status[] = ['todo', 'doing', 'review', 'done'];
-const URGENCIES: readonly Urgency[] = ['low', 'normal', 'high', 'urgent'];
+export const STATUSES: readonly Status[] = ['todo', 'doing', 'review', 'done'];
+export const URGENCIES: readonly Urgency[] = ['low', 'normal', 'high', 'urgent'];
 
-const FRONT_MATTER = /^---[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*(?:\r?\n|$)/;
+// An optional UTF-8 BOM may precede the opening ---; it stays part of line 0 for editors.
+const FRONT_MATTER = /^﻿?---[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*(\r?\n|$)/;
 
-/** Split a spec file into its YAML front matter and body. bodyStartLine is the 0-based line index where the body begins. */
-export function splitFrontMatter(text: string): { yaml: string | null; body: string; bodyStartLine: number } {
+/**
+ * Split a spec file into its YAML front matter and body. closingLine is the 0-based index of the
+ * closing `---` (null without front matter); bodyStartLine is always the line after it, even when
+ * the file ends right after the closing `---`.
+ */
+export function splitFrontMatter(text: string): { yaml: string | null; body: string; bodyStartLine: number; closingLine: number | null } {
   const m = FRONT_MATTER.exec(text);
-  if (!m) return { yaml: null, body: text, bodyStartLine: 0 };
+  if (!m) return { yaml: null, body: text, bodyStartLine: 0, closingLine: null };
   const consumed = m[0];
-  const bodyStartLine = (consumed.match(/\n/g) ?? []).length;
-  return { yaml: m[1] ?? '', body: text.slice(consumed.length), bodyStartLine };
+  const closingLine = (consumed.match(/\n/g) ?? []).length - (m[2] ? 1 : 0);
+  return { yaml: m[1] ?? '', body: text.slice(consumed.length), bodyStartLine: closingLine + 1, closingLine };
 }
 
 function defaultMeta(): SpecMeta {
