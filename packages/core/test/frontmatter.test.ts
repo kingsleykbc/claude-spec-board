@@ -92,6 +92,6 @@ describe('splitFrontMatter edge cases', () => {
     expect(splitFrontMatter('---\n---\n')).toMatchObject({ yaml: '', bodyStartLine: 2, closingLine: 1 });
   });
   it('F2: accepts a leading BOM', () => {
-    expect(splitFrontMatter('﻿---\nid: T-1\n---\nbody')).toEqual({ yaml: 'id: T-1', body: 'body', bodyStartLine: 3, closingLine: 2 });
+    expect(splitFrontMatter('\uFEFF---\nid: T-1\n---\nbody')).toEqual({ yaml: 'id: T-1', body: 'body', bodyStartLine: 3, closingLine: 2 });
   });
 });

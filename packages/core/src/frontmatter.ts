@@ -5,7 +5,7 @@ export const STATUSES: readonly Status[] = ['todo', 'doing', 'review', 'done'];
 export const URGENCIES: readonly Urgency[] = ['low', 'normal', 'high', 'urgent'];
 
 // An optional UTF-8 BOM may precede the opening ---; it stays part of line 0 for editors.
-const FRONT_MATTER = /^﻿?---[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*(\r?\n|$)/;
+const FRONT_MATTER = /^\uFEFF?---[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*(\r?\n|$)/;
 
 /**
  * Split a spec file into its YAML front matter and body. closingLine is the 0-based index of the
