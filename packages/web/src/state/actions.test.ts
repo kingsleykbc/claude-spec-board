@@ -90,4 +90,34 @@ describe('createSpecActions', () => {
     expect(c.claude).toHaveBeenCalledWith('write-up', { pid: 'p1', id: 'T-107' });
     expect(toast).toHaveBeenCalledWith('info', 'Claude actions arrive in the next milestone');
   });
+
+  // Ruling 18 (extended): only a 501 stub answer is the stub toast.
+  it('write-up: a real error shows the err toast with its message, not the stub toast', async () => {
+    const { toast, actions } = setup({ claude: vi.fn(async () => Promise.reject(new ApiError(500, 'Server exploded'))) });
+    await actions.writeUp(recipeSpec('T-107'));
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledWith('err', 'Couldn’t reach Claude for T-107', 'Server exploded');
+  });
+
+  it('write-up: a non-stub success shows no stub toast', async () => {
+    const { toast, actions } = setup({ claude: vi.fn(async () => ({ stub: false })) });
+    await actions.writeUp(recipeSpec('T-107'));
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  it('write-up while disconnected: offline toast, no API call', async () => {
+    const c = { claude: vi.fn(async () => ({ stub: true })) };
+    const toast = vi.fn();
+    const actions = createSpecActions({
+      pid: 'p1',
+      client: c as unknown as ActionClient,
+      mutate: vi.fn(),
+      refresh: vi.fn(async () => undefined),
+      toast,
+      isDown: () => true,
+    });
+    await actions.writeUp(recipeSpec('T-107'));
+    expect(c.claude).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith('err', 'Disconnected from the local server.', 'Edits won’t save until it’s back.');
+  });
 });

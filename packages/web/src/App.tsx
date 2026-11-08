@@ -147,8 +147,13 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
   const wantReconnectToast = useRef(false);
 
   const mutate = useMemo(() => createMutator(() => Promise.reject(new Error('No default op'))), []);
-  const actions = useMemo(() => createSpecActions({ pid, mutate, refresh, toast }), [pid, mutate, refresh, toast]);
   const down = conn === 'disconnected';
+  const downRef = useRef(down);
+  downRef.current = down;
+  const actions = useMemo(
+    () => createSpecActions({ pid, mutate, refresh, toast, isDown: () => downRef.current }),
+    [pid, mutate, refresh, toast],
+  );
 
   useEffect(() => {
     if (conn === 'live' && wantReconnectToast.current) {

@@ -15,6 +15,8 @@ export interface ActionDeps {
   mutate: Mutate;
   refresh: () => Promise<void>;
   toast: PushToast;
+  /** True while disconnected from the server: Claude actions are refused with the offline toast. */
+  isDown?: () => boolean;
 }
 
 export const CLAUDE_STUB_TOAST = 'Claude actions arrive in the next milestone';
@@ -26,7 +28,7 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 /** Thrown inside the op of a move queued behind a conflicted one: it is dropped without a request. */
 class Superseded extends Error {}
 
-export function createSpecActions({ pid, client = api, mutate, refresh, toast }: ActionDeps) {
+export function createSpecActions({ pid, client = api, mutate, refresh, toast, isDown = () => false }: ActionDeps) {
   /**
    * Per spec, how many status-move conflicts have been handled (Ruling 15b). A move remembers the
    * count when it is made; if a conflict was handled since, the move was queued behind that
@@ -85,12 +87,19 @@ export function createSpecActions({ pid, client = api, mutate, refresh, toast }:
 
     /** M2 stub: the server answers 501. */
     async writeUp(spec: Spec): Promise<void> {
-      try {
-        await client.claude('write-up', { pid, id: spec.id });
-      } catch {
-        // the stub toast below is all M2 shows
+      // Ruling 18: refused while disconnected; only a 501 stub answer gets the stub toast.
+      if (isDown()) {
+        toast('err', ...OFFLINE_TOAST);
+        return;
       }
-      toast('info', CLAUDE_STUB_TOAST);
+      let res: { stub: boolean };
+      try {
+        res = await client.claude('write-up', { pid, id: spec.id });
+      } catch (e) {
+        toast('err', `Couldn’t reach Claude for ${spec.id}`, message(e));
+        return;
+      }
+      if (res.stub) toast('info', CLAUDE_STUB_TOAST);
     },
   };
 }

@@ -359,21 +359,27 @@ describe('CardDetail', () => {
       expect(setBody).toHaveBeenCalledWith('p1', 'T-104', recipeSpec('T-104').hash, 'mine');
     });
 
-    it('after a 409, Keep editing refreshes, and the next Save is based on the version that conflicted', async () => {
-      let n = 0;
-      const setBody = vi.fn(async (_p: string, sid: string) => {
-        if (n++ === 0) throw new ConflictError('h9', 'theirs');
+    it('after a 409, Keep editing only refreshes; a Save over a changed body conflicts again, never overwrites', async () => {
+      const startHash = recipeSpec('T-104').hash;
+      // The server holds h9: a write based on any other hash conflicts.
+      const setBody = vi.fn(async (_p: string, sid: string, hash: string) => {
+        if (hash !== 'h9') throw new ConflictError('h9', 'theirs');
         return { hash: 'h10', spec: recipeSpec(sid) };
       });
       const { refresh, update, toast } = setup('T-104', { setBody });
       startEdit('mine');
-      update({ ...recipeSpec('T-104'), bodyMd: 'Claude rewrote this', hash: 'h9' });
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
       fireEvent.click(await screen.findByRole('button', { name: 'Keep editing' }));
       expect(refresh).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      // The refresh delivers Claude's version, whose body the user has not seen.
+      update({ ...recipeSpec('T-104'), bodyMd: 'Claude rewrote this', hash: 'h9' });
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-      await waitFor(() => expect(toast).toHaveBeenCalledWith('ok', 'Spec saved', expect.any(String)));
-      expect(setBody).toHaveBeenLastCalledWith('p1', 'T-104', 'h9', 'mine');
+      await screen.findByRole('alertdialog', { name: 'This spec changed outside the board' });
+      expect(setBody).toHaveBeenCalledTimes(2);
+      expect(setBody).toHaveBeenLastCalledWith('p1', 'T-104', startHash, 'mine');
+      await expect(setBody.mock.results[1]!.value).rejects.toBeInstanceOf(ConflictError);
+      expect(toast).not.toHaveBeenCalledWith('ok', 'Spec saved', expect.anything());
     });
   });
 

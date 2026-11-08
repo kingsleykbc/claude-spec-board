@@ -103,20 +103,8 @@ function SpecDetail({
   const editBase = useRef<{ md: string; hash: string }>({ md: '', hash: '' });
   const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState(false);
-  /** Hash of the file version a 409 reported; after "Keep editing" the next Save is based on it. */
-  const conflictHash = useRef<string | null>(null);
-  /** Set by "Keep editing" until the refreshed spec with that hash arrives. */
-  const rebaseTo = useRef<string | null>(null);
   const [discardAsk, setDiscardAsk] = useState(false);
   const dirty = editText !== null && editText !== editBase.current.md;
-
-  // Once the version that conflicted is loaded, edits are measured against its body.
-  useEffect(() => {
-    if (rebaseTo.current !== null && spec.hash === rebaseTo.current) {
-      editBase.current = { md: spec.bodyMd, hash: spec.hash };
-      rebaseTo.current = null;
-    }
-  }, [spec.hash, spec.bodyMd]);
 
   // Ruling 17: Esc leaves the editor before the modal, asking first if there are unsaved changes.
   useEscape(
@@ -193,10 +181,8 @@ function SpecDetail({
       await mutate(id, base, (h) => client.setBody(pid, id, h, text));
     } catch (e) {
       setSaving(false);
-      if (e instanceof ConflictError) {
-        conflictHash.current = e.currentHash;
-        setConflict(true);
-      } else toast('err', `Couldn’t save ${id}`, message(e));
+      if (e instanceof ConflictError) setConflict(true);
+      else toast('err', `Couldn’t save ${id}`, message(e));
       return;
     }
     await refresh();
@@ -220,15 +206,13 @@ function SpecDetail({
     toast('ok', 'Reloaded latest version', `Your text is saved as ${copy}`);
   };
 
-  /** Ruling 18: keep the text, but re-fetch and base the next Save on the version that conflicted. */
+  /**
+   * Keep the text and re-fetch, but leave the edit base where editing started: if the body really
+   * changed, the next Save conflicts again, so nothing the user hasn't seen is overwritten
+   * (Ruling 18, option a). The exits are "Reload & keep my copy" and "Reload".
+   */
   const keepEditing = () => {
     setConflict(false);
-    const h = conflictHash.current;
-    if (h) {
-      editBase.current = { md: editBase.current.md, hash: h };
-      if (spec.hash === h) editBase.current = { md: spec.bodyMd, hash: h };
-      else rebaseTo.current = h;
-    }
     void refresh();
   };
 
