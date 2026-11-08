@@ -6,7 +6,9 @@
   ],
   "scripts": {
     "test": "npm run test --workspaces --if-present",
-    "board": "npm run build -w @specboard/web --if-present && tsx packages/server/src/cli.ts"
+    "board": "npm run build -w @specboard/web --if-present && tsx packages/server/src/cli.ts",
+    "web:dev": "npm run dev -w @specboard/web",
+    "storybook": "npm run storybook -w @specboard/web"
   },
   "devDependencies": {
     "tsx": "4.20.5"
