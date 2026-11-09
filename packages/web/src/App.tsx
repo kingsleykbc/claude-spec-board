@@ -153,7 +153,7 @@ interface ProjectViewProps {
 
 /** One project's board. Keyed by project ID, so filters and menus reset on a switch (pinned behaviour 4). */
 function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onToggleTheme, reloadProjects }: ProjectViewProps) {
-  const { data, conn, changed, newQuestions, refresh, error, reconnect } = useProject(pid);
+  const { data, conn, changed, newQuestions, refresh, applyWrite, error, reconnect } = useProject(pid);
   /** New-question badges cleared by saving answers (useProject keeps the session's full set). */
   const [seenQuestions, setSeenQuestions] = useState<ReadonlySet<string>>(() => new Set());
   const unseenQuestions = useMemo(() => new Set([...newQuestions].filter((k) => !seenQuestions.has(k))), [newQuestions, seenQuestions]);
@@ -165,7 +165,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
   /** The References, Overview or Add spec modal. */
   const [modal, setModal] = useState<'refs' | 'overview' | 'add' | null>(null);
 
-  const mutate = useMemo(() => createMutator(() => Promise.reject(new Error('No default op'))), []);
+  const mutate = useMemo(() => createMutator(() => Promise.reject(new Error('No default op')), applyWrite), [applyWrite]);
   const down = conn === 'disconnected';
   const downRef = useRef(down);
   downRef.current = down;

@@ -10,7 +10,6 @@ const client = (over: Partial<DetailClient> = {}): DetailClient => ({
   setMeta: fn(async (_pid: string, id: string) => ({ hash: 'h2', spec: recipeSpec(id) })) as unknown as DetailClient['setMeta'],
   setBody: fn(async (_pid: string, id: string) => ({ hash: 'h2', spec: recipeSpec(id) })),
   specDraftCopy: fn(async () => ({ path: '.specboard/specs/T-104-meal-planner-calendar/spec.draft.md' })),
-  claude: fn(async () => ({ stub: true })),
   setAnswers: fn(async (_pid: string, id: string) => ({ hash: 'h2', spec: recipeSpec(id) })),
   setSubtask: fn(async (_pid: string, id: string) => ({ hash: 'h2', spec: recipeSpec(id) })),
   ...over,

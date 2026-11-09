@@ -6,7 +6,9 @@ import type { ProjectData } from '../api/client';
 // useProject with the API and socket mocked: the order of live and manual loads (Task 7 carry-over b).
 
 const fetches: { resolve: (d: ProjectData) => void }[] = [];
-let onChange: () => void = () => undefined;
+let onChange: (initial?: boolean) => void = () => undefined;
+let onMessage: ((m: { type: string }) => void) | undefined;
+let onOpen: (() => void) | undefined;
 
 vi.mock('../api/client', () => ({
   api: {
@@ -19,8 +21,10 @@ vi.mock('../api/client', () => ({
   },
 }));
 vi.mock('../api/live', () => ({
-  connectLive: (_pid: string, change: () => void) => {
-    onChange = change;
+  connectLive: (_pid: string, change: (initial: boolean) => void, _conn: unknown, message?: typeof onMessage, open?: () => void) => {
+    onChange = (initial = false) => change(initial);
+    onMessage = message;
+    onOpen = open;
     return () => undefined;
   },
 }));
@@ -53,6 +57,15 @@ async function loaded() {
 }
 
 describe('useProject highlights', () => {
+  it('the first open of the socket loads without highlighting, even if the data moved since the first load', async () => {
+    const { result } = await loaded();
+    act(() => onChange(true));
+    await act(async () => fetches[1]!.resolve(v2));
+    expect(result.current.data).toBe(v2);
+    expect(result.current.changed.size).toBe(0);
+    expect(result.current.newQuestions.size).toBe(0);
+  });
+
   it('a live load highlights changes, and new specs’ questions are new', async () => {
     const { result } = await loaded();
     act(() => onChange());
@@ -110,5 +123,58 @@ describe('useProject highlights', () => {
     });
     // Still the live highlights from v2 (they clear on their own timer), not a diff with v3.
     expect([...result.current.changed].sort()).toEqual(['T-1', 'T-1:1', 'T-2']);
+  });
+});
+
+describe('useProject applyWrite', () => {
+  it('replaces only that spec, without marking it changed, and a later live load with the same hash is not a change', async () => {
+    const { result } = await loaded();
+    const written = spec('T-1', 'b', { subtasks: [sub(1, true)] });
+    act(() => result.current.applyWrite(written));
+    const d = result.current.data!;
+    expect(d.project.specs).toEqual([written]);
+    expect(d.entry).toBe(v1.entry);
+    expect(result.current.changed.size).toBe(0);
+    // The live re-fetch that follows our own write returns the same file.
+    act(() => onChange());
+    await act(async () => fetches[1]!.resolve(data([spec('T-1', 'b', { subtasks: [sub(1, true)] })])));
+    expect(result.current.changed.size).toBe(0);
+    expect(result.current.newQuestions.size).toBe(0);
+  });
+
+  it('leaves other specs and unknown ids alone', async () => {
+    const t2 = spec('T-2', 'x');
+    const start = data([spec('T-1', 'a'), t2]);
+    const hook = renderHook(() => useProject('p1'));
+    await act(async () => fetches[0]!.resolve(start));
+    await waitFor(() => expect(hook.result.current.data).toBe(start));
+    act(() => hook.result.current.applyWrite(spec('T-9', 'z')));
+    expect(hook.result.current.data).toBe(start);
+    const written = spec('T-1', 'b');
+    act(() => hook.result.current.applyWrite(written));
+    expect(hook.result.current.data!.project.specs[0]).toBe(written);
+    expect(hook.result.current.data!.project.specs[1]).toBe(t2);
+  });
+});
+
+describe('useProject live channel', () => {
+  it('relays socket messages and opens to subscribers until they unsubscribe', async () => {
+    const { result } = await loaded();
+    const seen: string[] = [];
+    const offMsg = result.current.live.subscribe((m) => seen.push(m.type));
+    const offOpen = result.current.live.onOpen(() => seen.push('open'));
+    act(() => {
+      onMessage?.({ type: 'run-line' });
+      onOpen?.();
+    });
+    expect(seen).toEqual(['run-line', 'open']);
+    offMsg();
+    offOpen();
+    act(() => {
+      onMessage?.({ type: 'run-line' });
+      onOpen?.();
+    });
+    expect(seen).toHaveLength(2);
+    expect(result.current.live.conn).toBe(result.current.conn);
   });
 });

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Project } from '@specboard/core';
-import { api } from '../api/client';
 import { exportOverview, overviewCounts } from '../lib/exportOverview';
 import { ORDER, relTime, ST } from '../lib/vm';
 import { askClaude } from '../state/actions';
@@ -15,7 +14,6 @@ export interface OverviewModalProps {
   project: Project;
   /** The project's display name (config name, or the registry's). */
   name: string;
-  client?: Pick<typeof api, 'claude'>;
   toast: PushToast;
   down?: boolean;
   onClose: () => void;
@@ -37,7 +35,7 @@ function download(filename: string, text: string): void {
 }
 
 /** Project overview (pinned behaviour 17; prototype lines 295-319 and 748-751). */
-export function OverviewModal({ pid, project, name, client = api, toast, down = false, onClose, now }: OverviewModalProps) {
+export function OverviewModal({ pid, project, name, toast, down = false, onClose, now }: OverviewModalProps) {
   const [refreshing, setRefreshing] = useState(false);
   const alive = useRef(true);
   useEffect(
@@ -60,7 +58,7 @@ export function OverviewModal({ pid, project, name, client = api, toast, down = 
   const refresh = async () => {
     if (refreshing) return;
     if (!down) setRefreshing(true);
-    await askClaude({ client, toast, isDown: () => down }, 'refresh-overview', { pid }, 'Couldn’t reach Claude');
+    await askClaude({ toast, isDown: () => down }, 'refresh-overview', { pid }, 'Couldn’t reach Claude');
     if (alive.current) setRefreshing(false);
   };
 

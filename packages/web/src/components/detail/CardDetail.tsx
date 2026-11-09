@@ -17,7 +17,7 @@ import { SpecSection } from './SpecSection';
 import { Subtasks } from './Subtasks';
 import s from './detail.module.css';
 
-export type DetailClient = Pick<typeof api, 'setMeta' | 'setBody' | 'specDraftCopy' | 'claude' | 'setAnswers' | 'setSubtask'>;
+export type DetailClient = Pick<typeof api, 'setMeta' | 'setBody' | 'specDraftCopy' | 'setAnswers' | 'setSubtask'>;
 
 export interface CardDetailProps {
   pid: string;
@@ -168,7 +168,7 @@ function SpecDetail({
 
   // Ruling 18: the shared Claude-stub handling (offline, stub, error).
   const claude = (action: 'run' | 'stop' | 'fix-file') =>
-    askClaude({ client, toast, isDown: () => down }, action, { pid, id }, `Couldn’t reach Claude for ${id}`);
+    askClaude({ toast, isDown: () => down }, action, { pid, id }, `Couldn’t reach Claude for ${id}`);
 
   const startEdit = () => {
     editBase.current = { md: spec.bodyMd, bodyHash: spec.bodyHash };

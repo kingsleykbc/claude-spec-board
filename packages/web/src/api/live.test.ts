@@ -51,11 +51,31 @@ describe('connectLive (Review Focus 5)', () => {
     last().open();
     expect(conns).toEqual(['live']);
     expect(JSON.parse(last().sent[0]!)).toEqual({ type: 'subscribe', pid: 'p1' });
+    expect(onChange.mock.calls).toEqual([[true]]); // the first open is a plain load, not a change
     last().msg({ type: 'hello' });
     last().msg({ type: 'project-changed', pid: 'other' });
-    expect(onChange).not.toHaveBeenCalled();
-    last().msg({ type: 'project-changed', pid: 'p1' });
     expect(onChange).toHaveBeenCalledTimes(1);
+    last().msg({ type: 'project-changed', pid: 'p1' });
+    expect(onChange.mock.calls).toEqual([[true], [false]]);
+    stop();
+  });
+
+  it('passes every other message to onMessage (never project-changed), and calls onOpen after the subscribe', () => {
+    const onMessage = vi.fn();
+    const onOpen = vi.fn(() => expect(last().sent).toHaveLength(1));
+    const stop = connectLive('p1', () => undefined, () => undefined, onMessage, onOpen);
+    last().open();
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    last().msg({ type: 'hello', app: 'specboard' });
+    last().msg({ type: 'run-line', runId: 'r1', line: { seq: 1 } });
+    last().msg({ type: 'project-changed', pid: 'p1' });
+    last().onmessage?.({ data: 'not json' });
+    last().onmessage?.({ data: '42' });
+    expect(onMessage.mock.calls).toEqual([[{ type: 'hello', app: 'specboard' }], [{ type: 'run-line', runId: 'r1', line: { seq: 1 } }]]);
+    last().fail();
+    vi.advanceTimersByTime(500);
+    last().open();
+    expect(onOpen).toHaveBeenCalledTimes(2);
     stop();
   });
 
@@ -100,10 +120,10 @@ describe('connectLive (Review Focus 5)', () => {
     vi.advanceTimersByTime(4000);
     expect(MockWS.all).toHaveLength(6);
 
-    expect(onChange).not.toHaveBeenCalled();
+    expect(onChange.mock.calls).toEqual([[true]]); // only the first open so far
     last().open(); // server is back
     expect(conns.at(-1)).toBe('live');
-    expect(onChange).toHaveBeenCalledTimes(1); // project re-fetched on reconnect
+    expect(onChange.mock.calls).toEqual([[true], [false]]); // project re-fetched on reconnect
     expect(JSON.parse(last().sent[0]!)).toEqual({ type: 'subscribe', pid: 'p1' });
 
     // The backoff starts over after a successful reconnect.
@@ -112,7 +132,7 @@ describe('connectLive (Review Focus 5)', () => {
     vi.advanceTimersByTime(500);
     expect(MockWS.all).toHaveLength(7);
     last().open();
-    expect(onChange).toHaveBeenCalledTimes(2);
+    expect(onChange).toHaveBeenCalledTimes(3);
     stop();
   });
 

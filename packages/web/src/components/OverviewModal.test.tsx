@@ -14,7 +14,6 @@ const setup = (over: Partial<Parameters<typeof OverviewModal>[0]> = {}) => {
     pid: 'p1',
     project: recipeProject,
     name: 'Recipe Box',
-    client: { claude: vi.fn(async () => ({ stub: true })) },
     toast: vi.fn(),
     onClose: vi.fn(),
     now: new Date(2026, 10, 8, 11, 30),
@@ -43,23 +42,17 @@ describe('OverviewModal', () => {
     expect(screen.queryByText(/Last updated/)).toBeNull();
   });
 
-  it('Refresh calls the stub, shows Refreshing only while in flight, then the stub toast', async () => {
-    let done!: (v: { stub: boolean }) => void;
-    const claude = vi.fn(() => new Promise<{ stub: boolean }>((r) => (done = r)));
-    const p = setup({ client: { claude } });
+  // TODO(Task 8): Refresh starts a real run; the in-flight "Refreshing" state returns with it.
+  it('Refresh shows the stub toast', async () => {
+    const p = setup();
     fireEvent.click(screen.getByRole('button', { name: '↻ Refresh' }));
-    expect(claude).toHaveBeenCalledWith('refresh-overview', { pid: 'p1' });
-    expect(screen.getByRole('button', { name: 'Refreshing' })).toHaveProperty('disabled', true);
-    expect(screen.getByText('Claude is rewriting the summary…')).toBeTruthy();
-    done({ stub: true });
+    await waitFor(() => expect(p.toast).toHaveBeenCalledWith('info', CLAUDE_STUB_TOAST));
     await screen.findByRole('button', { name: '↻ Refresh' });
-    expect(p.toast).toHaveBeenCalledWith('info', CLAUDE_STUB_TOAST);
   });
 
   it('Refresh while disconnected shows the offline toast and calls nothing', () => {
     const p = setup({ down: true });
     fireEvent.click(screen.getByRole('button', { name: '↻ Refresh' }));
-    expect(p.client.claude).not.toHaveBeenCalled();
     expect(p.toast).toHaveBeenCalledWith('err', ...OFFLINE_TOAST);
   });
 

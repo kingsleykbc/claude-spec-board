@@ -17,7 +17,6 @@ function setup(id: string, over: Partial<DetailClient> = {}, specs: Spec[] = [..
     specDraftCopy: vi.fn(async () => ({ path: '.specboard/specs/T-105-shopping-list-export/spec.draft.md' })),
     setAnswers: vi.fn(async (_pid: string, sid: string) => ({ hash: 'h2', spec: recipeSpec(sid) })),
     setSubtask: vi.fn(async (_pid: string, sid: string) => ({ hash: 'h2', spec: recipeSpec(sid) })),
-    claude: vi.fn(async () => ({ stub: true })),
     archive: vi.fn(async () => undefined),
     unarchive: vi.fn(async () => undefined),
     ...over,
@@ -260,21 +259,19 @@ describe('CardDetail', () => {
   });
 
   it('file problem panel shows the problem and path; Ask Claude to fix calls the stub', async () => {
-    const { client, toast } = setup('T-109');
+    const { toast } = setup('T-109');
     const alert = screen.getByRole('alert');
     expect(within(alert).getByText('This spec file has a formatting problem')).toBeTruthy();
     expect(within(alert).getByText(fileProblemSpec.problems[0]!)).toBeTruthy();
     expect(within(alert).getByText('.specboard/specs/T-109-import-recipes-from-a-file/spec.md')).toBeTruthy();
     fireEvent.click(within(alert).getByRole('button', { name: 'Ask Claude to fix' }));
     await waitFor(() => expect(toast).toHaveBeenCalledWith('info', CLAUDE_STUB_TOAST));
-    expect(client.claude).toHaveBeenCalledWith('fix-file', { pid: 'p1', id: 'T-109' });
   });
 
   it('Run calls the Claude stub and shows the stub toast', async () => {
-    const { client, toast } = setup('T-104');
+    const { toast } = setup('T-104');
     fireEvent.click(screen.getByRole('button', { name: /Tell Claude to start/ }));
     await waitFor(() => expect(toast).toHaveBeenCalledWith('info', CLAUDE_STUB_TOAST));
-    expect(client.claude).toHaveBeenCalledWith('run', { pid: 'p1', id: 'T-104' });
   });
 
   it('Esc closes the innermost layer first: dialog, then category input, then status menu, then modal', async () => {
@@ -524,37 +521,17 @@ describe('CardDetail', () => {
 
   describe('Claude actions (Ruling 18)', () => {
     it('while disconnected: offline toast, no API call', () => {
-      const { client, toast, rerenderDown } = setup('T-109');
+      const { toast, rerenderDown } = setup('T-109');
       rerenderDown();
       fireEvent.click(screen.getByRole('button', { name: /Tell Claude to start/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Ask Claude to fix' }));
-      expect(client.claude).not.toHaveBeenCalled();
       expect(toast).toHaveBeenCalledTimes(2);
       expect(toast).toHaveBeenCalledWith('err', 'Disconnected from the local server.', 'Edits won’t save until it’s back.');
-    });
-
-    it('a real error shows an err toast with its message, not the stub toast', async () => {
-      const claude = vi.fn(async () => {
-        throw new Error('Server exploded');
-      });
-      const { toast } = setup('T-104', { claude });
-      fireEvent.click(screen.getByRole('button', { name: /Tell Claude to start/ }));
-      await waitFor(() => expect(toast).toHaveBeenCalledWith('err', 'Couldn’t reach Claude for T-104', 'Server exploded'));
-      expect(toast).not.toHaveBeenCalledWith('info', CLAUDE_STUB_TOAST);
-    });
-
-    it('a non-stub success shows no stub toast', async () => {
-      const claude = vi.fn(async () => ({ stub: false }));
-      const { toast } = setup('T-104', { claude });
-      fireEvent.click(screen.getByRole('button', { name: /Tell Claude to start/ }));
-      await waitFor(() => expect(claude).toHaveBeenCalled());
-      await new Promise((r) => setTimeout(r, 0));
-      expect(toast).not.toHaveBeenCalled();
     });
   });
 
   it('while disconnected, edits show the offline toast and send nothing', () => {
-    const client = { setMeta: vi.fn(), setBody: vi.fn(), specDraftCopy: vi.fn(), claude: vi.fn() };
+    const client = { setMeta: vi.fn(), setBody: vi.fn(), specDraftCopy: vi.fn() };
     const toast = vi.fn();
     render(
       <CardDetail

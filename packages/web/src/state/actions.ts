@@ -6,7 +6,7 @@ import type { PushToast } from './toasts';
 
 // Board-level spec actions: status moves (hash-checked, through the mutator), archive, and the Claude stub.
 
-export type ActionClient = Pick<typeof api, 'setMeta' | 'archive' | 'unarchive' | 'claude'>;
+export type ActionClient = Pick<typeof api, 'setMeta' | 'archive' | 'unarchive'>;
 export type Mutate = (specId: string, initialHash: string, op?: HashOp) => Promise<void>;
 
 export interface ActionDeps {
@@ -29,28 +29,21 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 class Superseded extends Error {}
 
 export interface ClaudeDeps {
-  client: Pick<typeof api, 'claude'>;
   toast: PushToast;
   isDown?: () => boolean;
 }
 
 /**
- * Ask Claude for something (an M2 stub). Ruling 18: refused with the offline toast while
- * disconnected; only a 501 stub answer gets the stub toast; any other failure is an err toast.
+ * Ask Claude for something (still a stub). Refused with the offline toast while disconnected, otherwise the stub toast.
+ * TODO(Task 8): the server no longer has the stub endpoint; replace this with `useRun().start` and delete it
+ * together with CLAUDE_STUB_TOAST.
  */
-export async function askClaude({ client, toast, isDown = () => false }: ClaudeDeps, action: ClaudeAction, body: Record<string, unknown>, failText: string): Promise<void> {
+export async function askClaude({ toast, isDown = () => false }: ClaudeDeps, _action: ClaudeAction, _body: Record<string, unknown>, _failText: string): Promise<void> {
   if (isDown()) {
     toast('err', ...OFFLINE_TOAST);
     return;
   }
-  let res: { stub: boolean };
-  try {
-    res = await client.claude(action, body);
-  } catch (e) {
-    toast('err', failText, message(e));
-    return;
-  }
-  if (res.stub) toast('info', CLAUDE_STUB_TOAST);
+  toast('info', CLAUDE_STUB_TOAST);
 }
 
 export function createSpecActions({ pid, client = api, mutate, refresh, toast, isDown = () => false }: ActionDeps) {
@@ -112,7 +105,7 @@ export function createSpecActions({ pid, client = api, mutate, refresh, toast, i
 
     /** M2 stub: the server answers 501. */
     async writeUp(spec: Spec): Promise<void> {
-      await askClaude({ client, toast, isDown }, 'write-up', { pid, id: spec.id }, `Couldn’t reach Claude for ${spec.id}`);
+      await askClaude({ toast, isDown }, 'write-up', { pid, id: spec.id }, `Couldn’t reach Claude for ${spec.id}`);
     },
   };
 }

@@ -10,7 +10,6 @@ const meta = {
     pid: 'p1',
     project: recipeProject,
     name: 'Recipe Box',
-    client: { claude: fn(async () => ({ stub: true })) },
     toast: fn(),
     onClose: fn(),
     now: new Date(2026, 10, 8, 11, 30),
@@ -37,16 +36,5 @@ export const Empty: Story = {
     const dlg = within(canvasElement).getByRole('dialog', { name: 'Overview' });
     expect(within(dlg).getByText('0/0')).toBeTruthy();
     expect(within(dlg).getByText('No summary yet. Ask Claude to refresh the overview.')).toBeTruthy();
-  },
-};
-
-export const Refreshing: Story = {
-  args: { client: { claude: fn(() => new Promise<{ stub: boolean }>(() => undefined)) } },
-  play: async ({ canvasElement }) => {
-    const dlg = within(canvasElement).getByRole('dialog', { name: 'Overview' });
-    await userEvent.click(within(dlg).getByRole('button', { name: '↻ Refresh' }));
-    expect(within(dlg).getByRole('button', { name: 'Refreshing' })).toHaveProperty('disabled', true);
-    expect(within(dlg).getByText('Claude is rewriting the summary…')).toBeTruthy();
-    expect(within(dlg).getByText('Updating…')).toBeTruthy();
   },
 };

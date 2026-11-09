@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Project, Spec } from '@specboard/core';
 import { api, type ProjectData } from '../api/client';
-import { connectLive, type Conn } from '../api/live';
+import { connectLive, type Conn, type LiveMessage } from '../api/live';
 
 /** How long a live-changed card or subtask row stays highlighted. */
 export const CHANGED_MS = 1800;
@@ -46,15 +46,33 @@ export function diffProjects(prev: Project, next: Project): LiveDiff {
   return { changed, newQuestions };
 }
 
+/**
+ * The project's one socket, shared with `useRun`. `conn` is the connection state; `subscribe` hears every server
+ * message except `project-changed` (run events, `hello`); `onOpen` runs after each socket open once the subscribe
+ * has been sent (a re-fetch started then cannot miss what follows). Both return an unsubscribe function.
+ */
+export interface LiveChannel {
+  conn: Conn;
+  subscribe(handler: (msg: LiveMessage) => void): () => void;
+  onOpen(handler: () => void): () => void;
+}
+
 export interface UseProject {
   data: ProjectData | null;
   conn: Conn;
+  /** The shared socket for `useRun(pid, live)`. */
+  live: LiveChannel;
   /** Spec ids and `${id}:${n}` subtask keys changed by the last live refresh; cleared after 1.8 s. */
   changed: Set<string>;
   /** `${id}:${qid}` for questions first seen through a live refresh this session. */
   newQuestions: Set<string>;
   /** Re-fetch now, without highlighting (e.g. after the board's own write). */
   refresh(): Promise<void>;
+  /**
+   * Put a spec the server just returned from a write into the snapshot now (closes the stale-hash window). It replaces
+   * only that spec, never counts as a live change, and a later live load with the same hash does not either.
+   */
+  applyWrite(spec: Spec): void;
   /** Error from the latest fetch, if it failed. */
   error: Error | null;
   /** Drop the socket and connect again now (the banner's Reconnect); re-fetches once live. */
@@ -74,6 +92,8 @@ export function useProject(pid: string): UseProject {
   const dataRef = useRef<ProjectData | null>(null);
   const seq = useRef(0);
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const messageHandlers = useRef(new Set<(msg: LiveMessage) => void>());
+  const openHandlers = useRef(new Set<() => void>());
   const pidRef = useRef(pid);
   pidRef.current = pid;
   /** Bumped by reconnect() to restart the socket. */
@@ -138,26 +158,47 @@ export function useProject(pid: string): UseProject {
   // The live socket; restarted by reconnect().
   useEffect(() => {
     if (manual.current) setConn('reconnecting');
+    manual.current = false;
     const stop = connectLive(
       pid,
-      () => void load(pid, true),
-      (c) => {
-        setConn(c);
-        // A fresh socket does not report its first open as a reconnect, so re-fetch here.
-        if (c === 'live' && manual.current) {
-          manual.current = false;
-          void load(pid, false);
-        }
+      // The first open of a socket is a plain load (nothing changed yet); later opens and `project-changed` highlight.
+      (initial) => void load(pid, !initial),
+      setConn,
+      (msg) => {
+        for (const h of [...messageHandlers.current]) h(msg);
+      },
+      () => {
+        for (const h of [...openHandlers.current]) h();
       },
     );
     return stop;
   }, [pid, attempt, load]);
 
   const refresh = useCallback(() => load(pidRef.current, false), [load]);
+  const applyWrite = useCallback((written: Spec) => {
+    const prev = dataRef.current;
+    if (!prev) return;
+    const swap = (list: Spec[]) => (list.some((s) => s.id === written.id) ? list.map((s) => (s.id === written.id ? written : s)) : list);
+    const specs = swap(prev.project.specs);
+    const archived = swap(prev.project.archived);
+    if (specs === prev.project.specs && archived === prev.project.archived) return;
+    const next = { ...prev, project: { ...prev.project, specs, archived } };
+    dataRef.current = next;
+    setData(next);
+  }, []);
+  const subscribe = useCallback((handler: (msg: LiveMessage) => void) => {
+    messageHandlers.current.add(handler);
+    return () => void messageHandlers.current.delete(handler);
+  }, []);
+  const onOpen = useCallback((handler: () => void) => {
+    openHandlers.current.add(handler);
+    return () => void openHandlers.current.delete(handler);
+  }, []);
+  const live = useMemo<LiveChannel>(() => ({ conn, subscribe, onOpen }), [conn, subscribe, onOpen]);
   const reconnect = useCallback(() => {
     manual.current = true;
     setAttempt((a) => a + 1);
   }, []);
 
-  return { data, conn, changed, newQuestions, refresh, error, reconnect };
+  return { data, conn, live, changed, newQuestions, refresh, applyWrite, error, reconnect };
 }

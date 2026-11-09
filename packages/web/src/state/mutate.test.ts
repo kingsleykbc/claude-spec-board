@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { Spec } from '@specboard/core';
 import { createMutator } from './mutate';
 
 const tick = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -66,5 +67,16 @@ describe('createMutator', () => {
       ['T-1', 'a'],
       ['T-1', 'a+'],
     ]);
+  });
+
+  it('hands the spec of each successful write to onWrite, in order, and skips failures and spec-less answers', async () => {
+    const written: string[] = [];
+    const mutate = createMutator(noSend, (spec) => written.push(spec.hash));
+    const spec = (hash: string) => ({ hash }) as unknown as Spec;
+    await mutate('T-1', 'h0', async () => ({ hash: 'h1', spec: spec('h1') }));
+    await expect(mutate('T-1', 'h1', vi.fn().mockRejectedValue(new Error('boom')))).rejects.toThrow('boom');
+    await mutate('T-1', 'h1', async () => ({ hash: 'h2' }));
+    await mutate('T-1', 'h1', async () => ({ hash: 'h3', spec: spec('h3') }));
+    expect(written).toEqual(['h1', 'h3']);
   });
 });
