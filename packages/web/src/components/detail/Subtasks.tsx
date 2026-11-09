@@ -22,7 +22,7 @@ export interface SubtasksProps {
   down?: boolean;
   /** Keys changed by the last live update; `${id}:${n}` rows flash. */
   changed?: ReadonlySet<string>;
-  /** A run is working on this spec: the current subtask shows "In progress". Never true in M2. */
+  /** A run is working on this spec: the current subtask shows "In progress". */
   runActive?: boolean;
 }
 

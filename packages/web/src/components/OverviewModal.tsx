@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
 import type { Project } from '@specboard/core';
 import { exportOverview, overviewCounts } from '../lib/exportOverview';
 import { ORDER, relTime, ST } from '../lib/vm';
-import { askClaude } from '../state/actions';
 import type { PushToast } from '../state/toasts';
 import { Spinner } from './ConnectionBanner';
 import { Markdown } from './Markdown';
@@ -10,12 +8,14 @@ import { Modal } from './Modal';
 import s from './modals.module.css';
 
 export interface OverviewModalProps {
-  pid: string;
   project: Project;
   /** The project's display name (config name, or the registry's). */
   name: string;
   toast: PushToast;
-  down?: boolean;
+  /** A refresh run is in flight. */
+  refreshing?: boolean;
+  /** Start a refresh run; refusals and the outcome are toasts. */
+  onRefresh: () => void;
   onClose: () => void;
   /** For "Last updated"; defaults to the current time. */
   now?: Date;
@@ -35,16 +35,7 @@ function download(filename: string, text: string): void {
 }
 
 /** Project overview (pinned behaviour 17; prototype lines 295-319 and 748-751). */
-export function OverviewModal({ pid, project, name, toast, down = false, onClose, now }: OverviewModalProps) {
-  const [refreshing, setRefreshing] = useState(false);
-  const alive = useRef(true);
-  useEffect(
-    () => () => {
-      alive.current = false;
-    },
-    [],
-  );
-
+export function OverviewModal({ project, name, toast, refreshing = false, onRefresh, onClose, now }: OverviewModalProps) {
   const c = overviewCounts(project);
   const deg = c.total ? Math.round((c.done / c.total) * 360) : 0;
   const counts = [
@@ -54,13 +45,6 @@ export function OverviewModal({ pid, project, name, toast, down = false, onClose
   const summary = project.overview?.summaryMd.trim() ?? '';
   const rel = relTime(project.overview?.updated, now);
   const updated = refreshing ? 'Updating…' : rel ? `Last updated ${rel}` : '';
-
-  const refresh = async () => {
-    if (refreshing) return;
-    if (!down) setRefreshing(true);
-    await askClaude({ toast, isDown: () => down }, 'refresh-overview', { pid }, 'Couldn’t reach Claude');
-    if (alive.current) setRefreshing(false);
-  };
 
   const onExport = () => {
     const { filename, text } = exportOverview(project, name);
@@ -107,7 +91,7 @@ export function OverviewModal({ pid, project, name, toast, down = false, onClose
             <span className={s.ovProgLabel}>PROGRESS</span>
             {updated && <span className={s.ovUpdated}>{updated}</span>}
             <span className={s.grow} />
-            <button type="button" className={s.ovRefresh} disabled={refreshing} onClick={() => void refresh()}>
+            <button type="button" className={s.ovRefresh} disabled={refreshing} onClick={onRefresh}>
               {refreshing && <Spinner />}
               {refreshing ? 'Refreshing' : '↻ Refresh'}
             </button>
@@ -126,7 +110,7 @@ export function OverviewModal({ pid, project, name, toast, down = false, onClose
           ) : (
             <div className={s.ovEmpty}>
               <span className={s.ovEmptyText}>No summary yet. Ask Claude to refresh the overview.</span>
-              <button type="button" className={s.ovEmptyBtn} onClick={() => void refresh()}>
+              <button type="button" className={s.ovEmptyBtn} onClick={onRefresh}>
                 Refresh summary
               </button>
             </div>

@@ -6,7 +6,7 @@ export type RunState = 'ready' | 'running' | 'disabled' | 'fallback';
 export interface RunButtonProps {
   id: string;
   state: RunState;
-  /** The spec Claude is working on, for the disabled note. */
+  /** The spec Claude is working on, for the disabled note; null while it refreshes the overview. */
   runningId?: string | null;
   onRun: () => void;
   onStop: () => void;
@@ -68,7 +68,7 @@ export function RunButton({ id, state, runningId, onRun, onStop }: RunButtonProp
     );
   }
   if (state === 'disabled') {
-    const text = `Claude is already working on ${runningId ?? ''}`.trim();
+    const text = `Claude is already working on ${runningId ?? 'the overview'}`;
     return (
       <>
         <span className={s.runNote}>{text}</span>

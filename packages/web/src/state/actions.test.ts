@@ -82,23 +82,4 @@ describe('createSpecActions', () => {
     expect(toast).toHaveBeenCalledWith('ok', 'T-100 restored', 'Back on the board.');
     expect(refresh).toHaveBeenCalledTimes(2);
   });
-
-  it('write-up is a Claude stub', async () => {
-    const { toast, actions } = setup();
-    await actions.writeUp(recipeSpec('T-107'));
-    expect(toast).toHaveBeenCalledWith('info', 'Claude actions arrive in the next milestone');
-  });
-
-  it('write-up while disconnected: offline toast, no API call', async () => {
-    const toast = vi.fn();
-    const actions = createSpecActions({
-      pid: 'p1',
-      mutate: vi.fn(),
-      refresh: vi.fn(async () => undefined),
-      toast,
-      isDown: () => true,
-    });
-    await actions.writeUp(recipeSpec('T-107'));
-    expect(toast).toHaveBeenCalledWith('err', 'Disconnected from the local server.', 'Edits won’t save until it’s back.');
-  });
 });

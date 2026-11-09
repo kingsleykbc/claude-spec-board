@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import type { Spec } from '@specboard/core';
 import { ConflictError } from '../../api/client';
 import { recipeArchived, recipeSpec, recipeSpecs, fileProblemSpec } from '../../fixtures/recipeBox';
-import { createSpecActions, CLAUDE_STUB_TOAST } from '../../state/actions';
+import { createSpecActions } from '../../state/actions';
 import { createMutator } from '../../state/mutate';
 import { interceptPop } from '../../lib/popGuard';
 import { CardDetail, type DetailClient } from './CardDetail';
@@ -27,6 +27,8 @@ function setup(id: string, over: Partial<DetailClient> = {}, specs: Spec[] = [..
   const actions = createSpecActions({ pid: 'p1', client, mutate, refresh, toast });
   const onClose = vi.fn();
   const onOpenSpec = vi.fn();
+  const onRun = vi.fn();
+  const onFixFile = vi.fn();
   const el = (list: Spec[], down = false) => (
     <CardDetail
       pid="p1"
@@ -41,13 +43,15 @@ function setup(id: string, over: Partial<DetailClient> = {}, specs: Spec[] = [..
       onMove={(s, k) => actions.move(s, k)}
       onClose={onClose}
       onOpenSpec={onOpenSpec}
+      onRun={onRun}
+      onFixFile={onFixFile}
       down={down}
     />
   );
   const r = render(el(specs));
   /** Re-render with this spec replaced by `next` (a live update). */
   const update = (next: Spec) => r.rerender(el(specs.map((x) => (x.id === id ? next : x))));
-  return { client, toast, refresh, mutate, onClose, onOpenSpec, update, rerenderWith: (list: Spec[]) => r.rerender(el(list)), rerenderDown: () => r.rerender(el(specs, true)) };
+  return { client, toast, refresh, mutate, onClose, onOpenSpec, onRun, onFixFile, update, rerenderWith: (list: Spec[]) => r.rerender(el(list)), rerenderDown: () => r.rerender(el(specs, true)) };
 }
 
 const startEdit = (text: string) => {
@@ -258,20 +262,20 @@ describe('CardDetail', () => {
     expect(screen.queryByText('Blocked.')).toBeNull();
   });
 
-  it('file problem panel shows the problem and path; Ask Claude to fix calls the stub', async () => {
-    const { toast } = setup('T-109');
+  it('file problem panel shows the problem and path; Ask Claude to fix asks for the fix', () => {
+    const { onFixFile } = setup('T-109');
     const alert = screen.getByRole('alert');
     expect(within(alert).getByText('This spec file has a formatting problem')).toBeTruthy();
     expect(within(alert).getByText(fileProblemSpec.problems[0]!)).toBeTruthy();
     expect(within(alert).getByText('.specboard/specs/T-109-import-recipes-from-a-file/spec.md')).toBeTruthy();
     fireEvent.click(within(alert).getByRole('button', { name: 'Ask Claude to fix' }));
-    await waitFor(() => expect(toast).toHaveBeenCalledWith('info', CLAUDE_STUB_TOAST));
+    expect(onFixFile).toHaveBeenCalledOnce();
   });
 
-  it('Run calls the Claude stub and shows the stub toast', async () => {
-    const { toast } = setup('T-104');
+  it('Run asks for a run', () => {
+    const { onRun } = setup('T-104');
     fireEvent.click(screen.getByRole('button', { name: /Tell Claude to start/ }));
-    await waitFor(() => expect(toast).toHaveBeenCalledWith('info', CLAUDE_STUB_TOAST));
+    expect(onRun).toHaveBeenCalledOnce();
   });
 
   it('Esc closes the innermost layer first: dialog, then category input, then status menu, then modal', async () => {
@@ -516,17 +520,6 @@ describe('CardDetail', () => {
       expect(setBody).toHaveBeenLastCalledWith('p1', 'T-104', 'h9', start.bodyHash, 'mine');
       await expect(setBody.mock.results[1]!.value).rejects.toBeInstanceOf(ConflictError);
       expect(toast).not.toHaveBeenCalledWith('ok', 'Spec saved', expect.anything());
-    });
-  });
-
-  describe('Claude actions (Ruling 18)', () => {
-    it('while disconnected: offline toast, no API call', () => {
-      const { toast, rerenderDown } = setup('T-109');
-      rerenderDown();
-      fireEvent.click(screen.getByRole('button', { name: /Tell Claude to start/ }));
-      fireEvent.click(screen.getByRole('button', { name: 'Ask Claude to fix' }));
-      expect(toast).toHaveBeenCalledTimes(2);
-      expect(toast).toHaveBeenCalledWith('err', 'Disconnected from the local server.', 'Edits won’t save until it’s back.');
     });
   });
 

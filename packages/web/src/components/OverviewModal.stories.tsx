@@ -7,10 +7,10 @@ const meta = {
   title: 'Modals/Overview',
   component: OverviewModal,
   args: {
-    pid: 'p1',
     project: recipeProject,
     name: 'Recipe Box',
     toast: fn(),
+    onRefresh: fn(),
     onClose: fn(),
     now: new Date(2026, 10, 8, 11, 30),
   },
@@ -39,4 +39,12 @@ export const Empty: Story = {
   },
 };
 
-// TODO(Task 8): restore the `Refreshing` story (a refresh run in flight) once Refresh starts a real run.
+export const Refreshing: Story = {
+  args: { refreshing: true },
+  play: async ({ canvasElement }) => {
+    const dlg = within(canvasElement).getByRole('dialog', { name: 'Overview' });
+    expect(within(dlg).getByRole('button', { name: 'Refreshing' })).toHaveProperty('disabled', true);
+    expect(within(dlg).getByText('Updating…')).toBeTruthy();
+    expect(within(dlg).getByText('Claude is rewriting the summary…')).toBeTruthy();
+  },
+};

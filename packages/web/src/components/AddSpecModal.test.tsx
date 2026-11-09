@@ -54,7 +54,7 @@ describe('AddSpecModal', () => {
     expect(p.onWriteUp).not.toHaveBeenCalled();
   });
 
-  it('Add & have Claude write it up creates a draft, then calls the write-up stub', async () => {
+  it('Add & have Claude write it up creates a draft, then calls the write-up', async () => {
     const p = setup();
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Nutrition info' } });
     fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Per serving.' } });

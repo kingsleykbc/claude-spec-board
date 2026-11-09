@@ -27,7 +27,6 @@ export interface ReferenceDoc {
   hash: string;
   missing: boolean;
 }
-export type ClaudeAction = 'run' | 'stop' | 'write-up' | 'fix-file' | 'refresh-overview';
 export type MetaKey = 'status' | 'urgency' | 'categories' | 'title' | 'draft';
 
 // Run wire types, duplicated from packages/server/src/claude/ (runs.ts, classify.ts, events.ts, status.ts).

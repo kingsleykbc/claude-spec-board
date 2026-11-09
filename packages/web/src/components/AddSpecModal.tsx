@@ -15,7 +15,7 @@ export interface AddSpecModalProps {
   toast: PushToast;
   down?: boolean;
   refresh: () => Promise<void>;
-  /** "Have Claude write it up" for the new spec (the board's writeUp stub). */
+  /** "Have Claude write it up" for the new spec (starts a write-up run). */
   onWriteUp: (spec: Spec) => Promise<void>;
   onClose: () => void;
 }

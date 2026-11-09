@@ -73,13 +73,13 @@ export const Blocked: Story = {
 
 export const FileProblemState: Story = {
   name: 'File problem',
-  args: { specId: 'T-109' },
+  args: { specId: 'T-109', onFixFile: fn() },
   play: async ({ canvasElement, args }) => {
     const c = within(canvasElement);
     const alert = c.getByRole('alert');
     expect(within(alert).getByText('This spec file has a formatting problem')).toBeTruthy();
     await userEvent.click(within(alert).getByRole('button', { name: 'Ask Claude to fix' }));
-    await waitFor(() => expect(args.toast).toHaveBeenCalledWith('info', 'Claude actions arrive in the next milestone'));
+    expect(args.onFixFile).toHaveBeenCalledOnce();
   },
 };
 
@@ -153,7 +153,7 @@ export const WithRunPanel: Story = {
   args: {
     runState: 'running',
     runActive: true,
-    aside: <RunPanel status="running" lines={RUN_LINES} onDismiss={() => undefined} onAction={() => undefined} />,
+    aside: () => <RunPanel status="running" lines={RUN_LINES} onDismiss={() => undefined} onAction={() => undefined} />,
   },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);

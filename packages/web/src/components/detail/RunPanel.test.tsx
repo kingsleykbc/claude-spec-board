@@ -1,11 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { RunPanel, RUN_LINES, PERMISSION_RULE, type RunStatus } from './RunPanel';
+import type { EndInfo, RunKind } from '../../api/client';
+import { RunPanel, RUN_LINES, type RunStatus } from './RunPanel';
 
-function setup(status: RunStatus) {
+const RULE = 'specboard allow "Bash(npm install:*)"\nspecboard allow "Bash(npm test:*)"';
+const permission: EndInfo = { status: 'permission', title: 'Claude needs permission', text: 'Claude was stopped from using Bash.', fix: RULE };
+
+function setup(status: RunStatus, end?: EndInfo | null, kind?: RunKind) {
   const onDismiss = vi.fn();
   const onAction = vi.fn();
-  render(<RunPanel status={status} lines={RUN_LINES} onDismiss={onDismiss} onAction={onAction} />);
+  render(<RunPanel status={status} lines={RUN_LINES} onDismiss={onDismiss} onAction={onAction} {...(end !== undefined ? { end } : {})} {...(kind ? { kind } : {})} />);
   return { onDismiss, onAction, panel: screen.getByRole('complementary', { name: 'Run output' }) };
 }
 
@@ -31,11 +35,12 @@ describe('RunPanel', () => {
     expect(p.queryByTestId('run-end')).toBeNull();
   });
 
+  // With no end info from the server, the copy falls back to the prototype's.
   const ends: [RunStatus, string, string, string | null][] = [
     ['finished', 'Finished', 'Done. Moved to Review.', null],
     ['stopped', 'Stopped', 'Stopped by you', null],
     ['needs', 'Needs your answer', 'Stopped: needs your answer', 'Go to question'],
-    ['permission', 'Permission needed', 'Stopped: permission needed', 'Copy rule'],
+    ['permission', 'Permission needed', 'Stopped: permission needed', null],
     ['error', 'Error', 'Error', 'Run again'],
   ];
   it.each(ends)('%s: chip, end title and action', (status, chip, title, action) => {
@@ -59,18 +64,56 @@ describe('RunPanel', () => {
     expect(e.onAction).toHaveBeenCalledWith('rerun');
   });
 
-  it('permission renders the fix snippet and note', () => {
-    const { panel } = setup('permission');
-    expect(within(panel).getByText(PERMISSION_RULE).tagName).toBe('CODE');
-    expect(within(panel).getByText('Add this to .claude/settings.json, or install date-fns yourself, then run again.')).toBeTruthy();
+  it('the server\'s title and text replace the fallback copy', () => {
+    const { panel } = setup('error', { status: 'error', title: 'Claude Code exited with code 2', text: 'It broke.' });
+    expect(within(panel).getByText('Claude Code exited with code 2')).toBeTruthy();
+    expect(within(panel).getByText('It broke.')).toBeTruthy();
+    expect(within(panel).queryByText(/exited unexpectedly/)).toBeNull();
+  });
+
+  it('a title with no text keeps the fallback text', () => {
+    const { panel } = setup('error', { status: 'error', title: 'Claude Code exited with code 2' });
+    expect(within(panel).getByText('Claude Code exited unexpectedly. Work up to the last commit is safe.')).toBeTruthy();
+  });
+
+  it.each([
+    ['run', 'Done. Moved to Review.'],
+    ['write-up', 'Written up'],
+    ['fix-file', 'Fixed'],
+  ] as const)('a finished %s says "%s"', (kind, title) => {
+    const { panel } = setup('finished', { status: 'finished' }, kind);
+    expect(within(panel).getByText(title)).toBeTruthy();
+  });
+
+  it('permission renders every fix line and the note', () => {
+    const { panel } = setup('permission', permission);
+    const code = within(panel).getByText((_, el) => el?.tagName === 'CODE' && el.textContent === RULE);
+    expect(code.tagName).toBe('CODE');
+    expect(within(panel).getByText('Run this in a terminal, then run again.')).toBeTruthy();
+    expect(within(panel).getByText('Claude was stopped from using Bash.')).toBeTruthy();
+  });
+
+  it('blocked by policy (no fix): the server\'s text, no snippet, no note, no Copy rule', () => {
+    const { panel } = setup('permission', { status: 'permission', title: 'Claude needs permission', text: 'This action is blocked by this project\'s rules.' });
+    expect(within(panel).getByText('This action is blocked by this project\'s rules.')).toBeTruthy();
+    expect(within(panel).queryByRole('button', { name: 'Copy rule' })).toBeNull();
+    expect(within(panel).queryByText('Run this in a terminal, then run again.')).toBeNull();
+  });
+
+  it('lines are keyed by seq: a new line keeps the existing nodes', () => {
+    const props = { status: 'running' as const, onDismiss: () => undefined, onAction: () => undefined };
+    const { rerender } = render(<RunPanel {...props} lines={RUN_LINES.slice(1)} />);
+    const node = screen.getByText('specs/T-104-meal-planner-calendar.md');
+    rerender(<RunPanel {...props} lines={RUN_LINES} />);
+    expect(screen.getByText('specs/T-104-meal-planner-calendar.md')).toBe(node);
   });
 
   it('Copy rule confirms only after the clipboard accepts the text', async () => {
     let resolve!: () => void;
     clip(() => new Promise<void>((r) => (resolve = r)));
-    const { panel, onAction } = setup('permission');
+    const { panel, onAction } = setup('permission', permission);
     fireEvent.click(within(panel).getByRole('button', { name: 'Copy rule' }));
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(PERMISSION_RULE);
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(RULE);
     expect(within(panel).queryByText('✓ Copied rule')).toBeNull();
     await act(async () => resolve());
     expect(within(panel).getByRole('button', { name: '✓ Copied rule' })).toBeTruthy();
@@ -79,7 +122,7 @@ describe('RunPanel', () => {
 
   it('Copy rule failure says so and asks to copy by hand', async () => {
     clip(() => Promise.reject(new Error('denied')));
-    const { panel, onAction } = setup('permission');
+    const { panel, onAction } = setup('permission', permission);
     fireEvent.click(within(panel).getByRole('button', { name: 'Copy rule' }));
     await act(async () => undefined);
     expect(within(panel).getByText('Copy failed: select the rule above and copy it.')).toBeTruthy();

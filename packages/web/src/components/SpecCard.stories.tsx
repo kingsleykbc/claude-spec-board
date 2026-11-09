@@ -81,6 +81,15 @@ export const Running: Story = {
   },
 };
 
+export const Writing: Story = {
+  args: { id: 'T-107', writing: true },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    expect(c.getAllByText('Claude is writing it up')).toHaveLength(2);
+    expect(c.queryByRole('button', { name: /Have Claude write this up/ })).toBeNull();
+  },
+};
+
 export const InReview: Story = {
   args: { id: 'T-103', col: 'var(--review-soft)' },
   play: async ({ canvasElement }) => {
