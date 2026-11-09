@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
 import { hashText, loadProject, setMetaField, writeIfUnchanged } from '@specboard/core';
 import type { Spec } from '@specboard/core';
+import { approvedStore } from '../src/setup.js';
 import { start, type Started } from '../src/start.js';
 
 // End to end: the real `start()` (HTTP + WebSocket + file watcher) on a temp copy of the sample.
@@ -33,12 +34,25 @@ async function until(cond: () => boolean, ms = 3000): Promise<boolean> {
 
 interface Ctx {
   base: string;
+  msgs: { type: string; pid?: string; runId?: string; run?: { id: string; status: string } }[];
   pid: string;
   events: () => number;
 }
 
+const FAKE = path.resolve(import.meta.dirname, 'fixtures', 'fake-claude.mjs');
+const APPROVED = { allow: ['Read(./**)', 'Edit(./**)', 'Write(./**)', 'Bash(git status:*)'], deny: ['Bash(git push:*)', 'Edit(./.claude/**)'] };
+
 async function boot(): Promise<Ctx> {
-  server = await start({ path: proj, port: 0, open: false });
+  let n = 0;
+  server = await start({
+    path: proj,
+    port: 0,
+    open: false,
+    claude: {
+      status: async () => ({ installed: true, loggedIn: true, version: '2.1.302' }),
+      command: (args) => ({ bin: process.execPath, args: [FAKE, 'plain', path.join(tmp, `record-${++n}.json`), ...args] }),
+    },
+  });
   const base = server.url;
   const host = new URL(base).host;
   const projects = (await (await fetch(`${base}/api/projects`)).json()) as { id: string; root: string }[];
@@ -53,7 +67,7 @@ async function boot(): Promise<Ctx> {
   });
   ws.send(JSON.stringify({ type: 'subscribe', pid }));
   await sleep(400); // let the watcher settle
-  return { base, pid, events: () => msgs.filter((m) => m.type === 'project-changed' && m.pid === pid).length };
+  return { base, pid, msgs, events: () => msgs.filter((m) => m.type === 'project-changed' && m.pid === pid).length };
 }
 
 async function getSpec(base: string, pid: string, id: string): Promise<Spec> {
@@ -128,5 +142,36 @@ describe('end to end through start()', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('text/html');
     expect(await res.text()).toBe(await fsp.readFile(path.join(WEB_DIST, 'index.html'), 'utf8'));
+  });
+
+  it('streams run events, in order, to subscribers of that project only', async () => {
+    const { base, pid, msgs } = await boot();
+    await approvedStore().set(pid, fs.realpathSync(proj), APPROVED);
+
+    // A second client that is not subscribed to this project.
+    const host = new URL(base).host;
+    const quiet: { type: string }[] = [];
+    const other = new WebSocket(`ws://${host}/ws`, { headers: { Host: host } });
+    other.on('message', (d) => quiet.push(JSON.parse(String(d))));
+    await new Promise<void>((res, rej) => { other.once('open', () => res()); other.once('error', rej); });
+    other.send(JSON.stringify({ type: 'subscribe', pid: 'someone-else' }));
+
+    const res = await fetch(`${base}/api/projects/${pid}/runs`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'refresh-overview' }) });
+    expect(res.status).toBe(202);
+    const { run } = (await res.json()) as { run: { id: string } };
+    expect(await until(() => msgs.some((m) => m.type === 'run-ended'), 15000)).toBe(true);
+    other.terminate();
+
+    const runMsgs = msgs.filter((m) => m.type.startsWith('run-'));
+    expect(runMsgs[0]!.type).toBe('run-started');
+    expect(runMsgs.at(-1)!.type).toBe('run-ended');
+    expect(runMsgs.slice(1, -1).every((m) => m.type === 'run-line' && m.runId === run.id)).toBe(true);
+    expect(runMsgs.filter((m) => m.type === 'run-started')).toHaveLength(1);
+    expect(runMsgs.at(-1)!.run).toMatchObject({ id: run.id, status: 'finished' });
+    expect(quiet.some((m) => m.type.startsWith('run-'))).toBe(false);
+
+    const state = (await (await fetch(`${base}/api/projects/${pid}/run`)).json()) as { run: { id: string }; approved: boolean };
+    expect(state.run.id).toBe(run.id);
+    expect(state.approved).toBe(true);
   });
 });

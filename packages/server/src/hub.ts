@@ -3,7 +3,10 @@ import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer } from 'ws';
 import { isAllowedRequest } from './security.js';
 
-/** Fan-out of `project-changed` events to WebSocket clients at `/ws`. */
+/** A client this far behind is cut off (it reconnects and reloads the run) rather than letting output pile up in memory. */
+const MAX_BUFFERED = 4 * 1024 * 1024;
+
+/** Fan-out of typed JSON messages (`project-changed`, run events) to WebSocket clients at `/ws`. */
 export class Hub {
   private readonly wss = new WebSocketServer({ noServer: true, maxPayload: 65536 });
   private readonly subs = new Map<WebSocket, Set<string>>();
@@ -66,10 +69,17 @@ export class Hub {
     ws.send(JSON.stringify({ type: 'hello', app: 'specboard' }));
   }
 
-  broadcast(pid: string): void {
-    const text = JSON.stringify({ type: 'project-changed', pid });
+  /** Send one JSON message to every open socket subscribed to `pid`. Never throws; a client that cannot keep up is dropped. */
+  send(pid: string, msg: object): void {
+    const text = JSON.stringify(msg);
     for (const [ws, pids] of this.subs) {
-      if (pids.has(pid) && ws.readyState === WebSocket.OPEN) ws.send(text);
+      if (!pids.has(pid) || ws.readyState !== WebSocket.OPEN) continue;
+      try {
+        if (ws.bufferedAmount > MAX_BUFFERED) ws.terminate();
+        else ws.send(text);
+      } catch {
+        ws.terminate();
+      }
     }
   }
 

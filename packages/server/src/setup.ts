@@ -319,7 +319,8 @@ export function terminalIO(): SetupIO {
   };
 }
 
-function approvedStore(): ApprovedPermissions {
+/** The approved-permissions store under `specboardHome()`; the server and `init` must agree on it. */
+export function approvedStore(): ApprovedPermissions {
   return new ApprovedPermissions(path.join(specboardHome(), 'permissions.json'));
 }
 

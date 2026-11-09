@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app.js';
 import { isAllowedRequest } from '../src/security.js';
+import { fakeRuns, tempApproved } from './fakeRuns.js';
 import { Registry } from '../src/registry.js';
 
 const SAMPLE = path.resolve(import.meta.dirname, '../../../examples/recipe-box');
@@ -18,7 +19,7 @@ beforeEach(async () => {
   proj = path.join(tmp, 'recipe-box');
   await fs.cp(SAMPLE, proj, { recursive: true });
   reg = new Registry(path.join(tmp, 'projects.json'));
-  app = createApp({ registry: reg, port: () => 4949, webDist: null });
+  app = createApp({ registry: reg, port: () => 4949, webDist: null, runs: fakeRuns(), approved: tempApproved(tmp) });
 });
 afterEach(async () => {
   await fs.rm(tmp, { recursive: true, force: true });
@@ -119,8 +120,8 @@ describe('content-type guard', () => {
       ['PUT', `${base}/references/content`, { 'Content-Type': 'multipart/form-data' }, '{}'],
       ['DELETE', `${base}/references?path=CLAUDE.md`, {}, undefined],
       ['DELETE', `${base}/references?path=CLAUDE.md`, { 'Content-Type': 'text/plain' }, undefined],
-      ['POST', '/api/claude/run', { 'Content-Type': 'text/plain' }, '{}'],
-      ['POST', '/api/claude/run', {}, undefined],
+      ['POST', `${base}/runs`, { 'Content-Type': 'text/plain' }, '{}'],
+      ['POST', `${base}/runs/x/stop`, {}, undefined],
     ];
     for (const [method, url, extra, body] of cases) {
       const res = await app.request(url, { method, headers: { ...HOST, ...extra }, body });
@@ -135,17 +136,18 @@ describe('content-type guard', () => {
   });
 
   it('accepts application/json with parameters and leaves GETs alone', async () => {
-    const res = await app.request('/api/claude/run', {
+    const entry = await reg.add(proj);
+    const res = await app.request(`/api/projects/${entry.id}/runs`, {
       method: 'POST',
       headers: { ...HOST, 'Content-Type': 'Application/JSON; charset=utf-8' },
       body: '{}',
     });
-    expect(res.status).toBe(501);
+    expect(res.status).toBe(400);
     expect((await app.request('/api/health', { headers: { ...HOST, 'Content-Type': 'text/plain' } })).status).toBe(200);
   });
 
   it('answers 403 before 415 for a foreign Origin', async () => {
-    const res = await app.request('/api/claude/run', { method: 'POST', headers: { ...HOST, Origin: 'http://evil.com' } });
+    const res = await app.request('/api/projects/x/runs', { method: 'POST', headers: { ...HOST, Origin: 'http://evil.com' } });
     expect(res.status).toBe(403);
   });
 });
@@ -156,7 +158,7 @@ describe('static files', () => {
     await fs.mkdir(dist);
     await fs.writeFile(path.join(dist, 'index.html'), '<html>board</html>');
     await fs.writeFile(path.join(dist, 'a.js'), 'x=1');
-    const a = createApp({ registry: reg, port: () => 4949, webDist: dist });
+    const a = createApp({ registry: reg, port: () => 4949, webDist: dist, runs: fakeRuns(), approved: tempApproved(tmp) });
     const js = await a.request('/a.js', { headers: HOST });
     expect(js.status).toBe(200);
     expect(await js.text()).toBe('x=1');

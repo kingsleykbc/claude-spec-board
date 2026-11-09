@@ -3,6 +3,9 @@ import type { Context } from 'hono';
 /** Messages thrown by core for bad caller input; anything else is a server fault. */
 const CORE_400 = [/^Invalid value for /, /^Invalid key /, /^Cannot edit /, /^Only done specs can be archived/, /^(Subtask|Question) .+ not found$/];
 
+/** Hand-edited spec files whose front matter cannot be read. */
+const CORE_422 = [/^No front matter$/, /^Front matter is not valid YAML/];
+
 /** Raised for requests we reject on purpose; carries the HTTP status. */
 export class HttpError extends Error {
   constructor(
@@ -34,6 +37,7 @@ export function requireString(b: Record<string, unknown>, key: string, allowEmpt
 export function onError(err: Error, c: Context): Response {
   if (err instanceof HttpError) return c.json({ error: err.message }, err.status);
   if (/^Spec .+ not found$/.test(err.message)) return c.json({ error: err.message }, 404);
+  if (CORE_422.some((re) => re.test(err.message))) return c.json({ error: err.message }, 422);
   if (CORE_400.some((re) => re.test(err.message))) return c.json({ error: err.message }, 400);
   console.error(err.stack ?? err);
   return c.json({ error: 'Internal error' }, 500);

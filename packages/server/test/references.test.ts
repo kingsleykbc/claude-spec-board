@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashText, loadProject } from '@specboard/core';
 import { createApp } from '../src/app.js';
+import { fakeRuns, tempApproved } from './fakeRuns.js';
 import { Registry } from '../src/registry.js';
 import { PathError, safeProjectPath } from '../src/safePath.js';
 
@@ -32,7 +33,7 @@ beforeEach(async () => {
   await fs.cp(SAMPLE, proj, { recursive: true });
   const reg = new Registry(path.join(tmp, 'projects.json'));
   pid = (await reg.add(proj)).id;
-  app = createApp({ registry: reg, port: () => 4949, webDist: null });
+  app = createApp({ registry: reg, port: () => 4949, webDist: null, runs: fakeRuns(), approved: tempApproved(tmp) });
 });
 afterEach(async () => {
   await fs.rm(tmp, { recursive: true, force: true });
@@ -171,16 +172,6 @@ describe('file search', () => {
   });
 });
 
-describe('claude stubs', () => {
-  it.each(['run', 'stop', 'write-up', 'fix-file', 'refresh-overview'])('%s is a 501 stub', async (action) => {
-    const res = await app.request(`/api/claude/${action}`, { method: 'POST', headers: HEADERS, body: '{}' });
-    expect(res.status).toBe(501);
-    expect(await res.json()).toEqual({ stub: true, action });
-  });
-  it('unknown action is 404', async () => {
-    expect((await app.request('/api/claude/nope', { method: 'POST', headers: HEADERS })).status).toBe(404);
-  });
-});
 
 describe('fix round 1', () => {
   it('concurrent link and create both succeed and both are in config', async () => {
