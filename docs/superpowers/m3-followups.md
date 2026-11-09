@@ -117,3 +117,7 @@ These were checked by reading the code and by whether M3 touched the files; none
 ## Process only
 - Task 2's tests were written after its implementation.
 - Task 7 noted that Task 8 must restore the Refreshing story and start-error tests. Check this at final review.
+
+## Test stability
+- Several server tests (`cli.test.ts` start, `e2e.test.ts`, `realtime.test.ts`) hit vitest's 5 s limit when `npm test` runs alongside other heavy work. They pass when run alone. CI on M4 may need longer timeouts.
+- `setup.test.ts` failed once with no captured reason and hasn't recurred; both spawning tests now have 60 s timeouts.
