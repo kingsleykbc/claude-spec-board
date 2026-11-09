@@ -5,7 +5,7 @@ disable-model-invocation: true
 argument-hint: [id]
 ---
 
-Before anything else, read `.claude/skills/specboard/SKILL.md` with the Read tool and follow it. It holds the file format and the rules for this command. If that file does not exist, load the `specboard` skill instead.
+Before anything else, load the `specboard` skill with the Skill tool (it may be listed as `specboard:specboard`) and follow it. It holds the file format and the rules for this command. If it cannot be loaded, say so and stop.
 
 Limit to this spec if an ID is given, otherwise do every spec: $ARGUMENTS
 

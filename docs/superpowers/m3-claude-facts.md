@@ -168,3 +168,38 @@ Findings:
 - The CLI also has `--restricted` (ignores user/project/local settings), but it removes Bash and the other command tools, so it cannot run specs.
 
 Recommended run flags: `--settings <approved json> --permission-mode dontAsk --setting-sources "" --plugin-dir <spec-board plugin folder>` (skills shipped as a plugin, called `/specboard:run-spec` etc.). `--setting-sources user` also works but pulls in the person's own `~/.claude/settings.json` (their permissions and hooks), which a run should not depend on. If the plugin route is not taken and project skills stay in `.claude/skills`, the best available is `--settings` with `"disableAllHooks":true`, which stops project hooks but does NOT stop a trusted folder's project `permissions.allow` merging; report this as a concern.
+
+## Task 5 probes: loading the rules in an isolated run
+
+Probed 2026-11-09, Claude Code 2.1.302, `--model haiku`, spawned with `cross-spawn` from a Node script, stdin ignored, `CLAUDE*`/`ANTHROPIC*` unset, `MSYS_NO_PATHCONV=1`, temp git repos outside the Spec Board repo. Flags are the output of `buildRunArgs` (`--setting-sources "" --plugin-dir <kit> --settings {permissions, disableAllHooks:true} --permission-mode dontAsk`), plus `--model haiku` and `--max-turns` in the probe only. This replaces the Task 3 decision above ("every command tells Claude to Read `.claude/skills/specboard/SKILL.md`").
+
+Options tried in a throwaway plugin named `specboard` (one run each; the repo also held an altered `.claude/skills/specboard/SKILL.md` with a different rule word):
+
+| command body says | result |
+|---|---|
+| load `specboard:specboard` with the Skill tool | ran, right rule word, `permission_denials: []` |
+| load `specboard` with the Skill tool | the model called `Skill {skill:"specboard:specboard"}`, right rule word, no denials |
+| Read `${CLAUDE_PLUGIN_ROOT}/skills/specboard/SKILL.md` | the variable was substituted, but the Read was **denied** (`dontAsk`, the path is outside the project) and the run gave up |
+| Read `${CLAUDE_SKILL_DIR}/../specboard/SKILL.md` | same denial |
+| load `specboard:cmd-d`, a skill with `disable-model-invocation: true` | refused: `cannot be used with Skill tool due to disable-model-invocation` |
+| Read `CLAUDE.md` and `.claude/settings.json` | both read with no denial, contents correct |
+
+Decisions:
+
+- Every command loads the `specboard` skill with the Skill tool and stops if it cannot. The altered copy in the repo was never used: an empty `--setting-sources` does not load project skills.
+- A command cannot load another command (`/next` could not load `run-spec`), so the run-spec steps moved into the `specboard` skill, under "Running a spec". `run-spec` and `next` both point there.
+- `run-spec` and `next` tell Claude to Read `CLAUDE.md`, since isolated runs do not load it. `.claude/settings.json` stays readable, so taking the test command from it still works.
+
+End-to-end with the real kit (one spec, one subtask; `package.json` with a test script; `CLAUDE.md` asking for an extra line in new text files; allow list from `defaultAllowList`). One run each:
+
+| run | rules loaded by | result |
+|---|---|---|
+| isolated `/specboard:run-spec T-001` | `Skill specboard:specboard` | exit 0, `permission_denials: []`, `status: review`, `current_subtask: null`, subtask ticked, one commit, log written, `CLAUDE.md` line followed, `npm test` taken from the settings file. About $0.009 |
+| isolated `/specboard:next` | `Skill specboard:specboard` | same result. About $0.010 |
+| installed copies, no isolation flags, `/run-spec T-001` (stands in for typing it; `-p`, not a real interactive session) | `Skill specboard` | same result. About $0.016. stderr has the usual "Ignoring ... permissions.allow" line, as the folder is untrusted |
+
+## Task 5: process control
+
+- On Windows a child that Node spawned without `detached` dies when its Node parent is terminated (libuv's job object). So a test grandchild has to be detached, or killing only the parent passes too. With a detached grandchild, a plain `process.kill(pid)` fails the heartbeat test and `taskkill /T /F` through `tree-kill` passes.
+- `taskkill /T` cannot reach a process whose parent has already gone. If such a process holds the output pipe, `close` lags, so a run ends 2 s after `exit` whether or not `close` has come.
+- `claude auth status` prints JSON by default, with a `loggedIn` boolean, and exits 0 when logged in. The logged-out exit code was not observed (we do not log the user out); `claudeStatus` treats a non-zero exit or `loggedIn: false` as logged out.

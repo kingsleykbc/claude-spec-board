@@ -4,7 +4,7 @@ description: Rewrite .specboard/overview.md from the current state of all specs.
 disable-model-invocation: true
 ---
 
-Before anything else, read `.claude/skills/specboard/SKILL.md` with the Read tool and follow it. It holds the file format and the rules for this command. If that file does not exist, load the `specboard` skill instead.
+Before anything else, load the `specboard` skill with the Skill tool (it may be listed as `specboard:specboard`) and follow it. It holds the file format and the rules for this command. If it cannot be loaded, say so and stop.
 
 Optional hint from the user: $ARGUMENTS
 

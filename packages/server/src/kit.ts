@@ -1,7 +1,13 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const KIT_DIR = path.resolve(import.meta.dirname, '..', 'kit', 'skills');
+const PLUGIN_DIR = path.resolve(import.meta.dirname, '..', 'kit');
+const KIT_DIR = path.join(PLUGIN_DIR, 'skills');
+
+/** The kit as a Claude Code plugin named `specboard`, for `--plugin-dir`. */
+export function kitPluginDir(): string {
+  return PLUGIN_DIR;
+}
 
 export type InstallResult = { name: string; action: 'created' | 'unchanged' | 'updated' | 'skipped-modified' };
 

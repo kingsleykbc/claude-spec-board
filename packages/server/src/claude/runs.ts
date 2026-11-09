@@ -1,0 +1,392 @@
+import type { ChildProcess } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import fs from 'node:fs/promises';
+import { hashText, loadProject, parseSpec, setMetaField, writeIfUnchanged, type Spec } from '@specboard/core';
+import spawn from 'cross-spawn';
+import treeKill from 'tree-kill';
+import { kitPluginDir } from '../kit.js';
+import type { ProjectEntry } from '../registry.js';
+import type { ApprovedPermissions, Permissions } from '../setup.js';
+import { classifyEnd, type EndInfo, type RunKind, type RunStatus } from './classify.js';
+import { LineSplitter, parseEvent, type ClaudeResult, type ParsedLine, type RunLine } from './events.js';
+import { childEnv, claudeStatus, type ClaudeStatus } from './status.js';
+
+export interface RunSnapshot { id: string; pid: string; kind: RunKind; specId: string | null; status: RunStatus; lines: RunLine[]; end: EndInfo | null; startedAt: string; dismissed: boolean }
+export type RunEvent = { type: 'run-started'; run: RunSnapshot } | { type: 'run-line'; runId: string; line: RunLine } | { type: 'run-ended'; run: RunSnapshot };
+
+export class RunBusyError extends Error {
+  constructor(readonly run: RunSnapshot) {
+    super('Claude is already working in this project.');
+    this.name = 'RunBusyError';
+  }
+}
+export class NotApprovedError extends Error {
+  constructor() {
+    super('This project is not approved for runs. Run `specboard init` first.');
+    this.name = 'NotApprovedError';
+  }
+}
+export class ClaudeUnavailableError extends Error {
+  constructor(readonly reason: 'not-installed' | 'logged-out') {
+    super(reason === 'not-installed' ? "Claude Code isn't installed." : "Claude Code isn't logged in.");
+    this.name = 'ClaudeUnavailableError';
+  }
+}
+
+const MAX_LINES = 2000;
+const STDERR_TAIL = 4000;
+/** After `exit`, how long to wait for `close`: something the run left behind can hold the pipe open for good. */
+const EXIT_GRACE_MS = 2000;
+const SIGKILL_AFTER_MS = 3000;
+/** A stop never waits longer than this. */
+const STOP_TIMEOUT_MS = 8000;
+const WRITE_TRIES = 3;
+
+const SPEC_ID = /^T-\d{3,}$/;
+
+/** The prompt for a run, built only from fixed strings and a validated spec ID. */
+export function runPrompt(kind: RunKind, specId: string | null): string {
+  if (kind === 'refresh-overview') {
+    if (specId !== null) throw new Error('A spec ID does not belong on this kind of run.');
+    return '/specboard:refresh-overview';
+  }
+  if (specId === null || !SPEC_ID.test(specId)) throw new Error(`Invalid spec ID: ${String(specId)}`);
+  switch (kind) {
+    case 'run': return `/specboard:run-spec ${specId}`;
+    case 'write-up': return `/specboard:create-spec ${specId}`;
+    case 'fix-file': return `/specboard:update-spec ${specId} Fix this file's formatting problems. Keep all content.`;
+  }
+}
+
+/**
+ * The `claude` arguments for an isolated run: only the approved lists and our own plugin apply. An empty
+ * `--setting-sources` leaves out the project's and the person's settings, hooks, MCP servers and CLAUDE.md.
+ */
+export function buildRunArgs(prompt: string, approved: Permissions, kitDir: string): string[] {
+  const settings = { permissions: { allow: approved.allow, deny: approved.deny }, disableAllHooks: true };
+  return [
+    '-p', prompt,
+    '--output-format', 'stream-json',
+    '--verbose',
+    '--permission-mode', 'dontAsk',
+    '--setting-sources', '',
+    '--plugin-dir', kitDir,
+    '--settings', JSON.stringify(settings),
+  ];
+}
+
+interface Run {
+  snap: RunSnapshot;
+  entry: ProjectEntry;
+  seq: number;
+  deny: string[];
+  before: Spec | null;
+  ticked: Set<number>;
+  child: ChildProcess | null;
+  splitter: LineSplitter;
+  result: ClaudeResult | null;
+  stderrTail: string;
+  spawnError: Error | null;
+  exitCode: number | null;
+  exited: boolean;
+  stopped: boolean;
+  finishing: boolean;
+  timers: NodeJS.Timeout[];
+  finished: Promise<void>;
+  markFinished: () => void;
+}
+
+const copy = (s: RunSnapshot): RunSnapshot => ({ ...s, lines: [...s.lines] });
+const pad = (n: number): string => String(n).padStart(2, '0');
+const hhmm = (d = new Date()): string => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+async function loadSpec(root: string, id: string | null): Promise<Spec | null> {
+  if (id === null) return null;
+  try {
+    return (await loadProject(root)).specs.find((s) => s.id === id) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Removes a `current_subtask` the run left behind. Someone else may be editing the file: retry, then give up quietly. */
+async function clearCurrentSubtask(file: string): Promise<void> {
+  try {
+    for (let i = 0; i < WRITE_TRIES; i++) {
+      const text = await fs.readFile(file, 'utf8');
+      if (parseSpec(text).currentSubtask === null) return;
+      const res = await writeIfUnchanged(file, hashText(text), (t) => setMetaField(t, 'current_subtask', null));
+      if (res.ok) return;
+    }
+  } catch {
+    // the spec stays as it is; the board shows what the file says
+  }
+}
+
+function deniedAction(end: EndInfo): string | undefined {
+  const d = end.denied?.[0];
+  if (!d) return undefined;
+  const input = (d.input ?? {}) as { command?: unknown; file_path?: unknown };
+  const what = typeof input.command === 'string' ? input.command : typeof input.file_path === 'string' ? input.file_path : d.tool;
+  return what.split(/\r?\n/)[0]!.trim().slice(0, 200);
+}
+
+const FINISHED_TEXT: Record<Exclude<RunKind, 'run'>, string> = {
+  'write-up': 'Spec written up',
+  'fix-file': 'File fixed',
+  'refresh-overview': 'Overview refreshed',
+};
+
+function finalLine(kind: RunKind, end: EndInfo, before: Spec | null, after: Spec | null): ParsedLine {
+  switch (end.status) {
+    case 'finished': {
+      if (kind !== 'run') return { k: 'done', text: FINISHED_TEXT[kind] };
+      const commit = [...(after?.subtasks ?? [])].reverse().map((t) => after?.logs[t.n]?.commit).find(Boolean);
+      return commit ? { k: 'done', text: 'All subtasks done · committed', code: commit } : { k: 'done', text: 'All subtasks done' };
+    }
+    case 'stopped':
+      return { k: 'stop', text: 'Stopped by you' };
+    case 'needs': {
+      const known = new Set(before?.questions.map((q) => q.id));
+      const added = after?.questions.some((q) => q.answer === null && !known.has(q.id));
+      return { k: 'warn', text: added ? 'Paused: Claude added an open question' : 'Paused: an open question needs your answer' };
+    }
+    case 'permission':
+      return { k: 'err', text: 'Not allowed:', code: deniedAction(end) };
+    default:
+      return { k: 'err', text: end.title ?? 'Claude Code exited unexpectedly' };
+  }
+}
+
+export class RunManager {
+  private readonly approved: ApprovedPermissions;
+  private readonly emit: (pid: string, e: RunEvent) => void;
+  private readonly command: (args: string[]) => { bin: string; args: string[] };
+  private readonly status: () => Promise<ClaudeStatus>;
+  /** The run going on per project, including one still being prepared. Set before the first await in `start`. */
+  private readonly active = new Map<string, Run>();
+  private readonly last = new Map<string, Run>();
+  private closed = false;
+
+  constructor(opts: {
+    approved: ApprovedPermissions;
+    emit: (pid: string, e: RunEvent) => void;
+    command?: (args: string[]) => { bin: string; args: string[] };
+    status?: () => Promise<ClaudeStatus>;
+  }) {
+    this.approved = opts.approved;
+    this.emit = opts.emit;
+    this.command = opts.command ?? ((args) => ({ bin: 'claude', args }));
+    this.status = opts.status ?? claudeStatus;
+  }
+
+  async start(entry: ProjectEntry, kind: RunKind, specId: string | null): Promise<RunSnapshot> {
+    if (this.closed) throw new Error('Spec Board is shutting down.');
+    const prompt = runPrompt(kind, specId);
+    const busy = this.active.get(entry.id);
+    if (busy) throw new RunBusyError(copy(busy.snap));
+    const run = this.newRun(entry, kind, specId);
+    this.active.set(entry.id, run); // no await above this line: two starts at once cannot both get here
+
+    let approved: Permissions;
+    try {
+      const perms = await this.approved.get(entry.id, entry.root);
+      if (!perms) throw new NotApprovedError();
+      approved = perms;
+      const status = await this.status();
+      if (!status.installed) throw new ClaudeUnavailableError('not-installed');
+      if (!status.loggedIn) throw new ClaudeUnavailableError('logged-out');
+      run.before = await loadSpec(entry.root, specId);
+      if (specId !== null && !run.before) throw new Error(`Spec ${specId} was not found.`);
+    } catch (e) {
+      if (this.active.get(entry.id) === run) this.active.delete(entry.id);
+      run.finishing = true; // nothing was started, so nothing ends: a stop waiting on this has no more to do
+      for (const t of run.timers) clearTimeout(t);
+      run.markFinished();
+      throw e;
+    }
+    if (run.finishing) { // a stop gave up waiting for this start
+      await run.finished;
+      return copy(run.snap);
+    }
+
+    run.deny = approved.deny;
+    run.ticked = new Set(run.before?.subtasks.filter((t) => t.done).map((t) => t.n));
+    this.last.set(entry.id, run);
+    this.addLine(run, { k: 'start', text: specId === null ? 'Started refreshing the overview' : `Started on ${specId} · ${run.before!.title}` }, false);
+    this.send(run, { type: 'run-started', run: copy(run.snap) });
+
+    if (run.stopped) await this.finish(run); // stop or close arrived while this was being prepared
+    else this.spawnChild(run, prompt, approved);
+    return copy(run.snap);
+  }
+
+  /** Stops the run and everything it started. Resolves once it has ended; a stop cannot hang. */
+  async stop(pid: string, runId: string): Promise<void> {
+    const run = this.active.get(pid);
+    if (!run || run.snap.id !== runId) return;
+    if (!run.stopped && !run.exited && !run.finishing) {
+      run.stopped = true;
+      run.timers.push(setTimeout(() => void this.finish(run), STOP_TIMEOUT_MS));
+      this.kill(run);
+    }
+    await run.finished;
+  }
+
+  current(pid: string): RunSnapshot | null {
+    const run = this.last.get(pid);
+    return run ? copy(run.snap) : null;
+  }
+
+  dismiss(pid: string, runId: string): void {
+    const run = this.last.get(pid);
+    if (run && run.snap.id === runId && run.snap.status !== 'running') run.snap.dismissed = true;
+  }
+
+  /** Call when a project's files change: adds a line for each subtask the running spec has newly ticked. */
+  async projectChanged(entry: ProjectEntry): Promise<void> {
+    const run = this.active.get(entry.id);
+    if (!run || run.child === null || run.finishing) return;
+    const spec = await loadSpec(entry.root, run.snap.specId);
+    if (!run.finishing) this.addTickLines(run, spec);
+  }
+
+  async close(): Promise<void> {
+    this.closed = true;
+    await Promise.all([...this.active.values()].map((run) => this.stop(run.snap.pid, run.snap.id)));
+  }
+
+  private newRun(entry: ProjectEntry, kind: RunKind, specId: string | null): Run {
+    let markFinished = (): void => undefined;
+    const finished = new Promise<void>((resolve) => (markFinished = resolve));
+    return {
+      snap: { id: randomUUID(), pid: entry.id, kind, specId, status: 'running', lines: [], end: null, startedAt: new Date().toISOString(), dismissed: false },
+      entry, seq: 0, deny: [], before: null, ticked: new Set(), child: null, splitter: new LineSplitter(), result: null, stderrTail: '',
+      spawnError: null, exitCode: null, exited: false, stopped: false, finishing: false, timers: [], finished, markFinished,
+    };
+  }
+
+  private spawnChild(run: Run, prompt: string, approved: Permissions): void {
+    let child: ChildProcess;
+    try {
+      const { bin, args } = this.command(buildRunArgs(prompt, approved, kitPluginDir()));
+      child = spawn(bin, args, { cwd: run.entry.root, env: childEnv(), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    } catch (e) {
+      run.spawnError = e as Error;
+      void this.finish(run);
+      return;
+    }
+    run.child = child;
+    // We never call child.kill or send messages, so `error` can only mean it did not start.
+    child.on('error', (e) => {
+      run.spawnError = e;
+      void this.finish(run);
+    });
+    child.stdout!.on('error', () => undefined);
+    child.stderr!.on('error', () => undefined);
+    child.stdout!.on('data', (d: Buffer) => {
+      if (!run.finishing) for (const line of run.splitter.push(d)) this.handleLine(run, line);
+    });
+    child.stderr!.on('data', (d: Buffer) => {
+      run.stderrTail = (run.stderrTail + d.toString('utf8')).slice(-STDERR_TAIL);
+    });
+    child.on('exit', (code) => {
+      run.exited = true;
+      run.exitCode = code;
+      run.timers.push(setTimeout(() => void this.finish(run), EXIT_GRACE_MS));
+    });
+    child.on('close', (code) => {
+      run.exited = true;
+      run.exitCode = run.exitCode ?? code;
+      void this.finish(run);
+    });
+  }
+
+  private kill(run: Run): void {
+    const pid = run.child?.pid;
+    if (pid === undefined) return;
+    const ignore = (): void => undefined; // it may have just gone
+    if (process.platform === 'win32') {
+      treeKill(pid, 'SIGKILL', ignore); // taskkill /T /F; there is no graceful stop on Windows
+      return;
+    }
+    treeKill(pid, 'SIGTERM', ignore);
+    run.timers.push(setTimeout(() => {
+      if (!run.exited) treeKill(pid, 'SIGKILL', ignore);
+    }, SIGKILL_AFTER_MS));
+  }
+
+  private handleLine(run: Run, line: string): void {
+    const parsed = parseEvent(line, run.entry.root);
+    if (!parsed) return;
+    if (parsed.result) run.result = parsed.result;
+    for (const l of parsed.lines) this.addLine(run, l);
+  }
+
+  private addLine(run: Run, line: ParsedLine, send = true): void {
+    const full: RunLine = { ...line, seq: ++run.seq, time: hhmm() };
+    if (full.code === undefined) delete full.code;
+    run.snap.lines.push(full);
+    if (run.snap.lines.length > MAX_LINES) run.snap.lines.shift();
+    if (send) this.send(run, { type: 'run-line', runId: run.snap.id, line: full });
+  }
+
+  private addTickLines(run: Run, spec: Spec | null): void {
+    for (const t of spec?.subtasks ?? []) {
+      if (!t.done || run.ticked.has(t.n)) continue;
+      run.ticked.add(t.n);
+      const commit = spec!.logs[t.n]?.commit ?? undefined;
+      const text = `Subtask ${t.n} done: ${t.title}`;
+      this.addLine(run, commit ? { k: 'done', text: `${text} · committed`, code: commit } : { k: 'done', text });
+    }
+  }
+
+  /** The one way a run ends. Safe to call more than once, and always frees the project. */
+  private async finish(run: Run): Promise<void> {
+    if (run.finishing) return run.finished;
+    run.finishing = true;
+    for (const t of run.timers) clearTimeout(t);
+    for (const line of run.splitter.flush()) this.handleLine(run, line);
+    run.child?.stdout?.destroy();
+    run.child?.stderr?.destroy();
+
+    const { snap, entry } = run;
+    let end: EndInfo = { status: 'error', title: 'Claude Code exited unexpectedly' };
+    try {
+      const after = await loadSpec(entry.root, snap.specId);
+      this.addTickLines(run, after);
+      end = run.spawnError && !run.stopped
+        ? { status: 'error', title: "Couldn't start Claude Code", text: run.spawnError.message }
+        : classifyEnd({
+          stopped: run.stopped,
+          exitCode: run.exitCode,
+          result: run.result,
+          stderrTail: run.stderrTail,
+          kind: snap.kind,
+          before: run.before,
+          after,
+          denyRules: run.deny,
+        });
+      if (after && after.currentSubtask !== null) await clearCurrentSubtask(after.path);
+      this.addLine(run, finalLine(snap.kind, end, run.before, after));
+    } catch (e) {
+      end = { status: 'error', title: 'Claude Code exited unexpectedly', text: (e as Error).message };
+      this.addLine(run, finalLine(snap.kind, end, run.before, null));
+    }
+    if (run.stopped && run.child && !run.exited) this.addLine(run, { k: 'warn', text: 'Claude Code may still be running' });
+
+    snap.end = end;
+    snap.status = end.status;
+    if (this.active.get(entry.id) === run) this.active.delete(entry.id);
+    this.send(run, { type: 'run-ended', run: copy(snap) });
+    run.markFinished();
+  }
+
+  private send(run: Run, e: RunEvent): void {
+    try {
+      this.emit(run.snap.pid, e);
+    } catch {
+      // a listener's failure must not leave a run stuck
+    }
+  }
+}

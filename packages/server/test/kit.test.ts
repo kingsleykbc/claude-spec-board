@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { parseSpec, splitFrontMatter } from '@specboard/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { installSkills, kitSkills } from '../src/kit.js';
+import { installSkills, kitPluginDir, kitSkills } from '../src/kit.js';
 
 const COMMANDS = ['create-spec', 'update-spec', 'run-spec', 'next', 'refresh-overview', 'refresh-logs', 'correct-specs'];
 
@@ -47,15 +47,26 @@ describe('kit content', () => {
     }
   });
 
-  it('every command takes $ARGUMENTS and reads the specboard rules before its steps', async () => {
+  it('every command takes $ARGUMENTS and loads the rules through the Skill tool, never from a project file', async () => {
     for (const { name, text } of await kitSkills()) {
       if (name === 'specboard') continue;
       expect(text, name).toContain('$ARGUMENTS');
-      const body = splitFrontMatter(text).body;
-      const readAt = body.indexOf('.claude/skills/specboard/SKILL.md');
-      expect(readAt, name).toBeGreaterThanOrEqual(0);
-      expect(readAt, name).toBeLessThan(body.indexOf('## Steps'));
+      const body = splitFrontMatter(text).body.trimStart();
+      expect(body.startsWith('Before anything else, load the `specboard` skill with the Skill tool'), name).toBe(true);
+      expect(body, name).not.toContain('.claude/skills/'); // absent, or a repo's altered copy, in an isolated run
     }
+  });
+
+  it('the commands that change code read CLAUDE.md, which isolated runs do not load', async () => {
+    const line = 'If the project has a `CLAUDE.md`, Read it first and follow it, except where it conflicts with these rules.';
+    const skills = await kitSkills();
+    for (const name of ['run-spec', 'next']) expect(skills.find((s) => s.name === name)!.text, name).toContain(line);
+  });
+
+  it('run-spec and next share one set of steps, in the rules skill', async () => {
+    const skills = await kitSkills();
+    expect(skills.find((s) => s.name === 'specboard')!.text).toContain('## Running a spec');
+    for (const name of ['run-spec', 'next']) expect(skills.find((s) => s.name === name)!.text, name).toContain('"Running a spec"');
   });
 
   it('spec samples in the specboard skill parse with core and give no problems', async () => {
@@ -84,9 +95,9 @@ describe('kit content', () => {
     expect(body).toMatch(/^### \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/m);
   });
 
-  it('run-spec ends in review; no skill sets done or pushes except as a prohibition', async () => {
+  it('running a spec ends in review; no skill sets done or pushes except as a prohibition', async () => {
     const skills = await kitSkills();
-    expect(skills.find((s) => s.name === 'run-spec')!.text).toContain('status: review');
+    expect(skills.find((s) => s.name === 'specboard')!.text).toContain('`status: review`');
     for (const { name, text } of skills) {
       for (const line of text.split(/\r?\n/)) {
         if (line.includes('status: done') || line.includes('git push')) {
@@ -96,8 +107,8 @@ describe('kit content', () => {
     }
   });
 
-  it('run-spec takes the test command from the allow-list and never invents one', async () => {
-    const text = (await kitSkills()).find((s) => s.name === 'run-spec')!.text;
+  it('running a spec takes the test command from the allow-list and never invents one', async () => {
+    const text = (await kitSkills()).find((s) => s.name === 'specboard')!.text;
     expect(text).toContain('.claude/settings.json');
     expect(text).toContain('permissions.allow');
     expect(text).toContain('No test command is set up');
@@ -113,6 +124,22 @@ describe('kit content', () => {
         .join('\n');
       expect(instructions, name).not.toMatch(/`(rm|mv|mkdir|cp|echo|git push|git checkout|git reset|git branch)\b/);
     }
+  });
+});
+
+describe('plugin', () => {
+  it('kitPluginDir is a plugin named specboard, with the skills next to its manifest', async () => {
+    const dir = kitPluginDir();
+    const manifest = JSON.parse(await fs.readFile(path.join(dir, '.claude-plugin', 'plugin.json'), 'utf8')) as { name: string };
+    expect(manifest.name).toBe('specboard');
+    for (const { name } of await kitSkills()) await expect(fs.access(path.join(dir, 'skills', name, 'SKILL.md'))).resolves.toBeUndefined();
+  });
+
+  it('installSkills does not copy the plugin metadata', async () => {
+    await installSkills(tmp);
+    await expect(fs.access(path.join(tmp, '.claude-plugin'))).rejects.toThrow();
+    await expect(fs.access(path.join(tmp, '.claude', '.claude-plugin'))).rejects.toThrow();
+    await expect(fs.access(path.join(tmp, '.claude', 'skills', '.claude-plugin'))).rejects.toThrow();
   });
 });
 
