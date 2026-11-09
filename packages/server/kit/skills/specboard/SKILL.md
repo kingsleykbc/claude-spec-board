@@ -64,11 +64,11 @@ Customers pick a barber, a service and a time slot, then confirm.
 - Time-slot grid
 
 ## Open questions
-- [ ] Q1 (yesno): Should customers be able to cancel a booking?
+- [ ] Q1 (yesno): Should customers be able to cancel a booking? (recommended: Yes)
   > answer:
-- [x] Q2 (number): How many days ahead can a customer book?
+- [x] Q2 (number): How many days ahead can a customer book? (recommended: 14)
   > answer: 14
-- [ ] Q3 (choice: Email | SMS | Both): How should customers be reminded?
+- [ ] Q3 (optional choice: Email | SMS | Both): How should customers be reminded? (recommended: Email)
   > answer:
 - [ ] Q4 (text): Any wording for the confirmation screen?
   > answer:
@@ -81,6 +81,8 @@ Customers pick a barber, a service and a time slot, then confirm.
 
 Question line: `- [ ] Q<k> (<type>): <text>`, then an indented line `  > answer: <value>`.
 - `type` is `yesno`, `number`, `text` or `choice`. A `choice` lists its options after a colon, separated by `|`: `(choice: A | B | C)`.
+- A question is **required** unless the word `optional` comes before its type: `(optional yesno)`, `(optional choice: A | B)`. Make it required when the work can't go ahead without the person's decision. Make it optional when there is a sensible default and a wrong guess is cheap to change. An optional question must have a recommendation.
+- End a question with `(recommended: <value>)` whenever you have a view, and always on an optional question. Say what you would pick; for a `choice` or `yesno` use one of its options.
 - A question is answered when its answer value is not empty. The box is `[x]` when answered, `[ ]` otherwise. Question numbers `k` are never reused: a new question gets the highest existing number plus one.
 - To add a question, append it at the end of `## Open questions` (add that section if it is missing).
 
@@ -106,7 +108,7 @@ Built the time-slot grid. Slots come from the barber's opening hours. Tests adde
 
 ## Blocked
 
-"Blocked" is not a status. A spec is blocked when it has any unanswered question, or when a spec in `depends_on` is not finished (its `status` is not `done` and it is not in `.specboard/archive/`), or when a `depends_on` ID does not exist.
+"Blocked" is not a status. A spec is blocked when it has any unanswered required question, or when a spec in `depends_on` is not finished (its `status` is not `done` and it is not in `.specboard/archive/`), or when a `depends_on` ID does not exist.
 
 ## Running a spec
 
@@ -114,10 +116,10 @@ Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never s
 
 1. Find `.specboard/specs/<ID>-*/spec.md` (Glob) and read it, then read its existing logs. Say so and stop if there is no such spec, or if `draft: true` (it needs `/create-spec` first), or if `status` is already `review` or `done` and every subtask is ticked.
 2. **Refuse to start** (change nothing, say why, stop) when:
-   - any question under `## Open questions` is unanswered. List them with their numbers; or
+   - any required question under `## Open questions` is unanswered. List them with their numbers; or
    - a spec in `depends_on` is not finished, or does not exist. Name it.
 
-   Otherwise read the saved answers and use them as decisions.
+   Otherwise read the saved answers and use them as decisions. For an unanswered optional question, go with its recommendation, leave the question unanswered, and say which you assumed in the log of the first subtask it affects. If it has no recommendation, use your best judgment and say so the same way.
 3. Edit the front matter: `status: doing`, and `updated` to today.
 4. For each unticked subtask, in order:
    1. Set `current_subtask: <n>`.
@@ -127,7 +129,7 @@ Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never s
    5. Get the short hash with `git log -1 --format=%h` and the changed files with `git diff --name-only HEAD~1 HEAD`.
    6. Write `.specboard/specs/<ID>-<slug>/logs/<n>-<slug>.md` in the log format: `subtask`, `commit`, `files`, and a dated entry (`### YYYY-MM-DD HH:mm`) of what you did.
    7. Tick the subtask (`- [x]`) and set `updated`.
-5. When you reach a decision you cannot make from the spec and its answers (or tests cannot be fixed): add an open question (`- [ ] Q<k> (<type>): <text>` then `  > answer:`), set `current_subtask: null`, leave the status as `doing`, say what you need, and **stop**. Do not guess and do not carry on to the next subtask. A refused action is different: see rule 8.
+5. When you reach a decision you cannot make from the spec and its answers (or tests cannot be fixed): add a required open question (`- [ ] Q<k> (<type>): <text>` then `  > answer:`, with a recommendation if you have one), set `current_subtask: null`, leave the status as `doing`, say what you need, and **stop**. Do not guess and do not carry on to the next subtask. A refused action is different: see rule 8.
 6. When every subtask is ticked: set `current_subtask: null`, `status: review` and `updated` to today. Never set `status: done`.
 7. Finish with a short summary: subtasks completed, commits made, anything the reviewer should look at.
 

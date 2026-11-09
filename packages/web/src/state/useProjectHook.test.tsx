@@ -39,7 +39,7 @@ const data = (specs: Spec[]): ProjectData => ({
   nextId: 'T-9',
 });
 const sub = (n: number, done: boolean) => ({ n, title: `S${n}`, done, line: 0, hasLog: false });
-const q = (id: string) => ({ id, type: 'text' as const, text: id, options: [], answer: null, line: 0 });
+const q = (id: string) => ({ id, type: 'text' as const, text: id, options: [], answer: null, required: true, recommendation: null, line: 0 });
 
 const v1 = data([spec('T-1', 'a', { subtasks: [sub(1, false)] })]);
 const v2 = data([spec('T-1', 'b', { subtasks: [sub(1, true)], questions: [q('Q1')] }), spec('T-2', 'c', { questions: [q('Q1')] })]);

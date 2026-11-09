@@ -1,4 +1,5 @@
 import type { Status, Urgency } from '@specboard/core';
+import { FileLink } from '../../state/fileLinks';
 import { CategoryEditor } from './CategoryEditor';
 import { RunButton, type RunState } from './RunButton';
 import { StatusMenu } from './StatusMenu';
@@ -34,9 +35,7 @@ export function DetailHeader(p: DetailHeaderProps) {
     <div className={s.head}>
       <div className={s.row}>
         <span className={s.id}>{p.id}</span>
-        <span className={s.path} title={p.path}>
-          {p.path}
-        </span>
+        <FileLink path={p.path} className={s.path} />
         <RunButton id={p.id} state={p.runState} runningId={p.runningId ?? null} hold={p.runHold ?? null} blockedNote={p.runBlockedNote} onRun={p.onRun} onStop={p.onStop} />
         <StatusMenu status={p.status} onPick={p.onStatus} />
         <button type="button" className={s.close} aria-label="Close" onClick={p.onClose}>

@@ -14,6 +14,10 @@
 .qNum { font-family: var(--mono); font-size: 12.5px; color: var(--fg3); padding-top: 2px; }
 .qBody { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .qLabel { font-size: 14px; font-weight: 500; line-height: 1.45; text-wrap: pretty; }
+.qRec { font-weight: 400; color: var(--fg2); }
+.qTag { margin-left: 8px; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 5px; background: var(--panel); color: var(--fg2); white-space: nowrap; }
+.qTag[data-required="true"] { background: var(--review-soft); color: var(--review-ink); }
+.optionalCount { font-size: 11.5px; font-weight: 600; padding: 1px 7px; border-radius: 99px; background: var(--panel); color: var(--fg2); }
 .new { margin-left: 8px; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 5px; background: var(--accent-soft); color: var(--accent-ink); }
 .radios { display: flex; gap: 8px; }
 .wrap { flex-wrap: wrap; }

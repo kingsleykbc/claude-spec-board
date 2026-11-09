@@ -45,11 +45,20 @@ export function realPathLoose(p: string): string {
  * (including via symlinks), and non-Markdown files. Backslashes count as separators everywhere.
  */
 export function safeProjectPath(root: string, rel: string): string {
+  return resolveInProject(root, rel, true);
+}
+
+/** `safeProjectPath` for a file of any kind, for showing it to the person. Never for writing. */
+export function safeProjectFile(root: string, rel: string): string {
+  return resolveInProject(root, rel, false);
+}
+
+function resolveInProject(root: string, rel: string, mdOnly: boolean): string {
   if (typeof rel !== 'string' || rel === '') throw new PathError('Invalid path');
   if (rel.includes('\0')) throw new PathError('Invalid path');
   if (/^[\\/]/.test(rel) || /^[A-Za-z]:/.test(rel)) throw new PathError('Path must be relative to the project');
   const norm = rel.replace(/\\/g, '/');
-  if (!norm.toLowerCase().endsWith('.md')) throw new PathError('Only .md files are allowed');
+  if (mdOnly && !norm.toLowerCase().endsWith('.md')) throw new PathError('Only .md files are allowed');
   const absRoot = path.resolve(root);
   const abs = path.resolve(absRoot, ...norm.split('/'));
   if (!inside(absRoot, abs)) throw new PathError('Path escapes the project');

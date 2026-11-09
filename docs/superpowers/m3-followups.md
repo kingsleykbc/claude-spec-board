@@ -121,3 +121,11 @@ These were checked by reading the code and by whether M3 touched the files; none
 ## Test stability
 - Several server tests (`cli.test.ts` start, `e2e.test.ts`, `realtime.test.ts`) hit vitest's 5 s limit when `npm test` runs alongside other heavy work. They pass when run alone. CI on M4 may need longer timeouts.
 - `setup.test.ts` failed once with no captured reason and hasn't recurred; both spawning tests now have 60 s timeouts.
+
+## After M3: chat as the main way to run (2026-11-09)
+
+- **Typed `/run-spec` was checked with `claude -p` only,** with the project settings passed through `--settings`: it finished the spec, used the recommendation for a blank optional question and logged it, and the board followed todo, doing, done and review. A real interactive chat has not been tried.
+- **With `claude -p` alone, `init`'s allow rules in `.claude/settings.json` had no effect:** Write was refused in `dontAsk` mode in a folder never opened in Claude Code. Passing the same file through `--settings` worked. An untrusted folder ignoring project rules would explain it, but that isn't confirmed. An interactive chat would ask instead of refusing.
+- **Claude Code warns that `Write(./.claude/**)` and `Write(./.git/**)` deny rules aren't matched,** only `Edit(path)` rules are. The `Edit` rules are also on the list. Check whether the `Write` ones should go.
+- **Projects set up earlier keep old commands** until `init --force-skills`. `init` can't tell an older copy from one you edited.
+- **Toasts still show paths as plain text,** and the project menu's folder path isn't clickable because the whole row switches project.

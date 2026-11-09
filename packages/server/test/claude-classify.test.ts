@@ -8,7 +8,7 @@ const spec = (o: Partial<SpecDoc> & { open?: string[]; done?: boolean[] } = {}):
   return {
     id: 'T-001', title: 't', status: 'doing', urgency: 'normal', categories: [], dependsOn: [], draft: false, currentSubtask: null,
     created: null, updated: null, specMd: '', featuresMd: '', problems: [],
-    questions: open.map((id, i) => ({ id, type: 'text' as const, text: id, options: [], answer: null, line: i })),
+    questions: open.map((id, i) => ({ id, type: 'text' as const, text: id, options: [], answer: null, required: true, recommendation: null, line: i })),
     subtasks: done.map((d, i) => ({ n: i + 1, title: `s${i + 1}`, done: d, line: i, hasLog: false })),
     ...rest,
   };
@@ -22,6 +22,12 @@ describe('classifyEnd', () => {
   it('stopped wins over everything', () => {
     expect(end({ stopped: true, result: res({ isError: true }) }).status).toBe('stopped');
     expect(end({ stopped: true, result: null, exitCode: 1 }).status).toBe('stopped');
+  });
+
+  it('an unanswered optional question doesn’t read as stopped for an answer', () => {
+    const optional = { id: 'Q1', type: 'text' as const, text: 'Q1', options: [], answer: null, required: false, recommendation: 'x', line: 0 };
+    expect(end({ after: spec({ status: 'doing', questions: [optional] }) }).status).not.toBe('needs');
+    expect(end({ after: spec({ status: 'review', questions: [optional] }) }).status).toBe('finished');
   });
 
   it('reports not logged in for auth text or a 401', () => {

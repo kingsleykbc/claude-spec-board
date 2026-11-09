@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { EndInfo, RunKind, RunLine, RunStatus } from '../../api/client';
 import { allowHint } from '../../lib/prePublish';
 import { LINE } from '../../lib/vm';
+import { FileLink } from '../../state/fileLinks';
 import { Spinner } from '../ConnectionBanner';
 import s from './sections.module.css';
 
@@ -27,6 +28,10 @@ export interface RunPanelProps {
 }
 
 export const FIX_NOTE = 'Run this in a terminal, then run again.';
+
+/** Lines whose `code` names a file. A Read line can also hold a search pattern, which has wildcards and no place on disk. */
+const FILE_LINE: ReadonlySet<string> = new Set(['read', 'edit']);
+const LOOKS_LIKE_FILE = /^[^*?<>|"]+$/;
 
 interface End {
   title: string;
@@ -187,7 +192,8 @@ export function RunPanel({ kind = 'run', status, lines, end: server, projectRoot
                 {icon}
               </span>
               <span className={s.lineText} style={{ fontWeight: ln.k === 'done' || ln.k === 'start' ? 600 : 400 }}>
-                {ln.text} {ln.code && <code className={s.lineCode}>{ln.code}</code>}
+                {ln.text}{' '}
+                {ln.code && (FILE_LINE.has(ln.k) && LOOKS_LIKE_FILE.test(ln.code) ? <code className={s.lineCode}><FileLink path={ln.code} /></code> : <code className={s.lineCode}>{ln.code}</code>)}
               </span>
               <span className={s.lineTime}>{ln.time}</span>
             </div>

@@ -31,7 +31,7 @@ describe('RunPanel', () => {
     expect(p.queryByRole('button', { name: 'Dismiss' })).toBeNull();
     const icons = p.getAllByTestId('line-icon').map((i) => i.textContent);
     expect(icons).toEqual(['▶', '◇', '✓', '✓', '◇', '✎']);
-    expect(p.getByText('specs/T-104-meal-planner-calendar.md').tagName).toBe('CODE');
+    expect(p.getByText('specs/T-104-meal-planner-calendar.md').closest('code')?.tagName).toBe('CODE');
     expect(p.queryByTestId('run-end')).toBeNull();
   });
 

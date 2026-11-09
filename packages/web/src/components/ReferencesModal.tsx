@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { api, ConflictError, type ReferenceDoc } from '../api/client';
 import { ESC, useEscape } from '../lib/escape';
 import { OFFLINE_TOAST } from '../state/actions';
+import { FileLink } from '../state/fileLinks';
 import type { PushToast } from '../state/toasts';
 import { ConflictDialog } from './ConflictDialog';
 import { Dialog } from './Dialog';
@@ -415,7 +416,7 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
           {active ? (
             <>
               <div className={s.rfPath} data-testid="ref-path">
-                {active.path}
+                <FileLink path={active.path} />
               </div>
               {active.missing ? (
                 <p className={s.rfMissing}>File not found</p>
@@ -433,7 +434,9 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
       <div className={s.rfFoot}>
         {editing ? (
           <>
-            <span className={s.rfEditing}>Editing {active.path}</span>
+            <span className={s.rfEditing}>
+              Editing <FileLink path={active.path} />
+            </span>
             <span className={s.grow} />
             <button type="button" className={s.rfCancel} onClick={() => setEdit(null)}>
               Cancel

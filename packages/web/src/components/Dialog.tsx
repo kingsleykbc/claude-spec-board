@@ -2,6 +2,7 @@ import { useRef, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { ESC, useEscape } from '../lib/escape';
 import { useFocusTrap } from '../lib/focusTrap';
+import { FileLink } from '../state/fileLinks';
 import s from './Modal.module.css';
 
 export interface DialogAction {
@@ -43,7 +44,7 @@ export function Dialog({ title, body, path, actions, onDismiss }: DialogProps) {
       <div ref={box} role="alertdialog" aria-modal="true" aria-label={title} tabIndex={-1} className={s.dialog} onKeyDown={onKeyDown}>
         <span className={s.dTitle}>{title}</span>
         <span className={s.dBody}>{body}</span>
-        {path !== undefined && <span className={s.dPath}>{path}</span>}
+        {path !== undefined && <FileLink path={path} className={s.dPath} />}
         <div className={s.dActions}>
           {actions.map((a) => (
             <button key={a.label} type="button" className={s.dBtn} data-kind={a.kind} onClick={a.onClick}>

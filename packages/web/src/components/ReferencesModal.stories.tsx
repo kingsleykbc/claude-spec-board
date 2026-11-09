@@ -67,7 +67,7 @@ export const EditMode: Story = {
     const c = within(canvasElement);
     await c.findByText('How Claude works in this repo.');
     await userEvent.click(c.getByRole('button', { name: '✎ Edit' }));
-    expect(c.getByText('Editing CLAUDE.md')).toBeTruthy();
+    expect(c.getByText((_, el) => el?.textContent === 'Editing CLAUDE.md')).toBeTruthy();
     const ta = c.getByRole('textbox', { name: 'Document markdown' });
     await userEvent.type(ta, '\n- Never skip **review**');
     expect(c.getByText('review').tagName).toBe('STRONG');
@@ -109,7 +109,7 @@ export const Create: Story = {
     await userEvent.type(c.getByRole('textbox', { name: 'Document name' }), 'deploy');
     expect(c.getByText('Saved as docs/DEPLOY.md')).toBeTruthy();
     await userEvent.click(c.getByRole('button', { name: 'Create' }));
-    await c.findByText('Editing docs/DEPLOY.md');
+    await c.findByText((_, el) => el?.textContent === 'Editing docs/DEPLOY.md');
   },
 };
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { docsPath } from '../../lib/docsPages';
 import s from './detail.module.css';
 
 export type RunState = 'ready' | 'running' | 'disabled' | 'fallback';
@@ -17,10 +18,16 @@ export interface RunButtonProps {
 }
 
 export const COPIED_MS = 2600;
-/** How long "Copy failed: run …" stays, so the command can be selected by hand. */
+/** How long "Copy failed: paste …" stays, so the command can be selected by hand. */
 export const COPY_FAILED_MS = 6000;
 
-/** The header's Run control in its four states (prototype lines 128-131, 679-683). */
+export const CHAT_TITLE = 'Copies the command to paste into a Claude chat open in this project. You see all the work in that chat, and this card follows along. It uses your normal Claude settings and approvals.';
+export const BACKGROUND_TITLE = 'Starts a separate Claude with its output on this card. It can’t ask you anything, ignores the project’s and your Claude settings, and can only do what you approved. Best for a repo you don’t fully trust.';
+
+/**
+ * The header's Run controls in their four states (prototype lines 128-131, 679-683). The chat command is the main action
+ * because the board can't type into a chat; the background run is the second choice. docs/guide/running-specs.md says why.
+ */
 export function RunButton({ id, state, runningId, hold, blockedNote, onRun, onStop }: RunButtonProps) {
   const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -33,7 +40,7 @@ export function RunButton({ id, state, runningId, hold, blockedNote, onRun, onSt
     };
   }, []);
 
-  const command = `claude "/run-spec ${id}"`;
+  const command = `/run-spec ${id}`;
   const show = (next: 'copied' | 'failed') => {
     if (!alive.current) return;
     setCopy(next);
@@ -71,47 +78,55 @@ export function RunButton({ id, state, runningId, hold, blockedNote, onRun, onSt
       </button>
     );
   }
-  if (state === 'disabled') {
-    const text = `Claude is already working on ${runningId ?? 'the overview'}`;
+
+  const help = (
+    <a className={s.runHelp} href={docsPath('running-specs')} target="_blank" rel="noopener" aria-label="Chat or background: which to use" title="Chat or background: which to use">
+      ?
+    </a>
+  );
+  const copied = copy === 'copied';
+  const failedNote = copy === 'failed' && (
+    <span className={s.copyFailed} data-testid="copy-failed">
+      Copy failed: paste <span style={{ userSelect: 'all', fontFamily: 'var(--mono)' }}>{command}</span> into your Claude chat
+    </span>
+  );
+  const copyLabel = copied ? '✓ Copied: paste it into your Claude chat' : '⧉ Copy chat command';
+
+  // Another run is going, or the spec can't start: neither way should begin.
+  const off = state === 'disabled' ? `Claude is already working on ${runningId ?? 'the overview'}` : state === 'ready' ? hold : null;
+  if (off) {
     return (
       <>
-        <span className={s.runNote}>{text}</span>
-        <button type="button" className={s.runOff} disabled title={text}>
-          <span className={s.play}>▶</span>Tell Claude to start
+        <span className={s.runNote} title={off}>{off}</span>
+        <button type="button" className={s.runOff} disabled title={off}>
+          ⧉ Copy chat command
         </button>
       </>
     );
   }
+
   if (state === 'fallback') {
-    const copied = copy === 'copied';
     return (
       <>
-        {copy === 'failed' ? (
-          <span className={s.copyFailed} data-testid="copy-failed">
-            Copy failed: run <span style={{ userSelect: 'all', fontFamily: 'var(--mono)' }}>{command}</span>
-          </span>
-        ) : (
-          blockedNote ? <span className={s.runNoteLong}>{blockedNote}</span> : <span className={s.runNote}>Claude Code not found</span>
-        )}
-        <button type="button" className={s.copy} data-copied={copied} onClick={doCopy}>
-          {copied ? '✓ Copied: paste it into Claude Code' : '⧉ Copy command'}
+        {failedNote || (blockedNote ? <span className={s.runNoteLong}>{blockedNote}</span> : <span className={s.runNote}>Claude Code not found</span>)}
+        {help}
+        <button type="button" className={s.copy} data-copied={copied} title={CHAT_TITLE} onClick={doCopy}>
+          {copyLabel}
         </button>
       </>
     );
   }
-  if (hold) {
-    return (
-      <>
-        <span className={s.runNote} title={hold}>{hold}</span>
-        <button type="button" className={s.runOff} disabled title={hold}>
-          <span className={s.play}>▶</span>Tell Claude to start
-        </button>
-      </>
-    );
-  }
+
   return (
-    <button type="button" className={s.run} onClick={onRun}>
-      <span className={s.play}>▶</span>Tell Claude to start
-    </button>
+    <>
+      {failedNote}
+      {help}
+      <button type="button" className={s.copy} title={BACKGROUND_TITLE} onClick={onRun}>
+        <span className={s.play}>▶</span>Run in background
+      </button>
+      <button type="button" className={s.run} data-copied={copied} title={CHAT_TITLE} onClick={doCopy}>
+        {copyLabel}
+      </button>
+    </>
   );
 }

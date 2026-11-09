@@ -8,6 +8,7 @@ import { interceptPop } from './lib/popGuard';
 import { runHold } from './lib/vm';
 import { categoryOptions, NO_FILTERS, waitItems, type Filters, type WaitItem } from './state/filters';
 import { createMutator } from './state/mutate';
+import { FileLinks } from './state/fileLinks';
 import { useToasts, type PushToast } from './state/toasts';
 import { useProject } from './state/useProject';
 import { cardRun, isRefreshing, runButtonState, useRunActions, useRunToasts } from './state/runUi';
@@ -163,7 +164,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
   const [seenQuestions, setSeenQuestions] = useState<ReadonlySet<string>>(() => new Set());
   const unseenQuestions = useMemo(() => new Set([...newQuestions].filter((k) => !seenQuestions.has(k))), [newQuestions, seenQuestions]);
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
-  const [menu, setMenu] = useState<'switcher' | Exclude<FilterMenu, null> | null>(null);
+  const [menu, setMenu] = useState<'brand' | 'switcher' | Exclude<FilterMenu, null> | null>(null);
   /** Optimistic status while a move is in flight, so the card does not snap back before the refresh. */
   const [pending, setPending] = useState<Record<string, Status>>({});
   const wantReconnectToast = useRef(false);
@@ -253,6 +254,8 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
             toast('info', 'Run spec-board in a project folder', 'It will appear in this list.');
           },
         }}
+        brandOpen={menu === 'brand'}
+        onToggleBrand={() => setMenu((m) => (m === 'brand' ? null : 'brand'))}
         conn={conn}
         theme={theme}
         onToggleTheme={onToggleTheme}
@@ -267,7 +270,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
         }}
       />
       {project ? (
-        <>
+        <FileLinks pid={pid} root={project.root} toast={toast}>
           <FilterBar
             filters={filters}
             onChange={setFilters}
@@ -364,7 +367,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
               onClose={closeModal}
             />
           )}
-        </>
+        </FileLinks>
       ) : (
         <div style={muted}>{error ? error.message : 'Loading…'}</div>
       )}

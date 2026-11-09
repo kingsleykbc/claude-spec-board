@@ -352,6 +352,8 @@ export const recipeSpecs: Spec[] = [
     "questions": [
       {
         "id": "Q1",
+        "required": true,
+        "recommendation": null,
         "type": "yesno",
         "text": "Should the export include quantities?",
         "options": [],
@@ -360,6 +362,8 @@ export const recipeSpecs: Spec[] = [
       },
       {
         "id": "Q2",
+        "required": true,
+        "recommendation": null,
         "type": "number",
         "text": "How many weeks ahead should the list cover?",
         "options": [],
@@ -368,6 +372,8 @@ export const recipeSpecs: Spec[] = [
       },
       {
         "id": "Q3",
+        "required": true,
+        "recommendation": null,
         "type": "choice",
         "text": "Preferred export format?",
         "options": [
@@ -455,6 +461,8 @@ export const recipeSpecs: Spec[] = [
     "questions": [
       {
         "id": "Q1",
+        "required": true,
+        "recommendation": null,
         "type": "text",
         "text": "Which OAuth providers should come later?",
         "options": [],

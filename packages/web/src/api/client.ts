@@ -160,6 +160,9 @@ export const api = {
   specDraftCopy: (pid: string, id: string, md: string) => request<{ path: string }>('POST', `${spec(pid, id)}/draft-copy`, { md }),
   createSpec: (pid: string, body: { title: string; description: string; draft: boolean }) =>
     request<{ spec: Spec }>('POST', `${proj(pid)}/specs`, body),
+  /** `opened: false` gives the full path to copy instead. */
+  openFile: (pid: string, path: string) =>
+    request<{ opened: boolean; path: string; reason?: 'missing' | 'no-editor' }>('POST', `${proj(pid)}/open-file`, { path }),
   archive: (pid: string, id: string) => request<void>('POST', `${spec(pid, id)}/archive`),
   unarchive: (pid: string, id: string) => request<void>('POST', `${spec(pid, id)}/unarchive`),
 

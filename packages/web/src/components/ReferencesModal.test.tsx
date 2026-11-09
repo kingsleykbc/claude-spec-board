@@ -54,7 +54,7 @@ describe('ReferencesModal', () => {
     await screen.findByText('House rules.');
     expect(tabs()).toEqual(['CLAUDE.md', 'CONTEXT.md', 'GONE.md']);
     expect(screen.getByRole('tab', { name: 'CLAUDE.md' }).getAttribute('aria-selected')).toBe('true');
-    expect(screen.getByText('CLAUDE.md', { selector: '[data-testid="ref-path"]' })).toBeTruthy();
+    expect(screen.getByTestId('ref-path').textContent).toBe('CLAUDE.md');
   });
 
   it('a missing file shows its tab with "File not found"', async () => {
@@ -69,7 +69,7 @@ describe('ReferencesModal', () => {
     const { client, toast } = setup();
     await screen.findByText('House rules.');
     fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
-    expect(screen.getByText('Editing CLAUDE.md')).toBeTruthy();
+    expect(screen.getByText((_, el) => el?.textContent === 'Editing CLAUDE.md')).toBeTruthy();
     fireEvent.change(screen.getByRole('textbox', { name: 'Document markdown' }), { target: { value: '# Claude\n\nNew **rules**.' } });
     expect(screen.getByText('rules').tagName).toBe('STRONG');
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -148,7 +148,7 @@ describe('ReferencesModal', () => {
     fireEvent.change(input, { target: { value: 'deploy' } });
     expect(screen.getByText('Saved as docs/DEPLOY.md')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
-    await screen.findByText('Editing docs/DEPLOY.md');
+    await screen.findByText((_, el) => el?.textContent === 'Editing docs/DEPLOY.md');
     expect(client.createReference).toHaveBeenCalledWith('p1', 'deploy');
     expect(screen.getByRole('tab', { name: 'DEPLOY.md' }).getAttribute('aria-selected')).toBe('true');
     expect((screen.getByRole('textbox', { name: 'Document markdown' }) as HTMLTextAreaElement).value).toBe('# DEPLOY\n\n');
@@ -235,7 +235,7 @@ describe('ReferencesModal', () => {
       btn.click();
       btn.click();
     });
-    await screen.findByText('Editing docs/DEPLOY.md');
+    await screen.findByText((_, el) => el?.textContent === 'Editing docs/DEPLOY.md');
     expect(client.createReference).toHaveBeenCalledTimes(1);
   });
 

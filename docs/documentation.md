@@ -19,6 +19,8 @@ npm run board -- <project path>
 
 `init` shows the actions runs may use and asks you to approve them. The project should be a git repo, as runs commit per subtask. `board` opens the board in your browser.
 
+This file is the design document. For how to use Spec Board, read the [README](../README.md) and the [guide](guide/getting-started.md), which the board also shows under the logo menu.
+
 ---
 
 ## 1. Intent: why this exists
@@ -118,7 +120,7 @@ Every screen has a top bar with **SPEC-BOARD**, a **Project Name ▾** dropdown,
 
 ### 5.2 Spec card detail (modal)
 From top to bottom:
-- **Header:** the ID, the title, a **▷ Run** button ("Tell your agent to start"), and a **status dropdown** in the top-right corner. (I'm reading the sketch's "TODO ▾" as that dropdown.) Urgency and categories can be edited here. `/create-spec` sets both, and the user can change them.
+- **Header:** the ID, the file path (click it to open the file in VS Code, or to copy the full path without it), the title, the **Copy chat command** and **Run in background** buttons (section 9), and a **status dropdown** in the top-right corner. (I'm reading the sketch's "TODO ▾" as that dropdown.) Urgency and categories can be edited here. `/create-spec` sets both, and the user can change them.
 - **Spec** section: the description and the **Features** list, rendered nicely. An **Edit** button switches to a Markdown editor for that section. Saving writes it back to the file.
 - **Open questions:** each question renders as the right input: yes/no checkboxes, a text box, a number box (and a single-choice list, **my call**). A **Save changes** button writes the answers into the file.
 - **Dependencies and dependents:** the specs this one depends on and the specs that depend on it, each linked and showing its status. Kingsley asked for this, but it isn't in the sketch, so placement is up to the builder.
@@ -193,8 +195,9 @@ Customers pick a barber, a service and a time slot...
 ```
 
 Rules:
+- **Required and optional questions:** a question is required unless marked `(optional yesno)`. An unanswered required question blocks the spec. An unanswered optional one doesn't: Claude goes with its recommendation and says so in the log. A trailing `(recommended: Yes)` is shown in brackets on the board. Decided by Kingsley on 2026-11-09.
 - **Status** lives in front matter. Moving a card changes only that field.
-- **Blocked** isn't a status. It's worked out from unanswered questions and unfinished dependencies.
+- **Blocked** isn't a status. It's worked out from unanswered required questions and unfinished dependencies.
 - **Dependents** aren't stored. The app works them out from other specs' `depends_on`.
 - **Subtask logs** are one file per subtask, numbered to match. Claude adds to them while it works: what it changed, which files, and any notes.
 - IDs come from a counter. The app and `/create-spec` both pick the next free `T-NNN`.
@@ -235,7 +238,7 @@ A **skill** ships with the commands. It teaches Claude the file format and the r
 Board runs don't load `CLAUDE.md` by themselves, so every command tells Claude to read it.
 
 ### How a question round-trips
-1. While running, Claude needs a decision. It adds an open question to `spec.md` and stops. The card shows **Blocked**.
+1. While running, Claude needs a decision. It adds a required open question to `spec.md` and stops. The card shows **Blocked**.
 2. Kingsley answers on the board and saves. The answer is written into the file.
 3. Kingsley presses **Run** again (or runs `/run-spec`). Claude reads the answers and carries on.
 
@@ -243,7 +246,8 @@ A refused action is not a question. Claude stops and says what was refused, and 
 
 ## 9. Run button
 
-- Pressing **▷ Run** on a spec makes the server start Claude Code in headless mode in the project folder. The output streams live onto the card. The command is built only from fixed strings and a checked spec ID:
+- **Two ways to run (Kingsley's decision, 2026-11-09):** the card's main button is **Copy chat command**, which copies `/run-spec T-001` to paste into a Claude chat, so all the work shows there and the board follows the files. The board can't type into an open chat. **Run in background** is the second button and is what the rest of this section describes. It stays because it's isolated from a repo's settings. `docs/guide/running-specs.md` compares them for users. The other Claude buttons (write up a draft, refresh the overview, fix a file) still run in the background.
+- Pressing **Run in background** on a spec makes the server start Claude Code in headless mode in the project folder. The output streams live onto the card. The command is built only from fixed strings and a checked spec ID:
 
   ```
   claude -p "/specboard:run-spec T-001" --output-format stream-json --verbose
@@ -267,7 +271,7 @@ A refused action is not a question. Claude stops and says what was refused, and 
   - **A replaced folder at the same path keeps its approval.** If you delete a repo and clone another to the same path, it inherits the approved list, though it can't change that list. A link pointed somewhere else reads as "not approved". This is the same model as Claude Code's own trust dialog.
   - Not tested: a folder you have already trusted in Claude Code (`--setting-sources ""` is what is meant to rule that case out), and hooks in your own user settings (the machine tested has none). Also not verified: whether `--setting-sources ""` drops a `model` set in your user settings, so a run may use the default model instead.
   - Claude Code keeps its normal session records for a run under `~/.claude/`. Spec Board writes nothing there.
-- If the `claude` CLI isn't found, Run falls back to **copying the command** so Kingsley can paste it into Claude Code.
+- If the `claude` CLI isn't found, only **Copy chat command** is offered.
 - **Run uses the Claude Code CLI** (`claude -p`) with the user's existing login and subscription. It doesn't use the Agent SDK with an API key, so there's no key setup and no per-token bill. **(my call)**
 - **Git during a run (my call):** the run works on the current branch and makes **one commit per subtask**, with a message like `T-001 · 2. Second task`. It creates no branches or worktrees in v1. Each subtask log lists that commit and the files it changed, so for **Review → Done**, Kingsley reads the logs and changed files on the card (and the diff in git if wanted). `/refresh-logs` uses these commits.
 - **What `git status` shows after a run:** the code is committed, but the spec and its logs are not. A log records its own commit's hash, so it can't be part of that commit. Expect ` M .specboard/specs/T-001-.../spec.md` and `?? .specboard/specs/T-001-.../logs/`, and commit them yourself when you're happy. `specboard allow` also leaves `.claude/settings.json` modified.

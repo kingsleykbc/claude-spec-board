@@ -19,7 +19,7 @@ Input: $ARGUMENTS
 4. Write the spec:
    - `## Spec`: what it is and why, in plain words.
    - `## Features`: a bullet list of what the user will be able to do.
-   - `## Open questions`: every decision you would otherwise have to guess, as questions with the right type, each followed by `  > answer:`. Ask rather than assume. An empty section is fine only if nothing is unclear.
+   - `## Open questions`: every decision you would otherwise have to guess, as questions with the right type, each followed by `  > answer:`. Ask rather than assume. Mark each one required or optional and add a recommendation, as the `specboard` skill describes. An empty section is fine only if nothing is unclear.
    - `## Subtasks`: small steps in the order they should be built, numbered from 1, each doable and testable on its own. All unticked.
 5. Set the front matter: `status: todo`, `urgency` (low, normal, high or urgent, judged from the idea), `categories`, `depends_on` (IDs of specs that must finish first), `draft: false`, `current_subtask: null`, `created` and `updated` to today (keep `created` if it already exists).
-6. Do not start the work and do not change code. Finish by telling the user the ID, how many questions need answers on the board, and how many subtasks there are.
+6. Do not start the work and do not change code. Finish by telling the user the ID, how many required questions need answers on the board, how many optional ones there are, and how many subtasks there are.

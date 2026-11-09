@@ -1,5 +1,6 @@
 import type { SubtaskLog as Log } from '@specboard/core';
 import { fmtLogTime } from '../../lib/vm';
+import { FileLink } from '../../state/fileLinks';
 import s from './sections.module.css';
 
 // The inline log under a subtask row (prototype lines 248-258; pinned behaviour 10). Read only.
@@ -23,9 +24,7 @@ export function SubtaskLog({ log }: { log: Log }) {
           <div className={s.logGroup}>
             <span className={s.logLabel}>FILES CHANGED</span>
             {files.map((f) => (
-              <span key={f} className={s.file}>
-                {f}
-              </span>
+              <FileLink key={f} path={f} className={s.file} />
             ))}
           </div>
         )}

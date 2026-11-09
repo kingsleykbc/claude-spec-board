@@ -26,14 +26,30 @@ const components: Components = {
 };
 
 /** Renders Markdown in the board's typography (prototype Markdown.dc.html), with GitHub-flavoured extras. */
-export function Markdown({ md, size = 'md' }: { md: string; size?: 'sm' | 'md' }) {
+export function Markdown({ md, size = 'md', mapLink }: { md: string; size?: 'sm' | 'md'; mapLink?: (href: string) => string | null }) {
   const empty = md.trim() === '';
+  const parts: Components = !mapLink
+    ? components
+    : {
+        ...components,
+        a: ({ node: _n, href, children }) => {
+          // A mapped link stays in this tab; anything else opens a new one, as usual.
+          const mapped = href ? mapLink(href) : null;
+          return mapped !== null ? (
+            <a href={mapped}>{children}</a>
+          ) : (
+            <a href={href} {...BLANK}>
+              {children}
+            </a>
+          );
+        },
+      };
   return (
     <div className={s.root} data-size={size}>
       {empty ? (
         <p className={s.empty}>Nothing here yet.</p>
       ) : (
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={parts}>
           {md}
         </ReactMarkdown>
       )}

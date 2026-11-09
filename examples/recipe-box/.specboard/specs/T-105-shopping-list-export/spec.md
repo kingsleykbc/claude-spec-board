@@ -26,9 +26,9 @@ Combine the ingredients from every meal in the planned week into one shopping li
 
 ## Open questions
 
-- [ ] Q1 (yesno): Should the export include quantities?
+- [ ] Q1 (yesno): Should the export include quantities? (recommended: Yes)
   > answer:
-- [ ] Q2 (number): How many weeks ahead should the list cover?
+- [ ] Q2 (optional number): How many weeks ahead should the list cover? (recommended: 1)
   > answer:
 - [ ] Q3 (choice: PDF | CSV | Plain text): Preferred export format?
   > answer:

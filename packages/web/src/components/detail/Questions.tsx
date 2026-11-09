@@ -74,7 +74,9 @@ export function Questions({
   const dirtyCb = useRef(onDirtyChange);
   dirtyCb.current = onDirtyChange;
   useEffect(() => dirtyCb.current?.(dirty), [dirty]);
-  const open = spec.questions.filter((q) => q.answer === null || q.answer === '').length;
+  const unanswered = spec.questions.filter((q) => q.answer === null || q.answer === '');
+  const open = unanswered.filter((q) => q.required).length;
+  const optional = unanswered.length - open;
   const newKey = (q: Question) => `${id}:${q.id}`;
   const isNew = (q: Question) => newQuestions.has(newKey(q)) && !seen.has(newKey(q));
 
@@ -121,7 +123,8 @@ export function Questions({
     }, SAVED_MS);
   };
 
-  const hint = sv === 'saved' ? 'Claude will pick these up on its next run' : dirty ? 'Unsaved answers' : '';
+  const idleHint = optional > 0 ? 'Claude goes with its recommendation on optional questions you leave blank' : '';
+  const hint = sv === 'saved' ? 'Claude will pick these up on its next run' : dirty ? 'Unsaved answers' : idleHint;
   const label = sv === 'saving' ? 'Saving…' : sv === 'saved' ? '✓ Saved' : 'Save changes';
   const btn = {
     background: sv === 'saved' ? 'var(--done-soft)' : (dirty && sv === 'idle') || sv === 'saving' ? 'var(--accent)' : 'var(--panel)',
@@ -141,6 +144,7 @@ export function Questions({
       <div className={s.head}>
         <span className={s.label}>OPEN QUESTIONS</span>
         {open > 0 && <span className={s.waiting}>{`${open} waiting on you`}</span>}
+        {optional > 0 && <span className={s.optionalCount}>{`${optional} optional`}</span>}
       </div>
       {spec.questions.length === 0 ? (
         <div className={s.empty}>No open questions. Claude has what it needs.</div>
@@ -153,21 +157,27 @@ export function Questions({
               const answered = q.answer !== null && q.answer !== '';
               const inputId = `${id}-${q.id}`;
               const labelId = `${inputId}-label`;
-              const stateText = changed ? '● Unsaved' : answered ? '✓ Answered' : 'Needs answer';
-              const stateInk = changed ? 'var(--accent-ink)' : answered ? 'var(--done-ink)' : 'var(--review-ink)';
+              const waiting = !answered && q.required;
+              const stateText = changed ? '● Unsaved' : answered ? '✓ Answered' : waiting ? 'Needs answer' : 'Can skip';
+              const stateInk = changed ? 'var(--accent-ink)' : answered ? 'var(--done-ink)' : waiting ? 'var(--review-ink)' : 'var(--fg3)';
               const opts = q.type === 'yesno' ? ['Yes', 'No'] : q.type === 'choice' ? q.options : [];
               return (
                 <div
                   key={q.id}
                   data-question={q.id}
                   className={s.qRow}
-                  style={{ background: answered && !changed ? 'transparent' : 'var(--review-soft)' }}
+                  data-required={q.required}
+                  style={{ background: (answered || !q.required) && !changed ? 'transparent' : 'var(--review-soft)' }}
                 >
                   <span className={s.qNum}>{`${i + 1}.`}</span>
                   <div className={s.qBody}>
                     {/* For radios the label names the group; a `for` would pick the first option on click. */}
                     <label {...(opts.length === 0 ? { htmlFor: inputId } : {})} className={s.qLabel}>
                       <span id={labelId}>{q.text}</span>
+                      {q.recommendation !== null && <span className={s.qRec}>{` (recommended: ${q.recommendation})`}</span>}
+                      <span className={s.qTag} data-required={q.required}>
+                        {q.required ? 'Required' : 'Optional'}
+                      </span>
                       {isNew(q) && <span className={s.new}>New</span>}
                     </label>
                     {(q.type === 'yesno' || q.type === 'choice') && (

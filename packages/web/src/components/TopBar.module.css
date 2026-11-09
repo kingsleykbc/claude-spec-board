@@ -1,6 +1,10 @@
 /* Top bar and project switcher: docs/design/Spec Board.dc.html lines 32-52. */
 .bar { position: sticky; top: 0; z-index: 30; height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 20px; background: var(--bg); border-bottom: 1px solid var(--line); }
-.brand { display: flex; align-items: center; gap: 9px; padding-right: 4px; }
+.brand { display: flex; align-items: center; gap: 9px; height: 32px; padding: 0 8px 0 4px; border: 0; border-radius: 8px; background: transparent; color: inherit; font-family: inherit; cursor: pointer; }
+.brand:hover { background: var(--panel); }
+.brandMenu { position: absolute; top: 38px; left: 0; z-index: 31; width: 180px; padding: 6px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
+.brandItem { padding: 8px 10px; border-radius: 7px; color: var(--fg); font-size: 13px; text-decoration: none; }
+.brandItem:hover { background: var(--panel); }
 .logo { width: 20px; height: 20px; border-radius: 6px; background: var(--fg); display: flex; align-items: flex-end; justify-content: center; gap: 2px; padding: 4px; }
 .logo span { width: 3px; border-radius: 1px; }
 .word { font-size: 12.5px; font-weight: 700; letter-spacing: 0.14em; }

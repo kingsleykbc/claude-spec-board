@@ -16,6 +16,6 @@ Optional hint from the user: $ARGUMENTS
 2. Rewrite `.specboard/overview.md` with the Write tool. Front matter: `updated: <today>`. Body: a short progress summary in plain words:
    - what the project is, in a sentence or two;
    - where things stand: how many specs are To-do, Doing, Review and Done, and what each Doing and Review spec is about;
-   - what is blocked and why (unanswered questions, unfinished dependencies);
+   - what is blocked and why (unanswered required questions, unfinished dependencies);
    - what comes next.
 3. Base it only on the files. Do not change any spec. Finish by saying the overview was refreshed.

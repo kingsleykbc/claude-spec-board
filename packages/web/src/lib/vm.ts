@@ -145,7 +145,7 @@ export interface BlockText {
 /** The reasons a spec is blocked, as its banner words them (pinned behaviour 8). `all` includes archived specs. */
 export function blockTexts(spec: Spec, all: Spec[]): BlockText[] {
   const reasons: BlockText[] = [];
-  const open = spec.questions.filter((q) => q.answer === null || q.answer === '');
+  const open = spec.questions.filter((q) => q.required && (q.answer === null || q.answer === ''));
   if (open.length > 0) {
     reasons.push({ key: 'q', text: `Awaiting answers on: ${open.map((q) => truncate(q.text, 40)).join(', ')}`, section: 'questions' });
   }

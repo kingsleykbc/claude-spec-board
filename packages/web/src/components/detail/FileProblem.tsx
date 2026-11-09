@@ -1,3 +1,4 @@
+import { FileLink } from '../../state/fileLinks';
 import s from './detail.module.css';
 
 export interface FileProblemProps {
@@ -16,7 +17,7 @@ export function FileProblem({ message, path, onFix }: FileProblemProps) {
       <div className={s.problemText}>
         <span className={s.problemTitle}>This spec file has a formatting problem</span>
         <span className={s.problemMsg}>{message}</span>
-        <span className={s.problemPath}>{path}</span>
+        <FileLink path={path} className={s.problemPath} />
       </div>
       <button type="button" className={s.fix} onClick={onFix}>
         Ask Claude to fix

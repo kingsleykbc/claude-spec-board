@@ -259,7 +259,7 @@ export function classifyEnd(input: ClassifyInput): EndInfo {
   }
 
   const afterInReview = after?.status === 'review';
-  const unanswered = (s: SpecDoc | null) => (s?.questions ?? []).filter((q) => q.answer === null);
+  const unanswered = (s: SpecDoc | null) => (s?.questions ?? []).filter((q) => q.required && q.answer === null);
   const wasOpen = new Set(unanswered(before).map((q) => q.id));
   const open = unanswered(after);
   const needs = () => withRefusals({

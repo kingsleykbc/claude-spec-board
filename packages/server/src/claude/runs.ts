@@ -174,7 +174,7 @@ function finalLine(kind: RunKind, end: EndInfo, before: Spec | null, after: Spec
       return { k: 'stop', text: 'Stopped by you' };
     case 'needs': {
       const known = new Set(before?.questions.map((q) => q.id));
-      const added = after?.questions.some((q) => q.answer === null && !known.has(q.id));
+      const added = after?.questions.some((q) => q.required && q.answer === null && !known.has(q.id));
       return { k: 'warn', text: added ? 'Paused: Claude added an open question' : 'Paused: an open question needs your answer' };
     }
     case 'permission':

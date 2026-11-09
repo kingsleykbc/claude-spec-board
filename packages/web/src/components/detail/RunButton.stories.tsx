@@ -19,7 +19,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Ready: Story = {
   play: async ({ canvasElement, args }) => {
-    await userEvent.click(within(canvasElement).getByRole('button', { name: /Tell Claude to start/ }));
+    await userEvent.click(within(canvasElement).getByRole('button', { name: /Run in background/ }));
     expect(args.onRun).toHaveBeenCalled();
   },
 };
@@ -51,8 +51,8 @@ export const Fallback: Story = {
     stubClipboard(async () => undefined);
     const c = within(canvasElement);
     expect(c.getByText('Claude Code not found')).toBeTruthy();
-    await userEvent.click(c.getByRole('button', { name: '⧉ Copy command' }));
-    expect(await c.findByRole('button', { name: '✓ Copied: paste it into Claude Code' })).toBeTruthy();
+    await userEvent.click(c.getByRole('button', { name: '⧉ Copy chat command' }));
+    expect(await c.findByRole('button', { name: '✓ Copied: paste it into your Claude chat' })).toBeTruthy();
   },
 };
 
@@ -69,9 +69,9 @@ export const CopyFailed: Story = {
   play: async ({ canvasElement }) => {
     stubClipboard(() => Promise.reject(new Error('denied')));
     const c = within(canvasElement);
-    await userEvent.click(c.getByRole('button', { name: '⧉ Copy command' }));
+    await userEvent.click(c.getByRole('button', { name: '⧉ Copy chat command' }));
     const note = await c.findByTestId('copy-failed');
-    expect(note.textContent).toBe('Copy failed: run claude "/run-spec T-104"');
+    expect(note.textContent).toBe('Copy failed: paste /run-spec T-104 into your Claude chat');
   },
 };
 

@@ -11,6 +11,7 @@ import { guard } from './security.js';
 import { specRoutes } from './routes/specs.js';
 import { referenceRoutes } from './routes/references.js';
 import { runRoutes } from './routes/runs.js';
+import { fileRoutes, type FileOpener } from './routes/files.js';
 import { claudeStatus, type ClaudeStatus } from './claude/status.js';
 import type { RunManager } from './claude/runs.js';
 import type { ApprovedPermissions } from './setup.js';
@@ -23,6 +24,8 @@ export interface AppDeps {
   approved: ApprovedPermissions;
   /** Claude Code install and login check; defaults to the cached real one. */
   status?: () => Promise<ClaudeStatus>;
+  /** What a click on a file path does; defaults to VS Code. */
+  openFile?: FileOpener;
 }
 
 const TYPES: Record<string, string> = {
@@ -85,6 +88,7 @@ export function createApp(deps: AppDeps): Hono {
 
   app.route('/', specRoutes(deps.registry));
   app.route('/', referenceRoutes(deps.registry));
+  app.route('/', fileRoutes(deps.registry, deps.openFile));
   app.route('/', runRoutes({ registry: deps.registry, runs: deps.runs, approved: deps.approved, status: deps.status ?? claudeStatus }));
 
   if (deps.webDist !== null) {

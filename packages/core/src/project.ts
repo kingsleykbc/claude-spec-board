@@ -66,7 +66,7 @@ export function deriveState(active: SpecDoc[], archived: SpecDoc[]): Map<string,
 
   for (const s of [...archived, ...active]) {
     const state = result.get(s.id)!;
-    const open = s.questions.filter((q) => q.answer === null).length;
+    const open = s.questions.filter((q) => q.required && q.answer === null).length;
     if (open > 0) state.blockedReasons.push(open === 1 ? '1 open question' : `${open} open questions`);
     for (const dep of s.dependsOn) {
       if (dep === s.id) {

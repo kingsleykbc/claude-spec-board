@@ -4,6 +4,10 @@ import type { Question, QuestionType, SpecDoc, Subtask } from './types.js';
 
 const QUESTION = /^- \[([ xX])\][ \t]+(Q\d+)[ \t]*\(([^)]*)\)[ \t]*:[ \t]*(.*?)[ \t]*$/;
 const ANSWER = /^[ \t]+>[ \t]*answer[ \t]*:[ \t]*(.*?)[ \t]*$/i;
+/** `(optional yesno)`, before the type so a choice's options stay last. */
+const PRIORITY = /^[ \t]*(optional|required)[ \t]+/i;
+/** `Text? (recommended: Yes)`. Needs some text before it and a value inside. */
+const RECOMMENDED = /^(.*?\S)[ \t]*\(recommended[ \t]*:[ \t]*(.*\S)[ \t]*\)$/i;
 const SUBTASK = /^- \[([ xX])\][ \t]+(\d+)\.[ \t]+(.*?)[ \t]*$/;
 // Only column-0 list items can be questions or subtasks; indented bullets are free-form detail.
 const LIST_ITEM = /^[-*+][ \t]/;
@@ -24,7 +28,10 @@ function parseQuestions(lines: string[], range: SectionRange | undefined, proble
       continue;
     }
     const id = m[2]!;
-    const spec = m[3]!;
+    const marker = PRIORITY.exec(m[3]!);
+    const required = marker?.[1]?.toLowerCase() !== 'optional';
+    const spec = marker ? m[3]!.slice(marker[0].length) : m[3]!;
+    const rec = RECOMMENDED.exec(m[4]!);
     const colon = spec.indexOf(':');
     const typeName = (colon === -1 ? spec : spec.slice(0, colon)).trim();
     let type: QuestionType;
@@ -46,7 +53,7 @@ function parseQuestions(lines: string[], range: SectionRange | undefined, proble
         i++;
       }
     }
-    questions.push({ id, type, text: m[4]!, options, answer, line: qLine });
+    questions.push({ id, type, text: rec ? rec[1]! : m[4]!, options, answer, line: qLine, required, recommendation: rec ? rec[2]! : null });
   }
   return questions;
 }

@@ -69,7 +69,7 @@ describe('Questions', () => {
     expect(within(yn).getAllByRole('radio').map((r) => r.parentElement!.textContent)).toEqual(['Yes', 'No']);
     const num = screen.getByRole('spinbutton', { name: 'How many weeks ahead should the list cover?' }) as HTMLInputElement;
     expect(num.min).toBe('1');
-    expect(row('Q2').textContent).toBe('2.How many weeks ahead should the list cover?Needs answer'); // no unit suffix
+    expect(row('Q2').textContent).toBe('2.How many weeks ahead should the list cover?RequiredNeeds answer'); // no unit suffix
     expect(within(row('Q3')).getAllByRole('radio').map((r) => r.parentElement!.textContent)).toEqual(['PDF', 'CSV', 'Plain text']);
     expect(['Q1', 'Q2', 'Q3'].map(state)).toEqual(['Needs answer', 'Needs answer', 'Needs answer']);
     expect(row('Q1').style.background).toBe('var(--review-soft)');

@@ -78,7 +78,8 @@ async function mount(first: RunSnapshot | null = null, url = '/?project=p1', ove
 }
 const named = (text: string) => screen.queryAllByText(text);
 const panel = () => screen.queryByRole('complementary', { name: 'Run output' });
-const runBtn = () => screen.getByRole('button', { name: /Tell Claude to start/ });
+const runBtn = () => screen.getByRole('button', { name: /Run in background/ });
+const chatBtn = () => screen.getByRole('button', { name: /Copy chat command/ });
 
 beforeEach(() => {
   vi.mocked(api.getRun).mockReset();
@@ -360,7 +361,7 @@ describe('the actions start the right kind', () => {
       render(<App />);
       await screen.findByText('Claude is already working on the overview');
       expect(panel()).toBeNull();
-      expect(runBtn()).toHaveProperty('disabled', true);
+      expect(chatBtn()).toHaveProperty('disabled', true);
     });
 
     it('while disconnected: the offline toast and no request', async () => {
@@ -385,7 +386,7 @@ describe('the Run button, from the run state', () => {
     await mount(null, '/?project=p1&spec=T-104');
     send({ type: 'run-started', run: run({ id: 'r2', specId: 'T-103' }) });
     expect(screen.getByText('Claude is already working on T-103')).toBeTruthy();
-    expect(runBtn()).toHaveProperty('disabled', true);
+    expect(chatBtn()).toHaveProperty('disabled', true);
   });
 
   it('Claude Code not installed: the copy fallback', async () => {
@@ -513,14 +514,15 @@ describe('the run panel in the detail', () => {
 
   it('a blocked spec or a draft says why and cannot start', async () => {
     await mount(null, '/?project=p1&spec=T-105');
-    expect((runBtn() as HTMLButtonElement).disabled).toBe(true);
+    expect((chatBtn() as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: /Run in background/ })).toBeNull();
     expect(screen.getByText(/^Blocked\. Awaiting answers on:/)).toBeTruthy();
-    fireEvent.click(runBtn());
+    fireEvent.click(chatBtn());
     await flush();
     expect(api.startRun).not.toHaveBeenCalled();
     cleanup();
     await mount(null, '/?project=p1&spec=T-107');
-    expect((runBtn() as HTMLButtonElement).disabled).toBe(true);
+    expect((chatBtn() as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText('Draft. Have Claude write this up first.')).toBeTruthy();
   });
 

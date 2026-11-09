@@ -86,7 +86,7 @@ describe('sample project', () => {
   it('blocked by questions', () => {
     const t = get('T-105');
     expect(t.blocked).toBe(true);
-    expect(t.blockedReasons).toContain('3 open questions');
+    expect(t.blockedReasons).toContain('2 open questions') // Q2 is optional;
   });
 
   it('blocked by dependency', () => {

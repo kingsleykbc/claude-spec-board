@@ -30,8 +30,9 @@ export function sortSpecs(specs: Spec[]): Spec[] {
   return [...specs].sort(compareSpecs);
 }
 
+/** The questions waiting on the person. An unanswered optional one isn't: Claude goes with its recommendation. */
 export function openQuestions(s: Spec): Question[] {
-  return s.questions.filter((q) => q.answer === null || q.answer === '');
+  return s.questions.filter((q) => q.required && (q.answer === null || q.answer === ''));
 }
 
 export interface WaitItem {

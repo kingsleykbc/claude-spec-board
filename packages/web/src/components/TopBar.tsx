@@ -1,4 +1,5 @@
 import type { Conn } from '../api/live';
+import { DOCS_PATH } from '../lib/docsPages';
 import type { Theme } from '../lib/theme';
 import { Spinner } from './ConnectionBanner';
 import { ProjectSwitcher, type ProjectSwitcherProps } from './ProjectSwitcher';
@@ -12,6 +13,9 @@ export const LIVE = {
 
 export interface TopBarProps {
   switcher: ProjectSwitcherProps;
+  /** The menu under the logo. */
+  brandOpen?: boolean;
+  onToggleBrand?: () => void;
   conn: Conn;
   theme: Theme;
   onToggleTheme: () => void;
@@ -20,17 +24,27 @@ export interface TopBarProps {
 }
 
 /** Sticky top bar (prototype lines 32-52). */
-export function TopBar({ switcher, conn, theme, onToggleTheme, onOpenRefs, onOpenOverview }: TopBarProps) {
+export function TopBar({ switcher, brandOpen = false, onToggleBrand, conn, theme, onToggleTheme, onOpenRefs, onOpenOverview }: TopBarProps) {
   const live = LIVE[conn];
   return (
     <header className={s.bar}>
-      <div className={s.brand}>
-        <div className={s.logo}>
-          <span style={{ height: 6, background: 'var(--bg)' }} />
-          <span style={{ height: 11, background: 'var(--bg)' }} />
-          <span style={{ height: 8, background: 'var(--accent)' }} />
-        </div>
-        <span className={s.word}>SPEC-BOARD</span>
+      <div className={s.sw}>
+        <button type="button" className={s.brand} aria-haspopup="true" aria-expanded={brandOpen} onClick={onToggleBrand}>
+          <span className={s.logo}>
+            <span style={{ height: 6, background: 'var(--bg)' }} />
+            <span style={{ height: 11, background: 'var(--bg)' }} />
+            <span style={{ height: 8, background: 'var(--accent)' }} />
+          </span>
+          <span className={s.word}>SPEC-BOARD</span>
+          <span className={s.caret}>▾</span>
+        </button>
+        {brandOpen && (
+          <div role="menu" className={s.brandMenu}>
+            <a role="menuitem" className={s.brandItem} href={DOCS_PATH} target="_blank" rel="noopener" onClick={onToggleBrand}>
+              Documentation
+            </a>
+          </div>
+        )}
       </div>
       <span className={s.sep} />
       <ProjectSwitcher {...switcher} />
