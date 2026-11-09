@@ -57,6 +57,15 @@ export interface LiveChannel {
   onOpen(handler: () => void): () => void;
 }
 
+/** `data` with the spec of the same id replaced (in `specs` or `archived`); `data` itself when there is none. */
+function withSpec(data: ProjectData, written: Spec): ProjectData {
+  const swap = (list: Spec[]) => (list.some((s) => s.id === written.id) ? list.map((s) => (s.id === written.id ? written : s)) : list);
+  const specs = swap(data.project.specs);
+  const archived = swap(data.project.archived);
+  if (specs === data.project.specs && archived === data.project.archived) return data;
+  return { ...data, project: { ...data.project, specs, archived } };
+}
+
 export interface UseProject {
   data: ProjectData | null;
   conn: Conn;
@@ -106,18 +115,31 @@ export function useProject(pid: string): UseProject {
    */
   const pendingLive = useRef(false);
 
+  /** Specs from `applyWrite`, numbered, kept while a load is in flight so an older answer cannot roll them back. */
+  const writes = useRef<{ n: number; spec: Spec }[]>([]);
+  const writeN = useRef(0);
+  const inFlight = useRef(0);
+
   const load = useCallback(async (forPid: string, live: boolean) => {
     const mine = ++seq.current;
     if (live) pendingLive.current = true;
+    const startedAt = writeN.current;
     let next: ProjectData;
+    let owed: Spec[] = [];
+    inFlight.current++;
     try {
       next = await api.project(forPid);
     } catch (e) {
       if (mine === seq.current && forPid === pidRef.current) setError(e as Error);
       return;
+    } finally {
+      owed = writes.current.filter((w) => w.n > startedAt).map((w) => w.spec);
+      if (--inFlight.current === 0) writes.current = [];
     }
     // Drop stale answers: a newer request was started, or the project was switched.
     if (mine !== seq.current || forPid !== pidRef.current) return;
+    // Specs written after this request began are newer than its answer: keep them (same hash, so no highlight either).
+    for (const w of owed) next = withSpec(next, w);
     const prev = dataRef.current;
     const highlight = live || pendingLive.current;
     pendingLive.current = false;
@@ -147,6 +169,7 @@ export function useProject(pid: string): UseProject {
     setConn('live');
     manual.current = false;
     pendingLive.current = false;
+    writes.current = [];
     void load(pid, false);
     return () => {
       seq.current++;
@@ -178,11 +201,9 @@ export function useProject(pid: string): UseProject {
   const applyWrite = useCallback((written: Spec) => {
     const prev = dataRef.current;
     if (!prev) return;
-    const swap = (list: Spec[]) => (list.some((s) => s.id === written.id) ? list.map((s) => (s.id === written.id ? written : s)) : list);
-    const specs = swap(prev.project.specs);
-    const archived = swap(prev.project.archived);
-    if (specs === prev.project.specs && archived === prev.project.archived) return;
-    const next = { ...prev, project: { ...prev.project, specs, archived } };
+    const next = withSpec(prev, written);
+    if (next === prev) return;
+    if (inFlight.current > 0) writes.current.push({ n: ++writeN.current, spec: written });
     dataRef.current = next;
     setData(next);
   }, []);

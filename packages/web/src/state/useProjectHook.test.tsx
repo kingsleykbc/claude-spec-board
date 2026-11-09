@@ -157,6 +157,65 @@ describe('useProject applyWrite', () => {
   });
 });
 
+describe('useProject applyWrite against loads in flight', () => {
+  it('a write that lands during an in-flight load is not rolled back by it, other specs still update, no highlight for the write', async () => {
+    const start = data([spec('T-1', 'a'), spec('T-2', 'x')]);
+    const hook = renderHook(() => useProject('p1'));
+    await act(async () => fetches[0]!.resolve(start));
+    await waitFor(() => expect(hook.result.current.data).toBe(start));
+    act(() => onChange()); // a live load, fetches[1], will answer from before the write
+    const written = spec('T-1', 'b');
+    act(() => hook.result.current.applyWrite(written));
+    await act(async () => fetches[1]!.resolve(data([spec('T-1', 'a'), spec('T-2', 'y')])));
+    const specs = hook.result.current.data!.project.specs;
+    expect(specs[0]).toBe(written);
+    expect(specs[1]!.hash).toBe('y');
+    expect([...hook.result.current.changed]).toEqual(['T-2']);
+  });
+
+  it('two writes with a refresh between them: neither is lost to the loads', async () => {
+    const start = data([spec('T-1', 'a'), spec('T-2', 'x')]);
+    const hook = renderHook(() => useProject('p1'));
+    await act(async () => fetches[0]!.resolve(start));
+    await waitFor(() => expect(hook.result.current.data).toBe(start));
+    const w1 = spec('T-1', 'b');
+    const w2 = spec('T-2', 'y');
+    let p1!: Promise<void>;
+    let p2!: Promise<void>;
+    act(() => {
+      p1 = hook.result.current.refresh(); // fetches[1], started before w1
+    });
+    act(() => hook.result.current.applyWrite(w1));
+    act(() => {
+      p2 = hook.result.current.refresh(); // fetches[2], started after w1 and before w2
+    });
+    act(() => hook.result.current.applyWrite(w2));
+    await act(async () => {
+      fetches[1]!.resolve(data([spec('T-1', 'a'), spec('T-2', 'x')])); // superseded, dropped
+      await p1;
+    });
+    expect(hook.result.current.data!.project.specs[0]).toBe(w1);
+    await act(async () => {
+      fetches[2]!.resolve(data([spec('T-1', 'b'), spec('T-2', 'x')])); // has w1, not w2
+      await p2;
+    });
+    const specs = hook.result.current.data!.project.specs;
+    expect(specs.map((x) => x.hash)).toEqual(['b', 'y']);
+    expect(specs[1]).toBe(w2);
+    expect(hook.result.current.changed.size).toBe(0);
+    // With nothing in flight the log is spent: a later load is taken as it is.
+    let p3!: Promise<void>;
+    act(() => {
+      p3 = hook.result.current.refresh();
+    });
+    await act(async () => {
+      fetches[3]!.resolve(data([spec('T-1', 'c'), spec('T-2', 'z')]));
+      await p3;
+    });
+    expect(hook.result.current.data!.project.specs.map((x) => x.hash)).toEqual(['c', 'z']);
+  });
+});
+
 describe('useProject live channel', () => {
   it('relays socket messages and opens to subscribers until they unsubscribe', async () => {
     const { result } = await loaded();

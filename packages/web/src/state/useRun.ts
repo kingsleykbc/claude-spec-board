@@ -21,9 +21,11 @@ export interface UseRun {
   /** Dismisses the held, ended run. A run that is already gone just refreshes the state; other failures reject. */
   dismiss(): Promise<void>;
   /**
-   * Hears each run event as it genuinely happens over the socket, after it changed the state: `run-started`, a new
-   * `run-line`, and the `run-ended` that ended the held run. Snapshots (fetches, a reconnect catching up, a start
-   * response) fire nothing, and neither does a duplicate or dropped event. Returns an unsubscribe function.
+   * Hears run events as they genuinely happen, after they changed the state. `run-started` fires once per run this tab
+   * first learns of live: from the socket event or the `start()` response, whichever lands first. `run-ended` fires
+   * once when a run held as running ends live: from the socket event or the `stop()` response, whichever lands first.
+   * `run-line` fires for each new line. Snapshots (fetches, a reconnect catching up, a run adopted on reload) fire
+   * nothing, and neither does a duplicate or dropped event. Returns an unsubscribe function.
    */
   onEvent(handler: (e: RunEvent) => void): () => void;
 }
@@ -177,7 +179,13 @@ export function useRun(pid: string, live: LiveChannel): UseRun {
       const mine = epoch.current;
       try {
         const { run } = await api.startRun(pidRef.current, kind, specId);
-        if (mine === epoch.current) setRun(mergeRun(ref.current.run, run));
+        if (mine === epoch.current) {
+          // The response and the `run-started` event race; whichever lands first is the one that fires.
+          const cur = ref.current.run;
+          const merged = mergeRun(cur, run);
+          setRun(merged);
+          if (merged.id === run.id && cur?.id !== run.id) fire({ type: 'run-started', run: merged });
+        }
         return { ok: true };
       } catch (e) {
         if (!(e instanceof ApiError)) {
@@ -222,7 +230,12 @@ export function useRun(pid: string, live: LiveChannel): UseRun {
       onHeldRun(async (runId) => {
         const mine = epoch.current;
         const { run } = await api.stopRun(pidRef.current, runId);
-        if (run && mine === epoch.current) setRun(mergeRun(ref.current.run, run));
+        if (!run || mine !== epoch.current) return;
+        // If this response carries the end, it is the live end of the run; the `run-ended` event then finds it ended.
+        const cur = ref.current.run;
+        const merged = mergeRun(cur, run);
+        setRun(merged);
+        if (cur && cur.id === merged.id && isRunning(cur) && !isRunning(merged)) fire({ type: 'run-ended', run: merged });
       }),
     [onHeldRun],
   );

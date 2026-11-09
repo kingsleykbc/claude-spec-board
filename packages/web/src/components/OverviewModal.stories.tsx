@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
 import { recipeProject } from '../fixtures/recipeBox';
 import { OverviewModal } from './OverviewModal';
 
@@ -38,3 +38,5 @@ export const Empty: Story = {
     expect(within(dlg).getByText('No summary yet. Ask Claude to refresh the overview.')).toBeTruthy();
   },
 };
+
+// TODO(Task 8): restore the `Refreshing` story (a refresh run in flight) once Refresh starts a real run.

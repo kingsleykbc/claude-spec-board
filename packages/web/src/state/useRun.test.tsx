@@ -237,6 +237,98 @@ describe('useRun: onEvent fires for live events only', () => {
   });
 });
 
+describe('useRun: onEvent ordering rules', () => {
+  const started = run({ id: 'r7' });
+  const ended = run({ id: 'r7', lines: lines(1, 2), status: 'stopped', end: { status: 'stopped' } });
+  const names = (seen: RunEvent[]) => seen.map((e) => e.type);
+
+  it('run-started fires once whether the socket event or the start response lands first', async () => {
+    for (const eventFirst of [true, false]) {
+      getRuns.length = 0;
+      const m = await mount(null);
+      const seen: RunEvent[] = [];
+      m.result.current.onEvent((e) => seen.push(e));
+      mocks.startRun.mockResolvedValueOnce({ run: started });
+      if (eventFirst) await m.send({ type: 'run-started', run: started });
+      await act(async () => {
+        await m.result.current.start('run', 'T-1');
+      });
+      if (!eventFirst) await m.send({ type: 'run-started', run: started });
+      expect(names(seen)).toEqual(['run-started']);
+      cleanup();
+    }
+  });
+
+  it('a run adopted from a snapshot fires no run-started, even when its event arrives after', async () => {
+    const m = await mount(started);
+    const seen: RunEvent[] = [];
+    m.result.current.onEvent((e) => seen.push(e));
+    await m.send({ type: 'run-started', run: started });
+    expect(seen).toEqual([]);
+  });
+
+  it('run-ended fires once whether the socket event or the stop response lands first', async () => {
+    for (const eventFirst of [true, false]) {
+      getRuns.length = 0;
+      const m = await mount(started);
+      const seen: RunEvent[] = [];
+      m.result.current.onEvent((e) => seen.push(e));
+      mocks.stopRun.mockResolvedValueOnce({ run: ended });
+      if (eventFirst) await m.send({ type: 'run-ended', run: ended });
+      await act(() => m.result.current.stop());
+      if (!eventFirst) await m.send({ type: 'run-ended', run: ended });
+      expect(names(seen)).toEqual(['run-ended']);
+      expect(m.result.current.run?.status).toBe('stopped');
+      cleanup();
+    }
+  });
+
+  it('a run that ended while the socket was down fires nothing when a reconnect snapshot says so', async () => {
+    const m = await mount(started);
+    const seen: RunEvent[] = [];
+    m.result.current.onEvent((e) => seen.push(e));
+    await m.open();
+    await answer(1, state(ended));
+    expect(m.result.current.run?.status).toBe('stopped');
+    expect(seen).toEqual([]);
+  });
+
+  it('a stop response that is still running fires nothing; the later event fires run-ended', async () => {
+    const m = await mount(started);
+    const seen: RunEvent[] = [];
+    m.result.current.onEvent((e) => seen.push(e));
+    mocks.stopRun.mockResolvedValueOnce({ run: started });
+    await act(() => m.result.current.stop());
+    expect(seen).toEqual([]);
+    await m.send({ type: 'run-ended', run: ended });
+    expect(names(seen)).toEqual(['run-ended']);
+  });
+
+  it('a handler registered once keeps hearing events across rerenders, and stops after unsubscribing', async () => {
+    const m = await mount(started);
+    const seen: RunEvent[] = [];
+    const off = m.result.current.onEvent((e) => seen.push(e));
+    m.hook.rerender({ pid: 'p1' });
+    m.hook.rerender({ pid: 'p1' });
+    await m.send({ type: 'run-line', runId: 'r7', line: line(1) });
+    expect(names(seen)).toEqual(['run-line']);
+    off();
+    await m.send({ type: 'run-line', runId: 'r7', line: line(2) });
+    expect(seen).toHaveLength(1);
+  });
+
+  it('a second genuine gap re-fetches once the first gap fetch has completed', async () => {
+    const m = await mount(run({ lines: lines(1, 5) }));
+    await m.send({ type: 'run-line', runId: 'r1', line: line(8) });
+    expect(api.getRun).toHaveBeenCalledTimes(2);
+    await answer(1, state(run({ lines: lines(1, 8) })));
+    await m.send({ type: 'run-line', runId: 'r1', line: line(12) });
+    expect(api.getRun).toHaveBeenCalledTimes(3);
+    await answer(2, state(run({ lines: lines(1, 12) })));
+    expect(seqs(m.result.current.run)).toEqual(lines(1, 12).map((l) => l.seq));
+  });
+});
+
 describe('useRun: project switch', () => {
   it('resets state, ignores late answers from the previous project, and ignores its run events', async () => {
     const { hook, result, send } = await mount(run({ lines: lines(1, 2) }));
@@ -301,7 +393,7 @@ describe('useRun: actions', () => {
     expect(result.current.run?.id).toBe('busy');
   });
 
-  it('start succeeds: sends the kind and spec, adopts the run, fires no event', async () => {
+  it('start succeeds: sends the kind and spec, adopts the run, fires run-started once', async () => {
     const { result } = await mount(null);
     const seen = vi.fn();
     result.current.onEvent(seen);
@@ -313,7 +405,7 @@ describe('useRun: actions', () => {
     expect(res).toEqual({ ok: true });
     expect(mocks.startRun).toHaveBeenCalledWith('p1', 'run', 'T-1');
     expect(result.current.run?.id).toBe('r1');
-    expect(seen).not.toHaveBeenCalled();
+    expect(seen).toHaveBeenCalledTimes(1);
   });
 
   it('start while disconnected returns offline without a request', async () => {
