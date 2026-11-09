@@ -45,9 +45,9 @@ describe('api client', () => {
     await api.archive('p', 'T-1');
     await api.unarchive('p', 'T-1');
     await api.removeReference('p', 'docs/A.md');
-    const c = reply(501, { stub: true });
+    const c = reply(202, { run: null });
     vi.stubGlobal('fetch', c);
-    await api.claude('stop');
+    await api.stopRun('p', 'r1');
     const calls = [...f.mock.calls, ...c.mock.calls] as unknown as Array<[string, RequestInit]>;
     expect(calls).toHaveLength(4);
     for (const [, init] of calls) {
@@ -64,8 +64,25 @@ describe('api client', () => {
     expect((gi.headers as Record<string, string>)['content-type']).toBeUndefined();
   });
 
-  it('claude stubs resolve as { stub: true } on 501', async () => {
-    vi.stubGlobal('fetch', reply(501, { stub: true, action: 'run' }));
-    await expect(api.claude('run', { id: 'T-1' })).resolves.toEqual({ stub: true });
+  it('run endpoints: paths, bodies, and error bodies kept on ApiError', async () => {
+    const f = reply(202, { run: { id: 'r1' } });
+    vi.stubGlobal('fetch', f);
+    await api.startRun('p/1', 'run', 'T-1');
+    await api.startRun('p/1', 'refresh-overview');
+    await api.dismissRun('p/1', 'r1');
+    await api.getRun('p/1');
+    const calls = f.mock.calls as unknown as Array<[string, RequestInit]>;
+    expect(calls.map(([u, init]) => init.method + ' ' + u)).toEqual([
+      'POST /api/projects/p%2F1/runs',
+      'POST /api/projects/p%2F1/runs',
+      'POST /api/projects/p%2F1/runs/r1/dismiss',
+      'GET /api/projects/p%2F1/run',
+    ]);
+    expect(JSON.parse(calls[0]![1].body as string)).toEqual({ kind: 'run', specId: 'T-1' });
+    expect(JSON.parse(calls[1]![1].body as string)).toEqual({ kind: 'refresh-overview' });
+    vi.stubGlobal('fetch', reply(409, { error: 'busy', run: { id: 'r0' } }));
+    await expect(api.startRun('p', 'run', 'T-1')).rejects.toMatchObject({ status: 409, body: { run: { id: 'r0' } } });
+    vi.stubGlobal('fetch', reply(412, { error: 'no', setup: 'not-approved', command: 'specboard init' }));
+    await expect(api.startRun('p', 'run', 'T-1')).rejects.toMatchObject({ status: 412, body: { setup: 'not-approved' } });
   });
 });

@@ -18,8 +18,10 @@ import {
   type KeyboardCoordinateGetter,
 } from '@dnd-kit/core';
 import type { Spec, Status } from '@specboard/core';
+import type { RunSnapshot } from '../api/client';
 import { ORDER, ST } from '../lib/vm';
 import { filterSpecs, NO_FILTERS, sortSpecs, compareSpecs, type Filters } from '../state/filters';
+import { cardRun } from '../state/runUi';
 import { Column } from './Column';
 import { SpecCard } from './SpecCard';
 import s from './Board.module.css';
@@ -30,6 +32,8 @@ export interface BoardProps {
   /** Archived specs (unfiltered). */
   archived: Spec[];
   filters?: Filters;
+  /** The project's run: its spec's card shows that Claude is working on it. */
+  run?: RunSnapshot | null;
   /** False while disconnected: no dragging. */
   canDrag: boolean;
   /** Spec IDs to flash (live highlight). */
@@ -80,10 +84,13 @@ interface CardProps {
 function DraggableCard({ spec, all, canDrag, flash, p }: CardProps) {
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id: spec.id, data: { status: spec.status }, disabled: !canDrag || spec.archived });
   const dragProps = { ...attributes, ...listeners } as HTMLAttributes<HTMLDivElement>;
+  const { running, writing } = cardRun(p.run ?? null, spec);
   return (
     <SpecCard
       spec={spec}
       all={all}
+      running={running}
+      writing={writing}
       flash={flash}
       dragging={isDragging}
       dragRef={setNodeRef}

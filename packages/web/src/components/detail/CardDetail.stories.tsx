@@ -10,7 +10,6 @@ const client = (over: Partial<DetailClient> = {}): DetailClient => ({
   setMeta: fn(async (_pid: string, id: string) => ({ hash: 'h2', spec: recipeSpec(id) })) as unknown as DetailClient['setMeta'],
   setBody: fn(async (_pid: string, id: string) => ({ hash: 'h2', spec: recipeSpec(id) })),
   specDraftCopy: fn(async () => ({ path: '.specboard/specs/T-104-meal-planner-calendar/spec.draft.md' })),
-  claude: fn(async () => ({ stub: true })),
   setAnswers: fn(async (_pid: string, id: string) => ({ hash: 'h2', spec: recipeSpec(id) })),
   setSubtask: fn(async (_pid: string, id: string) => ({ hash: 'h2', spec: recipeSpec(id) })),
   ...over,
@@ -74,13 +73,13 @@ export const Blocked: Story = {
 
 export const FileProblemState: Story = {
   name: 'File problem',
-  args: { specId: 'T-109' },
+  args: { specId: 'T-109', onFixFile: fn() },
   play: async ({ canvasElement, args }) => {
     const c = within(canvasElement);
     const alert = c.getByRole('alert');
     expect(within(alert).getByText('This spec file has a formatting problem')).toBeTruthy();
     await userEvent.click(within(alert).getByRole('button', { name: 'Ask Claude to fix' }));
-    await waitFor(() => expect(args.toast).toHaveBeenCalledWith('info', 'Claude actions arrive in the next milestone'));
+    expect(args.onFixFile).toHaveBeenCalledOnce();
   },
 };
 
@@ -149,12 +148,28 @@ export const RunFallback: Story = {
   },
 };
 
+/** A path with no spaces, longer than the row: all of it stays readable, inside the dialog. */
+export const RunFallbackLongPath: Story = {
+  name: 'Run: fallback with a long path',
+  args: { runState: 'fallback', runBlockedNote: `Claude Code didn’t start. A folder inside a registered project (C:\\Users\\someone\\Documents\\AVeryLongFolderNameWithNoSpacesAtAllThatKeepsGoingAndGoing\\AnotherVeryLongFolderNameWithNoSpacesThatKeepsGoing\\.venv\\Scripts\\claude.cmd) was left out of its PATH, which may be why.` },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    const note = await c.findByText(/left out of its PATH/);
+    const close = c.getByRole('button', { name: 'Close' });
+    expect(note.scrollWidth).toBeLessThanOrEqual(note.clientWidth);
+    expect(note.getBoundingClientRect().height).toBeGreaterThan(20); // it wrapped, rather than cutting the path off
+    expect(note.getBoundingClientRect().right).toBeLessThanOrEqual(close.getBoundingClientRect().left);
+    const dialog = c.getByRole('dialog').getBoundingClientRect();
+    expect(close.getBoundingClientRect().right).toBeLessThanOrEqual(dialog.right);
+  },
+};
+
 export const WithRunPanel: Story = {
   name: 'With run output',
   args: {
     runState: 'running',
     runActive: true,
-    aside: <RunPanel status="running" lines={RUN_LINES} onDismiss={() => undefined} onAction={() => undefined} />,
+    aside: () => <RunPanel status="running" lines={RUN_LINES} onDismiss={() => undefined} onAction={() => undefined} />,
   },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);

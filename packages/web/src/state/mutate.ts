@@ -1,4 +1,7 @@
-export type HashOp = (hash: string) => Promise<{ hash: string }>;
+import type { Spec } from '@specboard/core';
+
+/** A write's answer: the new hash, plus the whole spec when the server returns it (`SpecWrite`). */
+export type HashOp = (hash: string) => Promise<{ hash: string; spec?: Spec }>;
 
 interface Chain {
   /** Settles when the last queued op for this spec has finished. */
@@ -17,10 +20,12 @@ interface Chain {
  * the caller's hash again (by then the caller has fresh data). Ops for different specs run in
  * parallel. A failed op rejects its own promise only; later ops keep the last good hash.
  *
- * `send(specId, hash)` is the op used when the caller passes none.
+ * `send(specId, hash)` is the op used when the caller passes none. `onWrite(spec)` gets the spec each successful
+ * write returned (the board passes `useProject().applyWrite`).
  */
 export function createMutator(
-  send: (specId: string, baseHash: string) => Promise<{ hash: string }>,
+  send: (specId: string, baseHash: string) => Promise<{ hash: string; spec?: Spec }>,
+  onWrite?: (spec: Spec) => void,
 ): (specId: string, initialHash: string, op?: HashOp) => Promise<void> {
   const chains = new Map<string, Chain>();
 
@@ -35,8 +40,9 @@ export function createMutator(
     c.pending += 1;
     const result = c.tail.then(async () => {
       try {
-        const { hash } = await run(c.hash);
+        const { hash, spec } = await run(c.hash);
         c.hash = hash;
+        if (spec) onWrite?.(spec);
       } finally {
         c.pending -= 1;
         if (c.pending === 0 && chains.get(specId) === c) chains.delete(specId);

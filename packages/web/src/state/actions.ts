@@ -1,12 +1,12 @@
 import type { Spec, Status } from '@specboard/core';
-import { api, ConflictError, type ClaudeAction } from '../api/client';
+import { api, ConflictError } from '../api/client';
 import { ST } from '../lib/vm';
 import type { HashOp } from './mutate';
 import type { PushToast } from './toasts';
 
-// Board-level spec actions: status moves (hash-checked, through the mutator), archive, and the Claude stub.
+// Board-level spec actions: status moves (hash-checked, through the mutator) and archive.
 
-export type ActionClient = Pick<typeof api, 'setMeta' | 'archive' | 'unarchive' | 'claude'>;
+export type ActionClient = Pick<typeof api, 'setMeta' | 'archive' | 'unarchive'>;
 export type Mutate = (specId: string, initialHash: string, op?: HashOp) => Promise<void>;
 
 export interface ActionDeps {
@@ -15,11 +15,8 @@ export interface ActionDeps {
   mutate: Mutate;
   refresh: () => Promise<void>;
   toast: PushToast;
-  /** True while disconnected from the server: Claude actions are refused with the offline toast. */
-  isDown?: () => boolean;
 }
 
-export const CLAUDE_STUB_TOAST = 'Claude actions arrive in the next milestone';
 /** Shown when an edit is tried while disconnected (pinned behaviour 15). */
 export const OFFLINE_TOAST = ['Disconnected from the local server.', 'Edits won’t save until it’s back.'] as const;
 
@@ -28,32 +25,7 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 /** Thrown inside the op of a move queued behind a conflicted one: it is dropped without a request. */
 class Superseded extends Error {}
 
-export interface ClaudeDeps {
-  client: Pick<typeof api, 'claude'>;
-  toast: PushToast;
-  isDown?: () => boolean;
-}
-
-/**
- * Ask Claude for something (an M2 stub). Ruling 18: refused with the offline toast while
- * disconnected; only a 501 stub answer gets the stub toast; any other failure is an err toast.
- */
-export async function askClaude({ client, toast, isDown = () => false }: ClaudeDeps, action: ClaudeAction, body: Record<string, unknown>, failText: string): Promise<void> {
-  if (isDown()) {
-    toast('err', ...OFFLINE_TOAST);
-    return;
-  }
-  let res: { stub: boolean };
-  try {
-    res = await client.claude(action, body);
-  } catch (e) {
-    toast('err', failText, message(e));
-    return;
-  }
-  if (res.stub) toast('info', CLAUDE_STUB_TOAST);
-}
-
-export function createSpecActions({ pid, client = api, mutate, refresh, toast, isDown = () => false }: ActionDeps) {
+export function createSpecActions({ pid, client = api, mutate, refresh, toast }: ActionDeps) {
   /**
    * Per spec, how many status-move conflicts have been handled (Ruling 15b). A move remembers the
    * count when it is made; if a conflict was handled since, the move was queued behind that
@@ -108,11 +80,6 @@ export function createSpecActions({ pid, client = api, mutate, refresh, toast, i
       }
       await refresh();
       toast('ok', `${spec.id} restored`, 'Back on the board.');
-    },
-
-    /** M2 stub: the server answers 501. */
-    async writeUp(spec: Spec): Promise<void> {
-      await askClaude({ client, toast, isDown }, 'write-up', { pid, id: spec.id }, `Couldn’t reach Claude for ${spec.id}`);
     },
   };
 }

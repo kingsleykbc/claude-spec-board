@@ -4,10 +4,11 @@ import net from 'node:net';
 import type { AddressInfo } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WebSocket from 'ws';
 import { hashText, loadProject, setMetaField, writeIfUnchanged } from '@specboard/core';
 import { attachRealtime } from '../src/app.js';
+import { fakeRuns, tempApproved } from './fakeRuns.js';
 import { Registry } from '../src/registry.js';
 
 const SAMPLE = path.resolve(import.meta.dirname, '../../../examples/recipe-box');
@@ -18,6 +19,7 @@ let pid: string;
 let registry: Registry;
 let server: http.Server;
 let port: number;
+let runs: ReturnType<typeof fakeRuns>;
 let rt: Awaited<ReturnType<typeof attachRealtime>>;
 const sockets: WebSocket[] = [];
 
@@ -80,7 +82,8 @@ beforeEach(async () => {
   server = http.createServer((_q, s) => s.end());
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   port = (server.address() as AddressInfo).port;
-  rt = await attachRealtime(server, { registry, port: () => port, webDist: null });
+  runs = fakeRuns();
+  rt = await attachRealtime(server, { registry, port: () => port, webDist: null, runs, approved: tempApproved(tmp) });
   await sleep(300); // initial watchers settle
 });
 
@@ -264,5 +267,33 @@ describe('realtime', () => {
       ws.once('error', () => res(-1));
     });
     expect(status).toBe(403);
+  });
+});
+
+describe('typed messages and run hooks', () => {
+  it('send() reaches only subscribers of that project, and survives a closed socket', async () => {
+    const a = await subscribed();
+    const gone = await subscribed();
+    const other = await subscribed('someone-else');
+    gone.ws.terminate();
+    expect(() => rt.send(pid, { type: 'run-line', runId: 'r1', line: { k: 'text', text: 'hi' } })).not.toThrow();
+    expect(await until(() => a.msgs.some((m) => m.type === 'run-line'))).toBe(true);
+    await sleep(100);
+    expect(other.msgs.some((m) => m.type === 'run-line')).toBe(false);
+  });
+
+  it('tells the run manager about a change, and a failure there is logged and does not stop the watcher', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    runs.projectChanged.mockRejectedValueOnce(new Error('tick failed'));
+    const c = await subscribed();
+    await editSpec();
+    expect(await until(() => runs.projectChanged.mock.calls.length >= 1, 1500)).toBe(true);
+    expect(runs.projectChanged.mock.calls[0]![0]).toMatchObject({ id: pid });
+    expect(await until(() => log.mock.calls.length >= 1, 500)).toBe(true);
+    await sleep(300);
+    const before = c.changed();
+    await editSpec();
+    expect(await until(() => c.changed() > before)).toBe(true);
+    log.mockRestore();
   });
 });

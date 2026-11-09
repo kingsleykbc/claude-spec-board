@@ -39,7 +39,6 @@ vi.mock('./api/client', async (orig) => {
       setMeta: vi.fn(async (_pid: string, id: string) => ({ hash: 'h2', spec: recipeSpecs.find((s) => s.id === id) })),
       archive: vi.fn(async () => undefined),
       unarchive: vi.fn(async () => undefined),
-      claude: vi.fn(async () => ({ stub: true })),
       references: vi.fn(async () => [{ name: 'CLAUDE.md', path: 'CLAUDE.md', md: '# Claude\n\nHouse rules.', hash: 'h', missing: false }]),
       createSpec: vi.fn(async (_pid: string, b: { title: string }) => ({ spec: { ...recipeSpecs[6]!, id: 'T-109', title: b.title } })),
     },

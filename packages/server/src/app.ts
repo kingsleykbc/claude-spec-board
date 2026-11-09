@@ -10,16 +10,19 @@ import { watchProject } from './watch.js';
 import { guard } from './security.js';
 import { specRoutes } from './routes/specs.js';
 import { referenceRoutes } from './routes/references.js';
-import { claudeRoutes } from './routes/claude.js';
-
-/** Placeholder for the Claude Code bridge; filled in by the M3 work. Unused until then. */
-export interface ClaudeBridge {}
+import { runRoutes } from './routes/runs.js';
+import { claudeStatus, type ClaudeStatus } from './claude/status.js';
+import type { RunManager } from './claude/runs.js';
+import type { ApprovedPermissions } from './setup.js';
 
 export interface AppDeps {
   registry: Registry;
   port: () => number;
   webDist: string | null;
-  claude?: ClaudeBridge;
+  runs: RunManager;
+  approved: ApprovedPermissions;
+  /** Claude Code install and login check; defaults to the cached real one. */
+  status?: () => Promise<ClaudeStatus>;
 }
 
 const TYPES: Record<string, string> = {
@@ -82,7 +85,7 @@ export function createApp(deps: AppDeps): Hono {
 
   app.route('/', specRoutes(deps.registry));
   app.route('/', referenceRoutes(deps.registry));
-  app.route('/', claudeRoutes());
+  app.route('/', runRoutes({ registry: deps.registry, runs: deps.runs, approved: deps.approved, status: deps.status ?? claudeStatus }));
 
   if (deps.webDist !== null) {
     const root = path.resolve(deps.webDist);
@@ -101,6 +104,8 @@ export function createApp(deps: AppDeps): Hono {
 export interface Realtime {
   /** Start watching a project (no-op if already watched or unknown). */
   watch(pid: string): Promise<void>;
+  /** Send a typed message to the clients subscribed to `pid`. */
+  send(pid: string, msg: object): void;
   close(): Promise<void>;
 }
 
@@ -131,7 +136,10 @@ export async function attachRealtime(server: Server, deps: AppDeps): Promise<Rea
     const started = (async () => {
       const entry = await deps.registry.get(pid);
       if (!entry || closed) return null;
-      return watchProject(entry, () => referenceFiles(entry), (id) => hub.broadcast(id));
+      return watchProject(entry, () => referenceFiles(entry), (id) => {
+        hub.send(id, { type: 'project-changed', pid: id });
+        deps.runs.projectChanged(entry).catch((e: unknown) => console.error(`Run progress update failed: ${e instanceof Error ? e.message : String(e)}`));
+      });
     })();
     stops.set(pid, started);
     try {
@@ -145,6 +153,7 @@ export async function attachRealtime(server: Server, deps: AppDeps): Promise<Rea
 
   return {
     watch,
+    send: (pid, msg) => hub.send(pid, msg),
     async close() {
       closed = true;
       await hub.close();

@@ -1,0 +1,3 @@
+{"type":"assistant","content":[{"type":"tool_use","name":"Grep","input":{"pattern":"note","path":"."}}]}
+{"type":"assistant","content":[{"type":"tool_use","name":"Glob","input":{"pattern":"*.txt"}}]}
+{"type":"result","subtype":"success","is_error":false,"permission_denials":[],"result":"Both searches ran in the current directory.\n\n- **Grep for `note`:** returned one match, `notes.txt`.\n- **Glob for `*.txt`:** returned one file, `notes.txt`."}

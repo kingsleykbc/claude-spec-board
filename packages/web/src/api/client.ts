@@ -27,14 +27,69 @@ export interface ReferenceDoc {
   hash: string;
   missing: boolean;
 }
-export type ClaudeAction = 'run' | 'stop' | 'write-up' | 'fix-file' | 'refresh-overview';
 export type MetaKey = 'status' | 'urgency' | 'categories' | 'title' | 'draft';
 
-/** Any 4xx/5xx other than a 409 conflict. */
+// Run wire types, duplicated from packages/server/src/claude/ (runs.ts, classify.ts, events.ts, status.ts).
+export type RunKind = 'run' | 'write-up' | 'fix-file' | 'refresh-overview';
+export type RunStatus = 'running' | 'finished' | 'stopped' | 'needs' | 'permission' | 'error';
+export type RunLineKind = 'start' | 'read' | 'edit' | 'cmd' | 'ok' | 'done' | 'stop' | 'warn' | 'err';
+/** A run's output line as the server sends it: `seq` counts from 1 within a run. */
+export interface RunLine {
+  seq: number;
+  k: RunLineKind;
+  text: string;
+  code?: string;
+  time: string;
+  /** The subtask number, only on the line saying that subtask got done. */
+  subtask?: number;
+}
+export interface Denial {
+  tool: string;
+  input: unknown;
+}
+export interface EndInfo {
+  status: RunStatus;
+  title?: string;
+  text?: string;
+  fix?: string;
+  denied?: Denial[];
+}
+export interface RunSnapshot {
+  id: string;
+  pid: string;
+  kind: RunKind;
+  specId: string | null;
+  status: RunStatus;
+  lines: RunLine[];
+  end: EndInfo | null;
+  startedAt: string;
+  dismissed: boolean;
+}
+export type RunEvent =
+  | { type: 'run-started'; run: RunSnapshot }
+  | { type: 'run-line'; runId: string; line: RunLine }
+  | { type: 'run-ended'; run: RunSnapshot };
+export interface ClaudeStatus {
+  installed: boolean;
+  loggedIn: boolean;
+  version: string | null;
+  /** `claude` was found only inside a registered project, here, so it was not run. A terminal may still find it. */
+  blockedBy?: string;
+  /** `claude` was found outside but failed to start, with this folder left out of its PATH. That may or may not be why. */
+  maybeBlockedBy?: string;
+}
+export interface RunState {
+  run: RunSnapshot | null;
+  claude: ClaudeStatus;
+  approved: boolean;
+}
+
+/** Any 4xx/5xx other than a 409 conflict. `body` is the parsed JSON error body when there was one (run starts carry `run`, `setup`, `claude`). */
 export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    readonly body?: unknown,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -77,11 +132,11 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
   if (res.status === 409) {
     const d = (data ?? {}) as { conflict?: boolean; currentHash?: string; currentText?: string; error?: string };
     if (d.conflict) throw new ConflictError(d.currentHash ?? '', d.currentText ?? '');
-    throw new ApiError(409, d.error ?? 'Conflict');
+    throw new ApiError(409, d.error ?? 'Conflict', data);
   }
   if (!res.ok) {
     const msg = (data as { error?: string } | undefined)?.error ?? (res.statusText || `HTTP ${res.status}`);
-    throw new ApiError(res.status, msg);
+    throw new ApiError(res.status, msg, data);
   }
   return data as T;
 }
@@ -121,14 +176,10 @@ export const api = {
   // Files
   files: (pid: string, q = '') => request<string[]>('GET', `${proj(pid)}/files?q=${enc(q)}`),
 
-  /** Claude actions are stubs in M2: the server answers 501, which resolves as `{ stub: true }`. */
-  claude: async (action: ClaudeAction, body: Record<string, unknown> = {}): Promise<{ stub: boolean }> => {
-    try {
-      await request<unknown>('POST', `/api/claude/${enc(action)}`, body);
-      return { stub: false };
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 501) return { stub: true };
-      throw e;
-    }
-  },
+  // Runs
+  getRun: (pid: string) => request<RunState>('GET', `${proj(pid)}/run`),
+  startRun: (pid: string, kind: RunKind, specId?: string) =>
+    request<{ run: RunSnapshot }>('POST', `${proj(pid)}/runs`, specId === undefined ? { kind } : { kind, specId }),
+  stopRun: (pid: string, runId: string) => request<{ run: RunSnapshot | null }>('POST', `${proj(pid)}/runs/${enc(runId)}/stop`),
+  dismissRun: (pid: string, runId: string) => request<void>('POST', `${proj(pid)}/runs/${enc(runId)}/dismiss`),
 };

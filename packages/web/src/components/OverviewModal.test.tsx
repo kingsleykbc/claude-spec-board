@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { recipeProject } from '../fixtures/recipeBox';
-import { CLAUDE_STUB_TOAST, OFFLINE_TOAST } from '../state/actions';
 import { OverviewModal } from './OverviewModal';
 
 afterEach(() => {
@@ -11,11 +10,10 @@ afterEach(() => {
 
 const setup = (over: Partial<Parameters<typeof OverviewModal>[0]> = {}) => {
   const props = {
-    pid: 'p1',
     project: recipeProject,
     name: 'Recipe Box',
-    client: { claude: vi.fn(async () => ({ stub: true })) },
     toast: vi.fn(),
+    onRefresh: vi.fn(),
     onClose: vi.fn(),
     now: new Date(2026, 10, 8, 11, 30),
     ...over,
@@ -43,24 +41,27 @@ describe('OverviewModal', () => {
     expect(screen.queryByText(/Last updated/)).toBeNull();
   });
 
-  it('Refresh calls the stub, shows Refreshing only while in flight, then the stub toast', async () => {
-    let done!: (v: { stub: boolean }) => void;
-    const claude = vi.fn(() => new Promise<{ stub: boolean }>((r) => (done = r)));
-    const p = setup({ client: { claude } });
+  it('Refresh asks for a refresh', () => {
+    const p = setup();
     fireEvent.click(screen.getByRole('button', { name: '↻ Refresh' }));
-    expect(claude).toHaveBeenCalledWith('refresh-overview', { pid: 'p1' });
-    expect(screen.getByRole('button', { name: 'Refreshing' })).toHaveProperty('disabled', true);
-    expect(screen.getByText('Claude is rewriting the summary…')).toBeTruthy();
-    done({ stub: true });
-    await screen.findByRole('button', { name: '↻ Refresh' });
-    expect(p.toast).toHaveBeenCalledWith('info', CLAUDE_STUB_TOAST);
+    expect(p.onRefresh).toHaveBeenCalledOnce();
   });
 
-  it('Refresh while disconnected shows the offline toast and calls nothing', () => {
-    const p = setup({ down: true });
-    fireEvent.click(screen.getByRole('button', { name: '↻ Refresh' }));
-    expect(p.client.claude).not.toHaveBeenCalled();
-    expect(p.toast).toHaveBeenCalledWith('err', ...OFFLINE_TOAST);
+  it('the empty state asks for a refresh too', () => {
+    const p = setup({ project: { ...recipeProject, overview: null } });
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh summary' }));
+    expect(p.onRefresh).toHaveBeenCalledOnce();
+  });
+
+  it('while refreshing: a disabled Refreshing button, the rewriting note, and no summary', () => {
+    const p = setup({ refreshing: true });
+    const btn = screen.getByRole('button', { name: 'Refreshing' });
+    expect(btn).toHaveProperty('disabled', true);
+    fireEvent.click(btn);
+    expect(p.onRefresh).not.toHaveBeenCalled();
+    expect(screen.getByText('Updating…')).toBeTruthy();
+    expect(screen.getByText('Claude is rewriting the summary…')).toBeTruthy();
+    expect(screen.queryByText('Search & filters')).toBeNull();
   });
 
   it('Export downloads <slug>-overview.md through a Blob', async () => {

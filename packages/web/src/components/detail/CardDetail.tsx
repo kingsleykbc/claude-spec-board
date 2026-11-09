@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Spec, Status, Urgency } from '@specboard/core';
 import { api, ConflictError, type SpecWrite } from '../../api/client';
-import { askClaude, OFFLINE_TOAST, type Mutate } from '../../state/actions';
+import { OFFLINE_TOAST, type Mutate } from '../../state/actions';
 import type { PushToast } from '../../state/toasts';
-import { relPath, ST, truncate } from '../../lib/vm';
+import { blockTexts, relPath, runHold } from '../../lib/vm';
 import { ConflictDialog } from '../ConflictDialog';
 import { Modal } from '../Modal';
 import { useDiscardGuard } from '../useDiscardGuard';
@@ -17,7 +17,7 @@ import { SpecSection } from './SpecSection';
 import { Subtasks } from './Subtasks';
 import s from './detail.module.css';
 
-export type DetailClient = Pick<typeof api, 'setMeta' | 'setBody' | 'specDraftCopy' | 'claude' | 'setAnswers' | 'setSubtask'>;
+export type DetailClient = Pick<typeof api, 'setMeta' | 'setBody' | 'specDraftCopy' | 'setAnswers' | 'setSubtask'>;
 
 export interface CardDetailProps {
   pid: string;
@@ -37,14 +37,20 @@ export interface CardDetailProps {
   onClose: () => void;
   /** Disconnected from the server: edits are refused with a toast. */
   down?: boolean;
-  /** Run button state; not wired to anything in M2. */
+  /** Run button state. */
   runState?: RunState;
   /** The spec Claude is working on, for the disabled Run note. */
   runningId?: string | null;
-  /** A run is working on this spec (the subtask "In progress" pill). Always false in M2. */
+  /** In the fallback: what a registered project has to do with it. */
+  runBlockedNote?: string | undefined;
+  /** A run is working on this spec (the subtask "In progress" pill). */
   runActive?: boolean;
-  /** The run column, e.g. a RunPanel; widens the modal when present. */
-  aside?: ReactNode;
+  onRun?: () => void;
+  onStop?: () => void;
+  /** "Ask Claude to fix" on a file problem. */
+  onFixFile?: () => void;
+  /** The run column, e.g. a RunPanel; widens the modal when present. Gets a function that scrolls to the questions. */
+  aside?: (goToQuestions: () => void) => ReactNode;
   /** Open another spec (`?spec=<id>`), from Dependencies. */
   onOpenSpec?: (id: string) => void;
   /** Keys changed by the last live update (`${id}:${n}` subtask rows flash). */
@@ -97,7 +103,11 @@ function SpecDetail({
   down = false,
   runState = 'ready',
   runningId = null,
+  runBlockedNote,
   runActive = false,
+  onRun = () => undefined,
+  onStop = () => undefined,
+  onFixFile = () => undefined,
   aside,
   onOpenSpec = () => undefined,
   changed,
@@ -165,10 +175,6 @@ function SpecDetail({
 
   const setUrgency = (u: Urgency) => void writeMeta({ urgency: u }, (h) => client.setMeta(pid, id, h, 'urgency', u));
   const setCategories = (next: string[]) => void writeMeta({ categories: next }, (h) => client.setMeta(pid, id, h, 'categories', next));
-
-  // Ruling 18: the shared Claude-stub handling (offline, stub, error).
-  const claude = (action: 'run' | 'stop' | 'fix-file') =>
-    askClaude({ client, toast, isDown: () => down }, action, { pid, id }, `Couldn’t reach Claude for ${id}`);
 
   const startEdit = () => {
     editBase.current = { md: spec.bodyMd, bodyHash: spec.bodyHash };
@@ -242,24 +248,7 @@ function SpecDetail({
   };
 
   // Blocked reasons (pinned behaviour 8).
-  const reasons: BlockReason[] = [];
-  const open = spec.questions.filter((q) => q.answer === null || q.answer === '');
-  if (open.length > 0) {
-    reasons.push({
-      key: 'q',
-      text: `Awaiting answers on: ${open.map((q) => truncate(q.text, 40)).join(', ')}`,
-      onClick: () => scrollTo('questions'),
-    });
-  }
-  for (const dep of spec.dependsOn) {
-    const d = all.find((x) => x.id === dep);
-    let text: string;
-    if (dep === id) text = 'Depends on itself';
-    else if (!d) text = `${dep} not found`;
-    else if (!d.archived && d.status !== 'done') text = `Waiting on ${d.id} ${d.title} (${ST[d.status].label})`;
-    else continue;
-    reasons.push({ key: `dep:${dep}`, text, onClick: () => scrollTo('dependencies') });
-  }
+  const reasons: BlockReason[] = blockTexts(spec, all).map((r) => ({ key: r.key, text: r.text, onClick: () => scrollTo(r.section) }));
 
   const allCategories = [...new Set(all.flatMap((x) => x.categories))];
   const problem = spec.problems[0];
@@ -282,8 +271,10 @@ function SpecDetail({
           allCategories={allCategories}
           runState={runState}
           runningId={runningId}
-          onRun={() => void claude('run')}
-          onStop={() => void claude('stop')}
+          runBlockedNote={runBlockedNote}
+          runHold={runHold(spec, all)}
+          onRun={onRun}
+          onStop={onStop}
           onStatus={(k) => void onMove(spec, k)}
           onUrgency={setUrgency}
           onAddCategory={(c) => setCategories([...categories, c])}
@@ -293,7 +284,7 @@ function SpecDetail({
         <div className={s.body} style={{ gridTemplateColumns: aside ? 'minmax(0,1fr) 380px' : 'minmax(0,1fr)' }}>
           <div className={s.main}>
             <div ref={scrollRef} className={s.scroll} data-detail-scroll="">
-              {problem !== undefined && <FileProblem message={problem} path={path} onFix={() => void claude('fix-file')} />}
+              {problem !== undefined && <FileProblem message={problem} path={path} onFix={onFixFile} />}
               <SpecSection
                 md={spec.bodyMd}
                 text={editText}
@@ -333,7 +324,7 @@ function SpecDetail({
             </div>
             {reasons.length > 0 && <BlockedBanner reasons={reasons} />}
           </div>
-          {aside}
+          {aside?.(() => scrollTo('questions'))}
         </div>
       </div>
       {conflict && editText !== null && (

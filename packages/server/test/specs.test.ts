@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashText, loadProject } from '@specboard/core';
 import type { Spec } from '@specboard/core';
 import { createApp } from '../src/app.js';
+import { fakeRuns, tempApproved } from './fakeRuns.js';
 import { Registry } from '../src/registry.js';
 
 const boom = vi.hoisted(() => ({ on: false }));
@@ -45,7 +46,7 @@ beforeEach(async () => {
   await fs.cp(SAMPLE, proj, { recursive: true });
   const reg = new Registry(path.join(tmp, 'projects.json'));
   pid = (await reg.add(proj)).id;
-  app = createApp({ registry: reg, port: () => 4949, webDist: null });
+  app = createApp({ registry: reg, port: () => 4949, webDist: null, runs: fakeRuns(), approved: tempApproved(tmp) });
   const p = await loadProject(proj);
   for (const s of p.specs) fsName[s.id] = path.basename(s.dir);
 });

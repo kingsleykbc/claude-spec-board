@@ -8,6 +8,19 @@
 
 ---
 
+## Try it
+
+From the Spec Board repo, until it is published (section 9 says why the commands look like this):
+
+```
+npm run specboard -- init <project path>
+npm run board -- <project path>
+```
+
+`init` shows the actions runs may use and asks you to approve them. The project should be a git repo, as runs commit per subtask. `board` opens the board in your browser.
+
+---
+
 ## 1. Intent: why this exists
 
 Kingsley builds software solo with Claude Code. They tried GitHub Spec Kit and OpenSpec on OgaBook, a Lagos barber booking platform. Both tools work, but they show the state of the work in two places only: Markdown files in VS Code and terminal output. Knowing where a project stands means opening files or asking Claude "where are we?", and both get tedious.
@@ -215,19 +228,49 @@ Added **(my call)**, because the Run button needs them:
 
 A **skill** ships with the commands. It teaches Claude the file format and the rules: always log per subtask, never edit outside `.specboard/` except for real code work, ask through open questions instead of guessing, and pick up answers saved on the board before continuing.
 
+**One kit, delivered two ways.** The commands and the skill live in one folder in the package (`packages/server/kit`):
+- **As a plugin, for board runs.** A run loads the kit with `--plugin-dir` and calls it as `/specboard:run-spec T-001`. A project can't change what a board run is told to do, because the run doesn't read the project's copy.
+- **As project skills, for typed commands.** `specboard init` also copies the skills into `.claude/skills/`, so typing `/run-spec T-001` in your own Claude Code session works.
+
+Board runs don't load `CLAUDE.md` by themselves, so every command tells Claude to read it.
+
 ### How a question round-trips
 1. While running, Claude needs a decision. It adds an open question to `spec.md` and stops. The card shows **Blocked**.
 2. Kingsley answers on the board and saves. The answer is written into the file.
 3. Kingsley presses **Run** again (or runs `/run-spec`). Claude reads the answers and carries on.
 
+A refused action is not a question. Claude stops and says what was refused, and the board shows the refusal with the rule to allow (section 9). An unanswered question there would stop the next run even after the rule was allowed.
+
 ## 9. Run button
 
-- Pressing **▷ Run** on a spec makes the server start Claude Code in headless mode in the project folder (`claude -p "/run-spec T-001"`, or the Claude Agent SDK). The output streams live onto the card.
+- Pressing **▷ Run** on a spec makes the server start Claude Code in headless mode in the project folder. The output streams live onto the card. The command is built only from fixed strings and a checked spec ID:
+
+  ```
+  claude -p "/specboard:run-spec T-001" --output-format stream-json --verbose
+    --permission-mode dontAsk --setting-sources "" --plugin-dir <kit>
+    --settings {permissions, disableAllHooks: true}
+  ```
 - **One run at a time per project.** **(my call)** There's a **Stop** button.
-- **Permissions (Kingsley's decision):** a headless run can't stop to ask for approval. So when a project is set up (`init`), the tool writes an **allow-list of actions** into that project's Claude Code settings (`.claude/settings.json`): edit files, run the project's tests, `git add`/`git commit`, and so on. `init` shows the list and Kingsley reviews it once. Runs then use that list. Anything outside the list is refused. If the run then stalls, the card shows that and suggests either adding the permission or asking through an open question. The README explains this clearly. The exact default list is up to the builder; it should be conservative (no `git push`, no deleting outside the repo).
+- **A blocked spec or a draft doesn't start.** The button is off and says why, so no usage is spent on a run that would only explain it can't proceed. This is the board's check; the server would still start it.
+- **Which `claude` runs:** the server looks it up itself, by absolute path, in the absolute PATH entries outside every registered project. Windows would otherwise try the current folder first, and a `claude.cmd` in a repo's root would run with your rights.
+- **Which PATH a run gets:** relative, empty and `.` entries and folders inside any registered project are dropped, and the status check that runs when a project opens skips the same folders (a `claude` found only inside one reads as not installed). So a repo script calling a bare local `.cmd` from its own folder must use a relative path such as `.\gradlew`.
+- **Tools inside a registered folder aren't available** to runs or the status check, including an activated virtual environment such as `.venv\Scripts`. A run's bare `pytest` or `python` uses the global one or fails, so point the project's test command at it with a relative path, such as `.venv\Scripts\pytest`. The board warns in its terminal about each folder it leaves out. The Run button says so if Claude Code itself is in one, and if Claude Code fails to start with a folder left out, it says that may be why.
+- **Where `init` refuses:** a folder holding `~/.specboard` (`init ~`, say), since a run could then edit its own permissions, and Spec Board's own repo. It warns, and carries on, if the folder has no `.git`, as runs commit per subtask.
+- **Permissions (Kingsley's decision, Decision 1):** a headless run can't stop to ask for approval. So `specboard init` shows an **allow-list of actions** (edit files, run the project's tests, `git add`/`git commit`, and so on), Kingsley reviews it once, and the approved copy is stored **outside the repo**, in `~/.specboard/permissions.json`. Runs use only that copy, passed with `--settings`. Anything outside it is refused. A repo can't widen its own permissions by editing a file it controls. `init` also merges the list into `.claude/settings.json`, for typed commands and because the skill reads the test command from there, but a run's permissions never come from that file. The default list is conservative: no `git push`, no `git reset`, no `rm -rf`, and no writes to `.claude/` or `.git/`.
+- **A refused action that stops the run:** the card shows what was refused and, where it is safe to offer, the rule to add: `specboard allow "Bash(npm config:*)"`. That command always asks at a terminal and has no `--yes`. After it, **Run** again gets past the refusal. Until Spec Board is published, `specboard` isn't on your PATH, so run both commands from the Spec Board repo: `npm run specboard -- init <project path>` and `npm run specboard -- allow "<rule>" <project path>`. Rules that meet the deny list, shells and wrappers, and file paths outside the project are not offered. If Claude was refused something but still finished the spec, the card goes to Review as normal, and the end card says how many actions were refused, so check the result before moving it to Done.
+- **Runs are isolated (Kingsley's decision, Decision 2):** `--setting-sources ""` and `disableAllHooks` leave out the project's and the person's settings. A run does not get the project's hooks, its `.mcp.json` servers, or its `permissions.allow`, including a hostile `Bash(*)`. It does not get the person's plugins, MCP servers or hooks either. Only the approved list and the kit apply. `npm run test:claude` checks this with a real run against a hostile project.
+- **What these limits don't cover. Read this before running a project you don't trust:**
+  - **The allow-list is a guard rail, not a sandbox.** `npm test` and `git commit` run the repo's own code and its git hooks, with your user's full rights, so a hostile repo can do anything through them. Other inherent gaps: `git diff --no-index` and `--output` reach outside the project, and `.mcp.json` can be edited by a run. Only run projects whose tests you would be willing to run yourself.
+  - **Repo text is still input to Claude.** A run reads `CLAUDE.md`, the specs and `.claude/settings.json`, so a repo can try to talk Claude into things. The permission list still decides what actually runs.
+  - **Personal plugins and MCP servers are off during runs.** Your claude.ai connectors were still listed in isolated runs. They aren't on the allow-list, but whether a call to one would be refused was not tested.
+  - **`env` and `apiKeyHelper` in your user settings don't reach isolated runs.** Confirmed on 2026-11-09 with Claude Code 2.1.302, one run each, using a throwaway `CLAUDE_CONFIG_DIR`: with `--setting-sources user` both took effect, with `--setting-sources ""` neither did. If you log in or reach a provider through those settings, set the variables in the environment the board starts from. Login with `claude` itself is not affected.
+  - **A replaced folder at the same path keeps its approval.** If you delete a repo and clone another to the same path, it inherits the approved list, though it can't change that list. A link pointed somewhere else reads as "not approved". This is the same model as Claude Code's own trust dialog.
+  - Not tested: a folder you have already trusted in Claude Code (`--setting-sources ""` is what is meant to rule that case out), and hooks in your own user settings (the machine tested has none). Also not verified: whether `--setting-sources ""` drops a `model` set in your user settings, so a run may use the default model instead.
+  - Claude Code keeps its normal session records for a run under `~/.claude/`. Spec Board writes nothing there.
 - If the `claude` CLI isn't found, Run falls back to **copying the command** so Kingsley can paste it into Claude Code.
 - **Run uses the Claude Code CLI** (`claude -p`) with the user's existing login and subscription. It doesn't use the Agent SDK with an API key, so there's no key setup and no per-token bill. **(my call)**
 - **Git during a run (my call):** the run works on the current branch and makes **one commit per subtask**, with a message like `T-001 · 2. Second task`. It creates no branches or worktrees in v1. Each subtask log lists that commit and the files it changed, so for **Review → Done**, Kingsley reads the logs and changed files on the card (and the diff in git if wanted). `/refresh-logs` uses these commits.
+- **What `git status` shows after a run:** the code is committed, but the spec and its logs are not. A log records its own commit's hash, so it can't be part of that commit. Expect ` M .specboard/specs/T-001-.../spec.md` and `?? .specboard/specs/T-001-.../logs/`, and commit them yourself when you're happy. `specboard allow` also leaves `.claude/settings.json` modified.
 
 ## 10. Moving cards
 
@@ -257,6 +300,6 @@ A **skill** ships with the commands. It teaches Claude the file format and the r
 - The exact Markdown grammar, as long as section 6's rules hold.
 - Folder and file naming details, the port, and how the CLI is laid out.
 - The visual design, within the sketch's layout.
-- How headless Claude permissions are configured, documented clearly.
-- Whether the Claude Code commands ship as a plugin, as `.claude/commands` files copied in by `init`, or both.
+- ~~How headless Claude permissions are configured, documented clearly.~~ Settled in Milestone 3: an approved list outside the repo, and runs isolated from project and user settings (section 9).
+- ~~Whether the Claude Code commands ship as a plugin, as `.claude/commands` files copied in by `init`, or both.~~ Settled in Milestone 3: both. The kit is a plugin for board runs and project skills for typed commands (section 8).
 - How v1 is split into milestones. A sensible order: file format + parser → read-only board with live updates → UI edits written back → Claude commands → Run button → overview/references → polish and publish.

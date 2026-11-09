@@ -23,10 +23,33 @@ describe('RunButton', () => {
     expect(onStop).toHaveBeenCalled();
   });
 
+  it('held back: says why, and the button starts nothing', () => {
+    const onRun = vi.fn();
+    render(<RunButton id="T-104" state="ready" hold="Draft. Have Claude write this up first." onRun={onRun} onStop={() => undefined} />);
+    expect(screen.getByText('Draft. Have Claude write this up first.')).toBeTruthy();
+    const button = screen.getByRole('button', { name: /Tell Claude to start/ }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    fireEvent.click(button);
+    expect(onRun).not.toHaveBeenCalled();
+  });
+
+  it('a hold changes nothing while running', () => {
+    render(<RunButton id="T-104" state="running" hold="Blocked." onRun={() => undefined} onStop={() => undefined} />);
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeTruthy();
+    expect(screen.queryByText('Blocked.')).toBeNull();
+  });
+
   it('disabled: says which spec Claude is working on', () => {
     render(<RunButton id="T-104" state="disabled" runningId="T-103" onRun={() => undefined} onStop={() => undefined} />);
     expect(screen.getByText('Claude is already working on T-103')).toBeTruthy();
     expect((screen.getByRole('button', { name: /Tell Claude to start/ }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('fallback with a note shows it in place of "not found"', () => {
+    render(<RunButton id="T-104" state="fallback" blockedNote="Held back for a reason." onRun={() => undefined} onStop={() => undefined} />);
+    expect(screen.getByText('Held back for a reason.')).toBeTruthy();
+    expect(screen.queryByText('Claude Code not found')).toBeNull();
+    expect(screen.getByRole('button', { name: '⧉ Copy command' })).toBeTruthy();
   });
 
   it('fallback copies the command and confirms for 2.6 s', async () => {

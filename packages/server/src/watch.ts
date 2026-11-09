@@ -72,7 +72,7 @@ export async function watchProject(
     fire();
   };
   watcher.on('all', onEvent);
-  watcher.on('error', () => undefined);
+  watcher.on('error', (e) => console.error(`Watching ${entry.root} failed: ${e instanceof Error ? e.message : String(e)}`));
 
   const ready = new Promise<void>((resolve) => {
     watcher.once('ready', () => resolve());

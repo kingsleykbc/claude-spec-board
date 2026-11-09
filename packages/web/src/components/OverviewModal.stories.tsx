@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
 import { recipeProject } from '../fixtures/recipeBox';
 import { OverviewModal } from './OverviewModal';
 
@@ -7,11 +7,10 @@ const meta = {
   title: 'Modals/Overview',
   component: OverviewModal,
   args: {
-    pid: 'p1',
     project: recipeProject,
     name: 'Recipe Box',
-    client: { claude: fn(async () => ({ stub: true })) },
     toast: fn(),
+    onRefresh: fn(),
     onClose: fn(),
     now: new Date(2026, 10, 8, 11, 30),
   },
@@ -41,12 +40,11 @@ export const Empty: Story = {
 };
 
 export const Refreshing: Story = {
-  args: { client: { claude: fn(() => new Promise<{ stub: boolean }>(() => undefined)) } },
+  args: { refreshing: true },
   play: async ({ canvasElement }) => {
     const dlg = within(canvasElement).getByRole('dialog', { name: 'Overview' });
-    await userEvent.click(within(dlg).getByRole('button', { name: '↻ Refresh' }));
     expect(within(dlg).getByRole('button', { name: 'Refreshing' })).toHaveProperty('disabled', true);
-    expect(within(dlg).getByText('Claude is rewriting the summary…')).toBeTruthy();
     expect(within(dlg).getByText('Updating…')).toBeTruthy();
+    expect(within(dlg).getByText('Claude is rewriting the summary…')).toBeTruthy();
   },
 };

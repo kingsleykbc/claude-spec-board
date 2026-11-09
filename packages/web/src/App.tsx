@@ -5,13 +5,17 @@ import { applyTheme, initialTheme, type Theme } from './lib/theme';
 import { createSpecActions, OFFLINE_TOAST } from './state/actions';
 import { ESC, useEscape } from './lib/escape';
 import { interceptPop } from './lib/popGuard';
+import { runHold } from './lib/vm';
 import { categoryOptions, NO_FILTERS, waitItems, type Filters, type WaitItem } from './state/filters';
 import { createMutator } from './state/mutate';
 import { useToasts, type PushToast } from './state/toasts';
 import { useProject } from './state/useProject';
+import { cardRun, isRefreshing, runButtonState, useRunActions, useRunToasts } from './state/runUi';
+import { useRun } from './state/useRun';
 import { Board } from './components/Board';
 import { AddSpecModal } from './components/AddSpecModal';
 import { CardDetail } from './components/detail/CardDetail';
+import { RunPanel } from './components/detail/RunPanel';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { FilterBar, type FilterMenu } from './components/FilterBar';
 import { OverviewModal } from './components/OverviewModal';
@@ -153,7 +157,8 @@ interface ProjectViewProps {
 
 /** One project's board. Keyed by project ID, so filters and menus reset on a switch (pinned behaviour 4). */
 function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onToggleTheme, reloadProjects }: ProjectViewProps) {
-  const { data, conn, changed, newQuestions, refresh, error, reconnect } = useProject(pid);
+  const { data, conn, live, changed, newQuestions, refresh, applyWrite, error, reconnect } = useProject(pid);
+  const run = useRun(pid, live);
   /** New-question badges cleared by saving answers (useProject keeps the session's full set). */
   const [seenQuestions, setSeenQuestions] = useState<ReadonlySet<string>>(() => new Set());
   const unseenQuestions = useMemo(() => new Set([...newQuestions].filter((k) => !seenQuestions.has(k))), [newQuestions, seenQuestions]);
@@ -165,14 +170,9 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
   /** The References, Overview or Add spec modal. */
   const [modal, setModal] = useState<'refs' | 'overview' | 'add' | null>(null);
 
-  const mutate = useMemo(() => createMutator(() => Promise.reject(new Error('No default op'))), []);
+  const mutate = useMemo(() => createMutator(() => Promise.reject(new Error('No default op')), applyWrite), [applyWrite]);
   const down = conn === 'disconnected';
-  const downRef = useRef(down);
-  downRef.current = down;
-  const actions = useMemo(
-    () => createSpecActions({ pid, mutate, refresh, toast, isDown: () => downRef.current }),
-    [pid, mutate, refresh, toast],
-  );
+  const actions = useMemo(() => createSpecActions({ pid, mutate, refresh, toast }), [pid, mutate, refresh, toast]);
 
   useEffect(() => {
     if (conn === 'live' && wantReconnectToast.current) {
@@ -191,6 +191,8 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
     [project, pending],
   );
   const archived = project?.archived ?? [];
+  useRunToasts(run, specs, toast);
+  const { startRun, stopRun, dismissRun } = useRunActions(run, toast, project?.root);
   const name = project?.config?.name || data?.entry.name || summary?.name || pid;
   const progress = project
     ? { done: archived.length + project.specs.filter((x) => x.status === 'done').length, total: project.specs.length + archived.length }
@@ -223,6 +225,10 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
 
   const openAdd = () => setModal('add');
   const closeModal = () => setModal(null);
+
+  // The run panel of the open spec. Refresh-overview runs have no spec, so no panel: the Overview modal shows them.
+  const shownRun = run.run && run.run.specId === openId && !run.run.dismissed ? run.run : null;
+  const openDoc = specs.find((x) => x.id === openId);
 
   return (
     <>
@@ -275,13 +281,14 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
             specs={specs}
             archived={archived}
             filters={filters}
+            run={run.run}
             canDrag={!down}
             changed={changed}
             onMove={(s, k) => void move(s, k)}
             onOpen={openSpec}
             onArchive={(s) => (down ? offline() : void actions.archive(s))}
             onUnarchive={(s) => (down ? offline() : void actions.unarchive(s))}
-            onWriteUp={(s) => void actions.writeUp(s)}
+            onWriteUp={(s) => void startRun('write-up', s.id)}
             onAdd={openAdd}
           />
           <button type="button" className={boardCss.fab} onClick={openAdd}>
@@ -305,11 +312,45 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
               newQuestions={unseenQuestions}
               onQuestionsSeen={(keys) => setSeenQuestions((x) => new Set([...x, ...keys]))}
               down={down}
+              {...runButtonState(run.run, openId, run.claude)}
+              runActive={openDoc ? cardRun(run.run, openDoc).runActive : false}
+              onRun={() => void startRun('run', openId)}
+              onStop={() => void stopRun()}
+              onFixFile={() => void startRun('fix-file', openId)}
+              {...(shownRun
+                ? {
+                    aside: (goToQuestions: () => void) => (
+                      <RunPanel
+                        kind={shownRun.kind}
+                        status={shownRun.status}
+                        lines={shownRun.lines}
+                        end={shownRun.end}
+                        projectRoot={project.root}
+                        onDismiss={() => void dismissRun()}
+                        onAction={(a) => {
+                          if (a === 'question') goToQuestions();
+                          else if (a === 'rerun') {
+                            const hold = shownRun.kind === 'run' && openDoc ? runHold(openDoc, [...specs, ...archived]) : null;
+                            if (hold) toast('warn', `${openId} can’t start yet`, hold);
+                            else void startRun(shownRun.kind, openId);
+                          }
+                        }}
+                      />
+                    ),
+                  }
+                : {})}
               returnFocus={() => cardElement(openId)}
             />
           )}
           {modal === 'overview' && (
-            <OverviewModal pid={pid} project={{ ...project, specs }} name={name} toast={toast} down={down} onClose={closeModal} />
+            <OverviewModal
+              project={{ ...project, specs }}
+              name={name}
+              toast={toast}
+              refreshing={isRefreshing(run.run)}
+              onRefresh={() => void startRun('refresh-overview')}
+              onClose={closeModal}
+            />
           )}
           {modal === 'refs' && <ReferencesModal pid={pid} toast={toast} down={down} stamp={project} onClose={closeModal} />}
           {modal === 'add' && data && (
@@ -319,7 +360,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
               toast={toast}
               down={down}
               refresh={refresh}
-              onWriteUp={(s) => actions.writeUp(s)}
+              onWriteUp={(s) => startRun('write-up', s.id)}
               onClose={closeModal}
             />
           )}

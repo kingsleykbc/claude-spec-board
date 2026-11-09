@@ -1,5 +1,4 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -7,7 +6,11 @@ import { createAdaptorServer } from '@hono/node-server';
 import getPort from 'get-port';
 import open from 'open';
 import { attachRealtime, createApp, type Realtime } from './app.js';
+import { initHint } from './prePublish.js';
 import { Registry } from './registry.js';
+import { RunManager } from './claude/runs.js';
+import { claudeStatus, type ClaudeStatus } from './claude/status.js';
+import { approvedStore, specboardHome } from './setup.js';
 
 export interface StartOptions {
   path: string;
@@ -15,6 +18,8 @@ export interface StartOptions {
   open: boolean;
   /** Browser launcher; defaults to the `open` package. Tests inject one. */
   opener?: (url: string) => Promise<unknown>;
+  /** Replaces how `claude` is launched and checked. Tests inject a fake CLI; the real one is never started by tests. */
+  claude?: { command?: (args: string[]) => { bin: string; args: string[] }; status?: () => Promise<ClaudeStatus> };
 }
 
 export interface Started {
@@ -24,10 +29,8 @@ export interface Started {
 
 const HOST = '127.0.0.1';
 
-/** Directory holding `projects.json`: `$SPECBOARD_HOME`, else `~/.specboard`. */
 function registryFile(): string {
-  const dir = process.env.SPECBOARD_HOME ?? path.join(os.homedir(), '.specboard');
-  return path.join(dir, 'projects.json');
+  return path.join(specboardHome(), 'projects.json');
 }
 
 /** True when a Spec Board server answers on `port` within 500 ms. */
@@ -59,9 +62,7 @@ async function tryOpen(opts: StartOptions, base: string, id: string): Promise<vo
 export async function start(opts: StartOptions): Promise<Started> {
   const root = path.resolve(opts.path);
   if (!fs.existsSync(path.join(root, '.specboard', 'config.md'))) {
-    throw new Error(
-      `No .specboard folder in ${root}. Run the Claude Code /create-spec command or "specboard init" (coming in M3).`,
-    );
+    throw new Error(`No .specboard folder in ${root}. ${initHint(root)}`);
   }
   const registry = new Registry(registryFile());
 
@@ -74,7 +75,11 @@ export async function start(opts: StartOptions): Promise<Started> {
 
   const port = await getPort({ port: opts.port === 0 ? undefined : opts.port, host: HOST });
   let bound = port;
-  const deps = { registry, port: () => bound, webDist: webDistDir() };
+  const approved = approvedStore();
+  const status = opts.claude?.status ?? claudeStatus;
+  let rt: Realtime | undefined;
+  const runs = new RunManager({ approved, emit: (id, e) => rt?.send(id, e), command: opts.claude?.command, status, roots: () => registry.roots() });
+  const deps = { registry, port: () => bound, webDist: webDistDir(), runs, approved, status };
   const server = createAdaptorServer({ fetch: createApp(deps).fetch }) as Server;
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
@@ -84,13 +89,16 @@ export async function start(opts: StartOptions): Promise<Started> {
     });
   });
   bound = (server.address() as AddressInfo).port;
-  let rt: Realtime | undefined;
   const close = async () => {
     try {
-      await rt?.close();
+      await runs.close(); // while the sockets are still open, so clients hear the runs end
     } finally {
-      server.closeAllConnections();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
+      try {
+        await rt?.close();
+      } finally {
+        server.closeAllConnections();
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+      }
     }
   };
 

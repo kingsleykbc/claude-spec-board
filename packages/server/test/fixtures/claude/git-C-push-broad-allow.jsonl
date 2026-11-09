@@ -1,0 +1,2 @@
+{"type":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"git -C . push origin HEAD","description":"Push HEAD to origin (expected to fail, no remote)"}}]}
+{"type":"result","subtype":"success","is_error":false,"permission_denials":[],"result":"The push failed as expected. I ran `git -C . push origin HEAD`, and git returned exit code 128 with `fatal: 'origin' does not appear to be a git repository` and `Could not read from remote repository`. That's because no `origin` remote is configured, so nothing was pushed."}
