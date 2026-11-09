@@ -4,6 +4,7 @@ import { expect, fn, userEvent, within } from 'storybook/test';
 import { SpecCard, type SpecCardProps } from './SpecCard';
 import { Urgency } from './Urgency';
 import { allRecipeSpecs, recipeSpec } from '../fixtures/recipeBox';
+import { SimpleMode } from '../state/simpleMode';
 
 const THEMES = ['light', 'dark'] as const;
 
@@ -149,4 +150,22 @@ export const UrgencyLevels: StoryObj<typeof UrgencySheet> = {
     const c = within(canvasElement);
     for (const label of ['Urgent', 'High', 'Normal', 'Low']) expect(c.getAllByText(label)).toHaveLength(2);
   },
+};
+
+/** Simple mode: ID, title, the start of the description and progress; the rest behind ⋯, with a dot because T-105 is blocked. */
+export const SimpleBlocked: Story = {
+  args: { id: 'T-105' },
+  decorators: [(Story) => <SimpleMode value>{Story()}</SimpleMode>],
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement.querySelector('[data-testid="theme-light"]')!);
+    expect(c.queryByText('Blocked')).toBeNull();
+    await userEvent.click(c.getByRole('button', { name: 'More about T-105' }));
+    expect(c.getByText('3 open questions · Waiting on T-104 (doing)')).toBeTruthy();
+  },
+};
+
+/** Simple mode, a card Claude is working on: the live banner stays. */
+export const SimpleRunning: Story = {
+  args: { id: 'T-104', running: 'Build the week grid' },
+  decorators: [(Story) => <SimpleMode value>{Story()}</SimpleMode>],
 };

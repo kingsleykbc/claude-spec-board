@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { DragEvent, HTMLAttributes, KeyboardEvent, MouseEvent } from 'react';
+import type { DragEvent, HTMLAttributes, KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import type { Spec } from '@specboard/core';
+import { MoreIcon, NeededByIcon, NeedsIcon, PlayIcon, ReviewIcon, WarnIcon } from '../lib/icons';
 import { firstParagraph, statusMeta } from '../lib/vm';
+import { useSimple } from '../state/simpleMode';
 import { CategoryTag } from './CategoryTag';
 import { Urgency } from './Urgency';
 import s from './SpecCard.module.css';
@@ -35,6 +37,18 @@ export interface SpecCardProps {
 
 type Tip = 'blocked' | 'file' | 'deps' | null;
 
+/** One labelled row in the Simple mode ⋯ menu. */
+function Detail({ label, ink, children }: { label: string; ink?: string; children: ReactNode }) {
+  return (
+    <span className={s.detail}>
+      <span className={s.detailLabel} style={ink ? { color: ink } : undefined}>
+        {label}
+      </span>
+      <span className={s.detailValue}>{children}</span>
+    </span>
+  );
+}
+
 const stop = (fn?: () => void) => (e: MouseEvent) => {
   e.stopPropagation();
   fn?.();
@@ -62,6 +76,7 @@ export function SpecCard({
   dragRef,
   dragProps,
 }: SpecCardProps) {
+  const simple = useSimple();
   const [tip, setTip] = useState<Tip>(null);
   const [menu, setMenu] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -132,6 +147,9 @@ export function SpecCard({
   const isRunning = running !== null && running !== undefined;
   const fileProblem = spec.problems[0];
   const tipOff = () => setTip(null);
+  /** Simple mode hides these, so the ⋯ button carries a dot to say something needs a look. */
+  const attention = spec.blocked || fileProblem !== undefined;
+  const showMenu = simple || spec.status === 'done';
 
   const bg = forceHover ? 'var(--raise)' : flash ? 'var(--accent-soft)' : undefined;
   const border = forceHover ? 'var(--line2)' : flash ? 'var(--accent)' : undefined;
@@ -181,25 +199,77 @@ export function SpecCard({
         {isDraft && <span className={s.draft}>Draft</span>}
         {spec.archived && <span className={s.archived}>· Archived</span>}
         <span className={s.spacer} />
-        {fileProblem !== undefined && (
+        {!simple && fileProblem !== undefined && (
           <span className={`${s.badge} ${s.file}`} onMouseEnter={() => setTip('file')} onMouseLeave={tipOff}>
-            ⚠ File problem
+            <WarnIcon aria-hidden /> File problem
             {tip === 'file' && <span className={s.tip}>{fileProblem}</span>}
           </span>
         )}
-        {spec.blocked && (
+        {!simple && spec.blocked && (
           <span className={`${s.badge} ${s.blocked}`} onMouseEnter={() => setTip('blocked')} onMouseLeave={tipOff}>
             <span className={s.bang}>!</span>Blocked
             {tip === 'blocked' && <span className={s.tip}>{spec.blockedReasons.join(' · ')}</span>}
           </span>
         )}
-        {spec.status === 'done' && (
+        {showMenu && (
           <span className={s.menuWrap}>
-            <button type="button" className={s.dots} aria-label="Card actions" aria-haspopup="menu" aria-expanded={menu} onClick={stop(() => setMenu((m) => !m))}>
-              ⋯
+            <button
+              type="button"
+              className={s.dots}
+              aria-label={simple ? `More about ${spec.id}` : 'Card actions'}
+              aria-haspopup="menu"
+              aria-expanded={menu}
+              onClick={stop(() => setMenu((m) => !m))}
+            >
+              <MoreIcon aria-hidden />
+              {simple && attention && <span className={s.attention} data-testid="card-attention" />}
             </button>
             {menu && (
-              <span className={s.menu} role="menu" onClick={(e) => e.stopPropagation()}>
+              <span className={`${s.menu} ${simple ? s.menuWide : ''}`} role="menu" onClick={(e) => e.stopPropagation()}>
+                {simple && (
+                  <span className={s.details} data-testid="card-details">
+                    {spec.blocked && (
+                      <Detail label="Blocked" ink="var(--block-ink)">
+                        {spec.blockedReasons.join(' · ')}
+                      </Detail>
+                    )}
+                    {fileProblem !== undefined && (
+                      <Detail label="File problem" ink="var(--review-ink)">
+                        {fileProblem}
+                      </Detail>
+                    )}
+                    {spec.status === 'review' && <Detail label="Status">Waiting on your review</Detail>}
+                    <Detail label="Urgency">
+                      <Urgency level={spec.urgency} />
+                    </Detail>
+                    {spec.categories.length > 0 && (
+                      <Detail label="Categories">
+                        {spec.categories.map((c) => (
+                          <CategoryTag key={c} name={c} />
+                        ))}
+                      </Detail>
+                    )}
+                    {needs.length > 0 && (
+                      <Detail label="Needs">
+                        {needs.map(depItem).map((d) => (
+                          <span key={d.id} className={s.mono} style={{ color: d.color, fontWeight: d.weight }}>
+                            {d.id}
+                          </span>
+                        ))}
+                      </Detail>
+                    )}
+                    {neededBy.length > 0 && (
+                      <Detail label="Needed by">
+                        {neededBy.map((id) => (
+                          <span key={id} className={s.mono}>
+                            {id}
+                          </span>
+                        ))}
+                      </Detail>
+                    )}
+                  </span>
+                )}
+                {spec.status === 'done' && (
                 <button
                   type="button"
                   role="menuitem"
@@ -212,6 +282,7 @@ export function SpecCard({
                 >
                   {spec.archived ? 'Unarchive' : 'Archive'}
                 </button>
+                )}
               </span>
             )}
           </span>
@@ -223,6 +294,7 @@ export function SpecCard({
         <div className={s.desc}>{firstParagraph(spec.bodyMd)}</div>
       </div>
 
+      {!simple && (
       <div className={s.meta}>
         {spec.categories.map((c) => (
           <CategoryTag key={c} name={c} />
@@ -230,12 +302,13 @@ export function SpecCard({
         <span className={s.spacer} />
         <Urgency level={spec.urgency} />
       </div>
+      )}
 
-      {(needs.length > 0 || neededBy.length > 0) && (
+      {!simple && (needs.length > 0 || neededBy.length > 0) && (
         <div className={s.deps} onMouseEnter={() => setTip('deps')} onMouseLeave={tipOff}>
           {needs.length > 0 && (
             <span className={s.depGroup}>
-              ⤴ needs
+              <NeedsIcon aria-hidden /> needs
               {needs.length <= 2 ? (
                 needs.map(depItem).map((d) => (
                   <span key={d.id} className={s.mono} style={{ color: d.color, fontWeight: d.weight }}>
@@ -249,7 +322,7 @@ export function SpecCard({
           )}
           {neededBy.length > 0 && (
             <span className={s.depGroup}>
-              ⤵ needed by
+              <NeededByIcon aria-hidden /> needed by
               {neededBy.length <= 2 ? (
                 neededBy.map((id) => (
                   <span key={id} className={s.mono}>
@@ -280,16 +353,18 @@ export function SpecCard({
           Claude is writing it up
         </div>
       )}
-      {spec.status === 'review' && (
+      {!simple && spec.status === 'review' && (
         <div className={`${s.banner} ${s.review}`}>
-          <span className={s.diamond}>◆</span>Waiting on your review
+          <ReviewIcon aria-hidden className={s.diamond} />
+          Waiting on your review
         </div>
       )}
 
       <div className={s.foot}>
         {isDraft && (
           <button type="button" className={s.writeUp} onClick={stop(onWriteUp)}>
-            <span className={s.play}>▶</span>Have Claude write this up
+            <PlayIcon aria-hidden className={s.play} />
+            Have Claude write this up
           </button>
         )}
         {total > 0 && !writing && (
@@ -303,9 +378,11 @@ export function SpecCard({
           </div>
         )}
         <span className={s.spacer} />
-        <button type="button" className={s.view} onClick={stop(onOpen)}>
-          View
-        </button>
+        {!simple && (
+          <button type="button" className={s.view} onClick={stop(onOpen)}>
+            View
+          </button>
+        )}
       </div>
     </div>
   );

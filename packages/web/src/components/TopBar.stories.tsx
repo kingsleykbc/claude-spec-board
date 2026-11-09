@@ -67,3 +67,25 @@ export const SwitcherOpen: Story = {
     expect(c.getByText('Open another project folder…')).toBeTruthy();
   },
 };
+
+/** On the docs page: logo menu, project and theme, with a link back to the board in place of References, Overview and Live. */
+export const DocsPage: StoryObj = {
+  render: () => (
+    <div style={{ minHeight: 200 }}>
+      <TopBar
+        page="docs"
+        switcher={{ name: 'Recipe Box', progress: { done: 3, total: 9 }, projects, current: 'p1', open: false, onToggle: fn(), onPick: fn(), onOpenFolder: fn() }}
+        brandOpen
+        onToggleBrand={fn()}
+        theme="light"
+        onToggleTheme={fn()}
+      />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    expect(c.getByRole('link', { name: 'Open the board' }).getAttribute('href')).toBe('/?project=p1');
+    expect(c.queryByRole('button', { name: 'References' })).toBeNull();
+    expect(c.getByRole('menuitem', { name: 'Board' })).toBeTruthy();
+  },
+};

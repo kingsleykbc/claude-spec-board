@@ -1,10 +1,10 @@
 # Running a spec
 
-There are two ways to have Claude work on a spec. **Use your chat unless you have a reason not to.** Use the background when you don't fully trust the repo, or don't want to sit with a chat.
+There are two ways to have Claude work on a spec, and the card shows both as equal buttons: **Copy run command** and **Run in background**. **Use your chat unless you have a reason not to.** Use the background when you don't fully trust the repo, or don't want to sit with a chat.
 
 | | In your Claude chat | In the background |
 |---|---|---|
-| **How to start** | Press **Copy chat command** on the card and paste it into a chat, or type `/run-spec T-001` | Press **Run in background** on the card |
+| **How to start** | Press **Copy run command** on the card and paste it into a chat, or type `/run-spec T-001` | Press **Run in background** on the card |
 | **Where you watch it** | In the chat, in full | On the card, as a short list of steps |
 | **When Claude needs an action approved** | It asks you in the chat | It can't ask. Anything you haven't approved is refused and the run stops |
 | **Your Claude settings, plugins and MCP servers** | Apply as usual | Off |
@@ -12,9 +12,9 @@ There are two ways to have Claude work on a spec. **Use your chat unless you hav
 | **To stop it** | Press Esc in the chat | Press **Stop** on the card |
 | **Setup it needs** | `init` copied the commands, the chat is open in the project folder, and you trusted that folder when Claude asked | `init` approved the list of actions |
 
-## Why the chat is the main button
+## Why the chat is the usual choice
 
-You see all of Claude's work in the place you already work, and you can step in, answer or redirect it there. The board can't type into a chat that's already open, so the button copies the command for you to paste.
+You see all of Claude's work in the place you already work, and you can step in, answer or redirect it there. The board can't type into a chat that's already open, so **Copy run command** copies `/run-spec T-001` for you to paste.
 
 Your chat is the less restricted of the two. A project's hooks and MCP servers run there, as they do in any Claude Code session in that folder. If you don't trust a repo, that's the difference that matters, and it's the reason the background run stays.
 

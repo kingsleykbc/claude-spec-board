@@ -46,7 +46,7 @@ function setup(first: Spec, opts: Opts = {}) {
 
 const row = (qid: string) => document.querySelector(`[data-question="${qid}"]`) as HTMLElement;
 const state = (qid: string) => row(qid).querySelector('[data-state]')!.textContent;
-const save = () => screen.getByRole('button', { name: /Save changes|Saving…|✓ Saved/ }) as HTMLButtonElement;
+const save = () => screen.getByRole('button', { name: /Save changes|Saving…|Saved/ }) as HTMLButtonElement;
 
 const answered = (sp: Spec, answers: Record<string, string>): Spec => ({
   ...sp,
@@ -79,7 +79,7 @@ describe('Questions', () => {
     setup(recipeSpec('T-106'));
     const ta = screen.getByRole('textbox', { name: 'Which OAuth providers should come later?' }) as HTMLTextAreaElement;
     expect(ta.value).toBe('Google and GitHub');
-    expect(state('Q1')).toBe('✓ Answered');
+    expect(state('Q1')).toBe('Answered');
     expect(row('Q1').style.background).toBe('transparent');
     expect(screen.queryByText(/waiting on you/)).toBeNull();
   });
@@ -97,12 +97,12 @@ describe('Questions', () => {
     expect(save().disabled).toBe(false);
     expect(screen.getByText('Unsaved answers')).toBeTruthy();
     fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '2' } });
-    expect(state('Q2')).toBe('● Unsaved');
+    expect(state('Q2')).toBe('Unsaved');
     fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '' } });
     expect(state('Q2')).toBe('Needs answer');
   });
 
-  it('answering Q1 Yes, Q2 2, Q3 CSV and saving sends only those, toasts, and the states go Needs answer → ● Unsaved → ✓ Answered', async () => {
+  it('answering Q1 Yes, Q2 2, Q3 CSV and saving sends only those, toasts, and the states go Needs answer → Unsaved → Answered', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const sp = recipeSpec('T-105');
     const answers = { Q1: 'Yes', Q2: '2', Q3: 'CSV' };
@@ -111,14 +111,14 @@ describe('Questions', () => {
     fireEvent.click(within(row('Q1')).getByRole('radio', { name: 'Yes' }));
     fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '2' } });
     fireEvent.click(within(row('Q3')).getByRole('radio', { name: 'CSV' }));
-    expect(['Q1', 'Q2', 'Q3'].map(state)).toEqual(['● Unsaved', '● Unsaved', '● Unsaved']);
+    expect(['Q1', 'Q2', 'Q3'].map(state)).toEqual(['Unsaved', 'Unsaved', 'Unsaved']);
     fireEvent.click(save());
     expect(save().textContent).toBe('Saving…');
     await waitFor(() => expect(toast).toHaveBeenCalledWith('ok', 'Answers saved', `Written to ${PATH}`));
     expect(client.setAnswers).toHaveBeenCalledTimes(1);
     expect(client.setAnswers).toHaveBeenCalledWith('p1', 'T-105', sp.hash, answers);
-    expect(['Q1', 'Q2', 'Q3'].map(state)).toEqual(['✓ Answered', '✓ Answered', '✓ Answered']);
-    expect(save().textContent).toBe('✓ Saved');
+    expect(['Q1', 'Q2', 'Q3'].map(state)).toEqual(['Answered', 'Answered', 'Answered']);
+    expect(save().textContent).toBe('Saved');
     expect(screen.getByText('Claude will pick these up on its next run')).toBeTruthy();
     act(() => vi.advanceTimersByTime(1800));
     expect(save().textContent).toBe('Save changes');
@@ -129,7 +129,7 @@ describe('Questions', () => {
     const sp = recipeSpec('T-106');
     const { client } = setup(sp);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '' } });
-    expect(state('Q1')).toBe('● Unsaved');
+    expect(state('Q1')).toBe('Unsaved');
     fireEvent.click(save());
     await waitFor(() => expect(client.setAnswers).toHaveBeenCalledWith('p1', 'T-106', sp.hash, { Q1: '' }));
   });
@@ -148,7 +148,7 @@ describe('Questions', () => {
     );
     expect(refresh).toHaveBeenCalled();
     expect((within(row('Q1')).getByRole('radio', { name: 'No' }) as HTMLInputElement).checked).toBe(true);
-    expect(state('Q1')).toBe('● Unsaved');
+    expect(state('Q1')).toBe('Unsaved');
     expect(save().disabled).toBe(false);
   });
 

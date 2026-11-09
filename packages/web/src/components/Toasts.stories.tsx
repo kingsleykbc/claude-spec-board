@@ -19,7 +19,10 @@ type Story = StoryObj<typeof meta>;
 export const AllKinds: Story = {
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
-    for (const icon of ['✓', '▶', '●', '?', '!']) expect(c.getByText(icon)).toBeTruthy();
+    // Each kind has its own icon.
+    const icons = [...canvasElement.querySelectorAll('[data-kind] > span:first-child')].map((x) => x.innerHTML);
+    expect(icons).toHaveLength(5);
+    expect(new Set(icons).size).toBe(5);
     expect(c.getAllByRole('button', { name: 'Dismiss' })).toHaveLength(5);
   },
 };

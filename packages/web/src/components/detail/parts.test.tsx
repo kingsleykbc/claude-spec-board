@@ -68,7 +68,7 @@ describe('CategoryEditor', () => {
   it('shows "Type a new category name" when nothing matches, and closes on blur', () => {
     const onAdd = vi.fn();
     render(<CategoryEditor categories={['Frontend']} all={['Frontend']} onAdd={onAdd} onRemove={() => undefined} />);
-    fireEvent.click(screen.getByRole('button', { name: '+ Category' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Category' }));
     expect(screen.getByText('Type a new category name')).toBeTruthy();
     fireEvent.blur(screen.getByPlaceholderText('Category…'));
     expect(screen.queryByPlaceholderText('Category…')).toBeNull();
@@ -77,7 +77,7 @@ describe('CategoryEditor', () => {
   it('Enter uses an existing category’s spelling', () => {
     const onAdd = vi.fn();
     render(<CategoryEditor categories={[]} all={['Infra']} onAdd={onAdd} onRemove={() => undefined} />);
-    fireEvent.click(screen.getByRole('button', { name: '+ Category' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Category' }));
     const input = screen.getByPlaceholderText('Category…');
     fireEvent.change(input, { target: { value: 'infra' } });
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -90,7 +90,7 @@ describe('SpecSection', () => {
     const onEdit = vi.fn();
     render(<SpecSection md={'Hello **world**'} text={null} onEdit={onEdit} onChange={() => undefined} onCancel={() => undefined} onSave={() => undefined} />);
     expect(screen.getByText('world').tagName).toBe('STRONG');
-    fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     expect(onEdit).toHaveBeenCalled();
   });
 

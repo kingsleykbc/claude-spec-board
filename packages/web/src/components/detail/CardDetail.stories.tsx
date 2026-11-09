@@ -3,6 +3,7 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { ConflictError } from '../../api/client';
 import { fileProblemSpec, recipeArchived, recipeSpec, recipeSpecs } from '../../fixtures/recipeBox';
 import { createMutator } from '../../state/mutate';
+import { SimpleMode } from '../../state/simpleMode';
 import { CardDetail, type DetailClient } from './CardDetail';
 import { RUN_LINES, RunPanel } from './RunPanel';
 
@@ -40,7 +41,7 @@ export const ReadMode: Story = {
     const c = within(canvasElement);
     const dlg = c.getByRole('dialog', { name: 'Meal planner calendar' });
     expect(within(dlg).getByText('.specboard/specs/T-104-meal-planner-calendar/spec.md')).toBeTruthy();
-    expect(within(dlg).getByRole('button', { name: '✎ Edit' })).toBeTruthy();
+    expect(within(dlg).getByRole('button', { name: 'Edit' })).toBeTruthy();
     expect(within(dlg).queryByText('Blocked.')).toBeNull();
   },
 };
@@ -48,7 +49,7 @@ export const ReadMode: Story = {
 export const EditMode: Story = {
   play: async ({ canvasElement, args }) => {
     const c = within(canvasElement);
-    await userEvent.click(c.getByRole('button', { name: '✎ Edit' }));
+    await userEvent.click(c.getByRole('button', { name: 'Edit' }));
     const ta = c.getByRole('textbox', { name: 'Spec markdown' });
     expect(c.getByText('Markdown · preview on the right')).toBeTruthy();
     await userEvent.clear(ta);
@@ -93,7 +94,7 @@ export const Conflict: Story = {
   },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
-    await userEvent.click(c.getByRole('button', { name: '✎ Edit' }));
+    await userEvent.click(c.getByRole('button', { name: 'Edit' }));
     await userEvent.type(c.getByRole('textbox', { name: 'Spec markdown' }), ' more');
     await userEvent.click(c.getByRole('button', { name: 'Save' }));
     const body = within(document.body);
@@ -107,7 +108,7 @@ export const DiscardChanges: Story = {
   name: 'Close with unsaved changes',
   play: async ({ canvasElement, args }) => {
     const c = within(canvasElement);
-    await userEvent.click(c.getByRole('button', { name: '✎ Edit' }));
+    await userEvent.click(c.getByRole('button', { name: 'Edit' }));
     const ta = c.getByRole('textbox', { name: 'Spec markdown' });
     await userEvent.type(ta, ' more');
     await userEvent.click(c.getByRole('button', { name: 'Close' }));
@@ -177,5 +178,19 @@ export const WithRunPanel: Story = {
     expect(within(dlg).getByRole('complementary', { name: 'Run output' })).toBeTruthy();
     expect(dlg.style.width).toBe('min(1240px, 100%)');
     expect(within(dlg).getByText('In progress')).toBeTruthy();
+  },
+};
+
+/** Simple mode: urgency, categories and dependencies sit in the ⋯ menu in the header. */
+export const Simple: Story = {
+  args: { specId: 'T-105' },
+  decorators: [(Story) => <SimpleMode value>{Story()}</SimpleMode>],
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement.ownerDocument.body);
+    expect(c.queryByRole('radiogroup', { name: 'Urgency' })).toBeNull();
+    await userEvent.click(c.getByRole('button', { name: 'More details' }));
+    const menu = within(c.getByRole('dialog', { name: 'More details' }));
+    expect(menu.getByRole('radiogroup', { name: 'Urgency' })).toBeTruthy();
+    expect(menu.getByText('Depends on')).toBeTruthy();
   },
 };

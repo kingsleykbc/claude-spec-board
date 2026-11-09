@@ -1,6 +1,6 @@
 /* Overview, References and Add spec modals: docs/design/Spec Board.dc.html lines 295-378 */
 
-.close { width: 34px; height: 34px; border: 0; border-radius: 8px; background: transparent; font-size: 20px; color: var(--fg2); cursor: pointer; font-family: inherit; }
+.close { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: 0; border-radius: 8px; background: transparent; font-size: 18px; color: var(--fg2); cursor: pointer; font-family: inherit; }
 .close:hover { background: var(--panel); }
 .grow { flex: 1; }
 
@@ -18,7 +18,7 @@
 .ovRingLabel { font-size: 12px; color: var(--fg2); font-weight: 500; }
 .ovCounts { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 28px 22px; }
 .ovCount { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: 8px; background: var(--panel); font-size: 13px; }
-.ovCountIcon { font-size: 11px; }
+.ovCountIcon { display: inline-flex; font-size: 13px; }
 .ovCountN { font-family: var(--mono); font-weight: 600; }
 .ovRule { margin: 0 28px; border-top: 1px solid var(--line); }
 .ovProgress { padding: 20px 28px 8px; display: flex; flex-direction: column; gap: 12px; }
@@ -43,7 +43,7 @@
 .rfHead { display: flex; align-items: center; gap: 10px; padding: 18px 20px 14px 28px; }
 .rfTitle { font-size: 15px; font-weight: 600; letter-spacing: 0.06em; }
 .rfAddWrap { position: relative; }
-.rfAdd { height: 32px; padding: 0 12px; border: 1px solid var(--line2); border-radius: 8px; background: var(--card); color: var(--fg); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.rfAdd { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px solid var(--line2); border-radius: 8px; background: var(--card); color: var(--fg); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .rfAdd:hover { background: var(--panel); }
 .rfMenu { position: absolute; top: 40px; right: 0; z-index: 6; width: 330px; padding: 6px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow-lg); }
 .rfMenuList { display: flex; flex-direction: column; gap: 2px; }
@@ -63,8 +63,8 @@
 .rfConfirm { height: 30px; padding: 0 12px; border: 0; border-radius: 7px; background: var(--accent); color: var(--accent-fg); font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .rfConfirm:disabled { opacity: 0.45; cursor: default; }
 .rfTabsRow { position: relative; display: flex; align-items: stretch; margin: 0 28px; border-bottom: 1px solid var(--line); }
-.rfArrowL { flex: none; width: 28px; border: 0; background: var(--card); color: var(--fg2); cursor: pointer; font-size: 16px; font-family: inherit; }
-.rfArrowR { flex: none; width: 32px; border: 0; border-left: 1px solid var(--line); background: var(--card); color: var(--fg); cursor: pointer; font-size: 17px; font-family: inherit; }
+.rfArrowL { display: flex; align-items: center; justify-content: center; flex: none; width: 28px; border: 0; background: var(--card); color: var(--fg2); cursor: pointer; font-size: 16px; font-family: inherit; }
+.rfArrowR { display: flex; align-items: center; justify-content: center; flex: none; width: 32px; border: 0; border-left: 1px solid var(--line); background: var(--card); color: var(--fg); cursor: pointer; font-size: 17px; font-family: inherit; }
 .rfTabs { flex: 1; min-width: 0; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; scroll-behavior: smooth; }
 .rfTab { flex: none; min-width: 132px; height: 38px; padding: 0 16px; border: 0; border-bottom: 2px solid transparent; background: transparent; font-family: var(--mono); font-size: 12.5px; font-weight: 400; color: var(--fg2); cursor: pointer; }
 .rfTab:hover { color: var(--fg); }
@@ -80,7 +80,7 @@
 .rfFoot { display: flex; align-items: center; gap: 8px; padding: 12px 20px 14px 28px; border-top: 1px solid var(--line); }
 .rfRemove { height: 32px; padding: 0 10px; border: 0; border-radius: 7px; background: transparent; font-family: inherit; font-size: 12.5px; color: var(--fg2); cursor: pointer; }
 .rfRemove:hover { background: var(--panel); color: var(--block-ink); }
-.rfEdit { height: 32px; padding: 0 14px; border: 1px solid var(--line2); border-radius: 8px; background: var(--card); color: var(--fg); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.rfEdit { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border: 1px solid var(--line2); border-radius: 8px; background: var(--card); color: var(--fg); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .rfEdit:hover { background: var(--panel); }
 .rfEditing { font-size: 12px; color: var(--fg3); }
 .rfCancel { height: 32px; padding: 0 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--fg); font-family: inherit; font-size: 13px; cursor: pointer; }
@@ -104,5 +104,5 @@
 .nsDraft { height: 36px; padding: 0 14px; border: 1px solid var(--line2); border-radius: 8px; background: var(--card); color: var(--fg); font-family: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
 .nsWrite { display: flex; align-items: center; gap: 7px; height: 36px; padding: 0 15px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-fg); font-family: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
 .nsDraft:disabled, .nsWrite:disabled { cursor: default; }
-.nsPlay { font-size: 9px; }
+.nsPlay { font-size: 12px; }
 .rfError { font-size: 12px; color: var(--block-ink); }

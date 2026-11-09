@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { SunIcon } from '../lib/icons';
+import { TOAST } from '../state/toasts';
 import { TopBar, type TopBarProps } from './TopBar';
 import { ConnectionBanner } from './ConnectionBanner';
 import { FilterBar, type FilterBarProps } from './FilterBar';
@@ -32,7 +35,7 @@ function topBar(props: Partial<TopBarProps> = {}) {
 describe('TopBar', () => {
   it('shows the project, its progress and the live state', () => {
     topBar();
-    expect(screen.getByRole('button', { name: /Recipe Box/ }).textContent).toBe('Recipe Box3/9 done▾');
+    expect(screen.getByRole('button', { name: /Recipe Box/ }).textContent).toBe('Recipe Box3/9 done');
     expect(screen.getByTestId('conn').textContent).toBe('Live');
     expect(screen.getByTestId('conn').title).toBe('Connected. Watching specs/ for changes.');
     expect(screen.queryByTestId('spinner')).toBeNull();
@@ -51,7 +54,7 @@ describe('TopBar', () => {
   it('theme toggle icon and label', () => {
     const p = topBar({ theme: 'dark' });
     const b = screen.getByRole('button', { name: 'Switch to light theme' });
-    expect(b.textContent).toBe('☀');
+    expect(b.innerHTML).toBe(renderToStaticMarkup(<SunIcon aria-hidden />));
     fireEvent.click(b);
     expect(p.onToggleTheme).toHaveBeenCalled();
   });
@@ -137,7 +140,7 @@ describe('FilterBar', () => {
 
   it('active filters show as chips with counts, removable, plus Clear', () => {
     const p = filterBar({ filters: { cats: ['Backend'], urg: ['normal'], blocked: true } });
-    expect(screen.getByRole('button', { name: /^Category/ }).textContent).toBe('Category1▾');
+    expect(screen.getByRole('button', { name: /^Category/ }).textContent).toBe('Category1');
     expect(screen.getAllByRole('button', { name: 'Remove filter' })).toHaveLength(3);
     fireEvent.click(screen.getAllByRole('button', { name: 'Remove filter' })[0]!);
     expect(p.onChange).toHaveBeenCalledWith({ cats: [], urg: ['normal'], blocked: true });
@@ -159,8 +162,8 @@ describe('Toasts', () => {
         ]}
       />,
     );
-    expect(screen.getByText('✓')).toBeTruthy();
-    expect(screen.getByText('!')).toBeTruthy();
+    const icons = [...document.querySelectorAll('[data-kind]')].map((t) => t.firstElementChild!.innerHTML);
+    expect(icons).toEqual([renderToStaticMarkup(<TOAST.ok.icon aria-hidden />), renderToStaticMarkup(<TOAST.err.icon aria-hidden />)]);
     expect(screen.getByText('Meal planner calendar')).toBeTruthy();
     fireEvent.click(screen.getAllByRole('button', { name: 'Dismiss' })[1]!);
     expect(onDismiss).toHaveBeenCalledWith(2);

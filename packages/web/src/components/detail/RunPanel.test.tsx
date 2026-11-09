@@ -1,7 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import type { EndInfo, RunKind } from '../../api/client';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { LINE } from '../../lib/vm';
 import { RunPanel, RUN_LINES, type RunStatus } from './RunPanel';
+
+/** The markup of a run-log line kind's icon. */
+const iconHtml = (k: string) => {
+  const Icon = LINE[k]![0];
+  return renderToStaticMarkup(<Icon aria-hidden />);
+};
 
 const RULE = 'specboard allow "Bash(npm install:*)"\nspecboard allow "Bash(npm test:*)"';
 const permission: EndInfo = { status: 'permission', title: 'Claude needs permission', text: 'Claude was stopped from using Bash.', fix: RULE };
@@ -29,8 +37,8 @@ describe('RunPanel', () => {
     expect(p.getByTestId('run-chip').textContent).toBe('Running');
     expect(p.getByText('Working…')).toBeTruthy();
     expect(p.queryByRole('button', { name: 'Dismiss' })).toBeNull();
-    const icons = p.getAllByTestId('line-icon').map((i) => i.textContent);
-    expect(icons).toEqual(['▶', '◇', '✓', '✓', '◇', '✎']);
+    const icons = p.getAllByTestId('line-icon').map((i) => i.innerHTML);
+    expect(icons).toEqual(['start', 'read', 'ok', 'done', 'read', 'edit'].map(iconHtml));
     expect(p.getByText('specs/T-104-meal-planner-calendar.md').closest('code')?.tagName).toBe('CODE');
     expect(p.queryByTestId('run-end')).toBeNull();
   });
@@ -140,9 +148,9 @@ describe('RunPanel', () => {
     const { panel, onAction } = setup('permission', permission);
     fireEvent.click(within(panel).getByRole('button', { name: 'Copy rule' }));
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(RULE);
-    expect(within(panel).queryByText('✓ Copied rule')).toBeNull();
+    expect(within(panel).queryByText('Copied rule')).toBeNull();
     await act(async () => resolve());
-    expect(within(panel).getByRole('button', { name: '✓ Copied rule' })).toBeTruthy();
+    expect(within(panel).getByRole('button', { name: 'Copied rule' })).toBeTruthy();
     expect(onAction).toHaveBeenCalledWith('copy');
   });
 

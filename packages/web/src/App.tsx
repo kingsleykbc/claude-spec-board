@@ -5,15 +5,18 @@ import { applyTheme, initialTheme, type Theme } from './lib/theme';
 import { createSpecActions, OFFLINE_TOAST } from './state/actions';
 import { ESC, useEscape } from './lib/escape';
 import { interceptPop } from './lib/popGuard';
+import { PlusIcon } from './lib/icons';
 import { runHold } from './lib/vm';
 import { categoryOptions, NO_FILTERS, waitItems, type Filters, type WaitItem } from './state/filters';
 import { createMutator } from './state/mutate';
 import { FileLinks } from './state/fileLinks';
+import { initialSimple, saveSimple, SimpleMode } from './state/simpleMode';
 import { useToasts, type PushToast } from './state/toasts';
 import { useProject } from './state/useProject';
 import { cardRun, isRefreshing, runButtonState, useRunActions, useRunToasts } from './state/runUi';
 import { useRun } from './state/useRun';
 import { Board } from './components/Board';
+import { AppSkeleton, BoardSkeleton } from './components/Skeleton';
 import { AddSpecModal } from './components/AddSpecModal';
 import { CardDetail } from './components/detail/CardDetail';
 import { RunPanel } from './components/detail/RunPanel';
@@ -67,6 +70,11 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [url, setUrl] = useState<UrlState>(readUrl);
   const [theme, setTheme] = useState<Theme>(initialTheme);
+  const [simple, setSimple] = useState<boolean>(initialSimple);
+  const toggleSimple = useCallback((on: boolean) => {
+    saveSimple(on);
+    setSimple(on);
+  }, []);
 
   const navigate = useCallback<Navigate>((next, replace = false) => {
     const href = urlFor(next);
@@ -129,11 +137,13 @@ export function App() {
         toast={push}
         theme={theme}
         onToggleTheme={toggleTheme}
+        simple={simple}
+        onSimple={toggleSimple}
         reloadProjects={loadProjects}
       />
     );
   } else {
-    body = <div style={muted}>{error ?? (projects ? 'No projects yet. Run spec-board in a project folder.' : 'Loading…')}</div>;
+    body = error || projects ? <div style={muted}>{error ?? 'No projects yet. Run spec-board in a project folder.'}</div> : <AppSkeleton />;
   }
 
   return (
@@ -153,11 +163,14 @@ interface ProjectViewProps {
   toast: PushToast;
   theme: Theme;
   onToggleTheme: () => void;
+  /** Simple mode (the switch in the filter bar). */
+  simple: boolean;
+  onSimple: (on: boolean) => void;
   reloadProjects: () => void;
 }
 
 /** One project's board. Keyed by project ID, so filters and menus reset on a switch (pinned behaviour 4). */
-function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onToggleTheme, reloadProjects }: ProjectViewProps) {
+function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onToggleTheme, simple, onSimple, reloadProjects }: ProjectViewProps) {
   const { data, conn, live, changed, newQuestions, refresh, applyWrite, error, reconnect } = useProject(pid);
   const run = useRun(pid, live);
   /** New-question badges cleared by saving answers (useProject keeps the session's full set). */
@@ -270,6 +283,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
         }}
       />
       {project ? (
+        <SimpleMode value={simple}>
         <FileLinks pid={pid} root={project.root} toast={toast}>
           <FilterBar
             filters={filters}
@@ -277,8 +291,10 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
             categories={categoryOptions(specs, archived)}
             waits={waitItems(specs)}
             onWait={onWait}
-            menu={menu === 'cat' || menu === 'urg' ? menu : null}
+            menu={menu === 'cat' || menu === 'urg' || menu === 'waits' ? menu : null}
             onMenu={(m) => setMenu(m)}
+            simple={simple}
+            onSimple={onSimple}
           />
           <Board
             specs={specs}
@@ -295,7 +311,8 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
             onAdd={openAdd}
           />
           <button type="button" className={boardCss.fab} onClick={openAdd}>
-            <span className={boardCss.fabPlus}>+</span>Add new spec
+            <PlusIcon aria-hidden className={boardCss.fabPlus} />
+            Add new spec
           </button>
           {openId && (
             <CardDetail
@@ -368,8 +385,9 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
             />
           )}
         </FileLinks>
+        </SimpleMode>
       ) : (
-        <div style={muted}>{error ? error.message : 'Loading…'}</div>
+        error ? <div style={muted}>{error.message}</div> : <BoardSkeleton />
       )}
     </>
   );

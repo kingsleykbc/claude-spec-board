@@ -51,8 +51,8 @@ export const Fallback: Story = {
     stubClipboard(async () => undefined);
     const c = within(canvasElement);
     expect(c.getByText('Claude Code not found')).toBeTruthy();
-    await userEvent.click(c.getByRole('button', { name: '⧉ Copy chat command' }));
-    expect(await c.findByRole('button', { name: '✓ Copied: paste it into your Claude chat' })).toBeTruthy();
+    await userEvent.click(c.getByRole('button', { name: 'Copy run command' }));
+    expect(await c.findByRole('button', { name: 'Copied: paste it into your Claude chat' })).toBeTruthy();
   },
 };
 
@@ -69,7 +69,7 @@ export const CopyFailed: Story = {
   play: async ({ canvasElement }) => {
     stubClipboard(() => Promise.reject(new Error('denied')));
     const c = within(canvasElement);
-    await userEvent.click(c.getByRole('button', { name: '⧉ Copy chat command' }));
+    await userEvent.click(c.getByRole('button', { name: 'Copy run command' }));
     const note = await c.findByTestId('copy-failed');
     expect(note.textContent).toBe('Copy failed: paste /run-spec T-104 into your Claude chat');
   },

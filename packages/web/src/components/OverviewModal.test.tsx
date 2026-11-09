@@ -30,7 +30,7 @@ describe('OverviewModal', () => {
     expect(within(dlg).getByText(/A web app to save recipes/)).toBeTruthy();
     expect(within(dlg).getByText('3/9')).toBeTruthy();
     const counts = within(dlg).getByTestId('ov-counts');
-    expect([...counts.children].map((c) => c.textContent)).toEqual(['○To-do4', '◐Doing1', '◆Review1', '✓Done3', '!Blocked2']);
+    expect([...counts.children].map((c) => c.textContent)).toEqual(['To-do4', 'Doing1', 'Review1', 'Done3', 'Blocked2']);
     expect(within(dlg).getByText('Last updated 2h ago')).toBeTruthy();
     expect(within(dlg).getByText('Search & filters').tagName).toBe('STRONG');
   });
@@ -43,7 +43,7 @@ describe('OverviewModal', () => {
 
   it('Refresh asks for a refresh', () => {
     const p = setup();
-    fireEvent.click(screen.getByRole('button', { name: '↻ Refresh' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
     expect(p.onRefresh).toHaveBeenCalledOnce();
   });
 
@@ -76,7 +76,7 @@ describe('OverviewModal', () => {
       clicked = this;
     });
     const p = setup();
-    fireEvent.click(screen.getByRole('button', { name: '⇪ Export .md' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Export .md' }));
     expect(url).toHaveBeenCalledOnce();
     expect(clicked!.download).toBe('recipe-box-overview.md');
     expect(await created[0]!.text()).toContain('- Done: 3');

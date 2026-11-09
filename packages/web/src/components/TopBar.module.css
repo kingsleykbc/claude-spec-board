@@ -3,7 +3,7 @@
 .brand { display: flex; align-items: center; gap: 9px; height: 32px; padding: 0 8px 0 4px; border: 0; border-radius: 8px; background: transparent; color: inherit; font-family: inherit; cursor: pointer; }
 .brand:hover { background: var(--panel); }
 .brandMenu { position: absolute; top: 38px; left: 0; z-index: 31; width: 180px; padding: 6px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
-.brandItem { padding: 8px 10px; border-radius: 7px; color: var(--fg); font-size: 13px; text-decoration: none; }
+.brandItem { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 7px; color: var(--fg); font-size: 13px; text-decoration: none; }
 .brandItem:hover { background: var(--panel); }
 .logo { width: 20px; height: 20px; border-radius: 6px; background: var(--fg); display: flex; align-items: flex-end; justify-content: center; gap: 2px; padding: 4px; }
 .logo span { width: 3px; border-radius: 1px; }
@@ -12,20 +12,22 @@
 .flex { flex: 1; }
 .btn { height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: transparent; font-size: 13px; font-weight: 500; cursor: pointer; }
 .btn:hover, .theme:hover { background: var(--panel); }
+.linkBtn { display: inline-flex; align-items: center; gap: 7px; color: var(--fg); text-decoration: none; }
+.linkBtn:hover { color: var(--fg); }
 .live { display: flex; align-items: center; gap: 7px; padding: 0 8px 0 6px; font-size: 12px; font-weight: 500; }
 .dot { width: 7px; height: 7px; border-radius: 99px; }
-.theme { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 8px; background: transparent; cursor: pointer; font-size: 15px; line-height: 1; }
+.theme { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 8px; background: transparent; cursor: pointer; font-size: 15px; line-height: 1; }
 
 .sw { position: relative; }
 .swBtn { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; font-size: 14px; font-weight: 600; }
 .swBtn:hover { background: var(--panel); }
 .swProg { font-family: var(--mono); font-size: 11.5px; font-weight: 400; color: var(--fg3); }
-.caret { color: var(--fg3); font-size: 10px; }
+.caret { color: var(--fg3); font-size: 13px; }
 .menu { position: absolute; top: 38px; left: 0; width: 300px; padding: 6px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 2px; }
 .menuHead { padding: 6px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: var(--fg3); }
 .item { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px 10px; border: 0; border-radius: 7px; background: transparent; text-align: left; cursor: pointer; }
 .item:hover, .folder:hover { background: var(--panel); }
-.tick { color: var(--accent-ink); font-weight: 700; font-size: 13px; }
+.tick { display: inline-flex; color: var(--accent-ink); font-size: 13px; }
 .itemText { display: flex; flex-direction: column; min-width: 0; }
 .itemName { font-size: 13.5px; font-weight: 600; }
 .itemPath { font-family: var(--mono); font-size: 11px; color: var(--fg3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

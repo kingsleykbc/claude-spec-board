@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { CheckIcon, ErrorIcon, HelpIcon, InfoIcon, PlayIcon, type IconType } from '../lib/icons';
 
 // Toasts (pinned behaviour 12): bottom-left, at most 4, each dismissed after 4.5 s.
 
@@ -15,12 +16,12 @@ export const TOAST_MS = 4500;
 export const MAX_TOASTS = 4;
 
 /** Icon and colours per kind (prototype line 508). */
-export const TOAST: Record<ToastKind, { icon: string; bg: string; fg: string }> = {
-  ok: { icon: '✓', bg: 'var(--done-soft)', fg: 'var(--done-ink)' },
-  run: { icon: '▶', bg: 'var(--accent-soft)', fg: 'var(--accent-ink)' },
-  info: { icon: '●', bg: 'var(--doing-soft)', fg: 'var(--doing-ink)' },
-  warn: { icon: '?', bg: 'var(--review-soft)', fg: 'var(--review-ink)' },
-  err: { icon: '!', bg: 'var(--block-soft)', fg: 'var(--block-ink)' },
+export const TOAST: Record<ToastKind, { icon: IconType; bg: string; fg: string }> = {
+  ok: { icon: CheckIcon, bg: 'var(--done-soft)', fg: 'var(--done-ink)' },
+  run: { icon: PlayIcon, bg: 'var(--accent-soft)', fg: 'var(--accent-ink)' },
+  info: { icon: InfoIcon, bg: 'var(--doing-soft)', fg: 'var(--doing-ink)' },
+  warn: { icon: HelpIcon, bg: 'var(--review-soft)', fg: 'var(--review-ink)' },
+  err: { icon: ErrorIcon, bg: 'var(--block-soft)', fg: 'var(--block-ink)' },
 };
 
 export function useToasts(): { toasts: Toast[]; push: PushToast; dismiss: (id: number) => void } {

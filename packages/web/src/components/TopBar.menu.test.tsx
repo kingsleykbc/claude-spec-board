@@ -27,10 +27,43 @@ describe('the menu under the logo', () => {
     const onToggleBrand = vi.fn();
     render(<TopBar {...props({ brandOpen: true, onToggleBrand })} />);
     const item = screen.getByRole('menuitem', { name: 'Documentation' });
-    expect(item.getAttribute('href')).toBe('/docs');
+    expect(item.getAttribute('href')).toBe('/docs?project=p');
     expect(item.getAttribute('target')).toBe('_blank');
     item.addEventListener('click', (e) => e.preventDefault());
     fireEvent.click(item);
     expect(onToggleBrand).toHaveBeenCalled();
+  });
+});
+
+describe('the top bar on the docs page', () => {
+  const docs = (over: Partial<TopBarProps> = {}) => {
+    const { conn: _c, onOpenRefs: _r, onOpenOverview: _o, ...rest } = props(over);
+    return { ...rest, page: 'docs' as const };
+  };
+
+  it('keeps the logo, project and theme, drops References, Overview and Live, and links back to the board', () => {
+    render(<TopBar {...docs()} />);
+    expect(screen.getByRole('button', { name: /SPEC-BOARD/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Box/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Switch to dark theme' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'References' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Overview' })).toBeNull();
+    expect(screen.queryByTestId('conn')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Open the board' }).getAttribute('href')).toBe('/?project=p');
+  });
+
+  it('its logo menu goes to the board, and marks Documentation as this page in this tab', () => {
+    render(<TopBar {...docs({ brandOpen: true })} />);
+    expect(screen.getByRole('menuitem', { name: 'Board' }).getAttribute('href')).toBe('/?project=p');
+    const here = screen.getByRole('menuitem', { name: 'Documentation' });
+    expect(here.getAttribute('aria-current')).toBe('page');
+    expect(here.getAttribute('target')).toBeNull();
+  });
+
+  it('without a project yet: no switcher, and the board link has no project', () => {
+    const { switcher: _s, ...rest } = docs();
+    render(<TopBar {...rest} />);
+    expect(screen.queryByRole('button', { name: /Box/ })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Open the board' }).getAttribute('href')).toBe('/');
   });
 });

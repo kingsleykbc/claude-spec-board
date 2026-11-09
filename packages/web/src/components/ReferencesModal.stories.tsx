@@ -66,7 +66,7 @@ export const EditMode: Story = {
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     await c.findByText('How Claude works in this repo.');
-    await userEvent.click(c.getByRole('button', { name: '✎ Edit' }));
+    await userEvent.click(c.getByRole('button', { name: 'Edit' }));
     expect(c.getByText((_, el) => el?.textContent === 'Editing CLAUDE.md')).toBeTruthy();
     const ta = c.getByRole('textbox', { name: 'Document markdown' });
     await userEvent.type(ta, '\n- Never skip **review**');
@@ -79,7 +79,7 @@ export const AddMenu: Story = {
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     await c.findByText('How Claude works in this repo.');
-    await userEvent.click(c.getByRole('button', { name: '+ Add' }));
+    await userEvent.click(c.getByRole('button', { name: 'Add' }));
     expect(c.getByText('Pick a Markdown file already in the project')).toBeTruthy();
     expect(c.getByText('Starts an empty file in docs/')).toBeTruthy();
   },
@@ -90,7 +90,7 @@ export const Link: Story = {
   play: async ({ canvasElement, args }) => {
     const c = within(canvasElement);
     await c.findByText('How Claude works in this repo.');
-    await userEvent.click(c.getByRole('button', { name: '+ Add' }));
+    await userEvent.click(c.getByRole('button', { name: 'Add' }));
     await userEvent.click(c.getByRole('button', { name: /Link an existing file/ }));
     await userEvent.type(c.getByRole('textbox', { name: 'File path' }), 'docs');
     await c.findByRole('button', { name: 'docs/ARCHITECTURE.md' });
@@ -104,7 +104,7 @@ export const Create: Story = {
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     await c.findByText('How Claude works in this repo.');
-    await userEvent.click(c.getByRole('button', { name: '+ Add' }));
+    await userEvent.click(c.getByRole('button', { name: 'Add' }));
     await userEvent.click(c.getByRole('button', { name: /Create a new document/ }));
     await userEvent.type(c.getByRole('textbox', { name: 'Document name' }), 'deploy');
     expect(c.getByText('Saved as docs/DEPLOY.md')).toBeTruthy();

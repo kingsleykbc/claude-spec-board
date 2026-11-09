@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { api, ConflictError, type ReferenceDoc } from '../api/client';
 import { ESC, useEscape } from '../lib/escape';
+import { CaretLeftIcon, CaretRightIcon, CloseIcon, EditIcon, PlusIcon } from '../lib/icons';
 import { OFFLINE_TOAST } from '../state/actions';
 import { FileLink } from '../state/fileLinks';
 import type { PushToast } from '../state/toasts';
@@ -8,6 +9,7 @@ import { ConflictDialog } from './ConflictDialog';
 import { Dialog } from './Dialog';
 import { Markdown } from './Markdown';
 import { Modal } from './Modal';
+import { DocSkeleton } from './Skeleton';
 import { useDiscardGuard } from './useDiscardGuard';
 import s from './modals.module.css';
 
@@ -291,7 +293,7 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
         <span className={s.grow} />
         <div className={s.rfAddWrap}>
           <button type="button" className={s.rfAdd} aria-expanded={add !== null} onClick={openAdd}>
-            + Add
+            <PlusIcon aria-hidden /> Add
           </button>
           {add && (
             <div className={s.rfMenu}>
@@ -376,13 +378,13 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
           )}
         </div>
         <button type="button" className={s.close} aria-label="Close" onClick={requestClose}>
-          ×
+          <CloseIcon aria-hidden />
         </button>
       </div>
       <div className={s.rfTabsRow}>
         {arrows.l && (
           <button type="button" className={s.rfArrowL} aria-label="Scroll tabs left" onClick={() => scrollTabs(-200)}>
-            ‹
+            <CaretLeftIcon aria-hidden />
           </button>
         )}
         <div ref={tabsRef} className={s.rfTabs} role="tablist" onScroll={checkTabs}>
@@ -394,7 +396,7 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
         </div>
         {arrows.r && (
           <button type="button" className={s.rfArrowR} aria-label="Scroll tabs right" onClick={() => scrollTabs(200)}>
-            ›
+            <CaretRightIcon aria-hidden />
           </button>
         )}
       </div>
@@ -427,7 +429,7 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
               )}
             </>
           ) : (
-            refs && <p className={s.rfNone}>No reference documents yet. Use + Add to link a file or create one.</p>
+            refs ? <p className={s.rfNone}>No reference documents yet. Use Add to link a file or create one.</p> : <DocSkeleton label='Loading reference documents…' />
           )}
         </div>
       )}
@@ -454,7 +456,7 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
               <span className={s.grow} />
               {!active.missing && (
                 <button type="button" className={s.rfEdit} onClick={() => startEdit(active)}>
-                  ✎ Edit
+                  <EditIcon aria-hidden /> Edit
                 </button>
               )}
             </>

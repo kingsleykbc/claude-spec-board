@@ -31,7 +31,7 @@ Then open a Claude chat in your project folder and create your first spec:
 /create-spec A page where customers can book a time slot
 ```
 
-The card appears on the board. Answer its required questions there, press **Copy chat command**, and paste the command into your chat.
+The card appears on the board. Answer its required questions there, press **Copy run command**, and paste the command into your chat.
 
 ## Documentation
 

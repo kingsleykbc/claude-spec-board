@@ -1,19 +1,20 @@
 import type { Spec, Status, Urgency } from '@specboard/core';
+import { CheckIcon, CommandIcon, DoingIcon, DoneIcon, EditIcon, ErrorIcon, HelpIcon, PlayIcon, ReadIcon, ReviewIcon, StopIcon, TodoIcon, type IconType } from './icons';
 
 // View-model helpers copied from the prototype (docs/design/Spec Board.dc.html, lines 495-509).
 
 export interface StatusMeta {
   label: string;
-  icon: string;
+  icon: IconType;
   ink: string;
   soft: string;
 }
 
 export const ST: Record<Status, StatusMeta> = {
-  todo: { label: 'To-do', icon: '○', ink: 'var(--fg2)', soft: 'var(--panel)' },
-  doing: { label: 'Doing', icon: '◐', ink: 'var(--doing-ink)', soft: 'var(--doing-soft)' },
-  review: { label: 'Review', icon: '◆', ink: 'var(--review-ink)', soft: 'var(--review-soft)' },
-  done: { label: 'Done', icon: '✓', ink: 'var(--done-ink)', soft: 'var(--done-soft)' },
+  todo: { label: 'To-do', icon: TodoIcon, ink: 'var(--fg2)', soft: 'var(--panel)' },
+  doing: { label: 'Doing', icon: DoingIcon, ink: 'var(--doing-ink)', soft: 'var(--doing-soft)' },
+  review: { label: 'Review', icon: ReviewIcon, ink: 'var(--review-ink)', soft: 'var(--review-soft)' },
+  done: { label: 'Done', icon: DoneIcon, ink: 'var(--done-ink)', soft: 'var(--done-soft)' },
 };
 export const ORDER: Status[] = ['todo', 'doing', 'review', 'done'];
 
@@ -26,16 +27,16 @@ export const URG: Record<Urgency, { r: number; label: string; n: number }> = {
 export const URG_KEYS: Urgency[] = ['low', 'normal', 'high', 'urgent'];
 
 /** Run-log line kinds: [icon, colour]. */
-export const LINE: Record<string, [string, string]> = {
-  start: ['▶', 'var(--accent)'],
-  read: ['◇', 'var(--fg3)'],
-  edit: ['✎', 'var(--fg2)'],
-  cmd: ['›', 'var(--fg2)'],
-  ok: ['✓', 'var(--done-ink)'],
-  done: ['✓', 'var(--done-ink)'],
-  stop: ['■', 'var(--fg2)'],
-  warn: ['?', 'var(--review-ink)'],
-  err: ['!', 'var(--block-ink)'],
+export const LINE: Record<string, [IconType, string]> = {
+  start: [PlayIcon, 'var(--accent)'],
+  read: [ReadIcon, 'var(--fg3)'],
+  edit: [EditIcon, 'var(--fg2)'],
+  cmd: [CommandIcon, 'var(--fg2)'],
+  ok: [CheckIcon, 'var(--done-ink)'],
+  done: [CheckIcon, 'var(--done-ink)'],
+  stop: [StopIcon, 'var(--fg2)'],
+  warn: [HelpIcon, 'var(--review-ink)'],
+  err: [ErrorIcon, 'var(--block-ink)'],
 };
 
 export interface UrgVm {

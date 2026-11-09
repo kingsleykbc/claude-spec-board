@@ -1,3 +1,4 @@
+import { CaretIcon, CheckIcon } from '../lib/icons';
 import s from './TopBar.module.css';
 
 /** `"<done>/<total> done"`, or `"No specs yet"` (pinned behaviour 16). Archived specs count as done. */
@@ -31,14 +32,14 @@ export function ProjectSwitcher({ name, progress, projects, current, open, onTog
       <button type="button" className={s.swBtn} aria-haspopup="true" aria-expanded={open} onClick={onToggle}>
         {name}
         <span className={s.swProg}>{progressText(progress)}</span>
-        <span className={s.caret}>▾</span>
+        <CaretIcon aria-hidden className={s.caret} />
       </button>
       {open && (
         <div role="menu" className={s.menu}>
           <div className={s.menuHead}>PROJECTS</div>
           {projects.map((p) => (
             <button key={p.id} type="button" role="menuitemradio" aria-checked={p.id === current} className={s.item} onClick={() => onPick(p.id)}>
-              <span className={s.tick}>{p.id === current ? '✓' : ''}</span>
+              <span className={s.tick}>{p.id === current ? <CheckIcon aria-hidden /> : null}</span>
               <span className={s.itemText}>
                 <span className={s.itemName}>{p.name}</span>
                 <span className={s.itemPath} title={p.root}>

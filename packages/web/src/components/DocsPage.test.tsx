@@ -1,9 +1,11 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { DOCS_PAGES, docsLink, isDocsPath, pageForPath } from '../lib/docsPages';
 import { DocsPage } from './DocsPage';
 
 afterEach(cleanup);
+
+const noProjects = async () => [];
 
 describe('docs routes', () => {
   it('knows its own URLs and nothing else', () => {
@@ -46,7 +48,7 @@ describe('the documentation files', () => {
 
 describe('DocsPage', () => {
   it('shows the README first, with every page in the nav', () => {
-    render(<DocsPage pathname="/docs" />);
+    render(<DocsPage loadProjects={noProjects} pathname="/docs" />);
     expect(screen.getByRole('heading', { name: 'Spec Board', level: 2 })).toBeTruthy();
     const nav = within(screen.getByRole('navigation', { name: 'Documentation' }));
     expect(nav.getAllByRole('link').map((a) => a.textContent)).toEqual(DOCS_PAGES.map((p) => p.title));
@@ -54,7 +56,7 @@ describe('DocsPage', () => {
   });
 
   it('keeps links between pages in this tab, and sends others to a new one', () => {
-    render(<DocsPage pathname="/docs" />);
+    render(<DocsPage loadProjects={noProjects} pathname="/docs" />);
     const main = within(screen.getByRole('main'));
     const internal = main.getAllByRole('link', { name: 'Safety' })[0]!;
     expect(internal.getAttribute('href')).toBe('/docs/safety');
@@ -63,9 +65,45 @@ describe('DocsPage', () => {
   });
 
   it('explains both ways of running a spec', () => {
-    render(<DocsPage pathname="/docs/running-specs" />);
+    render(<DocsPage loadProjects={noProjects} pathname="/docs/running-specs" />);
     expect(screen.getByRole('heading', { name: 'Running a spec', level: 2 })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Why the chat is the main button' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Why the chat is the usual choice' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Why the background run stays' })).toBeTruthy();
+  });
+});
+
+describe('DocsPage top bar', () => {
+  const list = [
+    { id: 'a1', name: 'Recipe Box', root: 'C:/p/recipe-box', progress: { done: 3, total: 9 } },
+    { id: 'b2', name: 'Other', root: 'C:/p/other', progress: { done: 0, total: 0 } },
+  ];
+
+  it('shows the project the docs were opened from, and keeps it on links between pages', async () => {
+    render(<DocsPage pathname="/docs" search="?project=b2" loadProjects={async () => list} />);
+    expect(await screen.findByRole('button', { name: /Other/ })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Open the board' }).getAttribute('href')).toBe('/?project=b2');
+    const nav = within(screen.getByRole('navigation', { name: 'Documentation' }));
+    expect(nav.getByRole('link', { name: 'Safety' }).getAttribute('href')).toBe('/docs/safety?project=b2');
+    const main = within(screen.getByRole('main'));
+    expect(main.getAllByRole('link', { name: 'Safety' })[0]!.getAttribute('href')).toBe('/docs/safety?project=b2');
+  });
+
+  it('picking a project opens its board; Esc closes the menu', async () => {
+    const go = vi.fn();
+    render(<DocsPage pathname="/docs" loadProjects={async () => list} go={go} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Recipe Box/ }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('menuitemradio', { name: /Other/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Recipe Box/ }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Other/ }));
+    expect(go).toHaveBeenCalledWith('/?project=b2');
+  });
+
+  it('the server is not running: the docs still show, without a project switcher', async () => {
+    render(<DocsPage pathname="/docs" loadProjects={() => Promise.reject(new Error('offline'))} />);
+    expect(screen.getByRole('heading', { name: 'Spec Board', level: 2 })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Open the board' }).getAttribute('href')).toBe('/');
+    await Promise.resolve();
+    expect(screen.queryByRole('button', { name: /Recipe Box/ })).toBeNull();
   });
 });

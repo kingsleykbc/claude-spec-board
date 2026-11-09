@@ -1,5 +1,6 @@
 import { useId, type Ref } from 'react';
 import type { Spec } from '@specboard/core';
+import { NeededByIcon, NeedsIcon } from '../../lib/icons';
 import { ST } from '../../lib/vm';
 import s from './sections.module.css';
 
@@ -14,6 +15,8 @@ export interface DependenciesProps {
   sectionRef?: Ref<HTMLElement>;
   /** Accent border (the blocked banner's scroll target). */
   highlight?: boolean;
+  /** Without the section frame, the two lists stacked: for the Simple mode ⋯ menu. */
+  compact?: boolean;
 }
 
 const isDone = (x: Spec) => x.archived || x.status === 'done';
@@ -26,7 +29,7 @@ function DepItem({ spec, onOpen, showNotDone }: { spec: Spec; onOpen: (id: strin
         <span className={s.depId}>{spec.id}</span>
         <span className={s.depTitle}>{spec.title}</span>
         <span className={s.chip} style={{ background: st.soft, color: st.ink }}>
-          {`${st.icon} ${st.label}`}
+          <st.icon aria-hidden /> {st.label}
         </span>
         {showNotDone && !isDone(spec) && <span className={s.notDone} style={{ color: 'var(--block-ink)' }}>Not done</span>}
       </button>
@@ -34,7 +37,7 @@ function DepItem({ spec, onOpen, showNotDone }: { spec: Spec; onOpen: (id: strin
   );
 }
 
-export function Dependencies({ spec, all, onOpen, sectionRef, highlight = false }: DependenciesProps) {
+export function Dependencies({ spec, all, onOpen, sectionRef, highlight = false, compact = false }: DependenciesProps) {
   const uid = useId();
   const find = (id: string) => all.find((x) => x.id === id);
   const needs = spec.dependsOn.map((id) => ({ id, spec: find(id) }));
@@ -48,16 +51,18 @@ export function Dependencies({ spec, all, onOpen, sectionRef, highlight = false 
       id={`${spec.id}-dependencies`}
       data-section="dependencies"
       aria-label="Dependencies"
-      className={s.section}
-      style={{ borderColor: highlight ? 'var(--accent)' : 'var(--line)' }}
+      className={compact ? s.depsCompact : s.section}
+      style={compact ? undefined : { borderColor: highlight ? 'var(--accent)' : 'var(--line)' }}
     >
-      <div className={s.head}>
-        <span className={s.label}>DEPENDENCIES</span>
-      </div>
-      <div className={s.deps}>
+      {!compact && (
+        <div className={s.head}>
+          <span className={s.label}>DEPENDENCIES</span>
+        </div>
+      )}
+      <div className={compact ? s.depsStack : s.deps}>
         <div className={s.depCol}>
           <span id={needsId} className={s.depHead}>
-            ⤴ Depends on
+            <NeedsIcon aria-hidden /> Depends on
           </span>
           {needs.length > 0 ? (
             <ul className={s.depList} aria-labelledby={needsId}>
@@ -83,7 +88,7 @@ export function Dependencies({ spec, all, onOpen, sectionRef, highlight = false 
         </div>
         <div className={s.depCol}>
           <span id={byId} className={s.depHead}>
-            ⤵ Needed by
+            <NeededByIcon aria-hidden /> Needed by
           </span>
           {neededBy.length > 0 ? (
             <ul className={s.depList} aria-labelledby={byId}>

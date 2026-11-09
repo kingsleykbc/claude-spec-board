@@ -19,6 +19,7 @@ import {
 } from '@dnd-kit/core';
 import type { Spec, Status } from '@specboard/core';
 import type { RunSnapshot } from '../api/client';
+import { PlusIcon } from '../lib/icons';
 import { ORDER, ST } from '../lib/vm';
 import { filterSpecs, NO_FILTERS, sortSpecs, compareSpecs, type Filters } from '../state/filters';
 import { cardRun } from '../state/runUi';
@@ -173,7 +174,7 @@ export function Board(props: BoardProps) {
               Add one, or ask Claude to <code>/create-spec</code> in your terminal. Specs appear here as soon as the files exist.
             </div>
             <button type="button" className={s.noneAdd} onClick={props.onAdd}>
-              + Add new spec
+              <PlusIcon aria-hidden /> Add new spec
             </button>
           </div>
         )}

@@ -1,6 +1,7 @@
 import type { Preview } from '@storybook/react-vite';
 import { useEffect } from 'react';
 import '../src/styles/tokens.css';
+import '../src/styles/base.css';
 
 /** Fonts the app loads from index.html; Storybook needs them too. */
 const FONTS = 'https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap';

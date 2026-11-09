@@ -1,3 +1,4 @@
+import { EditIcon } from '../../lib/icons';
 import { Markdown } from '../Markdown';
 import s from './detail.module.css';
 
@@ -34,7 +35,7 @@ export function SpecSection({ md, text, saving = false, onEdit, onChange, onCanc
           </>
         ) : (
           <button type="button" className={s.edit} onClick={onEdit}>
-            ✎ Edit
+            <EditIcon aria-hidden /> Edit
           </button>
         )}
       </div>

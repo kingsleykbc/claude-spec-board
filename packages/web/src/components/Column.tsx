@@ -55,7 +55,7 @@ export function Column({ status, specs, placeholderAt, over, archivedCount = 0, 
     >
       <div className={s.head}>
         <span className={s.icon} style={{ color: st.ink }}>
-          {st.icon}
+          <st.icon aria-hidden />
         </span>
         <span className={s.label}>{st.label}</span>
         <span className={s.count}>{specs.length}</span>

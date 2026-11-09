@@ -1,3 +1,4 @@
+import { WarnIcon } from '../../lib/icons';
 import { FileLink } from '../../state/fileLinks';
 import s from './detail.module.css';
 
@@ -13,7 +14,7 @@ export interface FileProblemProps {
 export function FileProblem({ message, path, onFix }: FileProblemProps) {
   return (
     <div role="alert" className={s.problem}>
-      <span className={s.problemIcon}>⚠</span>
+      <WarnIcon aria-hidden className={s.problemIcon} />
       <div className={s.problemText}>
         <span className={s.problemTitle}>This spec file has a formatting problem</span>
         <span className={s.problemMsg}>{message}</span>

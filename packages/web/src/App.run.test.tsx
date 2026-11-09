@@ -79,7 +79,7 @@ async function mount(first: RunSnapshot | null = null, url = '/?project=p1', ove
 const named = (text: string) => screen.queryAllByText(text);
 const panel = () => screen.queryByRole('complementary', { name: 'Run output' });
 const runBtn = () => screen.getByRole('button', { name: /Run in background/ });
-const chatBtn = () => screen.getByRole('button', { name: /Copy chat command/ });
+const chatBtn = () => screen.getByRole('button', { name: /Copy run command/ });
 
 beforeEach(() => {
   vi.mocked(api.getRun).mockReset();
@@ -318,7 +318,7 @@ describe('the actions start the right kind', () => {
       vi.mocked(api.startRun).mockResolvedValue({ run: refreshRun });
       await mount();
       openOverview();
-      fireEvent.click(screen.getByRole('button', { name: '↻ Refresh' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
       await flush();
     };
 
@@ -328,7 +328,7 @@ describe('the actions start the right kind', () => {
       expect(screen.getByRole('button', { name: 'Refreshing' })).toHaveProperty('disabled', true);
       expect(screen.getByText('Claude is rewriting the summary…')).toBeTruthy();
       send({ type: 'run-ended', run: ended(refreshRun, { status: 'finished' }) });
-      expect(screen.getByRole('button', { name: '↻ Refresh' })).toHaveProperty('disabled', false);
+      expect(screen.getByRole('button', { name: 'Refresh' })).toHaveProperty('disabled', false);
       expect(screen.queryByText('Claude is rewriting the summary…')).toBeNull();
       expect(named('Overview updated')).toHaveLength(1);
     });
@@ -337,7 +337,7 @@ describe('the actions start the right kind', () => {
       await refresh();
       send({ type: 'run-ended', run: ended(refreshRun, { status: 'error', title: 'Claude Code exited with code 1' }) });
       expect(named('Couldn’t refresh the overview')).toHaveLength(1);
-      expect(screen.getByRole('button', { name: '↻ Refresh' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Refresh' })).toBeTruthy();
     });
 
     it('a refresh that needs permission gives the rule to run, as it has no panel', async () => {
@@ -368,7 +368,7 @@ describe('the actions start the right kind', () => {
       await mount();
       openOverview();
       act(() => live.onConn!('disconnected'));
-      fireEvent.click(screen.getByRole('button', { name: '↻ Refresh' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
       await flush();
       expect(api.startRun).not.toHaveBeenCalled();
       expect(named('Edits won’t save until it’s back.')).toHaveLength(1);

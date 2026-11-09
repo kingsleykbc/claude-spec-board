@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { EndInfo, RunKind, RunLine, RunStatus } from '../../api/client';
 import { allowHint } from '../../lib/prePublish';
+import { CheckIcon, DotIcon } from '../../lib/icons';
 import { LINE } from '../../lib/vm';
 import { FileLink } from '../../state/fileLinks';
 import { Spinner } from '../ConnectionBanner';
@@ -185,11 +186,11 @@ export function RunPanel({ kind = 'run', status, lines, end: server, projectRoot
       </div>
       <div ref={feed} className={s.feed}>
         {lines.map((ln) => {
-          const [icon, ic] = LINE[ln.k] ?? ['·', 'var(--fg3)'];
+          const [Icon, ic] = LINE[ln.k] ?? [DotIcon, 'var(--fg3)'];
           return (
             <div key={ln.seq} className={s.line}>
               <span data-testid="line-icon" className={s.lineIcon} style={{ color: ic }}>
-                {icon}
+                <Icon aria-hidden />
               </span>
               <span className={s.lineText} style={{ fontWeight: ln.k === 'done' || ln.k === 'start' ? 600 : 400 }}>
                 {ln.text}{' '}
@@ -223,7 +224,13 @@ export function RunPanel({ kind = 'run', status, lines, end: server, projectRoot
             (end.action.kind === 'copy' ? (
               <>
                 <button type="button" className={s.endBtn} data-copied={copy === 'copied'} onClick={copyRule}>
-                  {copy === 'copied' ? '✓ Copied rule' : end.action.label}
+                  {copy === 'copied' ? (
+                    <>
+                      <CheckIcon aria-hidden /> Copied rule
+                    </>
+                  ) : (
+                    end.action.label
+                  )}
                 </button>
                 {copy === 'failed' && (
                   <span className={s.copyFailed} role="status">

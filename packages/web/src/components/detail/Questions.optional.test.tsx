@@ -55,7 +55,7 @@ describe('Questions with required and optional', () => {
     expect(row('Q1').style.background).toBe('var(--review-soft)');
     expect(within(row('Q2')).getByText('Can skip')).toBeTruthy();
     expect(row('Q2').style.background).toBe('transparent');
-    expect(within(row('Q3')).getByText('✓ Answered')).toBeTruthy();
+    expect(within(row('Q3')).getByText('Answered')).toBeTruthy();
   });
 
   it('says what happens to a blank optional one', () => {

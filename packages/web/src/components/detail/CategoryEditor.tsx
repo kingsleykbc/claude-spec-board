@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ESC, useEscape } from '../../lib/escape';
+import { CloseIcon, PlusIcon } from '../../lib/icons';
 import { catColor } from '../../lib/vm';
 import s from './detail.module.css';
 
@@ -48,7 +49,7 @@ export function CategoryEditor({ categories, all, onAdd, onRemove }: CategoryEdi
           <span className={s.dot} style={{ background: catColor(c) }} />
           {c}
           <button type="button" className={s.catX} aria-label={`Remove category ${c}`} onClick={() => onRemove(c)}>
-            ×
+            <CloseIcon aria-hidden />
           </button>
         </span>
       ))}
@@ -99,7 +100,7 @@ export function CategoryEditor({ categories, all, onAdd, onRemove }: CategoryEdi
             setAdding(true);
           }}
         >
-          + Category
+          <PlusIcon aria-hidden /> Category
         </button>
       )}
     </div>

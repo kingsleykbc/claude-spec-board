@@ -55,7 +55,7 @@ function setup(id: string, over: Partial<DetailClient> = {}, specs: Spec[] = [..
 }
 
 const startEdit = (text: string) => {
-  fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
   fireEvent.change(screen.getByRole('textbox', { name: 'Spec markdown' }), { target: { value: text } });
 };
 const conflict = () =>
@@ -115,7 +115,7 @@ describe('CardDetail', () => {
     fireEvent.click(screen.getByRole('button', { name: /Review/ }));
     const menu = screen.getByRole('menu');
     const items = within(menu).getAllByRole('menuitemradio');
-    expect(items.map((i) => i.textContent)).toEqual(['○To-do', '◐Doing', '◆ReviewCurrent', '✓DoneApprove']);
+    expect(items.map((i) => i.textContent)).toEqual(['To-do', 'Doing', 'ReviewCurrent', 'DoneApprove']);
     expect(items[2]!.getAttribute('aria-checked')).toBe('true');
     fireEvent.click(items[3]!);
     expect(screen.queryByRole('menu')).toBeNull();
@@ -136,7 +136,7 @@ describe('CardDetail', () => {
 
   it('adding the category Infra appends it; suggestions filter and offer Create', async () => {
     const { client } = setup('T-104');
-    fireEvent.click(screen.getByRole('button', { name: '+ Category' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Category' }));
     const input = screen.getByPlaceholderText('Category…');
     // Every project category not on the spec (Infra comes from archived T-100).
     const names = () => screen.getAllByRole('option').map((o) => o.textContent);
@@ -155,7 +155,7 @@ describe('CardDetail', () => {
 
   it('Enter in the category input adds the typed text; × removes a category', async () => {
     const { client } = setup('T-103');
-    fireEvent.click(screen.getByRole('button', { name: '+ Category' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Category' }));
     const input = screen.getByPlaceholderText('Category…');
     fireEvent.change(input, { target: { value: 'Payments' } });
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -170,7 +170,7 @@ describe('CardDetail', () => {
   it('rapid category adds build on each other and chain hashes (Review Focus 3)', async () => {
     const { client } = setup('T-103');
     for (const name of ['X', 'Y']) {
-      fireEvent.click(screen.getByRole('button', { name: '+ Category' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Category' }));
       const input = screen.getByPlaceholderText('Category…');
       fireEvent.change(input, { target: { value: name } });
       fireEvent.keyDown(input, { key: 'Enter' });
@@ -182,7 +182,7 @@ describe('CardDetail', () => {
 
   it('saving an edit sends PATCH body with the current hash and the bodyHash from when editing began', async () => {
     const { client, toast } = setup('T-104');
-    fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     expect(screen.getByText('Markdown · preview on the right')).toBeTruthy();
     const ta = screen.getByRole('textbox', { name: 'Spec markdown' }) as HTMLTextAreaElement;
     expect(ta.value).toBe(recipeSpec('T-104').bodyMd);
@@ -198,7 +198,7 @@ describe('CardDetail', () => {
       throw new ConflictError('h9', 'theirs');
     });
     const { client, toast, refresh } = setup('T-105', { setBody });
-    fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Spec markdown' }), { target: { value: 'mine' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     const dlg = await screen.findByRole('alertdialog', { name: 'This spec changed outside the board' });
@@ -219,7 +219,7 @@ describe('CardDetail', () => {
       throw new ConflictError('h9', 'theirs');
     });
     const { toast } = setup('T-105', { setBody });
-    fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Spec markdown' }), { target: { value: 'mine' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Keep editing' }));
@@ -285,7 +285,7 @@ describe('CardDetail', () => {
     const { onClose } = setup('T-105', { setBody });
     const esc = () => fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
 
-    fireEvent.click(screen.getByRole('button', { name: '+ Category' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Category' }));
     expect(screen.getByPlaceholderText('Category…')).toBeTruthy();
     esc();
     expect(screen.queryByPlaceholderText('Category…')).toBeNull();
@@ -297,7 +297,7 @@ describe('CardDetail', () => {
     expect(screen.queryByRole('menu')).toBeNull();
     expect(onClose).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await screen.findByRole('alertdialog');
     esc();

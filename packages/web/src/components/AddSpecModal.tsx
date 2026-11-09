@@ -3,6 +3,7 @@ import type { Spec } from '@specboard/core';
 import { api } from '../api/client';
 import { OFFLINE_TOAST } from '../state/actions';
 import type { PushToast } from '../state/toasts';
+import { CloseIcon, PlayIcon } from '../lib/icons';
 import { Modal } from './Modal';
 import { useDiscardGuard } from './useDiscardGuard';
 import s from './modals.module.css';
@@ -79,7 +80,7 @@ export function AddSpecModal({ pid, nextId, client = api, toast, down = false, r
         <span className={s.nsId}>{nextId}</span>
         <span className={s.grow} />
         <button type="button" className={s.close} aria-label="Close" onClick={requestClose}>
-          ×
+          <CloseIcon aria-hidden />
         </button>
       </div>
       <div className={s.nsBody}>
@@ -120,7 +121,8 @@ export function AddSpecModal({ pid, nextId, client = api, toast, down = false, r
           Add as draft
         </button>
         <button type="button" className={s.nsWrite} disabled={disabled} style={{ opacity }} onClick={() => void add(true)}>
-          <span className={s.nsPlay}>▶</span>Add &amp; have Claude write it up
+          <PlayIcon aria-hidden className={s.nsPlay} />
+          Add &amp; have Claude write it up
         </button>
       </div>
       {dialog}

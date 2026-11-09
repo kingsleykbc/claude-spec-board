@@ -5,8 +5,9 @@ import { FilterBar, type FilterMenu } from './FilterBar';
 import { categoryOptions, NO_FILTERS, waitItems, type Filters } from '../state/filters';
 import { recipeArchived, recipeSpecs } from '../fixtures/recipeBox';
 
-function Bar({ initial = NO_FILTERS, menu: initialMenu = null }: { initial?: Filters; menu?: FilterMenu }) {
+function Bar({ initial = NO_FILTERS, menu: initialMenu = null, simple: initialSimple = false }: { initial?: Filters; menu?: FilterMenu; simple?: boolean }) {
   const [filters, setFilters] = useState(initial);
+  const [simple, setSimple] = useState(initialSimple);
   const [menu, setMenu] = useState<FilterMenu>(initialMenu);
   return (
     <div style={{ minHeight: 280 }}>
@@ -20,6 +21,8 @@ function Bar({ initial = NO_FILTERS, menu: initialMenu = null }: { initial?: Fil
         }}
         menu={menu}
         onMenu={setMenu}
+        simple={simple}
+        onSimple={setSimple}
       />
     </div>
   );
@@ -55,5 +58,18 @@ export const UrgencyMenu: Story = {
   args: { menu: 'urg' },
   play: async ({ canvasElement }) => {
     expect(within(canvasElement).getAllByRole('checkbox')).toHaveLength(4);
+  },
+};
+
+/** Simple mode: the waiting items sit behind ⋯ on the right. */
+export const SimpleMode: Story = {
+  args: { simple: true },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    expect(c.queryByText('1 to review')).toBeNull();
+    await userEvent.click(c.getByRole('button', { name: 'Waiting on you' }));
+    expect(c.getByRole('menuitem', { name: '1 to review' })).toBeTruthy();
+    await userEvent.click(c.getByRole('switch', { name: 'Simple mode' }));
+    expect(c.getByText('1 to review')).toBeTruthy();
   },
 };

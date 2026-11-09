@@ -88,7 +88,7 @@ describe('Board', () => {
   it('shows the empty board state when the project has no specs', () => {
     const fns = setup({ specs: [], archived: [] });
     expect(screen.getByText('No specs yet')).toBeTruthy();
-    fireEvent.click(screen.getAllByRole('button', { name: '+ Add new spec' })[0]!);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Add new spec' })[0]!);
     expect(fns.onAdd).toHaveBeenCalled();
   });
 

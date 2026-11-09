@@ -2,7 +2,9 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Spec, Status, Urgency } from '@specboard/core';
 import { api, ConflictError, type SpecWrite } from '../../api/client';
 import { OFFLINE_TOAST, type Mutate } from '../../state/actions';
+import { useSimple } from '../../state/simpleMode';
 import type { PushToast } from '../../state/toasts';
+import { ESC, useEscape } from '../../lib/escape';
 import { blockTexts, relPath, runHold } from '../../lib/vm';
 import { ConflictDialog } from '../ConflictDialog';
 import { Modal } from '../Modal';
@@ -116,6 +118,10 @@ function SpecDetail({
   returnFocus,
 }: CardDetailProps & { spec: Spec }) {
   const id = spec.id;
+  const simple = useSimple();
+  /** Simple mode's ⋯ menu with urgency, categories and dependencies. */
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  useEscape(simple && detailsOpen, () => setDetailsOpen(false), ESC.menu);
   const path = relPath(root, spec.path);
   const all = [...specs, ...archived];
 
@@ -248,7 +254,20 @@ function SpecDetail({
   };
 
   // Blocked reasons (pinned behaviour 8).
-  const reasons: BlockReason[] = blockTexts(spec, all).map((r) => ({ key: r.key, text: r.text, onClick: () => scrollTo(r.section) }));
+  // In Simple mode the dependencies are in the ⋯ menu, so that reason opens it.
+  const reasons: BlockReason[] = blockTexts(spec, all).map((r) => ({
+    key: r.key,
+    text: r.text,
+    onClick: () => (simple && r.section === 'dependencies' ? setDetailsOpen(true) : scrollTo(r.section)),
+  }));
+  const dependencies = (
+    <Dependencies
+      spec={spec}
+      all={all}
+      onOpen={(to) => guard(() => onOpenSpec(to))}
+      {...(simple ? { compact: true } : { sectionRef: sectionRefs.dependencies, highlight: hl === 'dependencies' })}
+    />
+  );
 
   const allCategories = [...new Set(all.flatMap((x) => x.categories))];
   const problem = spec.problems[0];
@@ -280,6 +299,10 @@ function SpecDetail({
           onAddCategory={(c) => setCategories([...categories, c])}
           onRemoveCategory={(c) => setCategories(categories.filter((x) => x !== c))}
           onClose={requestClose}
+          simple={simple}
+          detailsOpen={detailsOpen}
+          onDetails={setDetailsOpen}
+          dependencies={dependencies}
         />
         <div className={s.body} style={{ gridTemplateColumns: aside ? 'minmax(0,1fr) 380px' : 'minmax(0,1fr)' }}>
           <div className={s.main}>
@@ -309,7 +332,7 @@ function SpecDetail({
                 sectionRef={sectionRefs.questions}
                 highlight={hl === 'questions'}
               />
-              <Dependencies spec={spec} all={all} onOpen={(to) => guard(() => onOpenSpec(to))} sectionRef={sectionRefs.dependencies} highlight={hl === 'dependencies'} />
+              {!simple && dependencies}
               <Subtasks
                 pid={pid}
                 spec={spec}

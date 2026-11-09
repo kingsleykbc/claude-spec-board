@@ -3,6 +3,7 @@ import type { Question, Spec } from '@specboard/core';
 import { api, ConflictError } from '../../api/client';
 import { OFFLINE_TOAST, type Mutate } from '../../state/actions';
 import type { PushToast } from '../../state/toasts';
+import { CheckIcon, DotIcon } from '../../lib/icons';
 import s from './sections.module.css';
 
 // Open questions (prototype lines 186-218, view-model 671-676, saveAnswers 626-630; pinned behaviour 9).
@@ -125,7 +126,7 @@ export function Questions({
 
   const idleHint = optional > 0 ? 'Claude goes with its recommendation on optional questions you leave blank' : '';
   const hint = sv === 'saved' ? 'Claude will pick these up on its next run' : dirty ? 'Unsaved answers' : idleHint;
-  const label = sv === 'saving' ? 'Saving…' : sv === 'saved' ? '✓ Saved' : 'Save changes';
+  const label = sv === 'saving' ? 'Saving…' : sv === 'saved' ? 'Saved' : 'Save changes';
   const btn = {
     background: sv === 'saved' ? 'var(--done-soft)' : (dirty && sv === 'idle') || sv === 'saving' ? 'var(--accent)' : 'var(--panel)',
     color: sv === 'saved' ? 'var(--done-ink)' : dirty || sv === 'saving' ? 'var(--accent-fg)' : 'var(--fg3)',
@@ -158,7 +159,8 @@ export function Questions({
               const inputId = `${id}-${q.id}`;
               const labelId = `${inputId}-label`;
               const waiting = !answered && q.required;
-              const stateText = changed ? '● Unsaved' : answered ? '✓ Answered' : waiting ? 'Needs answer' : 'Can skip';
+              const stateText = changed ? 'Unsaved' : answered ? 'Answered' : waiting ? 'Needs answer' : 'Can skip';
+              const StateIcon = changed ? DotIcon : answered ? CheckIcon : null;
               const stateInk = changed ? 'var(--accent-ink)' : answered ? 'var(--done-ink)' : waiting ? 'var(--review-ink)' : 'var(--fg3)';
               const opts = q.type === 'yesno' ? ['Yes', 'No'] : q.type === 'choice' ? q.options : [];
               return (
@@ -223,6 +225,7 @@ export function Questions({
                     )}
                   </div>
                   <span data-state="" className={s.state} style={{ color: stateInk }}>
+                    {StateIcon && <StateIcon aria-hidden />}
                     {stateText}
                   </span>
                 </div>
@@ -232,6 +235,7 @@ export function Questions({
           <div className={s.foot}>
             <span className={s.hint}>{hint}</span>
             <button type="button" className={s.saveBtn} style={btn} disabled={sv !== 'idle' || !dirty} onClick={() => void save()}>
+              {sv === 'saved' && <CheckIcon aria-hidden />}
               {label}
             </button>
           </div>

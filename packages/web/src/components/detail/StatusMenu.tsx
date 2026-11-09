@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Status } from '@specboard/core';
 import { ESC, useEscape } from '../../lib/escape';
+import { CaretIcon } from '../../lib/icons';
 import { ORDER, ST } from '../../lib/vm';
 import s from './detail.module.css';
 
@@ -30,9 +31,11 @@ export function StatusMenu({ status, onPick }: StatusMenuProps) {
         style={{ background: st.soft, color: st.ink }}
         onClick={() => setOpen((o) => !o)}
       >
-        <span className={s.statusIcon}>{st.icon}</span>
+        <span className={s.statusIcon}>
+          <st.icon aria-hidden />
+        </span>
         {st.label}
-        <span className={s.caret}>▾</span>
+        <CaretIcon aria-hidden className={s.caret} />
       </button>
       {open && (
         <div role="menu" aria-label="Status" className={s.menu}>
@@ -42,7 +45,7 @@ export function StatusMenu({ status, onPick }: StatusMenuProps) {
             return (
               <button key={k} type="button" role="menuitemradio" aria-checked={k === status} className={s.menuItem} onClick={() => pick(k)}>
                 <span className={s.menuIcon} style={{ color: o.ink }}>
-                  {o.icon}
+                  <o.icon aria-hidden />
                 </span>
                 {o.label}
                 {note && <span className={s.menuNote}>{note}</span>}

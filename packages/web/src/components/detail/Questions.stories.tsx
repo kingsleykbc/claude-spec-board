@@ -48,7 +48,7 @@ export const Mixed: Story = {
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     expect(c.getByText('2 waiting on you')).toBeTruthy();
-    expect(c.getByText('✓ Answered')).toBeTruthy();
+    expect(c.getByText('Answered')).toBeTruthy();
     expect(c.getByText('New')).toBeTruthy();
   },
 };
@@ -58,7 +58,7 @@ export const Unsaved: Story = {
     const c = within(canvasElement);
     await userEvent.click(c.getByRole('radio', { name: 'Yes' }));
     await userEvent.type(c.getByRole('spinbutton'), '2');
-    expect(c.getAllByText('● Unsaved')).toHaveLength(2);
+    expect(c.getAllByText('Unsaved')).toHaveLength(2);
     expect(c.getByText('Unsaved answers')).toBeTruthy();
     expect((c.getByRole('button', { name: 'Save changes' }) as HTMLButtonElement).disabled).toBe(false);
   },
@@ -69,7 +69,7 @@ export const Saved: Story = {
     const c = within(canvasElement);
     await userEvent.click(c.getByRole('radio', { name: 'CSV' }));
     await userEvent.click(c.getByRole('button', { name: 'Save changes' }));
-    await waitFor(() => expect(c.getByRole('button', { name: '✓ Saved' })).toBeTruthy());
+    await waitFor(() => expect(c.getByRole('button', { name: 'Saved' })).toBeTruthy());
     expect(c.getByText('Claude will pick these up on its next run')).toBeTruthy();
     expect(args.toast).toHaveBeenCalledWith('ok', 'Answers saved', 'Written to .specboard/specs/T-105-shopping-list-export/spec.md');
     expect(args.client!.setAnswers).toHaveBeenCalledWith('p1', 'T-105', t105.hash, { Q3: 'CSV' });

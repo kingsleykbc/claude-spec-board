@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { docsPath } from '../../lib/docsPages';
+import { CheckIcon, CopyIcon, HelpIcon, PlayIcon } from '../../lib/icons';
 import s from './detail.module.css';
 
 export type RunState = 'ready' | 'running' | 'disabled' | 'fallback';
@@ -25,8 +26,9 @@ export const CHAT_TITLE = 'Copies the command to paste into a Claude chat open i
 export const BACKGROUND_TITLE = 'Starts a separate Claude with its output on this card. It can’t ask you anything, ignores the project’s and your Claude settings, and can only do what you approved. Best for a repo you don’t fully trust.';
 
 /**
- * The header's Run controls in their four states (prototype lines 128-131, 679-683). The chat command is the main action
- * because the board can't type into a chat; the background run is the second choice. docs/guide/running-specs.md says why.
+ * The header's Run controls in their four states (prototype lines 128-131, 679-683). Both ways are secondary buttons of
+ * equal weight: copy the run command for a Claude chat (the board can't type into one), or run it in the background.
+ * docs/guide/running-specs.md says when to use which.
  */
 export function RunButton({ id, state, runningId, hold, blockedNote, onRun, onStop }: RunButtonProps) {
   const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle');
@@ -81,7 +83,7 @@ export function RunButton({ id, state, runningId, hold, blockedNote, onRun, onSt
 
   const help = (
     <a className={s.runHelp} href={docsPath('running-specs')} target="_blank" rel="noopener" aria-label="Chat or background: which to use" title="Chat or background: which to use">
-      ?
+      <HelpIcon aria-hidden />
     </a>
   );
   const copied = copy === 'copied';
@@ -90,7 +92,17 @@ export function RunButton({ id, state, runningId, hold, blockedNote, onRun, onSt
       Copy failed: paste <span style={{ userSelect: 'all', fontFamily: 'var(--mono)' }}>{command}</span> into your Claude chat
     </span>
   );
-  const copyLabel = copied ? '✓ Copied: paste it into your Claude chat' : '⧉ Copy chat command';
+  const copyLabel = copied ? (
+    <>
+      <CheckIcon aria-hidden />
+      Copied: paste it into your Claude chat
+    </>
+  ) : (
+    <>
+      <CopyIcon aria-hidden />
+      Copy run command
+    </>
+  );
 
   // Another run is going, or the spec can't start: neither way should begin.
   const off = state === 'disabled' ? `Claude is already working on ${runningId ?? 'the overview'}` : state === 'ready' ? hold : null;
@@ -99,7 +111,8 @@ export function RunButton({ id, state, runningId, hold, blockedNote, onRun, onSt
       <>
         <span className={s.runNote} title={off}>{off}</span>
         <button type="button" className={s.runOff} disabled title={off}>
-          ⧉ Copy chat command
+          <CopyIcon aria-hidden />
+          Copy run command
         </button>
       </>
     );
@@ -122,9 +135,10 @@ export function RunButton({ id, state, runningId, hold, blockedNote, onRun, onSt
       {failedNote}
       {help}
       <button type="button" className={s.copy} title={BACKGROUND_TITLE} onClick={onRun}>
-        <span className={s.play}>▶</span>Run in background
+        <PlayIcon aria-hidden className={s.play} />
+        Run in background
       </button>
-      <button type="button" className={s.run} data-copied={copied} title={CHAT_TITLE} onClick={doCopy}>
+      <button type="button" className={s.copy} data-copied={copied} title={CHAT_TITLE} onClick={doCopy}>
         {copyLabel}
       </button>
     </>

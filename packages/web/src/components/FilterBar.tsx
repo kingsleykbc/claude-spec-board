@@ -1,9 +1,10 @@
 import type { Urgency } from '@specboard/core';
+import { CaretIcon, CloseIcon, MoreIcon } from '../lib/icons';
 import { catColor, urgVm } from '../lib/vm';
 import { filterChips, NO_FILTERS, toggle, type Filters, type WaitItem } from '../state/filters';
 import s from './FilterBar.module.css';
 
-export type FilterMenu = 'cat' | 'urg' | null;
+export type FilterMenu = 'cat' | 'urg' | 'waits' | null;
 const URG_ORDER: Urgency[] = ['urgent', 'high', 'normal', 'low'];
 
 export interface FilterBarProps {
@@ -15,17 +16,31 @@ export interface FilterBarProps {
   onWait: (w: WaitItem) => void;
   menu: FilterMenu;
   onMenu: (m: FilterMenu) => void;
+  /** Simple mode: the waiting items move behind a ⋯ menu. */
+  simple?: boolean;
+  onSimple?: (on: boolean) => void;
+}
+
+function Switch({ on, label, title, onToggle }: { on: boolean; label: string; title?: string; onToggle: () => void }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} className={`${s.btn} ${s.switch}`} title={title} onClick={onToggle}>
+      <span className={s.track} style={{ background: on ? 'var(--accent)' : 'var(--line2)' }}>
+        <span className={s.knob} style={{ left: on ? 13 : 2 }} />
+      </span>
+      {label}
+    </button>
+  );
 }
 
 /** Category / Urgency / Blocked only, active chips, and the "waiting" items (prototype lines 62-87; pinned behaviours 3 and 4). */
-export function FilterBar({ filters: f, onChange, categories, waits, onWait, menu, onMenu }: FilterBarProps) {
+export function FilterBar({ filters: f, onChange, categories, waits, onWait, menu, onMenu, simple = false, onSimple }: FilterBarProps) {
   const chips = filterChips(f);
   return (
     <div className={s.bar}>
       <div className={s.wrap}>
         <button type="button" className={s.btn} aria-expanded={menu === 'cat'} onClick={() => onMenu(menu === 'cat' ? null : 'cat')}>
           Category{f.cats.length > 0 && <span className={s.n}>{f.cats.length}</span>}
-          <span className={s.caret}>▾</span>
+          <CaretIcon aria-hidden className={s.caret} />
         </button>
         {menu === 'cat' && (
           <div className={s.pop} style={{ width: 200 }}>
@@ -43,7 +58,7 @@ export function FilterBar({ filters: f, onChange, categories, waits, onWait, men
       <div className={s.wrap}>
         <button type="button" className={s.btn} aria-expanded={menu === 'urg'} onClick={() => onMenu(menu === 'urg' ? null : 'urg')}>
           Urgency{f.urg.length > 0 && <span className={s.n}>{f.urg.length}</span>}
-          <span className={s.caret}>▾</span>
+          <CaretIcon aria-hidden className={s.caret} />
         </button>
         {menu === 'urg' && (
           <div className={s.pop} style={{ width: 190 }}>
@@ -64,12 +79,15 @@ export function FilterBar({ filters: f, onChange, categories, waits, onWait, men
           </div>
         )}
       </div>
-      <button type="button" role="switch" aria-checked={f.blocked} className={`${s.btn} ${s.switch}`} onClick={() => onChange({ ...f, blocked: !f.blocked })}>
-        <span className={s.track} style={{ background: f.blocked ? 'var(--accent)' : 'var(--line2)' }}>
-          <span className={s.knob} style={{ left: f.blocked ? 13 : 2 }} />
-        </span>
-        Blocked only
-      </button>
+      <Switch on={f.blocked} label="Blocked only" onToggle={() => onChange({ ...f, blocked: !f.blocked })} />
+      {onSimple && (
+        <Switch
+          on={simple}
+          label="Simple mode"
+          title="Show less on the board. Urgency, categories, dependencies and statuses move into the ⋯ menus."
+          onToggle={() => onSimple(!simple)}
+        />
+      )}
       {chips.length > 0 && (
         <>
           <span className={s.sep} />
@@ -78,7 +96,7 @@ export function FilterBar({ filters: f, onChange, categories, waits, onWait, men
               {ch.prefix && <span className={s.prefix}>{ch.prefix}</span>}
               {ch.label}
               <button type="button" aria-label="Remove filter" className={s.x} onClick={() => onChange(ch.without)}>
-                ×
+                <CloseIcon aria-hidden />
               </button>
             </span>
           ))}
@@ -88,14 +106,51 @@ export function FilterBar({ filters: f, onChange, categories, waits, onWait, men
         </>
       )}
       <div className={s.flex} />
-      <div className={s.waits}>
-        {waits.map((w) => (
-          <button key={w.kind} type="button" className={s.wait} onClick={() => onWait(w)}>
-            <span className={s.diamond} style={{ background: w.kind === 'blocked' ? 'var(--block)' : 'var(--review)' }} />
-            {w.text}
-          </button>
-        ))}
-      </div>
+      {simple ? (
+        waits.length > 0 && (
+          <div className={s.wrap}>
+            <button
+              type="button"
+              className={`${s.btn} ${s.more}`}
+              aria-label="Waiting on you"
+              aria-haspopup="menu"
+              aria-expanded={menu === 'waits'}
+              onClick={() => onMenu(menu === 'waits' ? null : 'waits')}
+            >
+              <MoreIcon aria-hidden />
+              <span className={s.moreDot} />
+            </button>
+            {menu === 'waits' && (
+              <div role="menu" className={`${s.pop} ${s.popRight}`}>
+                {waits.map((w) => (
+                  <button
+                    key={w.kind}
+                    type="button"
+                    role="menuitem"
+                    className={s.wait}
+                    onClick={() => {
+                      onMenu(null);
+                      onWait(w);
+                    }}
+                  >
+                    <span className={s.diamond} style={{ background: w.kind === 'blocked' ? 'var(--block)' : 'var(--review)' }} />
+                    {w.text}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      ) : (
+        <div className={s.waits}>
+          {waits.map((w) => (
+            <button key={w.kind} type="button" className={s.wait} onClick={() => onWait(w)}>
+              <span className={s.diamond} style={{ background: w.kind === 'blocked' ? 'var(--block)' : 'var(--review)' }} />
+              {w.text}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

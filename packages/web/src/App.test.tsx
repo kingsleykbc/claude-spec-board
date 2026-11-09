@@ -201,7 +201,7 @@ describe('App', () => {
     history.replaceState(null, '', '/?project=p1&spec=T-105');
     render(<App />);
     const dlg = await screen.findByRole('dialog', { name: 'Shopping list export' });
-    fireEvent.click(within(dlg).getByRole('button', { name: '✎ Edit' }));
+    fireEvent.click(within(dlg).getByRole('button', { name: 'Edit' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Spec markdown' }), { target: { value: 'unsaved' } });
     // The browser has already moved to the previous entry when popstate fires.
     act(() => {

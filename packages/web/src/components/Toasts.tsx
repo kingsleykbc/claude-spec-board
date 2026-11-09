@@ -1,4 +1,5 @@
 import { TOAST, type Toast } from '../state/toasts';
+import { CloseIcon } from '../lib/icons';
 import s from './Toasts.module.css';
 
 export interface ToastsProps {
@@ -15,14 +16,14 @@ export function Toasts({ toasts, onDismiss }: ToastsProps) {
         return (
           <div key={t.id} className={s.toast} data-kind={t.kind}>
             <span className={s.icon} style={{ background: k.bg, color: k.fg }}>
-              {k.icon}
+              <k.icon aria-hidden />
             </span>
             <div className={s.body}>
               <span className={s.text}>{t.text}</span>
               {t.sub ? <span className={s.sub}>{t.sub}</span> : null}
             </div>
             <button type="button" aria-label="Dismiss" className={s.close} onClick={() => onDismiss(t.id)}>
-              ×
+              <CloseIcon aria-hidden />
             </button>
           </div>
         );

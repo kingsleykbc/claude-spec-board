@@ -124,14 +124,13 @@ describe('Subtasks', () => {
     expect(row(3).style.background).toBe('transparent');
   });
 
-  it('≡ Log toggles the inline log, one open at a time', () => {
+  it('Log toggles the inline log, one open at a time', () => {
     setup(recipeSpec('T-104'));
     const logs = screen.getAllByRole('button', { name: /Log/ });
     expect(logs).toHaveLength(2); // only subtasks 1 and 2 have logs
-    expect(logs[0]!.textContent).toBe('≡Log▾');
+    expect(logs[0]!.textContent).toBe('Log');
     fireEvent.click(logs[0]!);
     expect(logs[0]!.getAttribute('aria-expanded')).toBe('true');
-    expect(logs[0]!.textContent).toBe('≡Log▴');
     expect(within(row(1)).getByText('LOG · READ ONLY')).toBeTruthy();
     fireEvent.click(logs[1]!);
     expect(within(row(1)).queryByText('LOG · READ ONLY')).toBeNull();

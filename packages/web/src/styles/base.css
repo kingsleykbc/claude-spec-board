@@ -1,0 +1,9 @@
+/* Shared rules on top of tokens.css (which is copied from the design and not edited by hand). */
+
+/* react-icons draw a 1em <svg>: keep it from shrinking in flex rows and sit it on the text's middle. */
+svg[aria-hidden='true'] { flex: none; vertical-align: -0.125em; }
+
+/* Skeleton loaders: a soft block with a slow sweep. Off when the person asks for less motion. */
+.sb-skel { display: block; border-radius: 6px; background: linear-gradient(90deg, var(--panel) 0%, var(--line) 50%, var(--panel) 100%); background-size: 200% 100%; animation: sbSkel 1.4s ease-in-out infinite; }
+@keyframes sbSkel { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .sb-skel { animation: none; } }

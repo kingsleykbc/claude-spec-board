@@ -9,13 +9,11 @@
 .title { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.015em; line-height: 1.2; }
 .meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .divider { width: 1px; height: 18px; background: var(--line); }
-.close { width: 34px; height: 34px; border: 0; border-radius: 8px; background: transparent; font-size: 20px; color: var(--fg2); cursor: pointer; line-height: 1; }
+.close { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: 0; border-radius: 8px; background: transparent; font-size: 18px; color: var(--fg2); cursor: pointer; line-height: 1; }
 .close:hover { background: var(--panel); }
 
 /* Run button */
-.run { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px 0 12px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-fg); font-weight: 600; font-size: 13px; cursor: pointer; white-space: nowrap; }
-.run:hover { background: var(--accent-hover); }
-.play { font-size: 9px; }
+.play { font-size: 12px; }
 .stop { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px 0 12px; border: 1px solid var(--line2); border-radius: 8px; background: var(--card); color: var(--fg); font-weight: 600; font-size: 13px; cursor: pointer; }
 .stop:hover { background: var(--panel); }
 .stopIcon { width: 9px; height: 9px; border-radius: 2px; background: var(--fg); }
@@ -24,20 +22,21 @@
 .runNoteLong { flex: 0 1 auto; min-width: 0; font-size: 12px; color: var(--fg3); overflow-wrap: anywhere; }
 .runOff { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px 0 12px; border: 0; border-radius: 8px; background: var(--panel); color: var(--fg3); font-weight: 600; font-size: 13px; cursor: not-allowed; white-space: nowrap; }
 .copy { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px 0 12px; border: 1px solid var(--line2); border-radius: 8px; background: var(--card); color: var(--fg); font-weight: 600; font-size: 13px; cursor: pointer; white-space: nowrap; }
-.runHelp { display: flex; align-items: center; justify-content: center; flex: none; width: 22px; height: 22px; border: 1px solid var(--line2); border-radius: 99px; color: var(--fg2); font-size: 12px; font-weight: 600; text-decoration: none; }
+.runHelp { display: flex; align-items: center; justify-content: center; flex: none; width: 24px; height: 24px; border: 0; border-radius: 99px; color: var(--fg2); font-size: 16px; font-weight: 600; text-decoration: none; }
 .runHelp:hover { background: var(--panel); }
+.copy:hover { background: var(--raise); border-color: var(--fg3); }
 .copy[data-copied="true"] { border-color: var(--done); color: var(--done-ink); }
 
 /* Status menu */
 .statusWrap { position: relative; z-index: 5; flex: none; }
 .statusScrim { position: fixed; inset: 0; z-index: 0; }
 .statusBtn { position: relative; z-index: 1; display: flex; align-items: center; gap: 7px; height: 34px; padding: 0 10px 0 11px; border: 1px solid var(--line); border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; white-space: nowrap; }
-.statusIcon { font-size: 11px; }
-.caret { font-size: 9px; opacity: .7; }
+.statusIcon { display: inline-flex; font-size: 13px; }
+.caret { font-size: 12px; opacity: .7; }
 .menu { position: absolute; z-index: 1; top: 40px; right: 0; width: 190px; padding: 5px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
 .menuItem { display: flex; align-items: center; gap: 9px; padding: 8px 9px; border: 0; border-radius: 6px; background: transparent; color: var(--fg); text-align: left; font-size: 13px; cursor: pointer; }
 .menuItem:hover { background: var(--panel); }
-.menuIcon { width: 14px; text-align: center; font-size: 11px; }
+.menuIcon { display: inline-flex; justify-content: center; width: 14px; font-size: 13px; }
 .menuNote { margin-left: auto; font-size: 11.5px; color: var(--fg3); }
 
 /* Urgency segmented control */
@@ -51,7 +50,7 @@
 .cats { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .cat { display: inline-flex; align-items: center; gap: 5px; height: 26px; font-size: 12.5px; color: var(--fg2); padding: 0 3px 0 9px; border-radius: 99px; border: 1px solid var(--line); }
 .dot { width: 7px; height: 7px; border-radius: 99px; flex: none; }
-.catX { width: 18px; height: 18px; border: 0; border-radius: 99px; background: transparent; color: var(--fg3); cursor: pointer; font-size: 13px; line-height: 1; padding: 0; }
+.catX { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: 0; border-radius: 99px; background: transparent; color: var(--fg3); cursor: pointer; font-size: 13px; line-height: 1; padding: 0; }
 .catX:hover { background: var(--line); color: var(--fg); }
 .catInputWrap { position: relative; }
 .catInput { height: 26px; width: 150px; padding: 0 10px; border: 1px solid var(--accent); border-radius: 99px; background: var(--card); color: var(--fg); font-family: inherit; font-size: 12.5px; outline: none; box-sizing: border-box; }
@@ -69,7 +68,7 @@
 
 /* File problem */
 .problem { flex: none; display: flex; gap: 12px; padding: 14px 16px; border-radius: 10px; background: var(--review-soft); border: 1px solid var(--review); }
-.problemIcon { font-size: 15px; color: var(--review-ink); }
+.problemIcon { font-size: 16px; margin-top: 1px; color: var(--review-ink); }
 .problemText { flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; line-height: 1.5; min-width: 0; }
 .problemTitle { font-weight: 600; }
 .problemMsg { color: var(--fg2); }
@@ -104,3 +103,10 @@
 .missing { padding: 28px; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; font-size: 15px; }
 .missingBtn { height: 34px; padding: 0 14px; border: 1px solid var(--line2); border-radius: 8px; background: var(--card); color: var(--fg); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .copyFailed { flex: 0 1 auto; min-width: 0; font-size: 12px; color: var(--block-ink); user-select: text; overflow-wrap: anywhere; }
+/* Simple mode: urgency, categories and dependencies in a ⋯ menu in the header. */
+.moreWrap { position: relative; z-index: 5; flex: none; }
+.moreBtn { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--fg2); font-size: 17px; cursor: pointer; }
+.moreBtn:hover, .moreBtn[aria-expanded="true"] { color: var(--fg); border-color: var(--line2); }
+.moreMenu { position: absolute; z-index: 1; top: 40px; right: 0; width: min(420px, calc(100vw - 48px)); max-height: min(70vh, 560px); overflow: auto; padding: 14px 16px 16px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.moreLabel { margin-top: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; color: var(--fg3); }
+.moreLabel:first-child { margin-top: 0; }

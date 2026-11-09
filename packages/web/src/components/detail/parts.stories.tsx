@@ -78,7 +78,7 @@ export const CategoryAdding: Story = {
   ),
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
-    await userEvent.click(c.getByRole('button', { name: '+ Category' }));
+    await userEvent.click(c.getByRole('button', { name: 'Category' }));
     await userEvent.type(c.getByPlaceholderText('Category…'), 'Pay');
     expect(c.getByRole('option', { name: 'Create “Pay”' })).toBeTruthy();
   },

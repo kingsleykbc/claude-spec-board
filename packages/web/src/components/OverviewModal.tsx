@@ -1,5 +1,6 @@
 import type { Project } from '@specboard/core';
 import { exportOverview, overviewCounts } from '../lib/exportOverview';
+import { CloseIcon, ErrorIcon, ExportIcon, RefreshIcon } from '../lib/icons';
 import { ORDER, relTime, ST } from '../lib/vm';
 import type { PushToast } from '../state/toasts';
 import { Spinner } from './ConnectionBanner';
@@ -40,7 +41,7 @@ export function OverviewModal({ project, name, toast, refreshing = false, onRefr
   const deg = c.total ? Math.round((c.done / c.total) * 360) : 0;
   const counts = [
     ...ORDER.map((k) => ({ key: k, label: ST[k].label, icon: ST[k].icon, ink: ST[k].ink, n: c[k] })),
-    { key: 'blocked', label: 'Blocked', icon: '!', ink: 'var(--block-ink)', n: c.blocked },
+    { key: 'blocked', label: 'Blocked', icon: ErrorIcon, ink: 'var(--block-ink)', n: c.blocked },
   ];
   const summary = project.overview?.summaryMd.trim() ?? '';
   const rel = relTime(project.overview?.updated, now);
@@ -59,7 +60,7 @@ export function OverviewModal({ project, name, toast, refreshing = false, onRefr
           <span className={s.ovKicker}>OVERVIEW</span>
           <span className={s.grow} />
           <button type="button" className={s.close} aria-label="Close" onClick={onClose}>
-            ×
+            <CloseIcon aria-hidden />
           </button>
         </div>
         <div className={s.ovTop}>
@@ -78,7 +79,7 @@ export function OverviewModal({ project, name, toast, refreshing = false, onRefr
           {counts.map((x) => (
             <div key={x.key} className={s.ovCount}>
               <span className={s.ovCountIcon} style={{ color: x.ink }}>
-                {x.icon}
+                <x.icon aria-hidden />
               </span>
               {x.label}
               <span className={s.ovCountN}>{x.n}</span>
@@ -93,7 +94,13 @@ export function OverviewModal({ project, name, toast, refreshing = false, onRefr
             <span className={s.grow} />
             <button type="button" className={s.ovRefresh} disabled={refreshing} onClick={onRefresh}>
               {refreshing && <Spinner />}
-              {refreshing ? 'Refreshing' : '↻ Refresh'}
+              {refreshing ? (
+                'Refreshing'
+              ) : (
+                <>
+                  <RefreshIcon aria-hidden /> Refresh
+                </>
+              )}
             </button>
           </div>
           {refreshing ? (
@@ -118,7 +125,7 @@ export function OverviewModal({ project, name, toast, refreshing = false, onRefr
         </div>
         <div className={s.ovFoot}>
           <button type="button" className={s.ovExport} onClick={onExport}>
-            ⇪ Export .md
+            <ExportIcon aria-hidden /> Export .md
           </button>
         </div>
       </div>

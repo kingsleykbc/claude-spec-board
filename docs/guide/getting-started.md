@@ -33,6 +33,16 @@ npm run board -- "<your project folder>"
 
 The board opens in your browser and stays live until you stop the command. It remembers each project, so you can switch between them from the project menu.
 
+### Simple mode
+
+Turn on **Simple mode** in the bar above the board for a quieter view. Each card shows only its ID, title, the start of its description, subtask progress and what Claude is doing right now. Everything else is one click away:
+
+- **On a card:** press **⋯** to see whether it's blocked or has a file problem, whether it's waiting on your review, and its urgency, categories and dependencies. A red dot on **⋯** means the card is blocked or its file has a problem.
+- **Above the board:** the "to review", "questions for you" and "blocked" counts move behind **⋯** on the right. A dot on it means something is waiting on you.
+- **In a card's detail:** urgency, categories and dependencies move behind **⋯** next to the status. You can still change them there.
+
+The board remembers your choice in this browser, for every project.
+
 ## Use it from Claude
 
 Open a Claude chat in your project folder, in the terminal or the desktop app, and use the commands directly:

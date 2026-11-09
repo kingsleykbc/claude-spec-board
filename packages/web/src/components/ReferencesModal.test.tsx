@@ -62,13 +62,13 @@ describe('ReferencesModal', () => {
     await screen.findByText('House rules.');
     fireEvent.click(screen.getByRole('tab', { name: 'GONE.md' }));
     expect(screen.getByText('File not found')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '✎ Edit' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
   });
 
   it('edits and saves with the hash from when editing began', async () => {
     const { client, toast } = setup();
     await screen.findByText('House rules.');
-    fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     expect(screen.getByText((_, el) => el?.textContent === 'Editing CLAUDE.md')).toBeTruthy();
     fireEvent.change(screen.getByRole('textbox', { name: 'Document markdown' }), { target: { value: '# Claude\n\nNew **rules**.' } });
     expect(screen.getByText('rules').tagName).toBe('STRONG');
@@ -81,7 +81,7 @@ describe('ReferencesModal', () => {
   it('a 409 opens the conflict dialog; keep my copy goes through references/draft-copy', async () => {
     const { client, toast } = setup({ saveReference: vi.fn(async () => Promise.reject(new ConflictError('h9', 'theirs'))) });
     await screen.findByText('House rules.');
-    fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Document markdown' }), { target: { value: 'mine' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     const dlg = await screen.findByRole('alertdialog', { name: 'This document changed outside the board' });
@@ -96,7 +96,7 @@ describe('ReferencesModal', () => {
     const save = vi.fn(async () => Promise.reject(new ConflictError('h9', 'theirs')));
     setup({ saveReference: save });
     await screen.findByText('House rules.');
-    fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Document markdown' }), { target: { value: 'mine' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Keep editing' }));
@@ -109,7 +109,7 @@ describe('ReferencesModal', () => {
   it('a 404 "Not a linked reference" shows an err toast', async () => {
     const { toast } = setup({ saveReference: vi.fn(async () => Promise.reject(new ApiError(404, 'Not a linked reference'))) });
     await screen.findByText('House rules.');
-    fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(toast).toHaveBeenCalledWith('err', 'Couldn’t save CLAUDE.md', 'Not a linked reference'));
   });
@@ -117,7 +117,7 @@ describe('ReferencesModal', () => {
   it('Esc with unsaved edits asks "Discard your changes?" before leaving the editor; then Esc closes', async () => {
     const { onClose } = setup();
     await screen.findByText('House rules.');
-    fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Document markdown' }), { target: { value: 'changed' } });
     fireEvent.keyDown(document, { key: 'Escape' });
     const dlg = screen.getByRole('alertdialog', { name: 'Discard your changes?' });
@@ -131,7 +131,7 @@ describe('ReferencesModal', () => {
   it('switching tabs with unsaved edits asks first, then switches on Discard', async () => {
     setup();
     await screen.findByText('House rules.');
-    fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Document markdown' }), { target: { value: 'changed' } });
     fireEvent.click(screen.getByRole('tab', { name: 'CONTEXT.md' }));
     fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
@@ -142,7 +142,7 @@ describe('ReferencesModal', () => {
   it('creating "deploy" posts {name:"deploy"} and opens DEPLOY.md in edit mode', async () => {
     const { client } = setup();
     await screen.findByText('House rules.');
-    fireEvent.click(screen.getByRole('button', { name: '+ Add' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     fireEvent.click(screen.getByRole('button', { name: /Create a new document/ }));
     const input = screen.getByRole('textbox', { name: 'Document name' });
     fireEvent.change(input, { target: { value: 'deploy' } });
@@ -157,7 +157,7 @@ describe('ReferencesModal', () => {
   it('create "Already exists" shows an err toast and keeps the menu open', async () => {
     const { toast } = setup({ createReference: vi.fn(async () => Promise.reject(new ApiError(409, 'Already exists'))) });
     await screen.findByText('House rules.');
-    fireEvent.click(screen.getByRole('button', { name: '+ Add' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     fireEvent.click(screen.getByRole('button', { name: /Create a new document/ }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Document name' }), { target: { value: 'claude' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
@@ -169,7 +169,7 @@ describe('ReferencesModal', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { client, toast } = setup();
     await screen.findByText('House rules.');
-    fireEvent.click(screen.getByRole('button', { name: '+ Add' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     fireEvent.click(screen.getByRole('button', { name: /Link an existing file/ }));
     fireEvent.change(screen.getByRole('textbox', { name: 'File path' }), { target: { value: 'R' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'File path' }), { target: { value: 'RE' } });
@@ -190,7 +190,7 @@ describe('ReferencesModal', () => {
   it('Esc closes the add menu before the modal', async () => {
     const { onClose } = setup();
     await screen.findByText('House rules.');
-    fireEvent.click(screen.getByRole('button', { name: '+ Add' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     expect(screen.getByRole('button', { name: /Link an existing file/ })).toBeTruthy();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('button', { name: /Link an existing file/ })).toBeNull();
@@ -218,7 +218,7 @@ describe('ReferencesModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove link' }));
     expect(client.removeReference).not.toHaveBeenCalled();
     expect(toast).toHaveBeenCalledWith('err', ...OFFLINE_TOAST);
-    fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(client.saveReference).not.toHaveBeenCalled();
   });
@@ -226,7 +226,7 @@ describe('ReferencesModal', () => {
   it('create twice in one tick posts once', async () => {
     const { client } = setup();
     await screen.findByText('House rules.');
-    fireEvent.click(screen.getByRole('button', { name: '+ Add' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     fireEvent.click(screen.getByRole('button', { name: /Create a new document/ }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Document name' }), { target: { value: 'deploy' } });
     const btn = screen.getByRole('button', { name: 'Create' });
@@ -242,7 +242,7 @@ describe('ReferencesModal', () => {
   it('link twice in one tick posts once', async () => {
     const { client } = setup();
     await screen.findByText('House rules.');
-    fireEvent.click(screen.getByRole('button', { name: '+ Add' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     fireEvent.click(screen.getByRole('button', { name: /Link an existing file/ }));
     fireEvent.change(screen.getByRole('textbox', { name: 'File path' }), { target: { value: 'README.md' } });
     const btn = screen.getByRole('button', { name: 'Link file' });
@@ -258,7 +258,7 @@ describe('ReferencesModal', () => {
   it('an invalid document name disables Create and shows the rule', async () => {
     setup();
     await screen.findByText('House rules.');
-    fireEvent.click(screen.getByRole('button', { name: '+ Add' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     fireEvent.click(screen.getByRole('button', { name: /Create a new document/ }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Document name' }), { target: { value: '../evil' } });
     expect(screen.getByRole('button', { name: 'Create' })).toHaveProperty('disabled', true);
@@ -272,7 +272,7 @@ describe('ReferencesModal', () => {
   it('a server 400 on create shows its message as a toast', async () => {
     const { toast } = setup({ createReference: vi.fn(async () => Promise.reject(new ApiError(400, 'Invalid name'))) });
     await screen.findByText('House rules.');
-    fireEvent.click(screen.getByRole('button', { name: '+ Add' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     fireEvent.click(screen.getByRole('button', { name: /Create a new document/ }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Document name' }), { target: { value: 'ok' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));

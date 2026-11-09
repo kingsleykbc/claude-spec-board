@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Spec } from '@specboard/core';
 import { recipeSpec } from '../fixtures/recipeBox';
+import { ReviewIcon, TodoIcon } from './icons';
 import { catColor, firstParagraph, fmtLogTime, relPath, relTime, runHold, statusMeta, truncate, urgVm } from './vm';
 
 // The prototype's hue(), copied as-is, to pin catColor to it.
@@ -41,8 +42,8 @@ describe('vm', () => {
   });
 
   it('statusMeta copies ST', () => {
-    expect(statusMeta('review')).toEqual({ label: 'Review', icon: '◆', ink: 'var(--review-ink)', soft: 'var(--review-soft)' });
-    expect(statusMeta('todo').icon).toBe('○');
+    expect(statusMeta('review')).toEqual({ label: 'Review', icon: ReviewIcon, ink: 'var(--review-ink)', soft: 'var(--review-soft)' });
+    expect(statusMeta('todo').icon).toBe(TodoIcon);
   });
 
   it('fmtLogTime', () => {

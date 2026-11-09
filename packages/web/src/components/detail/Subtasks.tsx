@@ -4,6 +4,7 @@ import { api, ConflictError } from '../../api/client';
 import { OFFLINE_TOAST, type Mutate } from '../../state/actions';
 import type { PushToast } from '../../state/toasts';
 import { Spinner } from '../ConnectionBanner';
+import { CaretIcon, CaretUpIcon, LogIcon } from '../../lib/icons';
 import { SubtaskLog } from './SubtaskLog';
 import s from './sections.module.css';
 
@@ -109,7 +110,9 @@ export function Subtasks({ pid, spec, client = api, mutate, refresh, toast, down
                 )}
                 {log !== undefined && (
                   <button type="button" className={s.logBtn} aria-expanded={open} onClick={() => setOpenLog(open ? null : t.n)}>
-                    <span className={s.logIcon}>≡</span>Log<span className={s.caret}>{open ? '▴' : '▾'}</span>
+                    <LogIcon aria-hidden className={s.logIcon} />
+                    Log
+                    {open ? <CaretUpIcon aria-hidden className={s.caret} /> : <CaretIcon aria-hidden className={s.caret} />}
                   </button>
                 )}
               </div>
