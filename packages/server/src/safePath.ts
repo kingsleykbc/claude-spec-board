@@ -19,11 +19,20 @@ export function isWithin(parent: string, child: string): boolean {
   return rel === '' || (rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel));
 }
 
+/** Asks the system, which also settles 8.3 names and `\\?\` spellings. Some volumes refuse it, so Node's own walk is the fallback. */
+function realPathSync(abs: string): string {
+  try {
+    return fs.realpathSync.native(abs);
+  } catch {
+    return fs.realpathSync(abs);
+  }
+}
+
 /** The real path of `p`; for one that doesn't exist yet, the real path of its deepest existing ancestor plus the rest. */
 export function realPathLoose(p: string): string {
   const abs = path.resolve(p);
   try {
-    return fs.realpathSync(abs);
+    return realPathSync(abs);
   } catch {
     const parent = path.dirname(abs);
     return parent === abs ? abs : path.join(realPathLoose(parent), path.basename(abs));

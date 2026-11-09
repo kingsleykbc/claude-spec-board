@@ -1,10 +1,15 @@
+import path from 'node:path';
 import spawn from 'cross-spawn';
-import { killTree, resolveCommand } from './resolve.js';
+import { Registry } from '../registry.js';
+import { specboardHome } from '../setup.js';
+import { envKeys, killTree, resolveFromEnv, searchablePath } from './resolve.js';
 
 export interface ClaudeStatus { installed: boolean; loggedIn: boolean; version: string | null }
 export type ClaudeRunner = (args: string[]) => Promise<{ code: number | null; stdout: string }>;
 /** `recheckIfDown`: don't trust a remembered "not installed" or "not logged in"; the person may have just fixed it. */
 export type ClaudeStatusCheck = (opts?: { recheckIfDown?: boolean }) => Promise<ClaudeStatus>;
+/** The folders no status check may run a program from. Rejects if they can't be known, which reads as not installed. */
+export type ProjectRoots = () => Promise<string[]>;
 
 /** While set, Windows and cmd.exe don't look in the current folder for a bare command: a `node.cmd` a repo ships, when a `claude.cmd` shim calls `node`. */
 const NO_CWD_SEARCH = 'NoDefaultCurrentDirectoryInExePath';
@@ -30,26 +35,35 @@ function isSessionVar(key: string): boolean {
 /**
  * This process's environment without a Claude Code session's variables, so a board started inside a session acts like
  * one from a plain terminal. Login and provider variables stay, and so does everything else, `ANTHROPIC_*` included.
+ * PATH keeps only absolute entries outside `exclude`, so a shim's bare `node` can't reach a repo's script.
  */
-export function childEnv(): NodeJS.ProcessEnv {
+export function childEnv(exclude: string[], source: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
-  for (const [k, v] of Object.entries(process.env)) {
+  for (const [k, v] of Object.entries(source)) {
     const upper = k.toUpperCase();
     if (!isSessionVar(upper) && upper !== NO_CWD_SEARCH.toUpperCase()) env[k] = v;
   }
+  const [pathKey, ...others] = envKeys(env, 'PATH');
+  if (pathKey !== undefined) env[pathKey] = searchablePath(env[pathKey], exclude);
+  for (const k of others) delete env[k];
   if (process.platform === 'win32') env[NO_CWD_SEARCH] = '1';
   return env;
 }
 
-/** Runs `name` by the absolute path we found, never a bare name, so whatever folder the server started in can't supply it. */
-export const commandRunner = (name: string, env: NodeJS.ProcessEnv = process.env): ClaudeRunner => (args) =>
-  new Promise((resolve, reject) => {
-    const bin = resolveCommand(name, { PATH: env.PATH, PATHEXT: env.PATHEXT });
-    if (bin === null) {
-      reject(new Error(`${name} not found`));
-      return;
-    }
-    const child = spawn(bin, args, { env: childEnv(), stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
+/** Every registered project's root, read fresh: another process (`init`, a second `start`) can add one at any time. */
+export const registeredRoots: ProjectRoots = () => new Registry(path.join(specboardHome(), 'projects.json')).roots();
+
+/**
+ * Runs `name` by the absolute path we found, never a bare name, so whatever folder the server started in can't supply it.
+ * This runs when a project is opened, before any approval, so nothing inside any of `roots` counts: a `claude` found only
+ * there reads as not installed.
+ */
+export const commandRunner = (name: string, env: NodeJS.ProcessEnv, roots: ProjectRoots): ClaudeRunner => async (args) => {
+  const exclude = await roots();
+  const bin = resolveFromEnv(name, env, exclude);
+  if (bin === null) throw new Error(`${name} not found`);
+  return new Promise((resolve, reject) => {
+    const child = spawn(bin, args, { env: childEnv(exclude), stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
     let stdout = '';
     const timer = setTimeout(() => {
       if (child.pid !== undefined) killTree(child.pid, 'SIGKILL');
@@ -65,16 +79,18 @@ export const commandRunner = (name: string, env: NodeJS.ProcessEnv = process.env
       resolve({ code, stdout });
     });
   });
+};
+
+const DOWN: ClaudeStatus = { installed: false, loggedIn: false, version: null };
 
 async function check(run: ClaudeRunner): Promise<ClaudeStatus> {
-  const down: ClaudeStatus = { installed: false, loggedIn: false, version: null };
   let version: string;
   try {
     const out = await run(['--version']);
-    if (out.code !== 0) return down;
+    if (out.code !== 0) return DOWN;
     version = out.stdout.trim().split(/\s+/)[0] ?? '';
   } catch {
-    return down;
+    return DOWN;
   }
   const installed = { installed: true, version: version || null };
   try {
@@ -92,18 +108,27 @@ async function check(run: ClaudeRunner): Promise<ClaudeStatus> {
   }
 }
 
-/** A status check that never throws, remembers its answer for 30 s and shares a check already in progress. */
-export function makeClaudeStatus(run: ClaudeRunner, now: () => number = Date.now): ClaudeStatusCheck {
-  let cached: { at: number; status: Promise<ClaudeStatus> } | null = null;
-  const refresh = () => (cached = { at: now(), status: check(run) });
+/**
+ * A status check that never throws, remembers its answer for 30 s and shares a check already in progress. The answer
+ * belongs to the set of `roots` it was found under: when that changes, the program it ran may now be inside a project.
+ */
+export function makeClaudeStatus(run: ClaudeRunner, now: () => number = Date.now, roots: ProjectRoots = async () => []): ClaudeStatusCheck {
+  let cached: { at: number; key: string; status: Promise<ClaudeStatus> } | null = null;
+  const refresh = (key: string) => (cached = { at: now(), key, status: check(run) });
   return async (opts) => {
-    const stale = !cached || now() - cached.at >= CACHE_MS;
-    const entry = stale ? refresh() : cached!;
+    let key: string;
+    try {
+      key = JSON.stringify((await roots()).sort());
+    } catch {
+      return DOWN;
+    }
+    const stale = !cached || cached.key !== key || now() - cached.at >= CACHE_MS;
+    const entry = stale ? refresh(key) : cached!;
     const status = await entry.status;
     if (!opts?.recheckIfDown || stale || (status.installed && status.loggedIn)) return status;
-    return (cached === entry ? refresh() : cached!).status; // someone else may have re-checked meanwhile
+    return (cached === entry ? refresh(key) : cached!).status; // someone else may have re-checked meanwhile
   };
 }
 
-/** `claude --version` and `claude auth status`. */
-export const claudeStatus = makeClaudeStatus(commandRunner('claude'));
+/** `claude --version` and `claude auth status`, never from inside a registered project. */
+export const claudeStatus = makeClaudeStatus(commandRunner('claude', process.env, registeredRoots), Date.now, registeredRoots);

@@ -188,7 +188,7 @@ describe('childEnv', () => {
     ];
     for (const k of [...strip, ...keep]) vi.stubEnv(k, 'stub');
     try {
-      const env = childEnv();
+      const env = childEnv([]);
       for (const k of strip) expect(env[k], k).toBeUndefined();
       for (const k of keep) expect(env[k], k).toBe('stub');
       expect(env.PATH ?? env.Path).toBeTruthy();

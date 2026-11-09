@@ -111,7 +111,7 @@ describe.runIf(WIN)('resolveCommand on Windows', () => {
 
   it('childEnv turns off the current-folder search, whatever the spelling or value already set', () => {
     vi.stubEnv(NO_CWD_VAR.toUpperCase(), '');
-    const env = childEnv();
+    const env = childEnv([]);
     const keys = Object.keys(env).filter((k) => k.toUpperCase() === NO_CWD_VAR.toUpperCase());
     expect(keys).toEqual([NO_CWD_VAR]);
     expect(env[NO_CWD_VAR]).toBe('1');
@@ -196,12 +196,12 @@ describe('RunManager and the planted command', () => {
 describe('the status runner', () => {
   it.runIf(WIN)('runs the absolute path it found and reads its output', async () => {
     await fs.writeFile(path.join(bin, `${FAKE_NAME}.cmd`), '@echo off\r\necho 9.9.9 (fake)\r\n');
-    const out = await commandRunner(FAKE_NAME, { PATH: bin, PATHEXT: '.CMD' })(['--version']);
+    const out = await commandRunner(FAKE_NAME, { PATH: bin, PATHEXT: '.CMD' }, async () => [])(['--version']);
     expect(out.code).toBe(0);
     expect(out.stdout).toContain('9.9.9');
   });
 
   it('rejects when the command is not found, so it reads as not installed', async () => {
-    await expect(commandRunner(FAKE_NAME, { PATH: bin, PATHEXT: '.CMD' })(['--version'])).rejects.toThrow(/not found/);
+    await expect(commandRunner(FAKE_NAME, { PATH: bin, PATHEXT: '.CMD' }, async () => [])(['--version'])).rejects.toThrow(/not found/);
   });
 });

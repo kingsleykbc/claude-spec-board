@@ -8,7 +8,7 @@ import type { ProjectEntry } from '../registry.js';
 import { InvalidApprovalError, type ApprovedPermissions, type Permissions } from '../setup.js';
 import { classifyEnd, type EndInfo, type RunKind, type RunStatus } from './classify.js';
 import { LineSplitter, parseEvent, type ClaudeResult, type ParsedLine, type RunLine } from './events.js';
-import { killTree, resolveCommand } from './resolve.js';
+import { killTree, resolveFromEnv } from './resolve.js';
 import { childEnv, claudeStatus, type ClaudeStatusCheck } from './status.js';
 
 export interface RunSnapshot { id: string; pid: string; kind: RunKind; specId: string | null; status: RunStatus; lines: RunLine[]; end: EndInfo | null; startedAt: string; dismissed: boolean }
@@ -38,7 +38,7 @@ type Launcher = (args: string[], root: string) => Launch;
 
 /** How a run starts `name`: by an absolute path from outside the project, or it counts as not installed. */
 export const commandLauncher = (name: string, env: NodeJS.ProcessEnv = process.env): Launcher => (args, root) => {
-  const bin = resolveCommand(name, { PATH: env.PATH, PATHEXT: env.PATHEXT, exclude: [root] });
+  const bin = resolveFromEnv(name, env, [root]);
   if (bin === null) throw new ClaudeUnavailableError('not-installed');
   return { bin, args };
 };
@@ -289,7 +289,7 @@ export class RunManager {
   private spawnChild(run: Run, { bin, args }: Launch): void {
     let child: ChildProcess;
     try {
-      child = spawn(bin, args, { cwd: run.entry.root, env: childEnv(), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+      child = spawn(bin, args, { cwd: run.entry.root, env: childEnv([run.entry.root]), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
     } catch (e) {
       run.spawnError = e as Error;
       void this.finish(run);

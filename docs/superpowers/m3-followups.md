@@ -95,9 +95,15 @@ These were checked by reading the code and by whether M3 touched the files; none
 - `HEAD~1` on a first commit, and subtask titles with `"` or `$` in commit messages: probe a `$(...)` title.
 - **Before the M4 publish: clean the personal handle from git history.** It was removed from `m3-claude-facts.md` in the working tree only. Rewriting history is the owner's decision.
 - From Task 9, not verified: a real interactive `/run-spec`, a real npm `claude.cmd` (now also started by absolute path through `cmd.exe`), the logged-out skip path, connectors, an already-trusted folder.
-- `childEnv` turns off the current-folder search for a run on Windows, but a `.` or relative entry in the person's own PATH is passed through as it is. A `claude.cmd` shim calling `node` could still find a repo's `node.cmd` through one. Decide whether to clean PATH for the child.
 - `init` warns about a missing `.git` at the folder itself, so a project in a subfolder of a repo gets the warning too (its wording allows for that).
 - A refresh's permission rule shows only in its toast, for 4.5 s. The Overview modal could keep it on screen.
+
+## Open after the status and child PATH hardening
+- The admin-share spelling `\\localhost\C$\...` of a project folder is not recognised as that folder, by the lookup, the child PATH or the home-inside-root check. The system's real path keeps it as a network path.
+- A file symlink in a PATH folder outside the project, pointing to a program inside it, is still picked: only the folder is checked, not the file found in it.
+- `setup.ts:343` refuses a project that holds the kit, so in M4 a project that installs Spec Board as a local dependency can't be set up. Decide before publishing.
+- A run looks up `claude` and builds its PATH with only its own project left out, while the status check leaves out all of them. With another registered project's folder on PATH, the check can say installed and the run then start that project's `claude.cmd`, and that folder stays on the run's PATH. Decide whether a run should leave out every registered project too.
+- The toast for a refused refresh shows the rule without `allowHint`, so it lacks the "run this from the Spec Board repo" wording the Run panel has.
 
 ## Closed by Task 9
 - Streamed `run-line` carries `subtask`: confirmed in the real test (`[1, 2]`) and on the page.

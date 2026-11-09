@@ -47,6 +47,13 @@ export class Registry {
     return (await this.read()).entries;
   }
 
+  /** Every registered root, for keeping their programs from being run. Throws rather than answer "none" from a file it can't read. */
+  async roots(): Promise<string[]> {
+    const { entries, corrupt } = await this.read();
+    if (corrupt) throw new Error(`Cannot read the project registry: ${this.file}`);
+    return entries.map((e) => e.root);
+  }
+
   async get(id: string): Promise<ProjectEntry | null> {
     return (await this.list()).find((e) => e.id === id) ?? null;
   }

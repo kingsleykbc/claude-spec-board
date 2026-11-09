@@ -19,6 +19,36 @@ export interface CommandLookup {
 /** A full path from a fixed root. On Windows `\x` and `C:x` depend on the current drive or folder, so they don't count. */
 const isFullPath = (p: string): boolean => (WIN ? /^(?:[A-Za-z]:[\\/]|\\\\)/.test(p) : p.startsWith('/'));
 
+const unquote = (entry: string): string => entry.trim().replace(/^"(.*)"$/, '$1');
+
+/**
+ * The keys that hold variable `name`. Windows ignores case, so it may be `Path`, and a plain object can hold several:
+ * Node starts a child with the first in sorted order, so that one comes first here.
+ */
+export function envKeys(env: NodeJS.ProcessEnv, name: string): string[] {
+  return Object.keys(env).filter((k) => (WIN ? k.toUpperCase() === name : k === name)).sort();
+}
+
+const envValue = (env: NodeJS.ProcessEnv, name: string): string | undefined => {
+  const key = envKeys(env, name)[0];
+  return key === undefined ? undefined : env[key];
+};
+
+/** The PATH entries that may be searched, as written and in order: absolute, and outside every `exclude` folder. */
+function searchableEntries(value: string | undefined, exclude: string[]): string[] {
+  const excluded = exclude.map(realPathLoose);
+  return (value ?? '').split(path.delimiter).filter((entry) => {
+    const dir = unquote(entry);
+    if (!isFullPath(dir)) return false;
+    const real = realPathLoose(dir);
+    return !excluded.some((x) => isWithin(x, real));
+  });
+}
+
+/** PATH without what a project could supply, for a child whose own bare commands are looked up through it. */
+export const searchablePath = (value: string | undefined, exclude: string[]): string =>
+  searchableEntries(value, exclude).join(path.delimiter);
+
 function isCommandFile(file: string): boolean {
   try {
     if (!fs.statSync(file).isFile()) return false;
@@ -35,13 +65,9 @@ function isCommandFile(file: string): boolean {
  * Only absolute PATH entries outside `exclude` count, tried per entry in PATHEXT order. null when there is none.
  */
 export function resolveCommand(name: string, lookup: CommandLookup): string | null {
-  const excluded = (lookup.exclude ?? []).map(realPathLoose);
   const exts = WIN ? (lookup.PATHEXT || DEFAULT_PATHEXT).split(';').filter((e) => STARTABLE.test(e)) : [''];
-  for (const raw of (lookup.PATH ?? '').split(path.delimiter)) {
-    const dir = raw.trim().replace(/^"(.*)"$/, '$1');
-    if (!isFullPath(dir)) continue;
-    const real = realPathLoose(dir);
-    if (excluded.some((x) => isWithin(x, real))) continue;
+  for (const entry of searchableEntries(lookup.PATH, lookup.exclude ?? [])) {
+    const dir = unquote(entry);
     for (const ext of exts) {
       const file = path.join(dir, name + ext.toLowerCase());
       if (isCommandFile(file)) return file;
@@ -49,6 +75,10 @@ export function resolveCommand(name: string, lookup: CommandLookup): string | nu
   }
   return null;
 }
+
+/** `resolveCommand` with PATH and PATHEXT from `env`, under whichever spelling of the key it has. */
+export const resolveFromEnv = (name: string, env: NodeJS.ProcessEnv, exclude: string[]): string | null =>
+  resolveCommand(name, { PATH: envValue(env, 'PATH'), PATHEXT: envValue(env, 'PATHEXT'), exclude });
 
 /** The system's own taskkill. tree-kill runs a bare `taskkill` through a shell, found in the current folder first. */
 export function taskkillPath(env: NodeJS.ProcessEnv = process.env): string {
