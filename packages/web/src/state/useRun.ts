@@ -25,9 +25,10 @@ export interface UseRun {
    * first learns of live: from the socket event or the `start()` response, whichever lands first. `run-ended` fires
    * once when a run held as running ends live: from the socket event or the `stop()` response, whichever lands first.
    * `run-line` fires for each new line. Snapshots (fetches, a reconnect catching up, a run adopted on reload) fire
-   * nothing, and neither does a duplicate or dropped event. Returns an unsubscribe function.
+   * nothing, and neither does a duplicate or dropped event. Each event comes with the run as it stands after that
+   * event, which may be ahead of the last render. Returns an unsubscribe function.
    */
-  onEvent(handler: (e: RunEvent) => void): () => void;
+  onEvent(handler: (e: RunEvent, run: RunSnapshot) => void): () => void;
 }
 
 const isRunning = (r: RunSnapshot) => r.status === 'running';
@@ -77,7 +78,7 @@ export function useRun(pid: string, live: LiveChannel): UseRun {
   /** Bumped whenever an event or a response (not a fetch) changes the held run: a fetch that started before it must not clear it. */
   const version = useRef(0);
   const gapFetching = useRef(false);
-  const handlers = useRef(new Set<(e: RunEvent) => void>());
+  const handlers = useRef(new Set<(e: RunEvent, run: RunSnapshot) => void>());
   const connRef = useRef(live.conn);
   connRef.current = live.conn;
   const pidRef = useRef(pid);
@@ -91,8 +92,8 @@ export function useRun(pid: string, live: LiveChannel): UseRun {
     version.current++;
     commit({ ...ref.current, run });
   };
-  const fire = (e: RunEvent) => {
-    for (const h of [...handlers.current]) h(e);
+  const fire = (e: RunEvent, run: RunSnapshot) => {
+    for (const h of [...handlers.current]) h(e, run);
   };
 
   /** Fetches the run state and merges it. Never fires events; ignored when the project changed meanwhile. */
@@ -133,20 +134,22 @@ export function useRun(pid: string, live: LiveChannel): UseRun {
         }
         if (cur && e.run.startedAt < cur.startedAt) return; // an older run than the one held
         setRun(e.run);
-        fire(e);
+        fire(e, e.run);
       } else if (e.type === 'run-line') {
         if (!cur || cur.id !== e.runId) return refetchForGap();
         if (!isRunning(cur)) return; // a late line of a run that already ended
         const last = lastSeq(cur);
         if (e.line.seq <= last) return; // already have it
         if (e.line.seq > last + 1) return refetchForGap(); // missed some: the snapshot has them
-        setRun({ ...cur, lines: [...cur.lines, e.line] });
-        fire(e);
+        const next = { ...cur, lines: [...cur.lines, e.line] };
+        setRun(next);
+        fire(e, next);
       } else if (e.type === 'run-ended') {
         if (!cur || cur.id !== e.run.id) return refetchForGap();
         if (!isRunning(cur)) return; // already ended
-        setRun(mergeRun(cur, e.run));
-        fire(e);
+        const next = mergeRun(cur, e.run);
+        setRun(next);
+        fire(e, next);
       }
     },
     [refetchForGap],
@@ -184,7 +187,7 @@ export function useRun(pid: string, live: LiveChannel): UseRun {
           const cur = ref.current.run;
           const merged = mergeRun(cur, run);
           setRun(merged);
-          if (merged.id === run.id && cur?.id !== run.id) fire({ type: 'run-started', run: merged });
+          if (merged.id === run.id && cur?.id !== run.id) fire({ type: 'run-started', run: merged }, merged);
         }
         return { ok: true };
       } catch (e) {
@@ -235,7 +238,7 @@ export function useRun(pid: string, live: LiveChannel): UseRun {
         const cur = ref.current.run;
         const merged = mergeRun(cur, run);
         setRun(merged);
-        if (cur && cur.id === merged.id && isRunning(cur) && !isRunning(merged)) fire({ type: 'run-ended', run: merged });
+        if (cur && cur.id === merged.id && isRunning(cur) && !isRunning(merged)) fire({ type: 'run-ended', run: merged }, merged);
       }),
     [onHeldRun],
   );
@@ -251,7 +254,7 @@ export function useRun(pid: string, live: LiveChannel): UseRun {
     [onHeldRun],
   );
 
-  const onEvent = useCallback((handler: (e: RunEvent) => void) => {
+  const onEvent = useCallback((handler: (e: RunEvent, run: RunSnapshot) => void) => {
     handlers.current.add(handler);
     return () => void handlers.current.delete(handler);
   }, []);

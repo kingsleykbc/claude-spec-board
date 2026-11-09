@@ -1,7 +1,15 @@
 import { StringDecoder } from 'node:string_decoder';
 
 export type RunLineKind = 'start' | 'read' | 'edit' | 'cmd' | 'ok' | 'done' | 'stop' | 'warn' | 'err';
-export interface RunLine { seq: number; k: RunLineKind; text: string; code?: string; time: string }
+export interface RunLine {
+  seq: number;
+  k: RunLineKind;
+  text: string;
+  code?: string;
+  time: string;
+  /** The subtask number, only on the line saying that subtask got done. */
+  subtask?: number;
+}
 export interface Denial { tool: string; input: unknown }
 export interface ClaudeResult {
   isError: boolean;

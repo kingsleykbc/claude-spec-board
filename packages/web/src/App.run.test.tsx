@@ -160,11 +160,25 @@ describe('toasts come from live run events, once each', () => {
     expect(named(sub)).toHaveLength(1);
   });
 
-  it('a subtask line toasts "<ID> · Subtask done" with its name, once; a repeat of the seq does not', async () => {
+  it('a line marked as a subtask toasts "<ID> · Subtask done" with its name, once, whatever its text says', async () => {
     await mount(run());
-    const line = { seq: 1, k: 'done', text: 'Subtask 3 done: Persist planned meals · committed', code: 'abc', time: '10:00' } as const;
+    const line = { seq: 1, k: 'done', text: 'Finished the third step', subtask: 3, code: 'abc', time: '10:00' } as const;
     send({ type: 'run-line', runId: 'r1', line });
     send({ type: 'run-line', runId: 'r1', line });
+    expect(named('T-104 · Subtask done')).toHaveLength(1);
+    expect(named('Persist planned meals')).toHaveLength(1);
+  });
+
+  it('a subtask line landing before React renders the adopted run still toasts, once', async () => {
+    await mount();
+    vi.mocked(api.getRun).mockResolvedValue(state(run()));
+    const line = { seq: 1, k: 'done', text: 'Finished', subtask: 3, time: '10:00' } as const;
+    // All inside one act: React does not render between the fetch landing and the line arriving.
+    await act(async () => {
+      live.onOpen!();
+      await new Promise<void>((r) => setTimeout(r, 0));
+      live.onMessage!({ type: 'run-line', runId: 'r1', line });
+    });
     expect(named('T-104 · Subtask done')).toHaveLength(1);
     expect(named('Persist planned meals')).toHaveLength(1);
   });
@@ -173,10 +187,12 @@ describe('toasts come from live run events, once each', () => {
     await mount(run());
     send({ type: 'run-line', runId: 'r1', line: { seq: 1, k: 'read', text: 'Read', time: '10:00' } });
     send({ type: 'run-line', runId: 'r1', line: { seq: 2, k: 'done', text: 'All subtasks done · committed', code: 'abc', time: '10:00' } });
+    // The text is not what decides: an unmarked line that reads like a subtask is not one.
+    send({ type: 'run-line', runId: 'r1', line: { seq: 3, k: 'done', text: 'Subtask 3 done: Persist planned meals', time: '10:00' } });
     expect(named('T-104 · Subtask done')).toHaveLength(0);
     cleanup();
     await mount(run({ kind: 'write-up' }));
-    send({ type: 'run-line', runId: 'r1', line: { seq: 1, k: 'done', text: 'Spec written up', time: '10:00' } });
+    send({ type: 'run-line', runId: 'r1', line: { seq: 1, k: 'done', text: 'Spec written up', subtask: 1, time: '10:00' } });
     expect(named('T-104 · Subtask done')).toHaveLength(0);
   });
 

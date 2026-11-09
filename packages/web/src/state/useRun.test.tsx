@@ -237,6 +237,51 @@ describe('useRun: onEvent fires for live events only', () => {
   });
 });
 
+describe('useRun: onEvent carries the current run', () => {
+  it('every event comes with the run as it stands after that event, once', async () => {
+    const m = await mount(null);
+    const seen: [string, RunSnapshot][] = [];
+    m.result.current.onEvent((e, r) => seen.push([e.type, r]));
+    await m.send({ type: 'run-started', run: run() });
+    await m.send({ type: 'run-line', runId: 'r1', line: line(1) });
+    await m.send({ type: 'run-line', runId: 'r1', line: line(1) }); // duplicate
+    await m.send({ type: 'run-ended', run: run({ lines: lines(1, 1), status: 'finished' }) });
+    expect(seen.map(([t, r]) => [t, r.id, r.status, seqs(r)])).toEqual([
+      ['run-started', 'r1', 'running', []],
+      ['run-line', 'r1', 'running', [1]],
+      ['run-ended', 'r1', 'finished', [1]],
+    ]);
+  });
+
+  it('a line landing before any render of a fetched run still names that run', async () => {
+    const m = await mount(null);
+    const seen: [string, string][] = [];
+    m.result.current.onEvent((e, r) => seen.push([e.type, r.specId!]));
+    await m.open();
+    // One act: the fetched run is held, but not rendered, when the line arrives.
+    await act(async () => {
+      getRuns.at(-1)!.resolve(state(run()));
+      await new Promise<void>((r) => setTimeout(r, 0));
+      await m.send({ type: 'run-line', runId: 'r1', line: line(1) });
+    });
+    expect(seen).toEqual([['run-line', 'T-1']]);
+  });
+
+  it('the start and stop responses carry the run too', async () => {
+    const m = await mount(null);
+    const seen: [string, string][] = [];
+    m.result.current.onEvent((e, r) => seen.push([e.type, r.status]));
+    mocks.startRun.mockResolvedValueOnce({ run: run() });
+    await act(async () => void (await m.result.current.start('run', 'T-1')));
+    mocks.stopRun.mockResolvedValueOnce({ run: run({ status: 'stopped' }) });
+    await act(async () => m.result.current.stop());
+    expect(seen).toEqual([
+      ['run-started', 'running'],
+      ['run-ended', 'stopped'],
+    ]);
+  });
+});
+
 describe('useRun: onEvent ordering rules', () => {
   const started = run({ id: 'r7' });
   const ended = run({ id: 'r7', lines: lines(1, 2), status: 'stopped', end: { status: 'stopped' } });

@@ -40,6 +40,8 @@ export interface RunLine {
   text: string;
   code?: string;
   time: string;
+  /** The subtask number, only on the line saying that subtask got done. */
+  subtask?: number;
 }
 export interface Denial {
   tool: string;

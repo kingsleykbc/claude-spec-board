@@ -29,9 +29,6 @@ export function cardRun(run: RunSnapshot | null, spec: Spec): { running: string 
 /** The refresh run in flight drives the Overview modal's Refreshing state. */
 export const isRefreshing = (run: RunSnapshot | null): boolean => isRunning(run) && run.kind === 'refresh-overview';
 
-/** A `done` line for one subtask ("Subtask 3 done: Name · committed"), as opposed to a run's closing `done` line. */
-const SUBTASK_DONE = /^Subtask \d+ done: (.*?)(?: · committed)?$/;
-
 function startedToast(run: RunSnapshot, title: string | undefined): ToastArgs | null {
   const id = run.specId;
   switch (run.kind) {
@@ -72,26 +69,21 @@ function endedToast(run: RunSnapshot): ToastArgs {
  * Shows each live run event as a toast. `onEvent` fires once per event and never for snapshots, so this is the only
  * place run toasts come from; a replay after a reconnect shows none.
  */
-export function useRunToasts({ run, onEvent }: Pick<UseRun, 'run' | 'onEvent'>, specs: Spec[], toast: PushToast): void {
-  // A `run-line` names only its run. An event can land before the render that holds the run, so `run-started` sets this too.
-  const held = useRef(run);
-  held.current = run;
+export function useRunToasts({ onEvent }: Pick<UseRun, 'onEvent'>, specs: Spec[], toast: PushToast): void {
   const specsRef = useRef(specs);
   specsRef.current = specs;
 
   useEffect(
     () =>
-      onEvent((e: RunEvent) => {
+      onEvent((e: RunEvent, run: RunSnapshot) => {
+        const spec = specsRef.current.find((s) => s.id === run.specId);
         let args: ToastArgs | null = null;
         if (e.type === 'run-started') {
-          held.current = e.run;
-          args = startedToast(e.run, specsRef.current.find((s) => s.id === e.run.specId)?.title);
+          args = startedToast(run, spec?.title);
         } else if (e.type === 'run-ended') {
-          args = endedToast(e.run);
-        } else {
-          const cur = held.current;
-          const subtask = e.line.k === 'done' && cur?.id === e.runId && cur.kind === 'run' ? SUBTASK_DONE.exec(e.line.text) : null;
-          if (subtask) args = ['ok', `${cur!.specId} · Subtask done`, subtask[1]];
+          args = endedToast(run);
+        } else if (run.kind === 'run' && e.line.subtask !== undefined) {
+          args = ['ok', `${run.specId} · Subtask done`, spec?.subtasks.find((t) => t.n === e.line.subtask)?.title];
         }
         if (args) toast(...args);
       }),

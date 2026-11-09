@@ -221,6 +221,11 @@ describe('a run that succeeds', () => {
       ['done', 'Subtask 2 done: Second · committed', 'bbb2222'],
       ['done', 'All subtasks done · committed', 'bbb2222'],
     ]);
+    // Only the per-subtask lines are marked, not the closing `done` line or anything else.
+    expect(run.lines.flatMap((l) => (l.subtask === undefined ? [] : [[l.subtask, l.text]]))).toEqual([
+      [1, 'Subtask 1 done: First · committed'],
+      [2, 'Subtask 2 done: Second · committed'],
+    ]);
 
     const types = events.map((x) => x.e.type);
     expect(types[0]).toBe('run-started');
@@ -645,6 +650,7 @@ describe('run lines', () => {
     await m.projectChanged(entry);
     const line = m.current(entry.id)!.lines.find((l) => l.k === 'done')!;
     expect(line.text).toBe('Subtask 1 done: First');
+    expect(line.subtask).toBe(1);
     expect(line.code).toBeUndefined();
   });
 

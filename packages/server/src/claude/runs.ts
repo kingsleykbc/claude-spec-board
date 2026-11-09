@@ -345,7 +345,7 @@ export class RunManager {
       run.ticked.add(t.n);
       const commit = spec!.logs[t.n]?.commit ?? undefined;
       const text = `Subtask ${t.n} done: ${t.title}`;
-      this.addLine(run, commit ? { k: 'done', text: `${text} · committed`, code: commit } : { k: 'done', text });
+      this.addLine(run, commit ? { k: 'done', text: `${text} · committed`, code: commit, subtask: t.n } : { k: 'done', text, subtask: t.n });
     }
   }
 
