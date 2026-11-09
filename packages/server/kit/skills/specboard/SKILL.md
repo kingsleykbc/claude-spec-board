@@ -110,7 +110,7 @@ Built the time-slot grid. Slots come from the barber's opening hours. Tests adde
 
 ## Running a spec
 
-For `/run-spec <ID>`, and for `/next` once it has chosen a spec:
+Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never start a spec on your own.
 
 1. Find `.specboard/specs/<ID>-*/spec.md` (Glob) and read it, then read its existing logs. Say so and stop if there is no such spec, or if `draft: true` (it needs `/create-spec` first), or if `status` is already `review` or `done` and every subtask is ticked.
 2. **Refuse to start** (change nothing, say why, stop) when:

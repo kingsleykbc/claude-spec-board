@@ -59,7 +59,7 @@ function validShellSpec(spec: string): boolean {
  * wrapper, not `rm`), optional plain words, and `*` only as a final `:*`. Anything else is refused.
  */
 export function isValidRule(rule: string): boolean {
-  if (typeof rule !== 'string' || !/^[\x21-\x7e]([\x20-\x7e]*[\x21-\x7e])?$/.test(rule)) return false;
+  if (!isPlainRuleText(rule)) return false;
   const m = /^([A-Za-z0-9_]+)(?:\((.+)\))?$/.exec(rule);
   if (!m) return false;
   const tool = m[1]!;
@@ -71,6 +71,32 @@ export function isValidRule(rule: string): boolean {
   if (!/^[A-Z][A-Za-z]+$/.test(tool)) return false;
   if (spec === undefined) return true;
   return tool === 'WebFetch' && /^domain:[A-Za-z0-9.-]+$/.test(spec);
+}
+
+/**
+ * Printable ASCII with none of cmd.exe's metacharacters. Rules reach `claude` as an argument, and when `claude` is a
+ * `.cmd` shim the shim's `%*` makes cmd.exe parse them again, past cross-spawn's escaping: `&` there runs a command.
+ */
+function isPlainRuleText(rule: string): boolean {
+  return typeof rule === 'string' && /^[\x21-\x7e]([\x20-\x7e]*[\x21-\x7e])?$/.test(rule) && !/[&|<>^%"!`]/.test(rule);
+}
+
+/** What is wrong with a pair of lists, or null. Deny rules need no allow-rule shape (`Bash(rm -rf:*)` is a fine thing to refuse). */
+function permissionsProblem(p: Permissions): string | null {
+  for (const r of p.deny) if (!isPlainRuleText(r)) return `deny rule "${r}" is not valid`;
+  for (const r of p.allow) {
+    if (!isValidRule(r)) return `allow rule "${r}" is not valid`;
+    if (matchesDeny(r, p.deny)) return `allow rule "${r}" overlaps the deny list`;
+  }
+  return null;
+}
+
+/** A stored approval that would no longer pass the rule checks. It is never used; `specboard init` repairs it. */
+export class InvalidApprovalError extends Error {
+  constructor(problem: string) {
+    super(`The approved rules for this project can't be used: ${problem}. Run \`specboard init\` again.`);
+    this.name = 'InvalidApprovalError';
+  }
 }
 
 function assertAllowable(rule: string, deny: string[]): void {
@@ -175,8 +201,19 @@ export class ApprovedPermissions {
     return data as Record<string, Stored>;
   }
 
-  /** The approved lists for this project ID, or null if none, or if they were approved for a different folder. */
+  /**
+   * The approved lists for this project ID, or null if none, or if they were approved for a different folder.
+   * Throws `InvalidApprovalError` if they would no longer pass the rule checks: the file may have been edited by hand.
+   */
   async get(pid: string, root: string): Promise<Permissions | null> {
+    const p = await this.stored(pid, root);
+    const problem = p && permissionsProblem(p);
+    if (problem) throw new InvalidApprovalError(problem);
+    return p;
+  }
+
+  /** The same lists unchecked, for `init` to review and repair. Do not run anything with these. */
+  async stored(pid: string, root: string): Promise<Permissions | null> {
     const e = (await this.read())[pid];
     if (!e) return null;
     let real: string;
@@ -199,6 +236,7 @@ export class ApprovedPermissions {
   async set(pid: string, root: string, p: Permissions): Promise<void> {
     const allow = unique(p.allow);
     const deny = unique(p.deny);
+    for (const r of deny) if (!isPlainRuleText(r)) throw new Error(`"${r}" is not a valid deny rule.`);
     for (const r of allow) assertAllowable(r, deny);
     const real = await canonRoot(root);
     return this.serial(async () => {
@@ -310,9 +348,14 @@ export async function initCommand(
 
   const defaults = await defaultAllowList(root);
   const store = approvedStore();
-  const previous = await store.get(id, root);
+  const previous = await store.stored(id, root);
+  const keptDeny: string[] = [];
+  for (const r of previous?.deny ?? []) {
+    if (isPlainRuleText(r)) keptDeny.push(r);
+    else io.log(`Dropping earlier deny rule ${r}: it no longer passes the rule checks.`);
+  }
   // Keep rules added earlier with `specboard allow`, unless the deny list now covers them.
-  const deny = unique([...(previous?.deny ?? []), ...defaults.deny]);
+  const deny = unique([...keptDeny, ...defaults.deny]);
   const kept: string[] = [];
   for (const r of previous?.allow ?? []) {
     if (isValidRule(r) && !matchesDeny(r, deny)) kept.push(r);

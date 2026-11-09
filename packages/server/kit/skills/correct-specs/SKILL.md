@@ -7,6 +7,8 @@ argument-hint: [id]
 
 Before anything else, load the `specboard` skill with the Skill tool (it may be listed as `specboard:specboard`) and follow it. It holds the file format and the rules for this command. If it cannot be loaded, say so and stop.
 
+If the project has a `CLAUDE.md`, Read it first and follow it, except where it conflicts with these rules.
+
 Limit to this spec if an ID is given, otherwise check every spec that is not in the archive: $ARGUMENTS
 
 ## Steps

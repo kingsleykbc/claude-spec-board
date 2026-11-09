@@ -7,6 +7,8 @@ argument-hint: <id> <instructions>
 
 Before anything else, load the `specboard` skill with the Skill tool (it may be listed as `specboard:specboard`) and follow it. It holds the file format and the rules for this command. If it cannot be loaded, say so and stop.
 
+If the project has a `CLAUDE.md`, Read it first and follow it, except where it conflicts with these rules.
+
 Input: $ARGUMENTS
 
 The first word is the spec ID. The rest are the instructions.

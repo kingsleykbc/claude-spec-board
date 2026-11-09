@@ -6,7 +6,7 @@ import spawn from 'cross-spawn';
 import treeKill from 'tree-kill';
 import { kitPluginDir } from '../kit.js';
 import type { ProjectEntry } from '../registry.js';
-import type { ApprovedPermissions, Permissions } from '../setup.js';
+import { InvalidApprovalError, type ApprovedPermissions, type Permissions } from '../setup.js';
 import { classifyEnd, type EndInfo, type RunKind, type RunStatus } from './classify.js';
 import { LineSplitter, parseEvent, type ClaudeResult, type ParsedLine, type RunLine } from './events.js';
 import { childEnv, claudeStatus, type ClaudeStatus } from './status.js';
@@ -21,8 +21,8 @@ export class RunBusyError extends Error {
   }
 }
 export class NotApprovedError extends Error {
-  constructor() {
-    super('This project is not approved for runs. Run `specboard init` first.');
+  constructor(message = 'This project is not approved for runs. Run `specboard init` first.') {
+    super(message);
     this.name = 'NotApprovedError';
   }
 }
@@ -90,6 +90,7 @@ interface Run {
   exitCode: number | null;
   exited: boolean;
   stopped: boolean;
+  announced: boolean;
   finishing: boolean;
   timers: NodeJS.Timeout[];
   finished: Promise<void>;
@@ -109,12 +110,15 @@ async function loadSpec(root: string, id: string | null): Promise<Spec | null> {
   }
 }
 
-/** Removes a `current_subtask` the run left behind. Someone else may be editing the file: retry, then give up quietly. */
-async function clearCurrentSubtask(file: string): Promise<void> {
+/**
+ * Removes the `current_subtask` a run left behind, which was `seen` when it ended. Someone else may be editing the
+ * file: retry, stop if they changed the value, and give up quietly after a few tries.
+ */
+export async function clearCurrentSubtask(file: string, seen: number): Promise<void> {
   try {
     for (let i = 0; i < WRITE_TRIES; i++) {
       const text = await fs.readFile(file, 'utf8');
-      if (parseSpec(text).currentSubtask === null) return;
+      if (parseSpec(text).currentSubtask !== seen) return;
       const res = await writeIfUnchanged(file, hashText(text), (t) => setMetaField(t, 'current_subtask', null));
       if (res.ok) return;
     }
@@ -190,7 +194,10 @@ export class RunManager {
 
     let approved: Permissions;
     try {
-      const perms = await this.approved.get(entry.id, entry.root);
+      // `get` re-checks the stored rules: they go on a command line, and the file can be edited by hand.
+      const perms = await this.approved.get(entry.id, entry.root).catch((e: unknown) => {
+        throw e instanceof InvalidApprovalError ? new NotApprovedError(e.message) : e;
+      });
       if (!perms) throw new NotApprovedError();
       approved = perms;
       const status = await this.status();
@@ -214,6 +221,7 @@ export class RunManager {
     run.ticked = new Set(run.before?.subtasks.filter((t) => t.done).map((t) => t.n));
     this.last.set(entry.id, run);
     this.addLine(run, { k: 'start', text: specId === null ? 'Started refreshing the overview' : `Started on ${specId} · ${run.before!.title}` }, false);
+    run.announced = true;
     this.send(run, { type: 'run-started', run: copy(run.snap) });
 
     if (run.stopped) await this.finish(run); // stop or close arrived while this was being prepared
@@ -262,7 +270,7 @@ export class RunManager {
     return {
       snap: { id: randomUUID(), pid: entry.id, kind, specId, status: 'running', lines: [], end: null, startedAt: new Date().toISOString(), dismissed: false },
       entry, seq: 0, deny: [], before: null, ticked: new Set(), child: null, splitter: new LineSplitter(), result: null, stderrTail: '',
-      spawnError: null, exitCode: null, exited: false, stopped: false, finishing: false, timers: [], finished, markFinished,
+      spawnError: null, exitCode: null, exited: false, stopped: false, announced: false, finishing: false, timers: [], finished, markFinished,
     };
   }
 
@@ -351,9 +359,19 @@ export class RunManager {
     run.child?.stderr?.destroy();
 
     const { snap, entry } = run;
+    if (!run.announced) { // stopped while being prepared, and the stop timer ran out: nobody has heard of this run
+      snap.end = { status: 'stopped' };
+      snap.status = 'stopped';
+      if (this.active.get(entry.id) === run) this.active.delete(entry.id);
+      run.markFinished();
+      return;
+    }
+
+    // Without a process the spec's state is not this run's doing, so leave it alone.
+    const ran = run.child !== null && run.spawnError === null;
     let end: EndInfo = { status: 'error', title: 'Claude Code exited unexpectedly' };
     try {
-      const after = await loadSpec(entry.root, snap.specId);
+      const after = ran ? await loadSpec(entry.root, snap.specId) : null;
       this.addTickLines(run, after);
       end = run.spawnError && !run.stopped
         ? { status: 'error', title: "Couldn't start Claude Code", text: run.spawnError.message }
@@ -367,7 +385,7 @@ export class RunManager {
           after,
           denyRules: run.deny,
         });
-      if (after && after.currentSubtask !== null) await clearCurrentSubtask(after.path);
+      if (after && after.currentSubtask !== null) await clearCurrentSubtask(after.path, after.currentSubtask);
       this.addLine(run, finalLine(snap.kind, end, run.before, after));
     } catch (e) {
       end = { status: 'error', title: 'Claude Code exited unexpectedly', text: (e as Error).message };

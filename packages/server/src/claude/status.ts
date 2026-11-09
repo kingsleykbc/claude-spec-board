@@ -7,12 +7,29 @@ export type ClaudeRunner = (args: string[]) => Promise<{ code: number | null; st
 const CACHE_MS = 30_000;
 const COMMAND_TIMEOUT_MS = 20_000;
 
-/** This process's environment without Claude Code's session variables, so a board started inside a session acts like one from a plain terminal. */
+/** `CLAUDE_CODE_*` variables a person sets on purpose to log in or choose a provider. Names checked against code.claude.com/docs/en/env-vars. */
+const KEEP_ENV = new Set([
+  'CLAUDE_CODE_OAUTH_TOKEN', 'CLAUDE_CODE_OAUTH_REFRESH_TOKEN', 'CLAUDE_CODE_OAUTH_SCOPES',
+  'CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX', 'CLAUDE_CODE_USE_FOUNDRY', 'CLAUDE_CODE_USE_MANTLE', 'CLAUDE_CODE_USE_ANTHROPIC_AWS',
+  'CLAUDE_CODE_SKIP_BEDROCK_AUTH', 'CLAUDE_CODE_SKIP_VERTEX_AUTH', 'CLAUDE_CODE_SKIP_FOUNDRY_AUTH', 'CLAUDE_CODE_SKIP_MANTLE_AUTH', 'CLAUDE_CODE_SKIP_ANTHROPIC_AWS_AUTH',
+  'CLAUDE_CODE_CLIENT_CERT', 'CLAUDE_CODE_CLIENT_KEY', 'CLAUDE_CODE_CLIENT_KEY_PASSPHRASE',
+  'CLAUDE_CODE_GIT_BASH_PATH',
+]);
+
+/** Set by a Claude Code session for what it starts, or otherwise describing that session. */
+function isSessionVar(key: string): boolean {
+  if (key === 'CLAUDECODE' || key === 'CLAUDE_EFFORT' || key === 'CLAUDE_PID' || key.startsWith('CLAUDE_AGENT_SDK_')) return true;
+  return key.startsWith('CLAUDE_CODE_') && !KEEP_ENV.has(key);
+}
+
+/**
+ * This process's environment without a Claude Code session's variables, so a board started inside a session acts like
+ * one from a plain terminal. Login and provider variables stay, and so does everything else, `ANTHROPIC_*` included.
+ */
 export function childEnv(): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
   for (const [k, v] of Object.entries(process.env)) {
-    const key = k.toUpperCase();
-    if (key !== 'CLAUDECODE' && !key.startsWith('CLAUDE_CODE_')) env[k] = v;
+    if (!isSessionVar(k.toUpperCase())) env[k] = v;
   }
   return env;
 }

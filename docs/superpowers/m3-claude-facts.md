@@ -188,7 +188,7 @@ Decisions:
 
 - Every command loads the `specboard` skill with the Skill tool and stops if it cannot. The altered copy in the repo was never used: an empty `--setting-sources` does not load project skills.
 - A command cannot load another command (`/next` could not load `run-spec`), so the run-spec steps moved into the `specboard` skill, under "Running a spec". `run-spec` and `next` both point there.
-- `run-spec` and `next` tell Claude to Read `CLAUDE.md`, since isolated runs do not load it. `.claude/settings.json` stays readable, so taking the test command from it still works.
+- Every command tells Claude to Read `CLAUDE.md`, since isolated runs do not load it. `.claude/settings.json` stays readable, so taking the test command from it still works.
 
 End-to-end with the real kit (one spec, one subtask; `package.json` with a test script; `CLAUDE.md` asking for an extra line in new text files; allow list from `defaultAllowList`). One run each:
 
@@ -203,3 +203,5 @@ End-to-end with the real kit (one spec, one subtask; `package.json` with a test 
 - On Windows a child that Node spawned without `detached` dies when its Node parent is terminated (libuv's job object). So a test grandchild has to be detached, or killing only the parent passes too. With a detached grandchild, a plain `process.kill(pid)` fails the heartbeat test and `taskkill /T /F` through `tree-kill` passes.
 - `taskkill /T` cannot reach a process whose parent has already gone. If such a process holds the output pipe, `close` lags, so a run ends 2 s after `exit` whether or not `close` has come.
 - `claude auth status` prints JSON by default, with a `loggedIn` boolean, and exits 0 when logged in. The logged-out exit code was not observed (we do not log the user out); `claudeStatus` treats a non-zero exit or `loggedIn: false` as logged out.
+- Through a `.cmd` shim (`@node "%~dp0echo.cjs" %*`, the form an npm-global `claude.cmd` takes, in a folder with a space in its name): the real `buildRunArgs` output reaches the child unchanged, including the empty `--setting-sources`, the prompt's apostrophe and the real quotes in the `--settings` JSON (`runs.test.ts`, stub only, not a real npm-global install). What does not survive is a cmd metacharacter inside a rule: the shim's `%*` parses the arguments a second time, past cross-spawn's escaping. So rules may not contain `& | < > ^ % " !` or a backtick, in either list.
+- Child environment: `CLAUDECODE`, `CLAUDE_EFFORT`, `CLAUDE_PID`, `CLAUDE_AGENT_SDK_*` and `CLAUDE_CODE_*` are removed, except the login, provider, client-certificate and Git Bash variables listed in `status.ts`. Those names were checked against code.claude.com/docs/en/env-vars on 2026-11-09. `CLAUDE_EFFORT`, `CLAUDE_PID` and `CLAUDE_CODE_SESSION_ID` are documented there as set automatically in the subprocesses Claude Code starts.

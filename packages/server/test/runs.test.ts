@@ -8,6 +8,7 @@ import { kitPluginDir } from '../src/kit.js';
 import { projectId, type ProjectEntry } from '../src/registry.js';
 import {
   buildRunArgs,
+  clearCurrentSubtask,
   ClaudeUnavailableError,
   NotApprovedError,
   RunBusyError,
@@ -17,6 +18,9 @@ import {
   type RunSnapshot,
 } from '../src/claude/runs.js';
 import { childEnv, makeClaudeStatus, type ClaudeStatus } from '../src/claude/status.js';
+
+// These tests start real processes, which is slow on Windows: longer than any wait inside them, well over vitest's 5 s default.
+vi.setConfig({ testTimeout: 40000 });
 
 const FAKE = path.resolve(import.meta.dirname, 'fixtures', 'fake-claude.mjs');
 const APPROVED: Permissions = { allow: ['Read(./**)', 'Edit(./**)', 'Write(./**)', 'Bash(git status:*)'], deny: ['Bash(git push:*)', 'Edit(./.claude/**)'] };
@@ -174,18 +178,19 @@ describe('runPrompt', () => {
 
 describe('childEnv', () => {
   it('removes the session variables and keeps the rest', () => {
-    vi.stubEnv('CLAUDECODE', '1');
-    vi.stubEnv('CLAUDE_CODE_ENTRYPOINT', 'cli');
-    vi.stubEnv('CLAUDE_CONFIG_DIR', 'keep-me');
-    vi.stubEnv('ANTHROPIC_BASE_URL', 'keep-me-too');
-    vi.stubEnv('SPECBOARD_TEST_VAR', 'yes');
+    const strip = ['CLAUDECODE', 'CLAUDE_CODE_ENTRYPOINT', 'CLAUDE_CODE_SESSION_ID', 'CLAUDE_EFFORT', 'CLAUDE_PID', 'CLAUDE_AGENT_SDK_MCP_NO_PREFIX'];
+    const keep = [
+      'CLAUDE_CODE_OAUTH_TOKEN', 'CLAUDE_CODE_OAUTH_REFRESH_TOKEN', 'CLAUDE_CODE_OAUTH_SCOPES',
+      'CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX', 'CLAUDE_CODE_USE_FOUNDRY', 'CLAUDE_CODE_USE_MANTLE', 'CLAUDE_CODE_USE_ANTHROPIC_AWS',
+      'CLAUDE_CODE_SKIP_BEDROCK_AUTH', 'CLAUDE_CODE_SKIP_VERTEX_AUTH', 'CLAUDE_CODE_SKIP_FOUNDRY_AUTH', 'CLAUDE_CODE_SKIP_MANTLE_AUTH', 'CLAUDE_CODE_SKIP_ANTHROPIC_AWS_AUTH',
+      'CLAUDE_CODE_CLIENT_CERT', 'CLAUDE_CODE_CLIENT_KEY', 'CLAUDE_CODE_CLIENT_KEY_PASSPHRASE', 'CLAUDE_CODE_GIT_BASH_PATH',
+      'CLAUDE_CONFIG_DIR', 'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL', 'SPECBOARD_TEST_VAR',
+    ];
+    for (const k of [...strip, ...keep]) vi.stubEnv(k, 'stub');
     try {
       const env = childEnv();
-      expect(env.CLAUDECODE).toBeUndefined();
-      expect(env.CLAUDE_CODE_ENTRYPOINT).toBeUndefined();
-      expect(env.CLAUDE_CONFIG_DIR).toBe('keep-me');
-      expect(env.ANTHROPIC_BASE_URL).toBe('keep-me-too');
-      expect(env.SPECBOARD_TEST_VAR).toBe('yes');
+      for (const k of strip) expect(env[k], k).toBeUndefined();
+      for (const k of keep) expect(env[k], k).toBe('stub');
       expect(env.PATH ?? env.Path).toBeTruthy();
     } finally {
       vi.unstubAllEnvs();
@@ -360,6 +365,136 @@ describe('who may start', () => {
   });
 });
 
+describe('stored rules that fail the checks', () => {
+  const editStored = async (e: ProjectEntry, change: (p: { allow: string[]; deny: string[] }) => void) => {
+    const file = path.join(tmp, 'permissions.json');
+    const all = JSON.parse(await fs.readFile(file, 'utf8')) as Record<string, { allow: string[]; deny: string[] }>;
+    change(all[e.id]!);
+    await fs.writeFile(file, JSON.stringify(all));
+  };
+
+  it.each([
+    ['a rule that would run a command through a shim', (p: { allow: string[] }) => p.allow.push('Read(./x&echo pwned>marker.txt&/**)')],
+    ['a hand-edited Bash(*)', (p: { allow: string[] }) => p.allow.push('Bash(*)')],
+    ['an allow rule that meets the deny list', (p: { allow: string[] }) => p.allow.push('Bash(git push origin:*)')],
+    ['a metacharacter in a deny rule', (p: { deny: string[] }) => p.deny.push('Read(./x&echo pwned>marker.txt&/**)')],
+  ])('%s is NotApprovedError, spawns nothing and names init', async (_name, change) => {
+    const entry = await makeProject();
+    await editStored(entry, change as (p: { allow: string[]; deny: string[] }) => void);
+    const { m, spawned } = manager('plain');
+    const err = await m.start(entry, 'run', 'T-001').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(NotApprovedError);
+    expect((err as Error).message).toMatch(/specboard init/);
+    expect(spawned).toEqual([]);
+    expect(events).toEqual([]);
+    await expect(fs.access(path.join(entry.root, 'marker.txt'))).rejects.toThrow();
+  });
+});
+
+describe.runIf(process.platform === 'win32')('through a .cmd shim, as an npm-global install runs', () => {
+  it.each([
+    ['fix-file', 'T-001'],
+    ['refresh-overview', null],
+  ] as const)('%s: the child gets exactly the arguments sent, real quotes and the empty one included', async (kind, specId) => {
+    const dir = path.join(tmp, 'shim dir');
+    await fs.mkdir(dir);
+    const out = path.join(dir, 'argv.json');
+    await fs.writeFile(
+      path.join(dir, 'echo.cjs'),
+      `require('fs').writeFileSync(${JSON.stringify(out)}, JSON.stringify(process.argv.slice(2)));
+console.log(JSON.stringify({ type: 'result', is_error: false, result: 'done', permission_denials: [] }));`,
+    );
+    const shim = path.join(dir, 'claude.cmd');
+    await fs.writeFile(shim, `@"${process.execPath}" "%~dp0echo.cjs" %*\r\n`);
+
+    const entry = await makeProject();
+    const perms: Permissions = {
+      allow: ['Read(./**)', 'Read(./app/(group)/**)', 'Edit(./**)', 'Bash(npm run test:*)', 'WebFetch(domain:example.com)'],
+      deny: ['Bash(git push:*)', 'Bash(rm -rf:*)', 'Edit(./.claude/**)'],
+    };
+    await approved.set(entry.id, entry.root, perms);
+    const { m } = manager('plain', { bin: shim });
+    const run = await ended((await m.start(entry, kind, specId)).id);
+    expect(run.status).toBe('finished');
+
+    const argv = JSON.parse(await fs.readFile(out, 'utf8')) as string[];
+    expect(argv).toEqual(buildRunArgs(runPrompt(kind, specId), perms, kitPluginDir()));
+    expect(argv[argv.indexOf('--setting-sources') + 1]).toBe('');
+    expect(JSON.parse(argv.at(-1)!)).toEqual({ permissions: perms, disableAllHooks: true });
+  });
+});
+
+describe('a run with no child', () => {
+  const STALE = SPEC.replace('current_subtask: null', 'current_subtask: 2').replace('- [ ] 1. First', '- [x] 1. First');
+  const types = () => events.map((x) => x.e.type);
+
+  it('a spawn failure is announced and ended, and leaves the spec alone', async () => {
+    const entry = await makeProject();
+    await fs.writeFile(specFile(entry), STALE);
+    const { m } = manager('plain', { bin: 'specboard-no-such-program' });
+    const started = await m.start(entry, 'run', 'T-001');
+    const run = await ended(started.id);
+    expect(run.status).toBe('error');
+    expect(types()[0]).toBe('run-started');
+    expect(types().at(-1)).toBe('run-ended');
+    expect(run.lines.map((l) => l.k)).toEqual(['start', 'err']);
+    expect(await fs.readFile(specFile(entry), 'utf8')).toBe(STALE);
+  });
+
+  it('close during a start leaves the spec alone', async () => {
+    const entry = await makeProject();
+    await fs.writeFile(specFile(entry), STALE);
+    let release: ((s: ClaudeStatus) => void) | undefined;
+    const { m } = manager('idle', { status: () => new Promise((r) => (release = r)) });
+    const starting = m.start(entry, 'run', 'T-001');
+    await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+    const closing = m.close();
+    release!(OK_STATUS);
+    const run = await starting;
+    await closing;
+    expect(types()).toEqual(['run-started', 'run-line', 'run-ended']);
+    expect(m.current(entry.id)).toMatchObject({ id: run.id, status: 'stopped' });
+    expect(m.current(entry.id)!.lines.map((l) => l.k)).toEqual(['start', 'stop']);
+    expect(await fs.readFile(specFile(entry), 'utf8')).toBe(STALE);
+  });
+
+  it('a preparation that outlasts the stop timer emits nothing, spawns nothing and frees the project', async () => {
+    const entry = await makeProject();
+    await fs.writeFile(specFile(entry), STALE);
+    let release: ((s: ClaudeStatus) => void) | undefined;
+    let answer: () => Promise<ClaudeStatus> = () => new Promise((r) => (release = r));
+    const { m, spawned } = manager('idle', { status: () => answer() });
+    const starting = m.start(entry, 'run', 'T-001');
+    await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+    const busy = await m.start(entry, 'run', 'T-001').catch((e: unknown) => e);
+    await m.stop(entry.id, (busy as RunBusyError).run.id); // resolves when the stop timer gives up
+    expect(events).toEqual([]);
+    expect(m.current(entry.id)).toBeNull();
+
+    release!(OK_STATUS);
+    expect((await starting).status).toBe('stopped');
+    expect(events).toEqual([]);
+    expect(spawned).toEqual([]);
+    expect(await fs.readFile(specFile(entry), 'utf8')).toBe(STALE);
+
+    answer = async () => OK_STATUS;
+    await m.start(entry, 'run', 'T-001'); // the project is free
+    expect(spawned).toHaveLength(1);
+  });
+});
+
+describe('clearCurrentSubtask', () => {
+  it('clears only the value seen at the end of the run, never a newer edit', async () => {
+    const entry = await makeProject();
+    const with3 = SPEC.replace('current_subtask: null', 'current_subtask: 3');
+    await fs.writeFile(specFile(entry), with3);
+    await clearCurrentSubtask(specFile(entry), 2);
+    expect(await fs.readFile(specFile(entry), 'utf8')).toBe(with3);
+    await clearCurrentSubtask(specFile(entry), 3);
+    expect(await fs.readFile(specFile(entry), 'utf8')).toBe(SPEC);
+  });
+});
+
 describe('stopping', () => {
   it('ends the child and its grandchild; the heartbeat stops', async () => {
     const entry = await makeProject();
@@ -406,7 +541,7 @@ describe('stopping', () => {
     expect(alive(pid)).toBe(true); // proves the pipe really was still held
     expect(m.current(entry.id)!.status).toBe('stopped');
     expect(m.current(entry.id)!.lines.at(-1)!.k).toBe('stop');
-  }, 20000);
+  });
 
   it('close kills a running child and its grandchild', async () => {
     const entry = await makeProject();

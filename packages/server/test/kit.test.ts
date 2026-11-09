@@ -23,6 +23,14 @@ function fenced(text: string, lang: string): string[] {
   return [...text.matchAll(new RegExp('```' + lang + '\\r?\\n([\\s\\S]*?)```', 'g'))].map((m) => m[1]!);
 }
 
+/** The "Running a spec" section of the rules skill, up to the next heading. */
+function runningSection(text: string): string {
+  const start = text.indexOf('## Running a spec\n');
+  expect(start).toBeGreaterThanOrEqual(0);
+  const next = text.indexOf('\n## ', start + 1);
+  return next < 0 ? text.slice(start) : text.slice(start, next);
+}
+
 let tmp: string;
 beforeEach(async () => {
   tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'specboard-kit-'));
@@ -57,16 +65,22 @@ describe('kit content', () => {
     }
   });
 
-  it('the commands that change code read CLAUDE.md, which isolated runs do not load', async () => {
+  it('every command reads CLAUDE.md, which isolated runs do not load', async () => {
     const line = 'If the project has a `CLAUDE.md`, Read it first and follow it, except where it conflicts with these rules.';
-    const skills = await kitSkills();
-    for (const name of ['run-spec', 'next']) expect(skills.find((s) => s.name === name)!.text, name).toContain(line);
+    const commands = (await kitSkills()).filter((s) => s.name !== 'specboard');
+    expect(commands.map((s) => s.name).sort()).toEqual([...COMMANDS].sort());
+    for (const { name, text } of commands) expect(text, name).toContain(line);
   });
 
   it('run-spec and next share one set of steps, in the rules skill', async () => {
     const skills = await kitSkills();
-    expect(skills.find((s) => s.name === 'specboard')!.text).toContain('## Running a spec');
+    expect(runningSection(skills.find((s) => s.name === 'specboard')!.text)).toContain('1. Find');
     for (const name of ['run-spec', 'next']) expect(skills.find((s) => s.name === name)!.text, name).toContain('"Running a spec"');
+  });
+
+  it('the rules skill can be loaded by the model, so it says never to start a spec unasked', async () => {
+    const section = runningSection((await kitSkills()).find((s) => s.name === 'specboard')!.text);
+    expect(section).toContain('Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never start a spec on your own.');
   });
 
   it('spec samples in the specboard skill parse with core and give no problems', async () => {
@@ -97,7 +111,7 @@ describe('kit content', () => {
 
   it('running a spec ends in review; no skill sets done or pushes except as a prohibition', async () => {
     const skills = await kitSkills();
-    expect(skills.find((s) => s.name === 'specboard')!.text).toContain('`status: review`');
+    expect(runningSection(skills.find((s) => s.name === 'specboard')!.text)).toContain('`status: review`');
     for (const { name, text } of skills) {
       for (const line of text.split(/\r?\n/)) {
         if (line.includes('status: done') || line.includes('git push')) {
@@ -108,7 +122,7 @@ describe('kit content', () => {
   });
 
   it('running a spec takes the test command from the allow-list and never invents one', async () => {
-    const text = (await kitSkills()).find((s) => s.name === 'specboard')!.text;
+    const text = runningSection((await kitSkills()).find((s) => s.name === 'specboard')!.text);
     expect(text).toContain('.claude/settings.json');
     expect(text).toContain('permissions.allow');
     expect(text).toContain('No test command is set up');

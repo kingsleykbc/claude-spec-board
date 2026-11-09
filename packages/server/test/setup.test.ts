@@ -10,6 +10,7 @@ import {
   ApprovedPermissions,
   defaultAllowList,
   initCommand,
+  InvalidApprovalError,
   isValidRule,
   mergeClaudeSettings,
   type SetupIO,
@@ -72,6 +73,9 @@ describe('isValidRule', () => {
     'PowerShell(iex:*)', 'PowerShell(Invoke-Expression:*)', 'PowerShell(Start-Process:*)', 'PowerShell(Remove-Item:*)',
     'PowerShell(ri:*)', 'PowerShell(del:*)', 'PowerShell(icm:*)', 'PowerShell(rmdir:*)', 'Bash(bash.:*)', 'Bash(rm.:*)', 'Bash(RM.exe:*)',
     'Bash(npm test:*) ', ' Bash(npm test:*)', 'Bash(git push:*)\u0000', 'glob', 'Task(x)', 'WebFetch(x)', 'mcp__a b',
+    // cmd.exe metacharacters, which a .cmd shim would act on
+    'Read(./x&echo pwned>marker.txt&/**)', 'Read(./R&D/**)', 'Edit(./a|b)', 'Write(./a<b)', 'Write(./a>b)', 'Read(./a^b)', 'Read(./%PATH%/**)',
+    'Read(./a"b)', 'Read(./a!b)', 'Read(./a`b)', 'Bash(npm%x:*)', 'Bash(npm test!:*)', 'PowerShell(npm^test:*)', 'WebFetch(domain:a&b)', 'mcp__a&b', 'Foo&Bar',
   ])('rejects %j', (r) => expect(isValidRule(r)).toBe(false));
   it.each([
     'Bash(npm test:*)', 'Bash(npm run lint:*)', 'Bash(git push:*)', 'Bash(git:*)', 'Read(./**)', 'Read(./app/(group)/**)', 'Edit(./src/**)', 'Glob', 'Grep',
@@ -193,6 +197,42 @@ describe('ApprovedPermissions', () => {
     await s.set('bbbbbbbb', tmp, { allow: ['Glob'], deny: [] });
     expect(await s.get('aaaaaaaa', tmp)).toEqual(p);
     expect(await s.get('bbbbbbbb', tmp)).toEqual({ allow: ['Glob'], deny: [] });
+  });
+  describe('a stored entry that fails the rule checks', () => {
+    const edit = async (id: string, change: (e: { allow: string[]; deny: string[] }) => void) => {
+      const all = await readJson(approvedFile());
+      change(all[id]);
+      await fs.writeFile(approvedFile(), JSON.stringify(all));
+    };
+    it.each([
+      ['a hand-edited Bash(*)', (e: { allow: string[] }) => e.allow.push('Bash(*)')],
+      ['a metacharacter in an allow rule', (e: { allow: string[] }) => e.allow.push('Read(./R&D/**)')],
+      ['a metacharacter in a deny rule', (e: { deny: string[] }) => e.deny.push('Read(./x&calc&)')],
+      ['an allow rule that meets the deny list', (e: { allow: string[] }) => e.allow.push('Bash(git push origin:*)')],
+    ])('%s is an error that names init, not an approval', async (_name, change) => {
+      const s = new ApprovedPermissions(approvedFile());
+      await s.set('aaaaaaaa', tmp, p);
+      await edit('aaaaaaaa', change as (e: { allow: string[]; deny: string[] }) => void);
+      const err = await s.get('aaaaaaaa', tmp).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(InvalidApprovalError);
+      expect((err as Error).message).toMatch(/specboard init/);
+    });
+    it('does not affect other projects', async () => {
+      const s = new ApprovedPermissions(approvedFile());
+      await s.set('aaaaaaaa', tmp, p);
+      await s.set('bbbbbbbb', tmp, p);
+      await edit('aaaaaaaa', (e) => e.allow.push('Bash(*)'));
+      expect(await s.get('bbbbbbbb', tmp)).toEqual(p);
+    });
+    it('the default deny list is accepted, though rm is refused as an allow rule', async () => {
+      const s = new ApprovedPermissions(approvedFile());
+      await s.set('aaaaaaaa', tmp, { allow: ['Read(./**)'], deny: ['Bash(rm -rf:*)'] });
+      expect(await s.get('aaaaaaaa', tmp)).toEqual({ allow: ['Read(./**)'], deny: ['Bash(rm -rf:*)'] });
+    });
+    it('set refuses a metacharacter in a deny rule', async () => {
+      const s = new ApprovedPermissions(approvedFile());
+      await expect(s.set('aaaaaaaa', tmp, { allow: [], deny: ['Read(./x&calc&)'] })).rejects.toThrow(/valid/i);
+    });
   });
   it('addAllow adds once, and needs an existing entry', async () => {
     const s = new ApprovedPermissions(approvedFile());
@@ -387,6 +427,26 @@ describe('init: links, approval binding and the no answer', () => {
     expect(text).toContain('permissions.json');
     expect(text).not.toContain('runs are not approved');
     expect(await fs.readFile(approvedFile(), 'utf8')).toBe(before);
+  });
+  it('re-init repairs an entry a run refused, so the error message tells the truth', async () => {
+    const root = await project('d2');
+    await init(root);
+    const id = projectId(root);
+    const all = await readJson(approvedFile());
+    all[id].allow.push('Read(./R&D/**)', 'Bash(*)');
+    all[id].deny.push('Read(./x&calc&)');
+    await fs.writeFile(approvedFile(), JSON.stringify(all));
+    const store = new ApprovedPermissions(approvedFile());
+    await expect(store.get(id, root)).rejects.toBeInstanceOf(InvalidApprovalError);
+
+    const i = io();
+    await expect(initCommand({ root, yes: true, forceSkills: false }, i)).resolves.toMatchObject({ approved: true });
+    const out = i.out.join('\n');
+    expect(out).toContain('Dropping earlier rule Read(./R&D/**)');
+    expect(out).toContain('Dropping earlier deny rule Read(./x&calc&)');
+    const fixed = (await store.get(id, root))!;
+    expect(fixed.allow).not.toContain('Bash(*)');
+    expect(fixed.deny).toContain('Bash(git push:*)');
   });
   it('re-init drops a stored rule that fails the current checks, with a notice', async () => {
     const root = await project('d1');
