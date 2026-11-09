@@ -68,10 +68,13 @@ describe('isValidRule', () => {
     'Read(~/**)', 'Write(~/**)', 'Edit(../**)', 'Write(./../**)', 'Write(C:/**)', 'Write(//c/**)', 'Edit(/**/*)', 'Read(/*)',
     'Write(./a/../../x)', 'Write(.\\x)', 'NotebookEdit', 'MultiEdit', 'MultiEdit(/x)', 'bash(*)', 'BASH', 'bash(npm test:*)',
     'Bash(a) Bash(*)', 'Bash(a)(b)', 'Bash(\u200b*)', 'Bash(npm\u200b test:*)', 'Bash(npm  test:*)', 'Bash(npm test: *)',
+    'Read(./a) Bash(*)', 'Write(./a),Bash(*)', 'Edit(./a)(b)', 'Read(./a) Write(/etc/x)', 'Read(./a', 'Read(./a,./b)', 'Read(./a)) x',
+    'PowerShell(iex:*)', 'PowerShell(Invoke-Expression:*)', 'PowerShell(Start-Process:*)', 'PowerShell(Remove-Item:*)',
+    'PowerShell(ri:*)', 'PowerShell(del:*)', 'PowerShell(icm:*)', 'PowerShell(rmdir:*)', 'Bash(bash.:*)', 'Bash(rm.:*)', 'Bash(RM.exe:*)',
     'Bash(npm test:*) ', ' Bash(npm test:*)', 'Bash(git push:*)\u0000', 'glob', 'Task(x)', 'WebFetch(x)', 'mcp__a b',
   ])('rejects %j', (r) => expect(isValidRule(r)).toBe(false));
   it.each([
-    'Bash(npm test:*)', 'Bash(npm run lint:*)', 'Bash(git push:*)', 'Bash(git:*)', 'Read(./**)', 'Edit(./src/**)', 'Glob', 'Grep',
+    'Bash(npm test:*)', 'Bash(npm run lint:*)', 'Bash(git push:*)', 'Bash(git:*)', 'Read(./**)', 'Read(./app/(group)/**)', 'Edit(./src/**)', 'Glob', 'Grep',
     'WebFetch', 'WebFetch(domain:example.com)', 'PowerShell(npm test:*)', 'mcp__srv__tool',
   ])('accepts %s', (r) => expect(isValidRule(r)).toBe(true));
   it('refuses a flag as the first argument word, but allows interpreters a person types', () => {
@@ -225,6 +228,13 @@ describe('ApprovedPermissions', () => {
       await expect(s.addAllow('aaaaaaaa', tmp, 'Glob')).rejects.toThrow(/permissions\.json/);
       expect(await fs.readFile(approvedFile(), 'utf8')).toBe(bad);
     }
+  });
+  it('get returns null, not an error, when the approved folder no longer exists', async () => {
+    const gone = await project('gone');
+    const s = new ApprovedPermissions(approvedFile());
+    await s.set('aaaaaaaa', gone, p);
+    await fs.rm(gone, { recursive: true });
+    expect(await s.get('aaaaaaaa', gone)).toBeNull();
   });
   it('leaves no temp files behind', async () => {
     await new ApprovedPermissions(approvedFile()).set('aaaaaaaa', tmp, p);

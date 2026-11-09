@@ -30,7 +30,13 @@ const KNOWN_LOWER = new Set([...SHELL_TOOLS, ...FILE_TOOLS, ...OTHER_TOOLS].map(
 function validFileSpec(spec: string): boolean {
   if (!spec.startsWith('./')) return false;
   if (/[\\~:]/.test(spec)) return false; // backslash, home, drive letter
-  return !spec.split('/').includes('..');
+  if (spec.includes(',') || !/^[ -~]+$/.test(spec)) return false;
+  let depth = 0; // parentheses inside the path must balance, so no second rule can hide after a ")"
+  for (const ch of spec) {
+    if (ch === '(') depth++;
+    else if (ch === ')' && --depth < 0) return false;
+  }
+  return depth === 0 && !spec.split('/').includes('..');
 }
 
 function validShellSpec(spec: string): boolean {
@@ -172,7 +178,15 @@ export class ApprovedPermissions {
   /** The approved lists for this project ID, or null if none, or if they were approved for a different folder. */
   async get(pid: string, root: string): Promise<Permissions | null> {
     const e = (await this.read())[pid];
-    if (!e || !sameRoot(e.root, await canonRoot(root))) return null;
+    if (!e) return null;
+    let real: string;
+    try {
+      real = await canonRoot(root);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null; // the folder is gone: not approved
+      throw err;
+    }
+    if (!sameRoot(e.root, real)) return null;
     return { allow: e.allow, deny: e.deny };
   }
 

@@ -111,12 +111,9 @@ describe('suggestRule', () => {
   it.each([
     ['npm install date-fns', 'Bash(npm install:*)'],
     ['ls', 'Bash(ls:*)'],
-    ['rm foo', 'Bash(rm:*)'],
-    ['rm -rf dist', 'Bash(rm:*)'],
     ['git status', 'Bash(git status:*)'],
     ['git -C sub status', 'Bash(git:*)'],
     ['git ./x', 'Bash(git:*)'],
-    ['npx vitest run', 'Bash(npx vitest:*)'],
     ['FOO=1 npm test', 'Bash(npm test:*)'],
     ['cd x && npm install y', 'Bash(npm install:*)'],
     ['cd x; cd y && go test ./...', 'Bash(go test:*)'],
@@ -137,6 +134,17 @@ describe('suggestRule', () => {
     }
     expect(suggestRule({ tool: 'Bash', input: {} })).toBeNull();
     expect(suggestRule({ tool: 'Bash', input: null })).toBeNull();
+  });
+
+  it('never offers deleters, PowerShell code runners, or prefixes that run or configure arbitrary things', () => {
+    for (const c of ['rm foo', 'rm -rf dist', 'rm. x', 'RM.exe x', 'git config core.hooksPath x', 'npm exec foo', 'pnpm dlx foo', 'npx vitest run', 'yarn dlx x', 'bash. -c x']) {
+      expect(suggestRule(bash(c)), c).toBeNull();
+    }
+    for (const c of ['iex $x', 'Invoke-Expression $x', 'Invoke-Command -x', 'icm x', 'Start-Process a', 'saps a', 'start a', 'call a', 'Remove-Item a', 'ri a', 'del a', 'erase a', 'rd a', 'rmdir a', 'REMOVE-ITEM a']) {
+      expect(suggestRule({ tool: 'PowerShell', input: { command: c } }), c).toBeNull();
+    }
+    expect(suggestRule(bash('git status'))).toBe('Bash(git status:*)');
+    expect(suggestRule(bash('npm install x'))).toBe('Bash(npm install:*)');
   });
 
   it('never offers an interpreter rule (a person may still type one with specboard allow)', () => {

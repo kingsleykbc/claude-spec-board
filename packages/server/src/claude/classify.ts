@@ -16,9 +16,14 @@ const MULTI_WORD = new Set([
 export const NEVER_PREFIX = new Set([
   'sh', 'bash', 'zsh', 'dash', 'fish', 'cmd', 'powershell', 'pwsh', 'eval', 'exec', 'sudo', 'su', 'env', 'xargs', 'source',
   'command', 'builtin', 'time', 'nohup', 'timeout', 'nice', 'wsl', 'busybox',
+  // PowerShell code runners and process starters, and deleters (a deny list cannot enumerate their flags)
+  'iex', 'invoke-expression', 'invoke-command', 'icm', 'start-process', 'saps', 'start', 'call',
+  'remove-item', 'ri', 'del', 'erase', 'rd', 'rmdir', 'rm',
 ]);
-/** Lowercase, without a Windows executable extension: GIT, git.exe and git.cmd are all git. */
-export const normProg = (p: string): string => p.toLowerCase().replace(/\.(?:exe|cmd|bat|com)$/, '');
+/** Lowercase, without trailing dots or a Windows executable extension: GIT, git.exe, git.cmd and `git.` are all git. */
+export const normProg = (p: string): string => p.toLowerCase().replace(/\.+$/, '').replace(/\.(?:exe|cmd|bat|com)$/, '');
+/** Prefixes that can run or configure arbitrary things: never offered by the UI; a person may still type them. */
+const NO_OFFER = new Set(['git config', 'npm exec', 'pnpm dlx', 'pnpm exec', 'yarn dlx', 'npx', 'pnpx', 'bunx']);
 /** Interpreters may be allowed by a person who types the rule, but are never offered by the UI. */
 const INTERPRETER = /^(?:node|python[0-9.]*|pypy[0-9.]*|ruby|perl|php|deno|bun)$/;
 const FILE_TOOLS = new Set(['Read', 'Glob', 'Grep', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
@@ -60,8 +65,10 @@ function segmentPrefix(seg: string): string | null {
   if (!prog || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(prog)) return null;
   if (NEVER_PREFIX.has(normProg(prog)) || INTERPRETER.test(normProg(prog))) return null;
   const second = words[1];
-  if (MULTI_WORD.has(normProg(prog)) && second && /^[A-Za-z][A-Za-z0-9:_-]*$/.test(second)) return `${prog} ${second}`;
-  return prog;
+  const multi = MULTI_WORD.has(normProg(prog)) && second !== undefined && /^[A-Za-z][A-Za-z0-9:_-]*$/.test(second);
+  const key = multi ? `${normProg(prog)} ${second.toLowerCase()}` : normProg(prog);
+  if (NO_OFFER.has(key) || NO_OFFER.has(normProg(prog))) return null;
+  return multi ? `${prog} ${second}` : prog;
 }
 
 /** One candidate rule per segment of a shell command, in order. Segments with no safe rule are null. */
