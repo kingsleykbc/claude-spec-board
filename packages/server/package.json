@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:claude": "vitest run --config vitest.real.config.ts"
   },
   "dependencies": {
     "@hono/node-server": "1.19.17",

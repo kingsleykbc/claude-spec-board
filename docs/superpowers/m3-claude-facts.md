@@ -205,3 +205,24 @@ End-to-end with the real kit (one spec, one subtask; `package.json` with a test 
 - `claude auth status` prints JSON by default, with a `loggedIn` boolean, and exits 0 when logged in. The logged-out exit code was not observed (we do not log the user out); `claudeStatus` treats a non-zero exit or `loggedIn: false` as logged out.
 - Through a `.cmd` shim (`@node "%~dp0echo.cjs" %*`, the form an npm-global `claude.cmd` takes, in a folder with a space in its name): the real `buildRunArgs` output reaches the child unchanged, including the empty `--setting-sources`, the prompt's apostrophe and the real quotes in the `--settings` JSON (`runs.test.ts`, stub only, not a real npm-global install). What does not survive is a cmd metacharacter inside a rule: the shim's `%*` parses the arguments a second time, past cross-spawn's escaping. So rules may not contain `& | < > ^ % " !` or a backtick, in either list.
 - Child environment: `CLAUDECODE`, `CLAUDE_EFFORT`, `CLAUDE_PID`, `CLAUDE_AGENT_SDK_*` and `CLAUDE_CODE_*` are removed, except the login, provider, client-certificate and Git Bash variables listed in `status.ts`. Those names were checked against code.claude.com/docs/en/env-vars on 2026-11-09. `CLAUDE_EFFORT`, `CLAUDE_PID` and `CLAUDE_CODE_SESSION_ID` are documented there as set automatically in the subprocesses Claude Code starts.
+
+## Task 9: real runs with the default model
+
+Run 2026-11-09, Claude Code 2.1.302, no `--model` (the default resolved to `claude-opus-5-5`), through `RunManager` (`npm run test:claude`, `packages/server/test/real-claude.test.ts`).
+
+- Usage: about $1.13 to $1.25 per full test by the CLI's `total_cost_usd`, for 5 runs and one stopped run, in about 5 minutes. A two-subtask spec took about 30 turns and $0.35; a run that stops early took 10 to 13 turns and about $0.20. A subscription doesn't bill this figure.
+- First pass: the skill said Bash is "for git and tests, and for nothing else". One denied-command run tried the command, and another read that rule and asked a question without trying, so no refusal happened and the end state was `needs`. Also, rule 8 made the model add a question on a refusal, so `specboard allow` plus Run again would still stop at the unanswered question. The rules now say the permission list decides (try the command, on its own) and that a refused action stops the run with no question. With that text all five tests passed.
+- `git status` after a finished run: ` M .specboard/specs/<spec>/spec.md` and `?? .specboard/specs/<spec>/logs/`. Nothing else: the code is in the commits.
+- Hostile project (`PreToolUse` and `SessionStart` hooks writing markers, `.mcp.json` server writing a marker, `permissions.allow: ["Bash(*)"]`): no marker in any of the 2 runs, and on the run where the model tried, `npm config get registry` was refused. The marker command was confirmed to work by running it directly.
+- Claude adds a `Co-Authored-By` line to its commits, as a second `-m`.
+
+## Task 9: do user settings reach an isolated run?
+
+A throwaway `CLAUDE_CONFIG_DIR` (so no real login and no real settings), a local stub server answering 401, one run each:
+
+| settings.json in that folder | `--setting-sources user` | `--setting-sources ""` |
+|---|---|---|
+| `apiKeyHelper` writing a marker | helper ran | helper did not run ("Not logged in") |
+| `env.ANTHROPIC_BASE_URL` = the stub, with a fake `ANTHROPIC_AUTH_TOKEN` in the process environment | 8 requests reached the stub | 0 reached the stub; the real API answered `401 Invalid bearer token` |
+
+So neither reaches an isolated run. `env.ANTHROPIC_MODEL` was tried first and told us nothing: `init.model` was the same with both.

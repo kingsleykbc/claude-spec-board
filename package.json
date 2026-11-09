@@ -9,7 +9,8 @@
     "board": "npm run build -w @specboard/web --if-present && tsx packages/server/src/cli.ts",
     "specboard": "tsx packages/server/src/cli.ts",
     "web:dev": "npm run dev -w @specboard/web",
-    "storybook": "npm run storybook -w @specboard/web"
+    "storybook": "npm run storybook -w @specboard/web",
+    "test:claude": "npm run test:claude -w @specboard/server"
   },
   "devDependencies": {
     "tsx": "4.20.5"

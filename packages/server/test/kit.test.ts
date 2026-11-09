@@ -130,6 +130,13 @@ describe('kit content', () => {
     expect(text).toMatch(/do not edit `package.json`/);
   });
 
+  it('a refused action stops the run without a question, and the permission list decides what may run', async () => {
+    const text = (await kitSkills()).find((s) => s.name === 'specboard')!.text;
+    expect(text).toMatch(/permission list to decide/);
+    expect(text).toMatch(/Do not add an open question for it/);
+    expect(runningSection(text)).not.toMatch(/a needed action is refused/);
+  });
+
   it('no skill tells Claude to run shell commands outside the default allow-list', async () => {
     for (const { name, text } of await kitSkills()) {
       const instructions = text
