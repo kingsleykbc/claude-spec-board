@@ -41,6 +41,19 @@ export const Finished: Story = {
   },
 };
 
+export const FinishedWithRefusals: Story = {
+  args: {
+    status: 'finished',
+    end: { status: 'finished', text: 'Claude was refused 1 action on the way. Check the result before moving this to Done.', denied: [{ tool: 'Bash', input: { command: 'npm install date-fns' } }] },
+  },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    await expect(c.getByText('Done. Moved to Review.')).toBeTruthy();
+    await expect(c.getByText(/refused 1 action/)).toBeTruthy();
+    await expect(c.queryByRole('button', { name: 'Copy rule' })).toBeNull();
+  },
+};
+
 export const Stopped: Story = {
   args: { status: 'stopped', end: { status: 'stopped' }, lines: withLine({ k: 'stop', text: 'Stopped by you', time: '16:45' }) },
   play: async ({ canvasElement }) => {

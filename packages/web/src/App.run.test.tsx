@@ -4,6 +4,7 @@ import type { Project } from '@specboard/core';
 import { fileProblemSpec, recipeArchived, recipeSpec, recipeSpecs } from './fixtures/recipeBox';
 import type { Conn, LiveMessage } from './api/live';
 import type { RunEvent, RunSnapshot, RunState } from './api/client';
+import { initHint } from './lib/prePublish';
 
 // The board wired to real runs: the API is mocked and the socket is driven by hand.
 
@@ -225,7 +226,7 @@ describe('refusals', () => {
   };
 
   it.each([
-    ['not-approved', new ApiError(412, 'x', { setup: 'not-approved' }), 'This project isn’t set up for runs', 'Run `specboard init` in a terminal.'],
+    ['not-approved', new ApiError(412, 'x', { setup: 'not-approved' }), 'This project isn’t set up for runs', initHint('/x/recipe-box')],
     ['logged-out', new ApiError(503, 'x', { claude: 'logged-out' }), 'Claude Code isn’t logged in', 'Run `claude` in a terminal and log in.'],
     ['not-installed', new ApiError(503, 'x', { claude: 'not-installed' }), 'Claude Code isn’t installed', 'Install Claude Code, then run again.'],
     ['other error', new ApiError(500, 'Disk full'), 'Couldn’t reach Claude for T-104', 'Disk full'],

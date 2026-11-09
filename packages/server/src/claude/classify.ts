@@ -213,6 +213,13 @@ function permissionEnd(denials: Denial[], deny: string[]): EndInfo {
   return info;
 }
 
+/** A run that reached Review despite refusals is not a permission end, but the person should hear about them. */
+function withRefusals(info: EndInfo, denials: Denial[]): EndInfo {
+  if (denials.length === 0) return info;
+  const line = `Claude was refused ${denials.length === 1 ? '1 action' : `${denials.length} actions`} on the way. Check the result before moving this to Done.`;
+  return { ...info, denied: denials, text: info.text ? `${info.text} ${line}` : line };
+}
+
 export function classifyEnd(input: ClassifyInput): EndInfo {
   const { stopped, exitCode, result, stderrTail, kind, before, after } = input;
   if (stopped) return { status: 'stopped' };
@@ -231,19 +238,19 @@ export function classifyEnd(input: ClassifyInput): EndInfo {
   const afterInReview = after?.status === 'review';
   if (result.denials.length > 0 && !afterInReview) return permissionEnd(result.denials, input.denyRules ?? []);
 
-  if (kind !== 'run') return { status: 'finished' };
+  if (kind !== 'run') return withRefusals({ status: 'finished' }, result.denials);
 
   const unanswered = (s: SpecDoc | null) => (s?.questions ?? []).filter((q) => q.answer === null);
   const wasOpen = new Set(unanswered(before).map((q) => q.id));
   const open = unanswered(after);
   if (open.some((q) => !wasOpen.has(q.id)) || (open.length > 0 && !afterInReview)) {
-    return {
+    return withRefusals({
       status: 'needs',
       title: 'Claude has a question',
       text: open.length === 1 ? 'There is 1 unanswered question on this spec.' : `There are ${open.length} unanswered questions on this spec.`,
-    };
+    }, result.denials);
   }
-  if (afterInReview) return { status: 'finished' };
+  if (afterInReview) return withRefusals({ status: 'finished' }, result.denials);
 
   const left = (after?.subtasks ?? []).filter((t) => !t.done).map((t) => t.n);
   return {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { initHint } from '../lib/prePublish';
 import type { Spec } from '@specboard/core';
 import type { ClaudeStatus, RunEvent, RunKind, RunSnapshot } from '../api/client';
 import type { RunState } from '../components/detail/RunButton';
@@ -91,12 +92,12 @@ export function useRunToasts({ onEvent }: Pick<UseRun, 'onEvent'>, specs: Spec[]
   );
 }
 
-function refusalToast(r: Extract<StartResult, { ok: false }>, specId: string | undefined): ToastArgs {
+function refusalToast(r: Extract<StartResult, { ok: false }>, specId: string | undefined, root: string | undefined): ToastArgs {
   switch (r.reason) {
     case 'offline':
       return ['err', ...OFFLINE_TOAST];
     case 'not-approved':
-      return ['err', 'This project isn’t set up for runs', 'Run `specboard init` in a terminal.'];
+      return ['err', 'This project isn’t set up for runs', initHint(root)];
     case 'logged-out':
       return ['err', 'Claude Code isn’t logged in', 'Run `claude` in a terminal and log in.'];
     case 'not-installed':
@@ -111,7 +112,7 @@ function refusalToast(r: Extract<StartResult, { ok: false }>, specId: string | u
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** `useRun`'s actions with their failures shown as toasts. */
-export function useRunActions({ run, start, stop, dismiss }: Pick<UseRun, 'run' | 'start' | 'stop' | 'dismiss'>, toast: PushToast) {
+export function useRunActions({ run, start, stop, dismiss }: Pick<UseRun, 'run' | 'start' | 'stop' | 'dismiss'>, toast: PushToast, root?: string) {
   /** Set synchronously, so a double click sends one start. */
   const starting = useRef(false);
 
@@ -121,12 +122,12 @@ export function useRunActions({ run, start, stop, dismiss }: Pick<UseRun, 'run' 
       starting.current = true;
       try {
         const result = await start(kind, specId);
-        if (!result.ok) toast(...refusalToast(result, specId));
+        if (!result.ok) toast(...refusalToast(result, specId, root));
       } finally {
         starting.current = false;
       }
     },
-    [start, toast],
+    [start, toast, root],
   );
 
   /** A rejected stop or dismiss: fetch rejects with a TypeError when the server cannot be reached. */

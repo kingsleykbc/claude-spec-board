@@ -2,13 +2,39 @@
 
 These items came up in the M3 reviews and the real-run check, and were deliberately left out of M3. Read this list when planning M4. The final review should triage the "Permissions" group first.
 
-## Do soon (still open from M2)
+## Do soon (open from M2)
 - **Re-bump `@hono/node-server` to 1.19.18 or later** on or after 2026-11-16. One moderate advisory remains in `serveStatic`, which the server does not use. Not bumped in M3: Task 9 ran on 2026-11-09, inside the two-week rule.
 - **CI must build the web app before `npm test`.** Otherwise the e2e `GET /` test is skipped without notice.
 
+## Everything else from `m2-followups.md`, checked against the code on 2026-11-09
+
+Done in M3:
+- Typed WebSocket messages: `Hub.send(pid, msg)`, with `project-changed`, `run-started`, `run-line`, `run-ended`.
+- One `useRun` hook feeding RunPanel and RunButton.
+- Project-scoped run routes, in the shape `POST /api/projects/:pid/runs` and `/runs/:runId/stop`. `ClaudeBridge` is gone.
+- Applying writes locally (`applyWrite`), and the first WebSocket open now does a plain load.
+- A failed refresh after a move no longer depends on the refresh: the write's returned spec is applied first. Read from the code, not re-run in a browser.
+- Logging watcher errors (`watch.ts`).
+- Malformed front matter now returns 422 (`http.ts`).
+
+Still open:
+- **Watcher and sockets:** no ping/pong liveness check.
+- **Packaging:** ship a prebuilt `dist`; `npm run board` still builds on every launch.
+- **Server and CLI:** the registry name is frozen at add time. A deleted project folder still shows as `0/0`. The "already running" check ignores `SPECBOARD_HOME`. Signal handlers are installed only after startup.
+- **References:** link de-duplication and DELETE are case-sensitive on Windows. A config entry that points outside the root can't be unlinked. A dangling symlink at a draft path can escape the project. `Remove` has no double-click guard. Tab arrows aren't rechecked when the modal is resized.
+- **Questions:** saving clears every New badge, including on unanswered questions. Number answers are not validated (`0`, `-5`). Questions of new specs that are already answered still show New.
+- **Board:** a pointer drag can start from the inner buttons. Category suggestions and the status menu have no arrow-key navigation.
+- **Markdown:** unsafe URLs leave anchors with an empty `href`. `####` headings are not shifted. Linked images produce nested `<a>` elements.
+- **Accessibility:** the card's aria-label hides its blocked and review state. Tooltips work with the mouse only.
+- **Tests:** the e2e test counts events absolutely instead of against a baseline (the file changed in M3, so recheck). Several races are untested: revert, draft survival, forced conflicts. Tests for the OPTIONS and HEAD guards are missing, and the static-file guard has one traversal test.
+
+These were checked by reading the code and by whether M3 touched the files; none was re-run.
+
 ## New from the real-run check (Task 9)
-- `specboard allow` is the command the board shows, but `specboard` isn't on the PATH until the package is published. From the repo today it is `npm run specboard -- allow "<rule>" <path>`. Fix in M4 with packaging, or change the panel's wording.
-- The real terminal prompt of `specboard allow` wasn't used in a real run; the check called `allowCommand` with a stand-in that answered yes. Unit tests cover the prompt.
+- **Remove the pre-publish wording in M4.** `packages/web/src/lib/prePublish.ts` holds the "Until Spec Board is published" text for the panel and the toast. Delete it once `specboard` is on the PATH, along with the matching sentence in `documentation.md` section 9. Server messages (`NotApprovedError`, `start.ts`, `setup.ts`) and `end.fix` already say `specboard ...`, and become correct then.
+- **Still to do by hand: a real typed `allow` in a terminal and a forced edit conflict during a real run.** The manual check marks both PARTIAL.
+- The hostile test's MCP marker has no positive control: the marker command is proven to work, but nothing shows the `ghost` server would start and write it outside an isolated run. (`m3-hook-probe.md` shows project MCP servers load by default, with a server that doesn't exist.)
+- Rule 3's "ad-hoc scripts" is ambiguous now that a command the spec names may be tried: a spec could name a script. The permission list still decides.
 - Typing `/run-spec` in a real interactive session has not been checked (only `-p` stood in for it). A real npm-global `claude.cmd` has not been checked either (only a stub shim, and the machine's `claude.exe`).
 - Whether a permission end happens depends on the model trying the command. Before the rule 3 fix it sometimes declined and asked instead (a run on the hostile project did this once). Two later runs and the manual check all tried it, but it remains a model behaviour, so `test:claude` can occasionally fail on it.
 - Stopping between a subtask's commit and its tick leaves a commit with no tick. Run again recorded the commit and did not redo the work, once. The skill doesn't spell out this case; it relies on the model's judgement.

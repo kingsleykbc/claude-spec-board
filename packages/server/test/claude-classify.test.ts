@@ -54,6 +54,31 @@ describe('classifyEnd', () => {
     expect(end({ result: res({ denials: [d] }) }).status).toBe('finished');
   });
 
+  it('a run that reaches Review with refusals stays finished, keeps them and says so, with no fix', () => {
+    const d = bash('npm install date-fns');
+    const one = end({ result: res({ denials: [d] }) });
+    expect(one).toEqual({
+      status: 'finished',
+      denied: [d],
+      text: 'Claude was refused 1 action on the way. Check the result before moving this to Done.',
+    });
+    const two = end({ result: res({ denials: [d, bash('curl x')] }) });
+    expect(two.text).toMatch(/refused 2 actions on the way/);
+    expect(two.fix).toBeUndefined();
+    expect(end({ result: res() })).toEqual({ status: 'finished' });
+  });
+
+  it('other ends in Review keep their refusals too', () => {
+    const d = bash('npm install date-fns');
+    const writeUp = end({ kind: 'write-up', result: res({ denials: [d] }) });
+    expect(writeUp.status).toBe('finished');
+    expect(writeUp.denied).toEqual([d]);
+    const asked = end({ result: res({ denials: [d] }), after: spec({ status: 'review', open: ['Q1'] }) });
+    expect(asked.status).toBe('needs');
+    expect(asked.denied).toEqual([d]);
+    expect(asked.text).toMatch(/1 unanswered question.*refused 1 action/);
+  });
+
   it('omits the fix when the rule is null or matches the deny rules', () => {
     const w = end({ result: res({ denials: [{ tool: 'Write', input: { file_path: 'C:\\x\\.claude\\a.md' } }] }), after: spec() });
     expect(w.status).toBe('permission');

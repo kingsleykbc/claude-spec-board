@@ -191,7 +191,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
   );
   const archived = project?.archived ?? [];
   useRunToasts(run, specs, toast);
-  const { startRun, stopRun, dismissRun } = useRunActions(run, toast);
+  const { startRun, stopRun, dismissRun } = useRunActions(run, toast, project?.root);
   const name = project?.config?.name || data?.entry.name || summary?.name || pid;
   const progress = project
     ? { done: archived.length + project.specs.filter((x) => x.status === 'done').length, total: project.specs.length + archived.length }
@@ -324,6 +324,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
                         status={shownRun.status}
                         lines={shownRun.lines}
                         end={shownRun.end}
+                        projectRoot={project.root}
                         onDismiss={() => void dismissRun()}
                         onAction={(a) => {
                           if (a === 'question') goToQuestions();

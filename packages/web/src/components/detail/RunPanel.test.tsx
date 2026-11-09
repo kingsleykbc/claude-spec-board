@@ -64,6 +64,32 @@ describe('RunPanel', () => {
     expect(e.onAction).toHaveBeenCalledWith('rerun');
   });
 
+  it('finished with refusals: shows the server\'s line, keeps the Review title, offers no rule', () => {
+    const text = 'Claude was refused 1 action on the way. Check the result before moving this to Done.';
+    const { panel } = setup('finished', { status: 'finished', text, denied: [{ tool: 'Bash', input: { command: 'curl x' } }] });
+    const card = within(within(panel).getByTestId('run-end'));
+    expect(card.getByText('Done. Moved to Review.')).toBeTruthy();
+    expect(card.getByText(text)).toBeTruthy();
+    expect(card.queryByRole('button')).toBeNull();
+    expect(card.queryByText(/specboard allow/)).toBeNull();
+  });
+
+  it('explains how to run the rule until publish, with the project path, and Copy rule still copies the rule only', async () => {
+    clip(async () => undefined);
+    render(<RunPanel status="permission" lines={[]} end={permission} projectRoot="C:\my projects\app" onDismiss={vi.fn()} onAction={vi.fn()} />);
+    const card = within(screen.getByTestId('run-end'));
+    expect(card.getByText('Until Spec Board is published, run it from the Spec Board repo as `npm run specboard -- allow "<rule>" "C:\\my projects\\app"`.')).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(card.getByRole('button', { name: 'Copy rule' }));
+    });
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(RULE);
+  });
+
+  it('without a project root the note names the path in words', () => {
+    setup('permission', permission);
+    expect(screen.getByText('Until Spec Board is published, run it from the Spec Board repo as `npm run specboard -- allow "<rule>" <project path>`.')).toBeTruthy();
+  });
+
   it('the server\'s title and text replace the fallback copy', () => {
     const { panel } = setup('error', { status: 'error', title: 'Claude Code exited with code 2', text: 'It broke.' });
     expect(within(panel).getByText('Claude Code exited with code 2')).toBeTruthy();

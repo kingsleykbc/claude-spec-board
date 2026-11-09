@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { EndInfo, RunKind, RunLine, RunStatus } from '../../api/client';
+import { allowHint } from '../../lib/prePublish';
 import { LINE } from '../../lib/vm';
 import { Spinner } from '../ConnectionBanner';
 import s from './sections.module.css';
@@ -19,6 +20,8 @@ export interface RunPanelProps {
   lines: RunLine[];
   /** The server's end info; what it leaves out falls back to `END`. */
   end?: EndInfo | null;
+  /** The project's folder, for the command shown under a rule. */
+  projectRoot?: string;
   onDismiss: () => void;
   onAction: (action: RunAction) => void;
 }
@@ -97,7 +100,7 @@ export const RUN_LINES: RunLine[] = [
 export const COPIED_MS = 2600;
 export const COPY_FAILED_MS = 6000;
 
-export function RunPanel({ kind = 'run', status, lines, end: server, onDismiss, onAction }: RunPanelProps) {
+export function RunPanel({ kind = 'run', status, lines, end: server, projectRoot, onDismiss, onAction }: RunPanelProps) {
   const running = status === 'running';
   const base = running ? null : END[status];
   const fallback = base && status === 'finished' ? (FINISHED[kind] ?? base) : base;
@@ -207,6 +210,7 @@ export function RunPanel({ kind = 'run', status, lines, end: server, onDismiss, 
             <>
               <code className={s.fix}>{fix}</code>
               <span className={s.fixNote}>{FIX_NOTE}</span>
+              <span className={s.fixNote}>{allowHint(projectRoot)}</span>
             </>
           )}
           {end.action &&
