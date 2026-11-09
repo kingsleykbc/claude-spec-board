@@ -139,6 +139,13 @@ describe('suggestRule', () => {
     expect(suggestRule({ tool: 'Bash', input: null })).toBeNull();
   });
 
+  it('never offers an interpreter rule (a person may still type one with specboard allow)', () => {
+    for (const c of ['node script.js', 'python -m pytest', 'python3 x.py', 'python3.12 x.py', 'ruby a.rb', 'perl a.pl', 'php a.php', 'deno run a.ts', 'bun test', 'node.exe a.js', 'cd x && node a.js']) {
+      expect(suggestRule(bash(c)), c).toBeNull();
+    }
+    expect(suggestRule({ tool: 'PowerShell', input: { command: 'node a.js' } })).toBeNull();
+  });
+
   it('forms a PowerShell rule the same way', () => {
     expect(suggestRule({ tool: 'PowerShell', input: { command: 'git commit --allow-empty -m x' } })).toBe('PowerShell(git commit:*)');
     expect(suggestRule({ tool: 'PowerShell', input: { command: 'Set-Content a.txt hi' } })).toBe('PowerShell(Set-Content:*)');

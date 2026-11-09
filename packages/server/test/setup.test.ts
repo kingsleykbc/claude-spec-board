@@ -63,20 +63,36 @@ describe('isValidRule', () => {
   it.each([
     '', '   ', '*', 'Bash(*)', 'Bash', 'Bash(:*)', 'Bash(*:*)', 'PowerShell', 'PowerShell(*)', 'Read', 'Edit', 'Write',
     'Edit(*)', 'Write(**)', 'Bash(git\nstatus)', 'Bash(a)\r', 'bad rule', 'Bash(git status',
+    'Bash(bash:*)', 'Bash(sh -c:*)', 'Bash(env:*)', 'PowerShell(pwsh:*)', 'Bash(git -C . push:*)', 'Bash(/usr/bin/git push:*)',
+    'Bash(\\git push:*)', 'Bash("git" push:*)', 'Bash(rm -fr:*)', 'Bash(rm -rf:*)', 'Bash(rm:*)', 'Bash(g*)', 'Bash(git p*)',
+    'Read(~/**)', 'Write(~/**)', 'Edit(../**)', 'Write(./../**)', 'Write(C:/**)', 'Write(//c/**)', 'Edit(/**/*)', 'Read(/*)',
+    'Write(./a/../../x)', 'Write(.\\x)', 'NotebookEdit', 'MultiEdit', 'MultiEdit(/x)', 'bash(*)', 'BASH', 'bash(npm test:*)',
+    'Bash(a) Bash(*)', 'Bash(a)(b)', 'Bash(\u200b*)', 'Bash(npm\u200b test:*)', 'Bash(npm  test:*)', 'Bash(npm test: *)',
+    'Bash(npm test:*) ', ' Bash(npm test:*)', 'Bash(git push:*)\u0000', 'glob', 'Task(x)', 'WebFetch(x)', 'mcp__a b',
   ])('rejects %j', (r) => expect(isValidRule(r)).toBe(false));
-  it.each(['Bash(npm test:*)', 'Read(./**)', 'Edit(./src/**)', 'Glob', 'Grep', 'WebFetch', 'PowerShell(npm test:*)'])('accepts %s', (r) =>
-    expect(isValidRule(r)).toBe(true),
-  );
+  it.each([
+    'Bash(npm test:*)', 'Bash(npm run lint:*)', 'Bash(git push:*)', 'Bash(git:*)', 'Read(./**)', 'Edit(./src/**)', 'Glob', 'Grep',
+    'WebFetch', 'WebFetch(domain:example.com)', 'PowerShell(npm test:*)', 'mcp__srv__tool',
+  ])('accepts %s', (r) => expect(isValidRule(r)).toBe(true));
+  it('refuses a flag as the first argument word, but allows interpreters a person types', () => {
+    expect(isValidRule('Bash(npm --version)')).toBe(false);
+    expect(isValidRule('Bash(python3 -m:*)')).toBe(false);
+    for (const r of ['Bash(node:*)', 'Bash(python3:*)', 'Bash(python:*)', 'Bash(ruby:*)', 'Bash(perl:*)', 'Bash(php:*)', 'Bash(deno:*)', 'Bash(bun:*)']) {
+      expect(isValidRule(r)).toBe(true);
+    }
+  });
 });
 
 describe('defaultAllowList', () => {
   it('has no git push allow, and detects npm test only when the script exists', async () => {
     const a = await defaultAllowList(await project('a'));
     expect(a.allow.some((r) => r.includes('git push'))).toBe(false);
+    expect(a.allow).not.toContain('Glob');
+    expect(a.allow).not.toContain('Grep');
     expect(a.deny).toEqual(
       expect.arrayContaining([
         'Bash(git push:*)', 'Bash(git reset:*)', 'Bash(rm -rf:*)', 'PowerShell(git push:*)', 'PowerShell(git reset:*)',
-        'Edit(./.claude/**)', 'Write(./.claude/**)',
+        'Edit(./.claude/**)', 'Write(./.claude/**)', 'Edit(./.git/**)', 'Write(./.git/**)',
       ]),
     );
     expect(a.allow).toEqual(expect.arrayContaining(['Read(./**)', 'Edit(./**)', 'Write(./**)', 'Bash(git commit:*)']));
@@ -100,7 +116,7 @@ describe('defaultAllowList', () => {
   });
   it('never offers a rule that meets its own deny list', async () => {
     const p = await defaultAllowList(await project('f', { scripts: { test: 'x' } }));
-    await expect(new ApprovedPermissions(approvedFile()).set('abcd1234', p)).resolves.toBeUndefined();
+    await expect(new ApprovedPermissions(approvedFile()).set('abcd1234', tmp, p)).resolves.toBeUndefined();
   });
 });
 
@@ -169,49 +185,49 @@ describe('ApprovedPermissions', () => {
   const p = { allow: ['Read(./**)', 'Bash(git status:*)'], deny: ['Bash(git push:*)'] };
   it('returns null when nothing is approved, and round-trips by project id', async () => {
     const s = new ApprovedPermissions(approvedFile());
-    expect(await s.get('aaaaaaaa')).toBeNull();
-    await s.set('aaaaaaaa', p);
-    await s.set('bbbbbbbb', { allow: ['Glob'], deny: [] });
-    expect(await s.get('aaaaaaaa')).toEqual(p);
-    expect(await s.get('bbbbbbbb')).toEqual({ allow: ['Glob'], deny: [] });
+    expect(await s.get('aaaaaaaa', tmp)).toBeNull();
+    await s.set('aaaaaaaa', tmp, p);
+    await s.set('bbbbbbbb', tmp, { allow: ['Glob'], deny: [] });
+    expect(await s.get('aaaaaaaa', tmp)).toEqual(p);
+    expect(await s.get('bbbbbbbb', tmp)).toEqual({ allow: ['Glob'], deny: [] });
   });
   it('addAllow adds once, and needs an existing entry', async () => {
     const s = new ApprovedPermissions(approvedFile());
-    await expect(s.addAllow('aaaaaaaa', 'Bash(npm test:*)')).rejects.toThrow(/not approved|init/i);
-    await s.set('aaaaaaaa', p);
-    await s.addAllow('aaaaaaaa', 'Bash(npm test:*)');
-    await s.addAllow('aaaaaaaa', 'Bash(npm test:*)');
-    expect((await s.get('aaaaaaaa'))!.allow).toEqual([...p.allow, 'Bash(npm test:*)']);
+    await expect(s.addAllow('aaaaaaaa', tmp, 'Bash(npm test:*)')).rejects.toThrow(/not approved|init/i);
+    await s.set('aaaaaaaa', tmp, p);
+    await s.addAllow('aaaaaaaa', tmp, 'Bash(npm test:*)');
+    await s.addAllow('aaaaaaaa', tmp, 'Bash(npm test:*)');
+    expect((await s.get('aaaaaaaa', tmp))!.allow).toEqual([...p.allow, 'Bash(npm test:*)']);
   });
   it.each(['Bash(git push:*)', 'Bash(git:*)', 'Bash(GIT.exe push:*)', 'PowerShell(git push origin:*)', 'Write(./.claude/**)'])(
     'addAllow refuses %s as blocked by policy',
     async (rule) => {
       const s = new ApprovedPermissions(approvedFile());
-      await s.set('aaaaaaaa', { allow: ['Read(./**)'], deny: ['Bash(git push:*)', 'Write(./.claude/**)'] });
-      await expect(s.addAllow('aaaaaaaa', rule)).rejects.toThrow(/blocked by policy/);
-      expect((await s.get('aaaaaaaa'))!.allow).toEqual(['Read(./**)']);
+      await s.set('aaaaaaaa', tmp, { allow: ['Read(./**)'], deny: ['Bash(git push:*)', 'Write(./.claude/**)'] });
+      await expect(s.addAllow('aaaaaaaa', tmp, rule)).rejects.toThrow(/blocked by policy/);
+      expect((await s.get('aaaaaaaa', tmp))!.allow).toEqual(['Read(./**)']);
     },
   );
   it('addAllow and set refuse invalid rules and rules that meet the deny list', async () => {
     const s = new ApprovedPermissions(approvedFile());
-    await s.set('aaaaaaaa', p);
-    await expect(s.addAllow('aaaaaaaa', 'Bash(*)')).rejects.toThrow(/valid/i);
-    await expect(s.set('aaaaaaaa', { allow: ['Bash(*)'], deny: [] })).rejects.toThrow(/valid/i);
-    await expect(s.set('aaaaaaaa', { allow: ['Bash(git push origin:*)'], deny: ['Bash(git push:*)'] })).rejects.toThrow(/blocked by policy/);
+    await s.set('aaaaaaaa', tmp, p);
+    await expect(s.addAllow('aaaaaaaa', tmp, 'Bash(*)')).rejects.toThrow(/valid/i);
+    await expect(s.set('aaaaaaaa', tmp, { allow: ['Bash(*)'], deny: [] })).rejects.toThrow(/valid/i);
+    await expect(s.set('aaaaaaaa', tmp, { allow: ['Bash(git push origin:*)'], deny: ['Bash(git push:*)'] })).rejects.toThrow(/blocked by policy/);
   });
   it('a malformed file is an error, never read as empty and never overwritten', async () => {
     await fs.mkdir(home, { recursive: true });
     for (const bad of ['{nope', '[]', '{"aaaaaaaa":{"allow":"x","deny":[]}}']) {
       await fs.writeFile(approvedFile(), bad);
       const s = new ApprovedPermissions(approvedFile());
-      await expect(s.get('aaaaaaaa')).rejects.toThrow(/permissions\.json/);
-      await expect(s.set('bbbbbbbb', p)).rejects.toThrow(/permissions\.json/);
-      await expect(s.addAllow('aaaaaaaa', 'Glob')).rejects.toThrow(/permissions\.json/);
+      await expect(s.get('aaaaaaaa', tmp)).rejects.toThrow(/permissions\.json/);
+      await expect(s.set('bbbbbbbb', tmp, p)).rejects.toThrow(/permissions\.json/);
+      await expect(s.addAllow('aaaaaaaa', tmp, 'Glob')).rejects.toThrow(/permissions\.json/);
       expect(await fs.readFile(approvedFile(), 'utf8')).toBe(bad);
     }
   });
   it('leaves no temp files behind', async () => {
-    await new ApprovedPermissions(approvedFile()).set('aaaaaaaa', p);
+    await new ApprovedPermissions(approvedFile()).set('aaaaaaaa', tmp, p);
     expect(await fs.readdir(home)).toEqual(['permissions.json']);
   });
 });
@@ -235,7 +251,7 @@ describe('initCommand', () => {
     const settings = await readJson(path.join(root, '.claude', 'settings.json'));
     const approved = await readJson(approvedFile());
     const id = projectId(root);
-    expect(approved[id]).toEqual(settings.permissions);
+    expect(approved[id]).toEqual({ ...settings.permissions, root: await fs.realpath(root) });
     expect(approved[id].allow).toContain('Bash(npm test:*)');
     expect((await readJson(path.join(home, 'projects.json')))[0].id).toBe(id);
     expect(i.out.join('\n')).toContain('Bash(git push:*)');
@@ -293,14 +309,85 @@ describe('initCommand', () => {
     const root = await project('p6');
     const id = projectId(root);
     const store = new ApprovedPermissions(approvedFile());
-    await store.set(id, { allow: ['Read(./**)'], deny: ['Bash(git push:*)'] });
+    await store.set(id, root, { allow: ['Read(./**)'], deny: ['Bash(git push:*)'] });
     await fs.mkdir(path.join(root, '.claude'));
     await fs.writeFile(path.join(root, '.claude', 'settings.json'), JSON.stringify({ permissions: { allow: ['Bash(*)'] } }));
-    expect(await store.get(id)).toEqual({ allow: ['Read(./**)'], deny: ['Bash(git push:*)'] });
+    expect(await store.get(id, root)).toEqual({ allow: ['Read(./**)'], deny: ['Bash(git push:*)'] });
     await init(root);
-    const got = (await store.get(id))!;
+    const got = (await store.get(id, root))!;
     expect(got.allow).not.toContain('Bash(*)');
     expect(got.allow).toContain('Read(./**)');
+  });
+});
+
+describe('init: links, approval binding and the no answer', () => {
+  it('refuses a linked .specboard and writes nothing outside the project', async () => {
+    const root = await project('l1');
+    const outside = path.join(tmp, 'outside-sb');
+    await fs.mkdir(outside);
+    await fs.symlink(outside, path.join(root, '.specboard'), 'junction');
+    await expect(init(root)).rejects.toThrow(/link/);
+    expect(await fs.readdir(outside)).toEqual([]);
+    await expect(fs.stat(approvedFile())).rejects.toThrow();
+  });
+  it('refuses a linked .specboard/specs', async () => {
+    const root = await project('l2');
+    const outside = path.join(tmp, 'outside-specs');
+    await fs.mkdir(outside);
+    await fs.mkdir(path.join(root, '.specboard'));
+    await fs.symlink(outside, path.join(root, '.specboard', 'specs'), 'junction');
+    await expect(init(root)).rejects.toThrow(/link/);
+    expect(await fs.readdir(outside)).toEqual([]);
+  });
+  it('an approval only counts for the folder it was given for', async () => {
+    const root = await project('b1');
+    await init(root);
+    const id = projectId(root);
+    const store = new ApprovedPermissions(approvedFile());
+    expect(await store.get(id, root)).not.toBeNull();
+    const elsewhere = await project('b2');
+    expect(await store.get(id, elsewhere)).toBeNull();
+    await expect(store.addAllow(id, elsewhere, 'Bash(npm run lint:*)')).rejects.toThrow(/not approved/);
+    const link = path.join(tmp, 'link');
+    await fs.symlink(root, link, 'junction');
+    expect(await store.get(id, link)).not.toBeNull();
+    await fs.rm(link, { recursive: true });
+  });
+  it('a retargeted folder reads as not approved and init asks again', async () => {
+    const root = await project('b3');
+    await init(root);
+    const file = approvedFile();
+    const all = await readJson(file);
+    all[projectId(root)].root = path.join(tmp, 'somewhere-else');
+    await fs.writeFile(file, JSON.stringify(all));
+    const i = io({ answer: true });
+    await initCommand({ root, yes: false, forceSkills: false }, i);
+    expect(i.asked).toHaveLength(1);
+    expect((await readJson(file))[projectId(root)].root).toBe(await fs.realpath(root));
+  });
+  it('no on an approved project says the approval is unchanged and how to revoke it', async () => {
+    const root = await project('n1');
+    await init(root);
+    const before = await fs.readFile(approvedFile(), 'utf8');
+    const i = io({ answer: false });
+    const r = await initCommand({ root, yes: false, forceSkills: false }, i);
+    expect(r.approved).toBe(false);
+    const text = i.out.join('\n');
+    expect(text).toContain('Existing approval is unchanged');
+    expect(text).toContain('permissions.json');
+    expect(text).not.toContain('runs are not approved');
+    expect(await fs.readFile(approvedFile(), 'utf8')).toBe(before);
+  });
+  it('re-init drops a stored rule that fails the current checks, with a notice', async () => {
+    const root = await project('d1');
+    await init(root);
+    const all = await readJson(approvedFile());
+    all[projectId(root)].allow.push('Bash(bash:*)');
+    await fs.writeFile(approvedFile(), JSON.stringify(all));
+    const i = io();
+    await expect(initCommand({ root, yes: true, forceSkills: false }, i)).resolves.toMatchObject({ approved: true });
+    expect(i.out.join('\n')).toContain('Dropping earlier rule Bash(bash:*)');
+    expect((await readJson(approvedFile()))[projectId(root)].allow).not.toContain('Bash(bash:*)');
   });
 });
 

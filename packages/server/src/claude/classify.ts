@@ -13,12 +13,14 @@ const MULTI_WORD = new Set([
   'git', 'npm', 'npx', 'yarn', 'pnpm', 'cargo', 'go', 'pip', 'pip3', 'docker', 'gh', 'dotnet', 'bun', 'deno', 'kubectl', 'poetry', 'uv',
 ]);
 // A prefix rule on these would let Claude run anything.
-const NEVER_PREFIX = new Set([
+export const NEVER_PREFIX = new Set([
   'sh', 'bash', 'zsh', 'dash', 'fish', 'cmd', 'powershell', 'pwsh', 'eval', 'exec', 'sudo', 'su', 'env', 'xargs', 'source',
   'command', 'builtin', 'time', 'nohup', 'timeout', 'nice', 'wsl', 'busybox',
 ]);
 /** Lowercase, without a Windows executable extension: GIT, git.exe and git.cmd are all git. */
-const normProg = (p: string): string => p.toLowerCase().replace(/\.(?:exe|cmd|bat|com)$/, '');
+export const normProg = (p: string): string => p.toLowerCase().replace(/\.(?:exe|cmd|bat|com)$/, '');
+/** Interpreters may be allowed by a person who types the rule, but are never offered by the UI. */
+const INTERPRETER = /^(?:node|python[0-9.]*|pypy[0-9.]*|ruby|perl|php|deno|bun)$/;
 const FILE_TOOLS = new Set(['Read', 'Glob', 'Grep', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const SHELL_TOOLS = new Set(['Bash', 'PowerShell']);
 
@@ -56,7 +58,7 @@ function segmentPrefix(seg: string): string | null {
   while (words.length > 0 && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[0]!)) words.shift();
   const prog = words[0];
   if (!prog || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(prog)) return null;
-  if (NEVER_PREFIX.has(normProg(prog))) return null;
+  if (NEVER_PREFIX.has(normProg(prog)) || INTERPRETER.test(normProg(prog))) return null;
   const second = words[1];
   if (MULTI_WORD.has(normProg(prog)) && second && /^[A-Za-z][A-Za-z0-9:_-]*$/.test(second)) return `${prog} ${second}`;
   return prog;

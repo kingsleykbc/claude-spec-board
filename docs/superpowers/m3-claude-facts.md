@@ -126,3 +126,45 @@ Probed 2026-11-08, haiku, `--permission-mode dontAsk`, allow `Read/Edit/Write(./
   - It chained `npm test && node -e "..."`; the compound was refused because `node` is not listed. The rules now say to run the test command alone and not to run ad-hoc scripts.
 - `Glob` and `Grep` work under `dontAsk` without allow rules.
 - Bookkeeping files under `.specboard/` are deliberately left out of the per-subtask commits (the commit message and log need the hash, so the log cannot be inside it); they remain uncommitted for the person to review.
+
+
+## Task 4 fix-round probes: `.git`, Glob/Grep, `git -C`, and which settings a run loads
+
+Probed 2026-11-09, Claude Code 2.1.302, `--model haiku`, `--permission-mode dontAsk`, `CLAUDE*`/`ANTHROPIC*` unset, `MSYS_NO_PATHCONV=1`, stdin ignored, temp git repos outside the Spec Board repo. Fixtures (sanitised: tool calls, denials, final text; `<ROOT>`/`<SCRATCH>` stand for temp paths) are in `packages/server/test/fixtures/claude/`. Allow base: `Read(./**)`, `Edit(./**)`, `Write(./**)` (a Write needs the Edit rule too; with only `Read`+`Write` a Write was refused) plus the named Bash prefixes.
+
+### (a) Writes under `.git`
+- Without any `.git` deny rule, a Write of `.git/hooks/x` was refused with `decision_reason_type:"mode"` (`git-hooks-no-deny.jsonl`), and an Edit of `.git/config` was refused the same way (`git-config-no-deny.jsonl`). Like `.claude/`, `.git/` is protected by default: `Write(./**)` does not grant it.
+- With `deny: ["Edit(./.git/**)","Write(./.git/**)"]` the Write was refused as an explicit deny (`git-hooks-deny.jsonl`; no `permission_denied` event, only the `permission_denials` entry, as for `.claude`).
+- So the `.git` deny rules are belt and braces: they keep the result from depending on the built-in default.
+
+### (b) Glob and Grep with no allow rule
+- Inside the project both ran with no rule and no denial (`grep-glob-inside.jsonl`).
+- Pointed at a folder outside the project, both were refused (`grep-outside.jsonl`, `glob-outside.jsonl`, `Grep:mode` / `Glob:mode`). The bare `Glob`/`Grep` allow rules are not needed and are dropped from the default list.
+
+### (c) `git -C . push`
+- With the default allow list (no `git push`, no `Bash(git:*)`), `git -C . push origin HEAD` was refused by mode (`git-C-push-default.jsonl`).
+- With `Bash(git:*)` allowed and `deny: Bash(git push:*)`, `git -C . push origin HEAD` ran (git failed only because there was no remote; `git-C-push-broad-allow.jsonl`), while plain `git push origin HEAD` was refused (`git-push-broad-allow.jsonl`, `Bash:subcommandResults`). A prefix deny does not catch `git -C . push`. Hence `isValidRule` refuses any flag as the first argument word and the whole `git` prefix is blocked by policy next to the push deny.
+
+### (d) Which settings a headless run loads (the Decision 1 question)
+Project: `.claude/settings.json` with `permissions.allow: ["Bash(touch:*)"]` and a `PreToolUse` hook that writes `hook-fired.txt`; `.claude/skills/probe/SKILL.md` (Read `notes.txt`, Write `out.txt` with `$ARGUMENTS`, run `touch proj.txt`). Run: `/probe alpha42 --settings {"permissions":{"allow":["Read(./**)","Edit(./**)","Write(./**)"]}}`. The folder was never trusted; I did not touch trust settings.
+
+| flags added | stderr "Ignoring 1 permissions.allow entry" | project hook fired | `/probe` skill | `out.txt` = `hello alpha42` (`--settings` applied) |
+|---|---|---|---|---|
+| none (`sources-default`) | yes | **yes** | loaded | yes |
+| `--setting-sources user` | no | no | **not loaded** (model read SKILL.md by hand) | yes |
+| `--setting-sources ""` | no | no | **not loaded**; run did nothing | no |
+| `--setting-sources project` | yes | yes | loaded | yes |
+| `--setting-sources user,local` | no | no | ran, via the model reading the file (no project source) | yes |
+| `--settings` with `"disableAllHooks":true` (`disable-hooks`) | yes | **no** | loaded | yes |
+| `--setting-sources user --plugin-dir <plugin>` | no | no | loaded as `/sbplug:probe`, `$ARGUMENTS` substituted | yes |
+| `--setting-sources "" --plugin-dir <plugin>` | no | no | loaded as `/sbplug:probe`, `$ARGUMENTS` substituted | yes |
+
+Findings:
+- **In an untrusted folder, `-p` mode ignores the project's `permissions.allow` but still runs the project's hooks.** A hostile repo's hook runs on every headless run unless something stops it. The "Ignoring ... permissions.allow" warning is the sign that the project source is loaded.
+- Excluding the project source (`user`, `""`) removes the warning and the hook, but the project's own skills stop loading as slash commands, so `/run-spec` would not expand.
+- Login worked in every variant (no auth error), including `--setting-sources ""`, so credentials are not a "setting source".
+- A skill delivered as a plugin (`--plugin-dir`, folder with `.claude-plugin/plugin.json` and `skills/<name>/SKILL.md`) loads even with `--setting-sources ""`, but is namespaced `/<plugin>:<skill>`.
+- Not verifiable here: whether a *trusted* folder's project `permissions.allow` would merge with `--settings`. We cannot make a folder trusted without accepting a dialog or editing `~/.claude.json`, which are off limits. Excluding the project source is what removes that risk regardless.
+- The CLI also has `--restricted` (ignores user/project/local settings), but it removes Bash and the other command tools, so it cannot run specs.
+
+Recommended run flags: `--settings <approved json> --permission-mode dontAsk --setting-sources "" --plugin-dir <spec-board plugin folder>` (skills shipped as a plugin, called `/specboard:run-spec` etc.). `--setting-sources user` also works but pulls in the person's own `~/.claude/settings.json` (their permissions and hooks), which a run should not depend on. If the plugin route is not taken and project skills stay in `.claude/skills`, the best available is `--settings` with `"disableAllHooks":true`, which stops project hooks but does NOT stop a trusted folder's project `permissions.allow` merging; report this as a concern.
