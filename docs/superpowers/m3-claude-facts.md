@@ -16,7 +16,7 @@ claude -p "/probe alpha42" --model haiku --output-format stream-json --verbose \
 
 `<json>` for the main probes: `{"permissions":{"allow":["Read(./**)","Edit(./**)","Write(./**)","Bash(git status:*)","Bash(git diff:*)","Bash(git commit:*)"]}}`. `--settings` accepts inline JSON. `--verbose` is required for stream-json with `-p`.
 
-- Fixture trimming: `system` events with subtype `hook_started`, `hook_response` and `thinking_tokens` were dropped (the hook output is huge and personal), as were `rate_limit_event` lines. The `init` event keeps its keys but `skills`, `plugins`, `mcp_servers`, `slash_commands`, `agents`, `memory_paths` are emptied and `mcp__*` tools removed. Thinking `signature`s are replaced by `<SIGNATURE>`. Paths are `<ROOT>` (the project cwd) and `<SCRATCH>` (its parent), session ids are `<SESSION>`, e-mail addresses `<EMAIL>`. Everything else is verbatim, one real JSON object per line. Grep for `Kingsley`, `xaviourchubie`, `@`, `AppData` is clean.
+- Fixture trimming: `system` events with subtype `hook_started`, `hook_response` and `thinking_tokens` were dropped (the hook output is huge and personal), as were `rate_limit_event` lines. The `init` event keeps its keys but `skills`, `plugins`, `mcp_servers`, `slash_commands`, `agents`, `memory_paths` are emptied and `mcp__*` tools removed. Thinking `signature`s are replaced by `<SIGNATURE>`. Paths are `<ROOT>` (the project cwd) and `<SCRATCH>` (its parent), session ids are `<SESSION>`, e-mail addresses `<EMAIL>`. Everything else is verbatim, one real JSON object per line. A grep for the user's name, personal handles, `@` and `AppData` is clean.
 
 ## Gotcha: Git Bash rewrites a leading `/` argument
 

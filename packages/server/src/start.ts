@@ -6,6 +6,7 @@ import { createAdaptorServer } from '@hono/node-server';
 import getPort from 'get-port';
 import open from 'open';
 import { attachRealtime, createApp, type Realtime } from './app.js';
+import { initHint } from './prePublish.js';
 import { Registry } from './registry.js';
 import { RunManager } from './claude/runs.js';
 import { claudeStatus, type ClaudeStatus } from './claude/status.js';
@@ -61,9 +62,7 @@ async function tryOpen(opts: StartOptions, base: string, id: string): Promise<vo
 export async function start(opts: StartOptions): Promise<Started> {
   const root = path.resolve(opts.path);
   if (!fs.existsSync(path.join(root, '.specboard', 'config.md'))) {
-    throw new Error(
-      `No .specboard folder in ${root}. Run "specboard init" to set it up.`,
-    );
+    throw new Error(`No .specboard folder in ${root}. ${initHint(root)}`);
   }
   const registry = new Registry(registryFile());
 

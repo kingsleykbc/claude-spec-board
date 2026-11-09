@@ -48,7 +48,10 @@ function endedToast(run: RunSnapshot): ToastArgs {
   const id = run.specId;
   const end = run.end;
   if (run.kind === 'refresh-overview') {
-    return run.status === 'finished' ? ['ok', 'Overview updated', 'Claude rewrote the progress summary.'] : ['err', 'Couldn’t refresh the overview', end?.title ?? end?.text];
+    if (run.status === 'finished') return ['ok', 'Overview updated', 'Claude rewrote the progress summary.'];
+    // A refresh has no run panel, so the toast is the only place a refused action's rule can show.
+    if (run.status === 'permission' && end?.fix) return ['err', 'Couldn’t refresh the overview', `Run this in a terminal, then refresh again: ${end.fix}`];
+    return ['err', 'Couldn’t refresh the overview', end?.title ?? end?.text];
   }
   switch (run.status) {
     case 'stopped':

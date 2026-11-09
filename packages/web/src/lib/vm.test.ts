@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { catColor, firstParagraph, fmtLogTime, relPath, relTime, statusMeta, truncate, urgVm } from './vm';
+import type { Spec } from '@specboard/core';
+import { recipeSpec } from '../fixtures/recipeBox';
+import { catColor, firstParagraph, fmtLogTime, relPath, relTime, runHold, statusMeta, truncate, urgVm } from './vm';
 
 // The prototype's hue(), copied as-is, to pin catColor to it.
 const hue = (n: string) => {
@@ -82,5 +84,27 @@ describe('relPath', () => {
     expect(relPath('c:/proj/box/', 'C:\\proj\\box\\x.md')).toBe('x.md');
     expect(relPath('/home/u/box', '/home/u/box/.specboard/specs/T-1/spec.md')).toBe('.specboard/specs/T-1/spec.md');
     expect(relPath('/home/u/box', '/elsewhere/x.md')).toBe('/elsewhere/x.md');
+  });
+});
+
+describe('runHold', () => {
+  const all = [recipeSpec('T-104'), recipeSpec('T-105'), recipeSpec('T-107'), recipeSpec('T-108')];
+  const spec = (over: Partial<Spec>): Spec => ({ ...recipeSpec('T-104'), questions: [], dependsOn: [], draft: false, ...over });
+
+  it('nothing for a spec that can start', () => {
+    expect(runHold(spec({}), all)).toBeNull();
+  });
+  it('a draft, and open questions, in the design’s wording', () => {
+    expect(runHold(spec({ draft: true }), all)).toBe('Draft. Have Claude write this up first.');
+    const q = { ...recipeSpec('T-105').questions[0]!, text: 'No. of versions', answer: null };
+    expect(runHold(spec({ questions: [q] }), all)).toBe('Blocked. Awaiting answers on: No. of versions');
+  });
+  it('an unfinished, missing or own dependency; a done or archived one is no hold', () => {
+    const dep = { ...recipeSpec('T-104'), id: 'T-120', title: 'Dep', status: 'doing' as const, archived: false };
+    expect(runHold(spec({ dependsOn: ['T-120'] }), [dep])).toBe('Blocked. Waiting on T-120 Dep (Doing)');
+    expect(runHold(spec({ dependsOn: ['T-120'] }), [])).toBe('Blocked. T-120 not found');
+    expect(runHold(spec({ dependsOn: ['T-104'] }), all)).toBe('Blocked. Depends on itself');
+    expect(runHold(spec({ dependsOn: ['T-120'] }), [{ ...dep, status: 'done' }])).toBeNull();
+    expect(runHold(spec({ dependsOn: ['T-120'] }), [{ ...dep, archived: true }])).toBeNull();
   });
 });

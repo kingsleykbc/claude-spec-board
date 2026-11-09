@@ -337,6 +337,14 @@ describe('the actions start the right kind', () => {
       expect(screen.getByRole('button', { name: '↻ Refresh' })).toBeTruthy();
     });
 
+    it('a refresh that needs permission gives the rule to run, as it has no panel', async () => {
+      await refresh();
+      const fix = 'specboard allow "Bash(npm config:*)"';
+      send({ type: 'run-ended', run: ended(refreshRun, { status: 'permission', title: 'Claude needs permission', text: 'Allow it.', fix }) });
+      expect(named('Couldn’t refresh the overview')).toHaveLength(1);
+      expect(named(`Run this in a terminal, then refresh again: ${fix}`)).toHaveLength(1);
+    });
+
     it('stays Refreshing when the modal is reopened during the run', async () => {
       await refresh();
       fireEvent.click(screen.getByRole('button', { name: 'Close' }));
@@ -487,6 +495,33 @@ describe('the run panel in the detail', () => {
     expect(within(panel()!).getByText('Run this in a terminal, then run again.')).toBeTruthy();
     await act(async () => void fireEvent.click(within(panel()!).getByRole('button', { name: 'Copy rule' })));
     expect(writeText).toHaveBeenCalledWith(fix);
+  });
+
+  it('a blocked spec or a draft says why and cannot start', async () => {
+    await mount(null, '/?project=p1&spec=T-105');
+    expect((runBtn() as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(/^Blocked\. Awaiting answers on:/)).toBeTruthy();
+    fireEvent.click(runBtn());
+    await flush();
+    expect(api.startRun).not.toHaveBeenCalled();
+    cleanup();
+    await mount(null, '/?project=p1&spec=T-107');
+    expect((runBtn() as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText('Draft. Have Claude write this up first.')).toBeTruthy();
+  });
+
+  it('Run again on a spec now blocked warns instead of starting; other kinds still go', async () => {
+    await mount(ended(run({ specId: 'T-105' }), { status: 'error', title: 'Failed' }), '/?project=p1&spec=T-105');
+    fireEvent.click(within(panel()!).getByRole('button', { name: 'Run again' }));
+    await flush();
+    expect(api.startRun).not.toHaveBeenCalled();
+    expect(named('T-105 can’t start yet')).toHaveLength(1);
+    vi.mocked(api.startRun).mockResolvedValue({ run: run({ id: 'r2', specId: 'T-105', kind: 'fix-file', startedAt: '2026-11-09T11:00:00.000Z' }) });
+    cleanup();
+    await mount(ended(run({ specId: 'T-105', kind: 'fix-file' }), { status: 'error', title: 'Failed' }), '/?project=p1&spec=T-105');
+    fireEvent.click(within(panel()!).getByRole('button', { name: 'Run again' }));
+    await flush();
+    expect(api.startRun).toHaveBeenCalledWith('p1', 'fix-file', 'T-105');
   });
 
   it('Run again starts the same kind on the same spec', async () => {

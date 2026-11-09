@@ -3,13 +3,13 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import { hashText, loadProject, parseSpec, setMetaField, writeIfUnchanged, type Spec } from '@specboard/core';
 import spawn from 'cross-spawn';
-import treeKill from 'tree-kill';
 import { kitPluginDir } from '../kit.js';
 import type { ProjectEntry } from '../registry.js';
 import { InvalidApprovalError, type ApprovedPermissions, type Permissions } from '../setup.js';
 import { classifyEnd, type EndInfo, type RunKind, type RunStatus } from './classify.js';
 import { LineSplitter, parseEvent, type ClaudeResult, type ParsedLine, type RunLine } from './events.js';
-import { childEnv, claudeStatus, type ClaudeStatus } from './status.js';
+import { killTree, resolveCommand } from './resolve.js';
+import { childEnv, claudeStatus, type ClaudeStatusCheck } from './status.js';
 
 export interface RunSnapshot { id: string; pid: string; kind: RunKind; specId: string | null; status: RunStatus; lines: RunLine[]; end: EndInfo | null; startedAt: string; dismissed: boolean }
 export type RunEvent = { type: 'run-started'; run: RunSnapshot } | { type: 'run-line'; runId: string; line: RunLine } | { type: 'run-ended'; run: RunSnapshot };
@@ -32,6 +32,16 @@ export class ClaudeUnavailableError extends Error {
     this.name = 'ClaudeUnavailableError';
   }
 }
+
+type Launch = { bin: string; args: string[] };
+type Launcher = (args: string[], root: string) => Launch;
+
+/** How a run starts `name`: by an absolute path from outside the project, or it counts as not installed. */
+export const commandLauncher = (name: string, env: NodeJS.ProcessEnv = process.env): Launcher => (args, root) => {
+  const bin = resolveCommand(name, { PATH: env.PATH, PATHEXT: env.PATHEXT, exclude: [root] });
+  if (bin === null) throw new ClaudeUnavailableError('not-installed');
+  return { bin, args };
+};
 
 const MAX_LINES = 2000;
 const STDERR_TAIL = 4000;
@@ -165,8 +175,8 @@ function finalLine(kind: RunKind, end: EndInfo, before: Spec | null, after: Spec
 export class RunManager {
   private readonly approved: ApprovedPermissions;
   private readonly emit: (pid: string, e: RunEvent) => void;
-  private readonly command: (args: string[]) => { bin: string; args: string[] };
-  private readonly status: () => Promise<ClaudeStatus>;
+  private readonly command: Launcher;
+  private readonly status: ClaudeStatusCheck;
   /** The run going on per project, including one still being prepared. Set before the first await in `start`. */
   private readonly active = new Map<string, Run>();
   private readonly last = new Map<string, Run>();
@@ -175,12 +185,12 @@ export class RunManager {
   constructor(opts: {
     approved: ApprovedPermissions;
     emit: (pid: string, e: RunEvent) => void;
-    command?: (args: string[]) => { bin: string; args: string[] };
-    status?: () => Promise<ClaudeStatus>;
+    command?: Launcher;
+    status?: ClaudeStatusCheck;
   }) {
     this.approved = opts.approved;
     this.emit = opts.emit;
-    this.command = opts.command ?? ((args) => ({ bin: 'claude', args }));
+    this.command = opts.command ?? commandLauncher('claude');
     this.status = opts.status ?? claudeStatus;
   }
 
@@ -193,6 +203,7 @@ export class RunManager {
     this.active.set(entry.id, run); // no await above this line: two starts at once cannot both get here
 
     let approved: Permissions;
+    let launch: Launch | null;
     try {
       // `get` re-checks the stored rules: they go on a command line, and the file can be edited by hand.
       const perms = await this.approved.get(entry.id, entry.root).catch((e: unknown) => {
@@ -200,11 +211,12 @@ export class RunManager {
       });
       if (!perms) throw new NotApprovedError();
       approved = perms;
-      const status = await this.status();
+      const status = await this.status({ recheckIfDown: true });
       if (!status.installed) throw new ClaudeUnavailableError('not-installed');
       if (!status.loggedIn) throw new ClaudeUnavailableError('logged-out');
       run.before = await loadSpec(entry.root, specId);
       if (specId !== null && !run.before) throw new Error(`Spec ${specId} was not found.`);
+      launch = run.stopped || run.finishing ? null : this.command(buildRunArgs(prompt, approved, kitPluginDir()), entry.root);
     } catch (e) {
       if (this.active.get(entry.id) === run) this.active.delete(entry.id);
       run.finishing = true; // nothing was started, so nothing ends: a stop waiting on this has no more to do
@@ -224,8 +236,8 @@ export class RunManager {
     run.announced = true;
     this.send(run, { type: 'run-started', run: copy(run.snap) });
 
-    if (run.stopped) await this.finish(run); // stop or close arrived while this was being prepared
-    else this.spawnChild(run, prompt, approved);
+    if (launch === null) await this.finish(run); // stop or close arrived while this was being prepared
+    else this.spawnChild(run, launch);
     return copy(run.snap);
   }
 
@@ -274,10 +286,9 @@ export class RunManager {
     };
   }
 
-  private spawnChild(run: Run, prompt: string, approved: Permissions): void {
+  private spawnChild(run: Run, { bin, args }: Launch): void {
     let child: ChildProcess;
     try {
-      const { bin, args } = this.command(buildRunArgs(prompt, approved, kitPluginDir()));
       child = spawn(bin, args, { cwd: run.entry.root, env: childEnv(), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
     } catch (e) {
       run.spawnError = e as Error;
@@ -313,14 +324,13 @@ export class RunManager {
   private kill(run: Run): void {
     const pid = run.child?.pid;
     if (pid === undefined) return;
-    const ignore = (): void => undefined; // it may have just gone
     if (process.platform === 'win32') {
-      treeKill(pid, 'SIGKILL', ignore); // taskkill /T /F; there is no graceful stop on Windows
+      killTree(pid, 'SIGKILL');
       return;
     }
-    treeKill(pid, 'SIGTERM', ignore);
+    killTree(pid, 'SIGTERM');
     run.timers.push(setTimeout(() => {
-      if (!run.exited) treeKill(pid, 'SIGKILL', ignore);
+      if (!run.exited) killTree(pid, 'SIGKILL');
     }, SIGKILL_AFTER_MS));
   }
 

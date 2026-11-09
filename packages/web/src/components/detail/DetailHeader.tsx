@@ -17,6 +17,7 @@ export interface DetailHeaderProps {
   allCategories: string[];
   runState: RunState;
   runningId?: string | null;
+  runHold?: string | null;
   onRun: () => void;
   onStop: () => void;
   onStatus: (s: Status) => void;
@@ -35,7 +36,7 @@ export function DetailHeader(p: DetailHeaderProps) {
         <span className={s.path} title={p.path}>
           {p.path}
         </span>
-        <RunButton id={p.id} state={p.runState} runningId={p.runningId ?? null} onRun={p.onRun} onStop={p.onStop} />
+        <RunButton id={p.id} state={p.runState} runningId={p.runningId ?? null} hold={p.runHold ?? null} onRun={p.onRun} onStop={p.onStop} />
         <StatusMenu status={p.status} onPick={p.onStatus} />
         <button type="button" className={s.close} aria-label="Close" onClick={p.onClose}>
           ×

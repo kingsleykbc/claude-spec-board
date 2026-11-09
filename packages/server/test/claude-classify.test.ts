@@ -252,3 +252,72 @@ describe('deny matching hardening', () => {
     expect(e.fix).toBeUndefined();
   });
 });
+
+describe('a stop that is not the end the skill would pick', () => {
+  it('I2: keeps what Claude said, clipped, when it stopped short', () => {
+    const said = 'T-002 is not done yet, so I did not start this spec.';
+    const e = end({ result: res({ resultText: said }), after: spec({ done: [false, false] }) });
+    expect(e.title).toBe('Claude stopped before finishing');
+    expect(e.text).toBe(`Subtasks left: 1, 2. Claude said: ${said}`);
+    const long = end({ result: res({ resultText: `line one\n\n${'x'.repeat(2000)}` }), after: spec({ done: [false] }) });
+    expect(long.text!.length).toBeLessThan(560);
+    expect(long.text).toMatch(/Claude said: line one x+…$/);
+    expect(end({ result: res({ resultText: '  ' }), after: spec({ done: [false] }) }).text).toBe('Subtasks left: 1.');
+    expect(end({ after: null, result: res({ resultText: 'why' }) }).text).toBe('The spec could not be read after the run. Claude said: why');
+    expect(end({ result: res({ resultText: 'why' }), after: spec({ done: [true] }) }).text).toBe('No subtasks are left, but the spec is not in Review. Claude said: why');
+  });
+
+  it.each([
+    ['new question, refusal, not in Review', spec(), spec({ open: ['Q3'] }), [bash('ls')], 'needs'],
+    ['new question, refusal, in Review', spec(), spec({ status: 'review', open: ['Q3'] }), [bash('ls')], 'needs'],
+    ['a question that was already open, refusal', spec({ open: ['Q1'] }), spec({ open: ['Q1'] }), [bash('ls')], 'permission'],
+    ['no question, refusal', spec(), spec(), [bash('ls')], 'permission'],
+    ['an old question answered, a new one added, refusal', spec({ open: ['Q1'] }), spec({ open: ['Q2'] }), [bash('ls')], 'needs'],
+    ['new question, no refusal', spec(), spec({ open: ['Q3'] }), [], 'needs'],
+  ] as const)('I3: %s', (_name, before, after, denials, status) => {
+    const e = end({ before, after, result: res({ denials: [...denials] }) });
+    expect(e.status).toBe(status);
+    if (status === 'needs') {
+      expect(e.fix).toBeUndefined();
+      if (denials.length > 0) expect(e.text).toMatch(/refused 1 action/);
+    }
+  });
+
+  it('I3: keeps ruling R1, so other kinds still end permission with a new question', () => {
+    const e = end({ kind: 'write-up', before: spec(), after: spec({ open: ['Q3'] }), result: res({ denials: [bash('ls')] }) });
+    expect(e.status).toBe('permission');
+  });
+});
+
+describe('the rules never offered', () => {
+  it.each([
+    'find . -name x', 'awk 1 a', 'gawk 1 a', 'sed -n 1p a', 'make all', 'xargs ls',
+    'git config core.pager x', 'git rebase -i x', 'git bisect run x', 'git filter-branch x', 'git submodule foreach x',
+    'go run x', 'cargo run', 'uv run x', 'poetry run x', 'dotnet run', 'docker run x', 'docker exec x y', 'kubectl exec x',
+  ])('%s', (command) => {
+    expect(suggestRule(bash(command))).toBeNull();
+    expect(end({ result: res({ denials: [bash(command)] }), after: spec() }).fix).toBeUndefined();
+  });
+
+  it('still offers an ordinary command', () => {
+    expect(suggestRule(bash('git status'))).toBe('Bash(git status:*)');
+    expect(suggestRule(bash('ls -la'))).toBe('Bash(ls:*)');
+  });
+});
+
+describe('denials on the wire', () => {
+  it('carry only what is shown, clipped, though the rule comes from the whole command', () => {
+    const write: Denial = { tool: 'Write', input: { file_path: 'C:\\a\\b.txt', content: 'secret '.repeat(10000) } };
+    const longCmd: Denial = { tool: 'Bash', input: { command: `npm install ${'x'.repeat(5000)}`, description: 'd' } };
+    const e = end({ result: res({ denials: [write, longCmd] }), after: spec() });
+    expect(e.denied![0]).toEqual({ tool: 'Write', input: { file_path: 'C:\\a\\b.txt' } });
+    const cmd = (e.denied![1]!.input as { command: string }).command;
+    expect(cmd.length).toBeLessThanOrEqual(500);
+    expect(cmd.startsWith('npm install x')).toBe(true);
+    expect(e.denied![1]!.input).not.toHaveProperty('description');
+    expect(e.fix).toBe('specboard allow "Bash(npm install:*)"');
+    expect(JSON.stringify(e)).not.toContain('secret');
+    const finished = end({ result: res({ denials: [write] }) });
+    expect(JSON.stringify(finished)).not.toContain('secret');
+  });
+});

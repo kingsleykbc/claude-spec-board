@@ -23,6 +23,22 @@ describe('RunButton', () => {
     expect(onStop).toHaveBeenCalled();
   });
 
+  it('held back: says why, and the button starts nothing', () => {
+    const onRun = vi.fn();
+    render(<RunButton id="T-104" state="ready" hold="Draft. Have Claude write this up first." onRun={onRun} onStop={() => undefined} />);
+    expect(screen.getByText('Draft. Have Claude write this up first.')).toBeTruthy();
+    const button = screen.getByRole('button', { name: /Tell Claude to start/ }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    fireEvent.click(button);
+    expect(onRun).not.toHaveBeenCalled();
+  });
+
+  it('a hold changes nothing while running', () => {
+    render(<RunButton id="T-104" state="running" hold="Blocked." onRun={() => undefined} onStop={() => undefined} />);
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeTruthy();
+    expect(screen.queryByText('Blocked.')).toBeNull();
+  });
+
   it('disabled: says which spec Claude is working on', () => {
     render(<RunButton id="T-104" state="disabled" runningId="T-103" onRun={() => undefined} onStop={() => undefined} />);
     expect(screen.getByText('Claude is already working on T-103')).toBeTruthy();

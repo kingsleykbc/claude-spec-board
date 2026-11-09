@@ -726,3 +726,43 @@ describe('claudeStatus', () => {
     expect(run).toHaveBeenCalledTimes(4);
   });
 });
+
+describe('claudeStatus after a negative answer', () => {
+  const up = '{"loggedIn":true}';
+  const down = '{"loggedIn":false}';
+
+  it('a Run re-checks once: a login inside the 30 s cache is not refused', async () => {
+    let auth = down;
+    const run = vi.fn(async (args: string[]) => ({ code: 0, stdout: args[0] === '--version' ? '2.1.302\n' : auth }));
+    const status = makeClaudeStatus(run, () => 1000);
+    expect((await status()).loggedIn).toBe(false);
+    auth = up;
+    expect((await status()).loggedIn).toBe(false); // a plain read keeps the cache
+    expect(run).toHaveBeenCalledTimes(2);
+    expect((await status({ recheckIfDown: true })).loggedIn).toBe(true);
+    expect(run).toHaveBeenCalledTimes(4);
+    expect((await status()).loggedIn).toBe(true); // and the better answer is what is remembered
+    expect(run).toHaveBeenCalledTimes(4);
+  });
+
+  it('does not re-check a positive answer, or one it has only just fetched', async () => {
+    const good = vi.fn(async (args: string[]) => ({ code: 0, stdout: args[0] === '--version' ? '2.1.302\n' : up }));
+    const a = makeClaudeStatus(good, () => 1000);
+    await a();
+    await a({ recheckIfDown: true });
+    expect(good).toHaveBeenCalledTimes(2);
+    const bad = vi.fn(async (args: string[]) => ({ code: 0, stdout: args[0] === '--version' ? '2.1.302\n' : down }));
+    const b = makeClaudeStatus(bad, () => 1000);
+    expect((await b({ recheckIfDown: true })).loggedIn).toBe(false);
+    expect(bad).toHaveBeenCalledTimes(2);
+  });
+
+  it('a manager asks for that re-check when it starts a run', async () => {
+    const entry = await makeProject();
+    const status = vi.fn(async () => OK_STATUS);
+    const { m } = manager('success', { status });
+    const started = await m.start(entry, 'run', 'T-001');
+    await ended(started.id);
+    expect(status).toHaveBeenCalledWith({ recheckIfDown: true });
+  });
+});

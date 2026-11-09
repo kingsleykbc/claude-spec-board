@@ -1,4 +1,4 @@
-import type { Status, Urgency } from '@specboard/core';
+import type { Spec, Status, Urgency } from '@specboard/core';
 
 // View-model helpers copied from the prototype (docs/design/Spec Board.dc.html, lines 495-509).
 
@@ -134,4 +134,36 @@ export function relPath(root: string, p: string): string {
   const f = norm(p);
   if (r !== '' && f.toLowerCase().startsWith(r.toLowerCase() + '/')) return f.slice(r.length + 1);
   return f;
+}
+
+export interface BlockText {
+  key: string;
+  text: string;
+  section: 'questions' | 'dependencies';
+}
+
+/** The reasons a spec is blocked, as its banner words them (pinned behaviour 8). `all` includes archived specs. */
+export function blockTexts(spec: Spec, all: Spec[]): BlockText[] {
+  const reasons: BlockText[] = [];
+  const open = spec.questions.filter((q) => q.answer === null || q.answer === '');
+  if (open.length > 0) {
+    reasons.push({ key: 'q', text: `Awaiting answers on: ${open.map((q) => truncate(q.text, 40)).join(', ')}`, section: 'questions' });
+  }
+  for (const dep of spec.dependsOn) {
+    const d = all.find((x) => x.id === dep);
+    let text: string;
+    if (dep === spec.id) text = 'Depends on itself';
+    else if (!d) text = `${dep} not found`;
+    else if (!d.archived && d.status !== 'done') text = `Waiting on ${d.id} ${d.title} (${ST[d.status].label})`;
+    else continue;
+    reasons.push({ key: `dep:${dep}`, text, section: 'dependencies' });
+  }
+  return reasons;
+}
+
+/** Why Run shouldn't start this spec yet, or null. Only the board holds back: the server would still start it. */
+export function runHold(spec: Spec, all: Spec[]): string | null {
+  if (spec.draft) return 'Draft. Have Claude write this up first.';
+  const first = blockTexts(spec, all)[0];
+  return first ? `Blocked. ${first.text}` : null;
 }

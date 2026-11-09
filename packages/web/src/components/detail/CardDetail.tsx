@@ -3,7 +3,7 @@ import type { Spec, Status, Urgency } from '@specboard/core';
 import { api, ConflictError, type SpecWrite } from '../../api/client';
 import { OFFLINE_TOAST, type Mutate } from '../../state/actions';
 import type { PushToast } from '../../state/toasts';
-import { relPath, ST, truncate } from '../../lib/vm';
+import { blockTexts, relPath, runHold } from '../../lib/vm';
 import { ConflictDialog } from '../ConflictDialog';
 import { Modal } from '../Modal';
 import { useDiscardGuard } from '../useDiscardGuard';
@@ -245,24 +245,7 @@ function SpecDetail({
   };
 
   // Blocked reasons (pinned behaviour 8).
-  const reasons: BlockReason[] = [];
-  const open = spec.questions.filter((q) => q.answer === null || q.answer === '');
-  if (open.length > 0) {
-    reasons.push({
-      key: 'q',
-      text: `Awaiting answers on: ${open.map((q) => truncate(q.text, 40)).join(', ')}`,
-      onClick: () => scrollTo('questions'),
-    });
-  }
-  for (const dep of spec.dependsOn) {
-    const d = all.find((x) => x.id === dep);
-    let text: string;
-    if (dep === id) text = 'Depends on itself';
-    else if (!d) text = `${dep} not found`;
-    else if (!d.archived && d.status !== 'done') text = `Waiting on ${d.id} ${d.title} (${ST[d.status].label})`;
-    else continue;
-    reasons.push({ key: `dep:${dep}`, text, onClick: () => scrollTo('dependencies') });
-  }
+  const reasons: BlockReason[] = blockTexts(spec, all).map((r) => ({ key: r.key, text: r.text, onClick: () => scrollTo(r.section) }));
 
   const allCategories = [...new Set(all.flatMap((x) => x.categories))];
   const problem = spec.problems[0];
@@ -285,6 +268,7 @@ function SpecDetail({
           allCategories={allCategories}
           runState={runState}
           runningId={runningId}
+          runHold={runHold(spec, all)}
           onRun={onRun}
           onStop={onStop}
           onStatus={(k) => void onMove(spec, k)}

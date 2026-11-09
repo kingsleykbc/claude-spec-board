@@ -6,6 +6,7 @@ export type RunStatus = 'running' | 'finished' | 'stopped' | 'needs' | 'permissi
 export interface EndInfo { status: RunStatus; title?: string; text?: string; fix?: string; denied?: Denial[] }
 
 const AUTH = /authenticate|logged in|\/login/i;
+const CLIP_AT = 500;
 
 // ---------- rules ----------
 
@@ -23,7 +24,12 @@ export const NEVER_PREFIX = new Set([
 /** Lowercase, without trailing dots or a Windows executable extension: GIT, git.exe, git.cmd and `git.` are all git. */
 export const normProg = (p: string): string => p.toLowerCase().replace(/\.+$/, '').replace(/\.(?:exe|cmd|bat|com)$/, '');
 /** Prefixes that can run or configure arbitrary things: never offered by the UI; a person may still type them. */
-const NO_OFFER = new Set(['git config', 'npm exec', 'pnpm dlx', 'pnpm exec', 'yarn dlx', 'npx', 'pnpx', 'bunx']);
+const NO_OFFER = new Set([
+  'git config', 'git rebase', 'git bisect', 'git filter-branch', 'git submodule', 'git difftool', 'git mergetool',
+  'npm exec', 'pnpm dlx', 'pnpm exec', 'yarn dlx', 'yarn exec', 'npx', 'pnpx', 'bunx',
+  'go run', 'cargo run', 'dotnet run', 'uv run', 'poetry run', 'docker run', 'docker exec', 'kubectl exec',
+  'find', 'awk', 'gawk', 'mawk', 'nawk', 'sed', 'gsed', 'make', 'gmake', 'nmake', 'xargs',
+]);
 /** Interpreters may be allowed by a person who types the rule, but are never offered by the UI. */
 const INTERPRETER = /^(?:node|python[0-9.]*|pypy[0-9.]*|ruby|perl|php|deno|bun)$/;
 const FILE_TOOLS = new Set(['Read', 'Glob', 'Grep', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
@@ -192,6 +198,23 @@ function lastLine(s: string): string {
   return lines[lines.length - 1] ?? '';
 }
 
+/** A denial as clients get it: what is shown, not a whole file's contents. Rules are worked out before this. */
+function forWire(d: Denial): Denial {
+  const inp = (d.input ?? {}) as { command?: unknown; file_path?: unknown };
+  const input: Record<string, string> = {};
+  if (typeof inp.command === 'string') input.command = clipped(inp.command);
+  if (typeof inp.file_path === 'string') input.file_path = clipped(inp.file_path);
+  return { tool: d.tool, input };
+}
+
+const clipped = (s: string): string => (s.length > CLIP_AT ? s.slice(0, CLIP_AT - 1) + '…' : s);
+
+/** What Claude said it stopped for: the board's own wording can't know that. */
+function claudeSaid(result: ClaudeResult): string {
+  const said = result.resultText.replace(/\s+/g, ' ').trim();
+  return said === '' ? '' : ` Claude said: ${clipped(said)}`;
+}
+
 function permissionEnd(denials: Denial[], deny: string[]): EndInfo {
   const fixable: string[] = [];
   const blocked: Denial[] = [];
@@ -201,7 +224,7 @@ function permissionEnd(denials: Denial[], deny: string[]): EndInfo {
     else if (!fixable.includes(rule)) fixable.push(rule);
   }
   const names = (ds: Denial[]) => [...new Set(ds.map(describe))].join(', ');
-  const info: EndInfo = { status: 'permission', title: 'Claude needs permission', denied: denials };
+  const info: EndInfo = { status: 'permission', title: 'Claude needs permission', denied: denials.map(forWire) };
   if (fixable.length === 0) {
     info.text = `Claude was stopped from using ${names(denials)}. This action is blocked by this project's rules.`;
     return info;
@@ -217,7 +240,7 @@ function permissionEnd(denials: Denial[], deny: string[]): EndInfo {
 function withRefusals(info: EndInfo, denials: Denial[]): EndInfo {
   if (denials.length === 0) return info;
   const line = `Claude was refused ${denials.length === 1 ? '1 action' : `${denials.length} actions`} on the way. Check the result before moving this to Done.`;
-  return { ...info, denied: denials, text: info.text ? `${info.text} ${line}` : line };
+  return { ...info, denied: denials.map(forWire), text: info.text ? `${info.text} ${line}` : line };
 }
 
 export function classifyEnd(input: ClassifyInput): EndInfo {
@@ -236,30 +259,29 @@ export function classifyEnd(input: ClassifyInput): EndInfo {
   }
 
   const afterInReview = after?.status === 'review';
+  const unanswered = (s: SpecDoc | null) => (s?.questions ?? []).filter((q) => q.answer === null);
+  const wasOpen = new Set(unanswered(before).map((q) => q.id));
+  const open = unanswered(after);
+  const needs = () => withRefusals({
+    status: 'needs',
+    title: 'Claude has a question',
+    text: open.length === 1 ? 'There is 1 unanswered question on this spec.' : `There are ${open.length} unanswered questions on this spec.`,
+  }, result.denials);
+
+  // The skill adds no question for a refusal, so a new question is a real decision: it comes before any refusal.
+  if (kind === 'run' && open.some((q) => !wasOpen.has(q.id))) return needs();
   if (result.denials.length > 0 && !afterInReview) return permissionEnd(result.denials, input.denyRules ?? []);
 
   if (kind !== 'run') return withRefusals({ status: 'finished' }, result.denials);
 
-  const unanswered = (s: SpecDoc | null) => (s?.questions ?? []).filter((q) => q.answer === null);
-  const wasOpen = new Set(unanswered(before).map((q) => q.id));
-  const open = unanswered(after);
-  if (open.some((q) => !wasOpen.has(q.id)) || (open.length > 0 && !afterInReview)) {
-    return withRefusals({
-      status: 'needs',
-      title: 'Claude has a question',
-      text: open.length === 1 ? 'There is 1 unanswered question on this spec.' : `There are ${open.length} unanswered questions on this spec.`,
-    }, result.denials);
-  }
+  if (open.length > 0 && !afterInReview) return needs();
   if (afterInReview) return withRefusals({ status: 'finished' }, result.denials);
 
   const left = (after?.subtasks ?? []).filter((t) => !t.done).map((t) => t.n);
-  return {
-    status: 'error',
-    title: 'Claude stopped before finishing',
-    text: !after
-      ? 'The spec could not be read after the run.'
-      : left.length > 0
-        ? `Subtasks left: ${left.join(', ')}.`
-        : 'No subtasks are left, but the spec is not in Review.',
-  };
+  const why = !after
+    ? 'The spec could not be read after the run.'
+    : left.length > 0
+      ? `Subtasks left: ${left.join(', ')}.`
+      : 'No subtasks are left, but the spec is not in Review.';
+  return { status: 'error', title: 'Claude stopped before finishing', text: why + claudeSaid(result) };
 }

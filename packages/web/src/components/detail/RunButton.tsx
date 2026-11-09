@@ -8,6 +8,8 @@ export interface RunButtonProps {
   state: RunState;
   /** The spec Claude is working on, for the disabled note; null while it refreshes the overview. */
   runningId?: string | null;
+  /** Why this spec shouldn't start yet (blocked or a draft), so no usage is spent finding out. */
+  hold?: string | null;
   onRun: () => void;
   onStop: () => void;
 }
@@ -17,7 +19,7 @@ export const COPIED_MS = 2600;
 export const COPY_FAILED_MS = 6000;
 
 /** The header's Run control in its four states (prototype lines 128-131, 679-683). */
-export function RunButton({ id, state, runningId, onRun, onStop }: RunButtonProps) {
+export function RunButton({ id, state, runningId, hold, onRun, onStop }: RunButtonProps) {
   const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const alive = useRef(true);
@@ -91,6 +93,16 @@ export function RunButton({ id, state, runningId, onRun, onStop }: RunButtonProp
         )}
         <button type="button" className={s.copy} data-copied={copied} onClick={doCopy}>
           {copied ? '✓ Copied: paste it into Claude Code' : '⧉ Copy command'}
+        </button>
+      </>
+    );
+  }
+  if (hold) {
+    return (
+      <>
+        <span className={s.runNote} title={hold}>{hold}</span>
+        <button type="button" className={s.runOff} disabled title={hold}>
+          <span className={s.play}>▶</span>Tell Claude to start
         </button>
       </>
     );

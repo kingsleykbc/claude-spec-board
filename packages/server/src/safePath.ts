@@ -13,6 +13,23 @@ function inside(root: string, file: string): boolean {
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
+/** True when `child` is `parent` or anything under it. Both should already be absolute. */
+export function isWithin(parent: string, child: string): boolean {
+  const rel = path.relative(parent, child);
+  return rel === '' || (rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel));
+}
+
+/** The real path of `p`; for one that doesn't exist yet, the real path of its deepest existing ancestor plus the rest. */
+export function realPathLoose(p: string): string {
+  const abs = path.resolve(p);
+  try {
+    return fs.realpathSync(abs);
+  } catch {
+    const parent = path.dirname(abs);
+    return parent === abs ? abs : path.join(realPathLoose(parent), path.basename(abs));
+  }
+}
+
 /**
  * Resolve a project-relative `.md` path to an absolute one, or throw PathError.
  * Rejects absolute, drive-letter, UNC and NUL paths, anything escaping `root`

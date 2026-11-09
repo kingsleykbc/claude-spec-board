@@ -5,6 +5,7 @@ import { applyTheme, initialTheme, type Theme } from './lib/theme';
 import { createSpecActions, OFFLINE_TOAST } from './state/actions';
 import { ESC, useEscape } from './lib/escape';
 import { interceptPop } from './lib/popGuard';
+import { runHold } from './lib/vm';
 import { categoryOptions, NO_FILTERS, waitItems, type Filters, type WaitItem } from './state/filters';
 import { createMutator } from './state/mutate';
 import { useToasts, type PushToast } from './state/toasts';
@@ -328,7 +329,11 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
                         onDismiss={() => void dismissRun()}
                         onAction={(a) => {
                           if (a === 'question') goToQuestions();
-                          else if (a === 'rerun') void startRun(shownRun.kind, openId);
+                          else if (a === 'rerun') {
+                            const hold = shownRun.kind === 'run' && openDoc ? runHold(openDoc, [...specs, ...archived]) : null;
+                            if (hold) toast('warn', `${openId} can’t start yet`, hold);
+                            else void startRun(shownRun.kind, openId);
+                          }
                         }}
                       />
                     ),

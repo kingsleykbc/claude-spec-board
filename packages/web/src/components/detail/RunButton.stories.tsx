@@ -66,3 +66,15 @@ export const CopyFailed: Story = {
     expect(note.textContent).toBe('Copy failed: run claude "/run-spec T-104"');
   },
 };
+
+export const HeldBack: Story = {
+  args: { hold: 'Blocked. Awaiting answers on: No. of versions' },
+  play: async ({ canvasElement, args }) => {
+    const c = within(canvasElement);
+    expect(c.getByText('Blocked. Awaiting answers on: No. of versions')).toBeTruthy();
+    const button = c.getByRole('button') as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    await userEvent.click(button);
+    expect(args.onRun).not.toHaveBeenCalled();
+  },
+};

@@ -31,7 +31,7 @@ Still open:
 These were checked by reading the code and by whether M3 touched the files; none was re-run.
 
 ## New from the real-run check (Task 9)
-- **Remove the pre-publish wording in M4.** `packages/web/src/lib/prePublish.ts` holds the "Until Spec Board is published" text for the panel and the toast. Delete it once `specboard` is on the PATH, along with the matching sentence in `documentation.md` section 9. Server messages (`NotApprovedError`, `start.ts`, `setup.ts`) and `end.fix` already say `specboard ...`, and become correct then.
+- **Remove the pre-publish wording in M4.** `packages/web/src/lib/prePublish.ts` holds the "Until Spec Board is published" text for the panel and the toast, and `packages/server/src/prePublish.ts` holds it for CLI output (`start.ts`, `setup.ts`, including the `npm run board` line `init` ends with). Delete both once `specboard` is on the PATH, along with the matching sentence in `documentation.md` section 9 and its "Try it" section's commands. `NotApprovedError` (only the web's toast wording reaches the person) and `end.fix` already say `specboard ...`, and become correct then.
 - **Still to do by hand: a real typed `allow` in a terminal and a forced edit conflict during a real run.** The manual check marks both PARTIAL.
 - The hostile test's MCP marker has no positive control: the marker command is proven to work, but nothing shows the `ghost` server would start and write it outside an isolated run. (`m3-hook-probe.md` shows project MCP servers load by default, with a server that doesn't exist.)
 - Rule 3's "ad-hoc scripts" is ambiguous now that a command the spec names may be tried: a spec could name a script. The permission list still decides.
@@ -46,12 +46,12 @@ These were checked by reading the code and by whether M3 touched the files; none
 - `npm run test:claude` costs about $1.10 to $1.25 by the CLI's own figure on the default model, and takes about 5 minutes. A cheaper fixture would help if it is run often.
 
 ## Permissions and rule checks
-- **Task 4 M2 and M3, flagged for final review:** the deny floor is checked per entry, so a hand-edited `Bash(*)` in `permissions.json` needs a closer look. `init ~` or a `SPECBOARD_HOME` inside a project lets `Write(./**)` edit `permissions.json`, and an empty `SPECBOARD_HOME` resolves to the cwd (`??` vs `||`).
+- **Task 4 M2 and M3, flagged for final review:** the deny floor is checked per entry, so a hand-edited `Bash(*)` in `permissions.json` needs a closer look.
 - `matchesDeny` misses path variants like `Write(.claude/**)` (the runtime deny still wins). It treats narrower paths as non-overlap (`Write(./.git/hooks/x)`): the runtime deny should win, but that combination is unprobed.
 - A wildcard inside the program word (`g*t push`) isn't caught in deny. First-word normalisation also applies to non-shell specs (safe direction).
-- Launchers (`npm exec`, `pnpm dlx` and similar) were noted as still getting a prefix rule; recheck, since `start` and `call` have since joined `NEVER_PREFIX`. `Bash(rmdir/find/awk/npm:*)` pass the gate. Non-shell tools accept any capitalised word (`Foo`). Bare `Glob` is still accepted by `allow`.
+- Launchers (`npm exec`, `pnpm dlx` and similar) were noted as still getting a prefix rule; recheck, since `start` and `call` have since joined `NEVER_PREFIX`. Typed `Bash(find/awk/npm:*)` still pass the gate (a human's call), though the board no longer offers `find` or `awk`. Non-shell tools accept any capitalised word (`Foo`). Bare `Glob` is still accepted by `allow`.
 - A hyphenated MCP tool name gives a null rule and falsely says "blocked by this project's rules". The offered rule for a compound command is a guess at the denied segment.
-- The home expression is duplicated in `setup.ts` and `start.ts`; tool sets are repeated from `classify.ts`.
+- Tool sets are repeated from `classify.ts`.
 - `mergeClaudeSettings` always rewrites; a BOM gives a misleading error. A malformed `permissions.json` is checked late. A stale allow during the prompt. No cross-process lock (accepted). Rules removed by deny vanish silently and the refusal text is inexact. `set`/`addAllow` store rules untrimmed. The `assertNoLinks` check has a TOCTOU window (accepted).
 - "Dropping earlier rule" prints before the prompt. A dropped rule stays in `.claude/settings.json`. Skills install before the `.specboard` link check.
 - `init` silently loses a hand-added deny rule that fails the check (a notice is logged).
@@ -87,6 +87,17 @@ These were checked by reading the code and by whether M3 touched the files; none
 
 ## Facts doc
 - `Skill` tool_use in "Names seen" has no fixture. A doubled `<` in the powershell-denied sanitiser. Windows path-matching coverage is thin. The Q4 observations have no repro script. The `recommended` row describes rules in words, not JSON. The powershell-readonly wording "told to use it" isn't visible in the fixture.
+
+## From the final review, left for later
+- Whether `--setting-sources ""` drops a person's `model` setting. Not verified; `documentation.md` section 9 says so too.
+- Whether a claude.ai connector call is refused in a run. Try `--strict-mcp-config`.
+- No named test or fixture for a usage limit: it goes down the generic `isError` path.
+- `HEAD~1` on a first commit, and subtask titles with `"` or `$` in commit messages: probe a `$(...)` title.
+- **Before the M4 publish: clean the personal handle from git history.** It was removed from `m3-claude-facts.md` in the working tree only. Rewriting history is the owner's decision.
+- From Task 9, not verified: a real interactive `/run-spec`, a real npm `claude.cmd` (now also started by absolute path through `cmd.exe`), the logged-out skip path, connectors, an already-trusted folder.
+- `childEnv` turns off the current-folder search for a run on Windows, but a `.` or relative entry in the person's own PATH is passed through as it is. A `claude.cmd` shim calling `node` could still find a repo's `node.cmd` through one. Decide whether to clean PATH for the child.
+- `init` warns about a missing `.git` at the folder itself, so a project in a subfolder of a repo gets the warning too (its wording allows for that).
+- A refresh's permission rule shows only in its toast, for 4.5 s. The Overview modal could keep it on screen.
 
 ## Closed by Task 9
 - Streamed `run-line` carries `subtask`: confirmed in the real test (`[1, 2]`) and on the page.

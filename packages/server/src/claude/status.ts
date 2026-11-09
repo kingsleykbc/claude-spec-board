@@ -1,8 +1,13 @@
 import spawn from 'cross-spawn';
-import treeKill from 'tree-kill';
+import { killTree, resolveCommand } from './resolve.js';
 
 export interface ClaudeStatus { installed: boolean; loggedIn: boolean; version: string | null }
 export type ClaudeRunner = (args: string[]) => Promise<{ code: number | null; stdout: string }>;
+/** `recheckIfDown`: don't trust a remembered "not installed" or "not logged in"; the person may have just fixed it. */
+export type ClaudeStatusCheck = (opts?: { recheckIfDown?: boolean }) => Promise<ClaudeStatus>;
+
+/** While set, Windows and cmd.exe don't look in the current folder for a bare command: a `node.cmd` a repo ships, when a `claude.cmd` shim calls `node`. */
+const NO_CWD_SEARCH = 'NoDefaultCurrentDirectoryInExePath';
 
 const CACHE_MS = 30_000;
 const COMMAND_TIMEOUT_MS = 20_000;
@@ -29,18 +34,26 @@ function isSessionVar(key: string): boolean {
 export function childEnv(): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
   for (const [k, v] of Object.entries(process.env)) {
-    if (!isSessionVar(k.toUpperCase())) env[k] = v;
+    const upper = k.toUpperCase();
+    if (!isSessionVar(upper) && upper !== NO_CWD_SEARCH.toUpperCase()) env[k] = v;
   }
+  if (process.platform === 'win32') env[NO_CWD_SEARCH] = '1';
   return env;
 }
 
-const runClaude: ClaudeRunner = (args) =>
+/** Runs `name` by the absolute path we found, never a bare name, so whatever folder the server started in can't supply it. */
+export const commandRunner = (name: string, env: NodeJS.ProcessEnv = process.env): ClaudeRunner => (args) =>
   new Promise((resolve, reject) => {
-    const child = spawn('claude', args, { env: childEnv(), stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
+    const bin = resolveCommand(name, { PATH: env.PATH, PATHEXT: env.PATHEXT });
+    if (bin === null) {
+      reject(new Error(`${name} not found`));
+      return;
+    }
+    const child = spawn(bin, args, { env: childEnv(), stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
     let stdout = '';
     const timer = setTimeout(() => {
-      if (child.pid !== undefined) treeKill(child.pid, 'SIGKILL', () => undefined);
-      reject(new Error(`claude ${args.join(' ')} timed out`));
+      if (child.pid !== undefined) killTree(child.pid, 'SIGKILL');
+      reject(new Error(`${name} ${args.join(' ')} timed out`));
     }, COMMAND_TIMEOUT_MS);
     child.stdout!.on('data', (d: Buffer) => (stdout += d.toString('utf8')));
     child.on('error', (e) => {
@@ -80,13 +93,17 @@ async function check(run: ClaudeRunner): Promise<ClaudeStatus> {
 }
 
 /** A status check that never throws, remembers its answer for 30 s and shares a check already in progress. */
-export function makeClaudeStatus(run: ClaudeRunner, now: () => number = Date.now): () => Promise<ClaudeStatus> {
+export function makeClaudeStatus(run: ClaudeRunner, now: () => number = Date.now): ClaudeStatusCheck {
   let cached: { at: number; status: Promise<ClaudeStatus> } | null = null;
-  return () => {
-    if (!cached || now() - cached.at >= CACHE_MS) cached = { at: now(), status: check(run) };
-    return cached.status;
+  const refresh = () => (cached = { at: now(), status: check(run) });
+  return async (opts) => {
+    const stale = !cached || now() - cached.at >= CACHE_MS;
+    const entry = stale ? refresh() : cached!;
+    const status = await entry.status;
+    if (!opts?.recheckIfDown || stale || (status.installed && status.loggedIn)) return status;
+    return (cached === entry ? refresh() : cached!).status; // someone else may have re-checked meanwhile
   };
 }
 
 /** `claude --version` and `claude auth status`. */
-export const claudeStatus = makeClaudeStatus(runClaude);
+export const claudeStatus = makeClaudeStatus(commandRunner('claude'));

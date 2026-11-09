@@ -135,7 +135,7 @@ describe('start', () => {
     const empty = path.join(tmp, 'empty');
     await fs.mkdir(empty);
     await expect(start({ path: empty, port: await freePort(), open: false })).rejects.toThrow(
-      `No .specboard folder in ${path.resolve(empty)}. Run "specboard init" to set it up.`,
+      `No .specboard folder in ${path.resolve(empty)}. Run \`specboard init\` in a terminal. Until Spec Board is published, run it from the Spec Board repo as \`npm run specboard -- init "${path.resolve(empty)}"\`.`,
     );
   });
 });

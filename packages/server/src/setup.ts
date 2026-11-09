@@ -5,18 +5,23 @@ import path from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { initProject } from '@specboard/core';
 import { matchesDeny, NEVER_PREFIX, normProg } from './claude/classify.js';
-import { assertNoLinks, installSkills } from './kit.js';
+import { assertNoLinks, installSkills, kitPluginDir } from './kit.js';
+import { boardCommand, initHint } from './prePublish.js';
 import { projectId, Registry } from './registry.js';
+import { isWithin, realPathLoose } from './safePath.js';
 
 export interface Permissions {
   allow: string[];
   deny: string[];
 }
 
-/** Directory holding `projects.json` and `permissions.json`: `$SPECBOARD_HOME`, else `~/.specboard`. */
+/** Directory holding `projects.json` and `permissions.json`, always absolute: `$SPECBOARD_HOME` if set and not empty, else `~/.specboard`. */
 export function specboardHome(): string {
-  return process.env.SPECBOARD_HOME ?? path.join(os.homedir(), '.specboard');
+  return path.resolve(process.env.SPECBOARD_HOME || path.join(os.homedir(), '.specboard'));
 }
+
+/** A home inside a project is inside its `Write(./**)`: a spec could tell Claude to add a rule, and the next run would have it. */
+const holdsFolder = (root: string, folder: string): boolean => isWithin(realPathLoose(root), realPathLoose(folder));
 
 const unique = (xs: string[]): string[] => [...new Set(xs)];
 
@@ -94,7 +99,7 @@ function permissionsProblem(p: Permissions): string | null {
 /** A stored approval that would no longer pass the rule checks. It is never used; `specboard init` repairs it. */
 export class InvalidApprovalError extends Error {
   constructor(problem: string) {
-    super(`The approved rules for this project can't be used: ${problem}. Run \`specboard init\` again.`);
+    super(`The approved rules for this project can't be used: ${problem}. ${initHint()}`);
     this.name = 'InvalidApprovalError';
   }
 }
@@ -204,8 +209,10 @@ export class ApprovedPermissions {
   /**
    * The approved lists for this project ID, or null if none, or if they were approved for a different folder.
    * Throws `InvalidApprovalError` if they would no longer pass the rule checks: the file may have been edited by hand.
+   * A file inside the project also reads as not approved: a run could have written it.
    */
   async get(pid: string, root: string): Promise<Permissions | null> {
+    if (holdsFolder(root, path.dirname(this.file))) return null;
     const p = await this.stored(pid, root);
     const problem = p && permissionsProblem(p);
     if (problem) throw new InvalidApprovalError(problem);
@@ -251,7 +258,7 @@ export class ApprovedPermissions {
     return this.serial(async () => {
       const all = await this.read();
       const entry = all[pid];
-      if (!entry || !sameRoot(entry.root, real)) throw new Error('This project is not approved yet. Run `specboard init` first.');
+      if (!entry || !sameRoot(entry.root, real)) throw new Error(`This project is not approved yet. ${initHint(root)}`);
       assertAllowable(rule, entry.deny);
       if (entry.allow.includes(rule)) return;
       all[pid] = { ...entry, allow: [...entry.allow, rule] };
@@ -325,7 +332,7 @@ export function approvedStore(): ApprovedPermissions {
 }
 
 export async function initCommand(
-  opts: { root: string; yes: boolean; forceSkills: boolean },
+  opts: { root: string; yes: boolean; forceSkills: boolean; kitDir?: string },
   io: SetupIO,
 ): Promise<{ approved: boolean; id: string }> {
   const root = path.resolve(opts.root);
@@ -333,6 +340,12 @@ export async function initCommand(
     throw new Error('specboard init asks you to approve permissions and needs a terminal. Run it in one, or pass --yes to approve the default list.');
   }
   if (!(await fs.stat(root).catch(() => null))?.isDirectory()) throw new Error(`${root} is not a folder.`);
+  if (holdsFolder(root, opts.kitDir ?? kitPluginDir())) {
+    throw new Error(`${root} is Spec Board's own repo, or holds it, and setting it up would let runs rewrite the kit. Name the project to set up: npm run specboard -- init <project path>`);
+  }
+  if (holdsFolder(root, specboardHome())) {
+    throw new Error(`Spec Board's approved list (${specboardHome()}) is inside this folder, so a run could change its own permissions. Set up a project folder that doesn't hold it, or point SPECBOARD_HOME somewhere else.`);
+  }
 
   // Skills first: if a link blocks the install, nothing else has changed yet.
   const skills = await installSkills(root, { force: opts.forceSkills });
@@ -346,6 +359,7 @@ export async function initCommand(
 
   for (const s of skills) io.log(`skill ${s.name}: ${s.action}`);
   if (skills.some((s) => s.action === 'skipped-modified')) io.log('Some skills were edited and kept. Use --force-skills to replace them.');
+  if (!(await exists(path.join(root, '.git')))) io.log(`Warning: no .git in ${root}. Runs commit per subtask and need a git repo, so run \`git init\` here unless this folder is inside one.`);
 
   const defaults = await defaultAllowList(root);
   const store = approvedStore();
@@ -372,13 +386,14 @@ export async function initCommand(
     if (previous) {
       io.log(`Existing approval is unchanged. To revoke it, delete the "${id}" entry from ${path.join(specboardHome(), 'permissions.json')}.`);
     } else {
-      io.log('Project set up, but runs are not approved. Run `specboard init` again to approve them.');
+      io.log(`Project set up, but runs are not approved. To approve them: ${initHint(root)}`);
     }
     return { approved: false, id };
   }
   await mergeClaudeSettings(root, { allow, deny }); // validates the project's settings before anything is approved
   await store.set(id, root, { allow, deny });
   io.log('Approved. Runs use only this list.');
+  io.log(`Next, from the Spec Board repo, open the board: ${boardCommand(root)}`);
   return { approved: true, id };
 }
 
@@ -388,7 +403,7 @@ export async function allowCommand(opts: { rule: string; root: string }, io: Set
   const id = projectId(root);
   const store = approvedStore();
   const entry = await store.get(id, root);
-  if (!entry) throw new Error(`${root} is not approved yet. Run \`specboard init\` first.`);
+  if (!entry) throw new Error(`${root} is not approved yet. ${initHint(root)}`);
   assertAllowable(rule, entry.deny);
   // This is the one way to widen what runs can do, so it always needs a person at a terminal: there is no --yes.
   if (!io.isTTY) throw new Error('specboard allow needs a terminal and your answer; it cannot run without one.');

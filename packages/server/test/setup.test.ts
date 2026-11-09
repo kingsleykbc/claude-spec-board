@@ -13,6 +13,7 @@ import {
   InvalidApprovalError,
   isValidRule,
   mergeClaudeSettings,
+  specboardHome,
   type SetupIO,
 } from '../src/setup.js';
 
@@ -24,7 +25,7 @@ let savedHome: string | undefined;
 
 beforeEach(async () => {
   tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'sb-setup-'));
-  home = path.join(tmp, 'home');
+  home = `${tmp}-home`; // beside the temp folder: tests use that folder as a project, and a home inside one is refused
   savedHome = process.env.SPECBOARD_HOME;
   process.env.SPECBOARD_HOME = home;
 });
@@ -32,6 +33,7 @@ afterEach(async () => {
   if (savedHome === undefined) delete process.env.SPECBOARD_HOME;
   else process.env.SPECBOARD_HOME = savedHome;
   await fs.rm(tmp, { recursive: true, force: true });
+  await fs.rm(home, { recursive: true, force: true });
 });
 
 async function project(name = 'proj', pkg?: object): Promise<string> {
@@ -547,5 +549,90 @@ describe('cli', () => {
     expect(r.status).toBe(1);
     expect(r.stderr).toMatch(/terminal/);
     expect((await readJson(approvedFile()))[projectId(root)].allow).not.toContain('Bash(npm run lint:*)');
+  });
+});
+
+describe('where the approved list may live', () => {
+  it('an empty SPECBOARD_HOME means the default home, and a relative one becomes absolute', () => {
+    process.env.SPECBOARD_HOME = '';
+    expect(specboardHome()).toBe(path.join(os.homedir(), '.specboard'));
+    process.env.SPECBOARD_HOME = 'rel-home';
+    expect(specboardHome()).toBe(path.resolve('rel-home'));
+  });
+
+  it('init refuses when the home is the folder or inside it, before writing anything', async () => {
+    const root = await project('outer');
+    for (const inner of [root, path.join(root, 'sub', 'home')]) {
+      process.env.SPECBOARD_HOME = inner;
+      await expect(init(root)).rejects.toThrow(/approved list .* inside this folder/);
+    }
+    expect(await fs.readdir(root)).toEqual([]);
+  });
+
+  it('init sees through a link to the home', async () => {
+    const root = await project('outer');
+    const link = path.join(tmp, 'link-to-outer');
+    await fs.symlink(root, link, 'junction'); // a junction needs no special rights on Windows; elsewhere a plain link
+    process.env.SPECBOARD_HOME = path.join(link, 'home');
+    await expect(init(root)).rejects.toThrow(/inside this folder/);
+  });
+
+  it('get() treats a list inside the project as not approved, and a look-alike sibling folder as fine', async () => {
+    const root = await project('proj');
+    const id = projectId(root);
+    const inside = new ApprovedPermissions(path.join(root, '.specboard', 'permissions.json'));
+    await inside.set(id, root, { allow: ['Read(./**)'], deny: [] });
+    expect(await inside.get(id, root)).toBeNull();
+    const sibling = new ApprovedPermissions(path.join(tmp, 'proj-home', 'permissions.json'));
+    await sibling.set(id, root, { allow: ['Read(./**)'], deny: [] });
+    expect(await sibling.get(id, root)).toEqual({ allow: ['Read(./**)'], deny: [] });
+  });
+});
+
+describe('first-time path', () => {
+  it('init ends with the board command', async () => {
+    const root = await project();
+    const i = io();
+    await initCommand({ root, yes: true, forceSkills: false }, i);
+    expect(i.out.at(-1)).toContain(`npm run board -- "${root}"`);
+  });
+
+  it('warns without .git and says why, but still sets up', async () => {
+    const root = await project();
+    const i = io();
+    await expect(initCommand({ root, yes: true, forceSkills: false }, i)).resolves.toMatchObject({ approved: true });
+    expect(i.out.join('\n')).toMatch(/commit per subtask.*git repo/);
+  });
+
+  it('does not warn with .git, a folder or a worktree file', async () => {
+    const dir = await project('a');
+    await fs.mkdir(path.join(dir, '.git'));
+    const file = await project('b');
+    await fs.writeFile(path.join(file, '.git'), 'gitdir: x\n');
+    for (const root of [dir, file]) {
+      const i = io();
+      await initCommand({ root, yes: true, forceSkills: false }, i);
+      expect(i.out.join('\n')).not.toMatch(/git repo/);
+    }
+  });
+
+  it('refuses Spec Board itself, or a folder holding it, and leaves it alone', async () => {
+    // A stand-in repo: if this check ever broke, a test against the real one would set up the real one.
+    const repo = await project('holder/fake-spec-board');
+    const kitDir = path.join(repo, 'packages', 'server', 'kit');
+    await fs.mkdir(kitDir, { recursive: true });
+    for (const root of [repo, path.dirname(repo)]) {
+      await expect(initCommand({ root, yes: true, forceSkills: false, kitDir }, io())).rejects.toThrow(/Spec Board's own/);
+    }
+    expect(await fs.readdir(repo)).toEqual(['packages']);
+    await expect(fs.access(path.join(home, 'projects.json'))).rejects.toThrow();
+  });
+
+  it('a not-approved answer and allow on an unapproved folder give the pre-publish command', async () => {
+    const root = await project();
+    const i = io({ answer: false });
+    await initCommand({ root, yes: false, forceSkills: false }, i);
+    expect(i.out.join('\n')).toContain(`npm run specboard -- init "${root}"`);
+    await expect(allowCommand({ rule: 'Bash(npm run lint:*)', root }, io())).rejects.toThrow(`npm run specboard -- init "${root}"`);
   });
 });
