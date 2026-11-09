@@ -1,0 +1,162 @@
+{
+  "shims": {
+    "A": {
+      "node_received_count": 13,
+      "node_identical": true,
+      "cmd_received_count": 13,
+      "cmd_identical": true,
+      "empty_arg_kept_node": false,
+      "empty_arg_kept_cmd": false,
+      "expected_count": 13,
+      "cmd_received_sanitised": [
+        "-p",
+        "/probe alpha42",
+        "--model",
+        "haiku",
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--permission-mode",
+        "dontAsk",
+        "--max-turns",
+        "8",
+        "--settings",
+        "{\"permissions\":{\"allow\":[\"Read(./**)\",\"Edit(./**)\",\"Write(./**)\"]}}"
+      ]
+    },
+    "B": {
+      "node_received_count": 17,
+      "node_identical": true,
+      "cmd_received_count": 17,
+      "cmd_identical": true,
+      "empty_arg_kept_node": true,
+      "empty_arg_kept_cmd": true,
+      "expected_count": 17,
+      "cmd_received_sanitised": [
+        "-p",
+        "/probe-plugin:probe alpha42",
+        "--model",
+        "haiku",
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--permission-mode",
+        "dontAsk",
+        "--max-turns",
+        "8",
+        "--settings",
+        "{\"permissions\":{\"allow\":[\"Read(./**)\",\"Edit(./**)\",\"Write(./**)\"]}}",
+        "--setting-sources",
+        "<EMPTY-STRING>",
+        "--plugin-dir",
+        "<TMP>\\probe-plugin"
+      ]
+    },
+    "B2": {
+      "node_received_count": 15,
+      "node_identical": true,
+      "cmd_received_count": 15,
+      "cmd_identical": true,
+      "empty_arg_kept_node": true,
+      "empty_arg_kept_cmd": true,
+      "expected_count": 15,
+      "cmd_received_sanitised": [
+        "-p",
+        "/probe alpha42",
+        "--model",
+        "haiku",
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--permission-mode",
+        "dontAsk",
+        "--max-turns",
+        "8",
+        "--settings",
+        "{\"permissions\":{\"allow\":[\"Read(./**)\",\"Edit(./**)\",\"Write(./**)\"]}}",
+        "--setting-sources",
+        "<EMPTY-STRING>"
+      ]
+    },
+    "C": {
+      "node_received_count": 13,
+      "node_identical": true,
+      "cmd_received_count": 13,
+      "cmd_identical": true,
+      "empty_arg_kept_node": false,
+      "empty_arg_kept_cmd": false,
+      "expected_count": 13,
+      "cmd_received_sanitised": [
+        "-p",
+        "/probe alpha42",
+        "--model",
+        "haiku",
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--permission-mode",
+        "dontAsk",
+        "--max-turns",
+        "8",
+        "--settings",
+        "{\"disableAllHooks\":true,\"permissions\":{\"allow\":[\"Read(./**)\",\"Edit(./**)\",\"Write(./**)\"]}}"
+      ]
+    }
+  },
+  "runs": {
+    "A": {
+      "exit": 0,
+      "listing_after": [
+        ".claude",
+        ".mcp.json",
+        "CLAUDE.md",
+        "notes.txt",
+        "out.txt",
+        "pre-marker.txt",
+        "session-marker.txt"
+      ],
+      "codeword_run_exit": 0,
+      "codeword_reply": "The codeword is **PINEAPPLE-7**. It's in the project's CLAUDE.md."
+    },
+    "B": {
+      "exit": 0,
+      "listing_after": [
+        ".claude",
+        ".mcp.json",
+        "CLAUDE.md",
+        "notes.txt",
+        "out.txt"
+      ],
+      "codeword_run_exit": 0,
+      "codeword_reply": "None. My instructions don't include a codeword."
+    },
+    "B2": {
+      "exit": 0,
+      "listing_after": [
+        ".claude",
+        ".mcp.json",
+        "CLAUDE.md",
+        "notes.txt"
+      ],
+      "codeword_run_exit": 0,
+      "codeword_reply": "None. My instructions don't contain a codeword."
+    },
+    "C": {
+      "exit": 0,
+      "listing_after": [
+        ".claude",
+        ".mcp.json",
+        "CLAUDE.md",
+        "notes.txt",
+        "out.txt"
+      ],
+      "codeword_run_exit": 0,
+      "codeword_reply": "The codeword is **PINEAPPLE-7**. It comes from the project's CLAUDE.md instructions."
+    }
+  },
+  "user_hooks": {
+    "has_hooks_key": false,
+    "event_names_count": 0,
+    "entries_count": 0
+  }
+}
