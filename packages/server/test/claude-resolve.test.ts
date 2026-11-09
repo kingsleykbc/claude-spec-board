@@ -139,8 +139,8 @@ describe('the launcher', () => {
     const ext = WIN ? '.cmd' : '';
     await fs.writeFile(path.join(bin, FAKE_NAME + ext), '', { mode: 0o755 });
     const lookup = { PATH: `${root}${path.delimiter}${bin}`, PATHEXT: '.CMD' };
-    expect(commandLauncher(FAKE_NAME, lookup)(['-p'], root)).toEqual({ bin: path.join(bin, FAKE_NAME + ext), args: ['-p'] });
-    const none = () => commandLauncher(FAKE_NAME, { PATH: root, PATHEXT: '.CMD' })(['-p'], root);
+    expect(commandLauncher(FAKE_NAME, lookup)(['-p'], [root])).toEqual({ bin: path.join(bin, FAKE_NAME + ext), args: ['-p'] });
+    const none = () => commandLauncher(FAKE_NAME, { PATH: root, PATHEXT: '.CMD' })(['-p'], [root]);
     expect(none).toThrow(ClaudeUnavailableError);
     expect(none).toThrow("isn't installed");
   });
@@ -169,6 +169,7 @@ describe('RunManager and the planted command', () => {
       const m = new RunManager({
         approved,
         status: async () => OK_STATUS,
+        roots: async () => [],
         command: commandLauncher(FAKE_NAME, { PATH: `${root};${bin}`, PATHEXT: '.CMD' }),
         emit: (_pid, e: RunEvent) => {
           if (e.type === 'run-ended') resolve(e.run);
@@ -186,7 +187,7 @@ describe('RunManager and the planted command', () => {
     vi.stubEnv('PATH', empty);
     const { entry, approved } = await project();
     const events: RunEvent[] = [];
-    const m = new RunManager({ approved, status: async () => OK_STATUS, emit: (_pid, e) => events.push(e) });
+    const m = new RunManager({ approved, status: async () => OK_STATUS, roots: async () => [], emit: (_pid, e) => events.push(e) });
     await expect(m.start(entry, 'run', 'T-001')).rejects.toBeInstanceOf(ClaudeUnavailableError);
     expect(events).toEqual([]);
     expect(m.current(entry.id)).toBeNull();

@@ -102,7 +102,6 @@ These were checked by reading the code and by whether M3 touched the files; none
 - The admin-share spelling `\\localhost\C$\...` of a project folder is not recognised as that folder, by the lookup, the child PATH or the home-inside-root check. The system's real path keeps it as a network path.
 - A file symlink in a PATH folder outside the project, pointing to a program inside it, is still picked: only the folder is checked, not the file found in it.
 - `setup.ts:343` refuses a project that holds the kit, so in M4 a project that installs Spec Board as a local dependency can't be set up. Decide before publishing.
-- A run looks up `claude` and builds its PATH with only its own project left out, while the status check leaves out all of them. With another registered project's folder on PATH, the check can say installed and the run then start that project's `claude.cmd`, and that folder stays on the run's PATH. Decide whether a run should leave out every registered project too.
 - The toast for a refused refresh shows the rule without `allowHint`, so it lacks the "run this from the Spec Board repo" wording the Run panel has.
 
 ## Closed by Task 9

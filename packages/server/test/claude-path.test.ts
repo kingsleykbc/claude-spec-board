@@ -5,9 +5,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { commandLauncher, RunManager, type RunEvent, type RunSnapshot } from '../src/claude/runs.js';
+import { runRoutes } from '../src/routes/runs.js';
 import { resolveCommand } from '../src/claude/resolve.js';
 import { childEnv, claudeStatus, commandRunner, makeClaudeStatus, registeredRoots, type ClaudeStatus } from '../src/claude/status.js';
-import { projectId, Registry, type ProjectEntry } from '../src/registry.js';
+import { projectId, Registry, RegistryUnreadableError, type ProjectEntry } from '../src/registry.js';
 import { realPathLoose } from '../src/safePath.js';
 import { ApprovedPermissions, initCommand, type SetupIO } from '../src/setup.js';
 
@@ -138,8 +139,10 @@ describe.runIf(WIN)('the status check and registered projects', () => {
     await expect(registeredRoots()).rejects.toThrow(/projects\.json/);
     const inner = commandRunner(FAKE_NAME, { PATH: scripts, PATHEXT }, registeredRoots);
     const run = vi.fn(inner);
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     expect(await makeClaudeStatus(run, () => 1000, registeredRoots)()).toEqual(DOWN);
     expect(run).not.toHaveBeenCalled();
+    expect(logged.mock.calls[0]![0]).toMatch(/Cannot read the project list.*projects\.json/);
     await expect(inner(['--version'])).rejects.toThrow(/projects\.json/);
     expect(await exists(planted)).toBe(false);
   });
@@ -265,7 +268,7 @@ describe('the child PATH', () => {
     await fs.writeFile(path.join(bin, `${FAKE_NAME}.cmd`), '@echo off\r\necho 9.9.9\r\n');
     const env = { Path: bin, PathExt: PATHEXT };
     expect((await commandRunner(FAKE_NAME, env, noRoots)(['--version'])).stdout).toContain('9.9.9');
-    expect(commandLauncher(FAKE_NAME, env)(['-p'], root).bin).toBe(path.join(bin, `${FAKE_NAME}.cmd`));
+    expect(commandLauncher(FAKE_NAME, env)(['-p'], [root]).bin).toBe(path.join(bin, `${FAKE_NAME}.cmd`));
   });
 
   describe.runIf(WIN)('a shim calling a bare command', () => {
@@ -319,6 +322,7 @@ describe('the child PATH', () => {
         const m = new RunManager({
           approved,
           status: async () => OK_STATUS,
+          roots: noRoots, // its own root is left out whatever the registry says
           command: commandLauncher(FAKE_NAME, { PATH: bin, PATHEXT }),
           emit: (_pid, e: RunEvent) => {
             if (e.type === 'run-ended') resolve(e.run);
@@ -328,6 +332,90 @@ describe('the child PATH', () => {
       });
       await expectOnlyFirstRan();
     });
+  });
+});
+
+describe.runIf(WIN)('a run and the other registered projects', () => {
+  let entry: ProjectEntry;
+  let approved: ApprovedPermissions;
+  let other: string;
+  let otherScripts: string;
+  let plantedRan: string;
+  let safeRan: string;
+
+  beforeEach(async () => {
+    unsetNoCwdVar();
+    const dir = path.join(root, '.specboard', 'specs', 'T-001-demo');
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, 'spec.md'), SPEC);
+    entry = { id: projectId(root), root, name: 'repo' } as ProjectEntry;
+    approved = new ApprovedPermissions(path.join(tmp, 'home', 'permissions.json'));
+    await approved.set(entry.id, root, { allow: ['Read(./**)'], deny: [] });
+
+    other = path.join(tmp, 'project-b');
+    otherScripts = path.join(other, '.venv', 'Scripts');
+    plantedRan = path.join(tmp, 'b-ran');
+    safeRan = path.join(tmp, 'safe-path-seen');
+    await fs.mkdir(otherScripts, { recursive: true });
+    // Named `claude`, but the lookup's PATH and the child's hold only temp folders, so these two files are all it can start.
+    await fs.writeFile(path.join(otherScripts, 'claude.cmd'), markerCmd(plantedRan));
+    await fs.writeFile(path.join(bin, 'claude.cmd'), `@echo off\r\necho %PATH%> "${safeRan}"\r\n`);
+    vi.stubEnv('PATH', [otherScripts, bin].join(D));
+  });
+
+  const runInA = (roots: () => Promise<string[]>): Promise<RunSnapshot> =>
+    new Promise((resolve) => {
+      const m = new RunManager({
+        approved,
+        roots,
+        status: async () => OK_STATUS,
+        command: commandLauncher('claude', { PATH: [otherScripts, bin].join(D), PATHEXT }),
+        emit: (_pid, e: RunEvent) => {
+          if (e.type === 'run-ended') resolve(e.run);
+        },
+      });
+      void m.start(entry, 'run', 'T-001');
+    });
+
+  it("does not start project B's claude.cmd, and B's folder is not on the child's PATH", async () => {
+    const file = path.join(tmp, 'home', 'projects.json');
+    await new Registry(file).add(other);
+    await runInA(() => new Registry(file).roots());
+    expect(await exists(plantedRan)).toBe(false);
+    const seen = (await fs.readFile(safeRan, 'utf8')).trim();
+    expect(seen).toBe(bin);
+  });
+
+  it('the control: with B not registered, its program is what starts', async () => {
+    await runInA(noRoots);
+    expect(await exists(plantedRan)).toBe(true);
+    expect(await exists(safeRan)).toBe(false);
+  });
+
+  it('an unreadable registry stops the run and says so, not "not installed", and starts nothing', async () => {
+    const roots = async (): Promise<string[]> => {
+      throw new RegistryUnreadableError('projects.json');
+    };
+    const events: RunEvent[] = [];
+    const m = new RunManager({
+      approved,
+      roots,
+      status: async () => DOWN,
+      command: commandLauncher('claude', { PATH: bin, PATHEXT }),
+      emit: (_pid, e) => events.push(e),
+    });
+    const refused = expect(m.start(entry, 'run', 'T-001')).rejects;
+    await refused.toBeInstanceOf(RegistryUnreadableError);
+    await refused.toThrow(/Cannot read the project list.*projects\.json/);
+    expect(events).toEqual([]);
+    expect(await exists(safeRan)).toBe(false);
+
+    const app = runRoutes({ registry: { get: async () => entry } as unknown as Registry, runs: m, approved, status: async () => DOWN });
+    const res = await app.request(`/api/projects/${entry.id}/runs`, { method: 'POST', body: JSON.stringify({ kind: 'run', specId: 'T-001' }), headers: { 'content-type': 'application/json' } });
+    expect(res.status).toBe(503);
+    const body = (await res.json()) as { error: string; claude?: string };
+    expect(body.error).toMatch(/Cannot read the project list/);
+    expect(body.claude).toBeUndefined();
   });
 });
 

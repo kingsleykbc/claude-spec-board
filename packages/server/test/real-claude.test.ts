@@ -7,7 +7,7 @@ import path from 'node:path';
 import { loadProject, type Spec } from '@specboard/core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RunManager, type RunEvent, type RunSnapshot } from '../src/claude/runs.js';
-import { claudeStatus } from '../src/claude/status.js';
+import { claudeStatus, registeredRoots } from '../src/claude/status.js';
 import type { RunKind } from '../src/claude/classify.js';
 import type { ProjectEntry } from '../src/registry.js';
 import { allowCommand, approvedStore, initCommand, type SetupIO } from '../src/setup.js';
@@ -148,6 +148,7 @@ describe.skipIf(!status?.loggedIn)('real claude runs', () => {
     runs = new RunManager({
       approved: approvedStore(),
       emit: (_pid, e) => events.push(e),
+      roots: registeredRoots,
       command: (args) => {
         lastCapture = path.join(tmp, `capture-${++captureNo}.jsonl`);
         captures.push({ label: '', file: lastCapture });

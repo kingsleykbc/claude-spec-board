@@ -5,7 +5,7 @@ import type { RunKind } from '../claude/classify.js';
 import { ClaudeUnavailableError, NotApprovedError, RunBusyError, type RunManager } from '../claude/runs.js';
 import type { ClaudeStatus } from '../claude/status.js';
 import { HttpError, onError, readJson } from '../http.js';
-import type { ProjectEntry, Registry } from '../registry.js';
+import { RegistryUnreadableError, type ProjectEntry, type Registry } from '../registry.js';
 import type { ApprovedPermissions } from '../setup.js';
 
 const KINDS: readonly RunKind[] = ['run', 'write-up', 'fix-file', 'refresh-overview'];
@@ -54,6 +54,7 @@ export function runRoutes(deps: RunRouteDeps): Hono {
       if (e instanceof RunBusyError) return c.json({ error: e.message, run: e.run }, 409);
       if (e instanceof NotApprovedError) return c.json({ error: e.message, setup: 'not-approved', command: 'specboard init' }, 412);
       if (e instanceof ClaudeUnavailableError) return c.json({ error: e.message, claude: e.reason }, 503);
+      if (e instanceof RegistryUnreadableError) return c.json({ error: e.message }, 503);
       throw e;
     }
   });

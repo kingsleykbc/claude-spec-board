@@ -549,7 +549,7 @@ describe('cli', () => {
     expect(r.status).toBe(1);
     expect(r.stderr).toMatch(/terminal/);
     expect((await readJson(approvedFile()))[projectId(root)].allow).not.toContain('Bash(npm run lint:*)');
-  });
+  }, 60000); // starts tsx twice, about 3 s on an idle machine and more under load
 });
 
 describe('where the approved list may live', () => {

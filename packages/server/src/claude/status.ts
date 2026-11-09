@@ -119,7 +119,8 @@ export function makeClaudeStatus(run: ClaudeRunner, now: () => number = Date.now
     let key: string;
     try {
       key = JSON.stringify((await roots()).sort());
-    } catch {
+    } catch (e) {
+      console.error(e instanceof Error ? e.message : String(e)); // this answer says "not installed": the log says why
       return DOWN;
     }
     const stale = !cached || cached.key !== key || now() - cached.at >= CACHE_MS;

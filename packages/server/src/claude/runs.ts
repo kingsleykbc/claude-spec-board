@@ -9,7 +9,7 @@ import { InvalidApprovalError, type ApprovedPermissions, type Permissions } from
 import { classifyEnd, type EndInfo, type RunKind, type RunStatus } from './classify.js';
 import { LineSplitter, parseEvent, type ClaudeResult, type ParsedLine, type RunLine } from './events.js';
 import { killTree, resolveFromEnv } from './resolve.js';
-import { childEnv, claudeStatus, type ClaudeStatusCheck } from './status.js';
+import { childEnv, claudeStatus, type ClaudeStatusCheck, type ProjectRoots } from './status.js';
 
 export interface RunSnapshot { id: string; pid: string; kind: RunKind; specId: string | null; status: RunStatus; lines: RunLine[]; end: EndInfo | null; startedAt: string; dismissed: boolean }
 export type RunEvent = { type: 'run-started'; run: RunSnapshot } | { type: 'run-line'; runId: string; line: RunLine } | { type: 'run-ended'; run: RunSnapshot };
@@ -34,11 +34,11 @@ export class ClaudeUnavailableError extends Error {
 }
 
 type Launch = { bin: string; args: string[] };
-type Launcher = (args: string[], root: string) => Launch;
+type Launcher = (args: string[], exclude: string[]) => Launch;
 
-/** How a run starts `name`: by an absolute path from outside the project, or it counts as not installed. */
-export const commandLauncher = (name: string, env: NodeJS.ProcessEnv = process.env): Launcher => (args, root) => {
-  const bin = resolveFromEnv(name, env, [root]);
+/** How a run starts `name`: by an absolute path from outside every `exclude` folder, or it counts as not installed. */
+export const commandLauncher = (name: string, env: NodeJS.ProcessEnv = process.env): Launcher => (args, exclude) => {
+  const bin = resolveFromEnv(name, env, exclude);
   if (bin === null) throw new ClaudeUnavailableError('not-installed');
   return { bin, args };
 };
@@ -177,6 +177,7 @@ export class RunManager {
   private readonly emit: (pid: string, e: RunEvent) => void;
   private readonly command: Launcher;
   private readonly status: ClaudeStatusCheck;
+  private readonly roots: ProjectRoots;
   /** The run going on per project, including one still being prepared. Set before the first await in `start`. */
   private readonly active = new Map<string, Run>();
   private readonly last = new Map<string, Run>();
@@ -187,11 +188,14 @@ export class RunManager {
     emit: (pid: string, e: RunEvent) => void;
     command?: Launcher;
     status?: ClaudeStatusCheck;
+    /** Every registered project: a run's lookup and its PATH leave them all out, not only its own. */
+    roots: ProjectRoots;
   }) {
     this.approved = opts.approved;
     this.emit = opts.emit;
     this.command = opts.command ?? commandLauncher('claude');
     this.status = opts.status ?? claudeStatus;
+    this.roots = opts.roots;
   }
 
   async start(entry: ProjectEntry, kind: RunKind, specId: string | null): Promise<RunSnapshot> {
@@ -204,6 +208,7 @@ export class RunManager {
 
     let approved: Permissions;
     let launch: Launch | null;
+    let exclude: string[];
     try {
       // `get` re-checks the stored rules: they go on a command line, and the file can be edited by hand.
       const perms = await this.approved.get(entry.id, entry.root).catch((e: unknown) => {
@@ -212,11 +217,12 @@ export class RunManager {
       if (!perms) throw new NotApprovedError();
       approved = perms;
       const status = await this.status({ recheckIfDown: true });
+      exclude = [...new Set([entry.root, ...(await this.roots())])]; // before the checks below: an unreadable list says so, not "not installed"
       if (!status.installed) throw new ClaudeUnavailableError('not-installed');
       if (!status.loggedIn) throw new ClaudeUnavailableError('logged-out');
       run.before = await loadSpec(entry.root, specId);
       if (specId !== null && !run.before) throw new Error(`Spec ${specId} was not found.`);
-      launch = run.stopped || run.finishing ? null : this.command(buildRunArgs(prompt, approved, kitPluginDir()), entry.root);
+      launch = run.stopped || run.finishing ? null : this.command(buildRunArgs(prompt, approved, kitPluginDir()), exclude);
     } catch (e) {
       if (this.active.get(entry.id) === run) this.active.delete(entry.id);
       run.finishing = true; // nothing was started, so nothing ends: a stop waiting on this has no more to do
@@ -237,7 +243,7 @@ export class RunManager {
     this.send(run, { type: 'run-started', run: copy(run.snap) });
 
     if (launch === null) await this.finish(run); // stop or close arrived while this was being prepared
-    else this.spawnChild(run, launch);
+    else this.spawnChild(run, launch, exclude);
     return copy(run.snap);
   }
 
@@ -286,10 +292,10 @@ export class RunManager {
     };
   }
 
-  private spawnChild(run: Run, { bin, args }: Launch): void {
+  private spawnChild(run: Run, { bin, args }: Launch, exclude: string[]): void {
     let child: ChildProcess;
     try {
-      child = spawn(bin, args, { cwd: run.entry.root, env: childEnv([run.entry.root]), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+      child = spawn(bin, args, { cwd: run.entry.root, env: childEnv(exclude), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
     } catch (e) {
       run.spawnError = e as Error;
       void this.finish(run);

@@ -78,7 +78,7 @@ export async function start(opts: StartOptions): Promise<Started> {
   const approved = approvedStore();
   const status = opts.claude?.status ?? claudeStatus;
   let rt: Realtime | undefined;
-  const runs = new RunManager({ approved, emit: (id, e) => rt?.send(id, e), command: opts.claude?.command, status });
+  const runs = new RunManager({ approved, emit: (id, e) => rt?.send(id, e), command: opts.claude?.command, status, roots: () => registry.roots() });
   const deps = { registry, port: () => bound, webDist: webDistDir(), runs, approved, status };
   const server = createAdaptorServer({ fetch: createApp(deps).fetch }) as Server;
   await new Promise<void>((resolve, reject) => {

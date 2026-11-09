@@ -82,6 +82,7 @@ function manager(scenario: string, opts: { status?: () => Promise<ClaudeStatus>;
     approved,
     emit: (pid, e) => events.push({ pid, e }),
     status: opts.status ?? (async () => OK_STATUS),
+    roots: async () => [],
     command: (args) => {
       spawned.push(args);
       const record = path.join(tmp, `record-${++recordCount}.json`);

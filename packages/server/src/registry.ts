@@ -14,6 +14,14 @@ export function projectId(root: string): string {
   return createHash('sha1').update(path.resolve(root).toLowerCase()).digest('hex').slice(0, 8);
 }
 
+/** The registered set can't be known, so nothing may be started: any folder could be a project. */
+export class RegistryUnreadableError extends Error {
+  constructor(file: string) {
+    super(`Cannot read the project list (${file}), so Spec Board won't start Claude Code. Fix or remove that file.`);
+    this.name = 'RegistryUnreadableError';
+  }
+}
+
 function isEntry(v: unknown): v is ProjectEntry {
   if (typeof v !== 'object' || v === null) return false;
   const e = v as Record<string, unknown>;
@@ -49,8 +57,10 @@ export class Registry {
 
   /** Every registered root, for keeping their programs from being run. Throws rather than answer "none" from a file it can't read. */
   async roots(): Promise<string[]> {
-    const { entries, corrupt } = await this.read();
-    if (corrupt) throw new Error(`Cannot read the project registry: ${this.file}`);
+    const { entries, corrupt } = await this.read().catch(() => {
+      throw new RegistryUnreadableError(this.file);
+    });
+    if (corrupt) throw new RegistryUnreadableError(this.file);
     return entries.map((e) => e.root);
   }
 

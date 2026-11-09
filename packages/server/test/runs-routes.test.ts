@@ -42,6 +42,7 @@ function realManager(scenario: string): RunManager {
     approved,
     emit: () => {},
     status: async () => OK_STATUS,
+    roots: async () => [],
     command: (args) => ({ bin: process.execPath, args: [FAKE, scenario, path.join(tmp, `record-${++n}.json`), ...args] }),
   });
   managers.push(m);
