@@ -540,7 +540,7 @@ describe('cli', () => {
     expect(r.status).toBe(1);
     expect(r.stderr).toMatch(/--yes/);
     expect(await fs.readdir(root)).toEqual([]);
-  });
+  }, 60000); // starts tsx
 
   it('init --yes works, and allow without a terminal refuses (exit 1)', async () => {
     const root = await project('c2');

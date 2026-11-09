@@ -34,15 +34,24 @@ const envValue = (env: NodeJS.ProcessEnv, name: string): string | undefined => {
   return key === undefined ? undefined : env[key];
 };
 
-/** The PATH entries that may be searched, as written and in order: absolute, and outside every `exclude` folder. */
-function searchableEntries(value: string | undefined, exclude: string[]): string[] {
-  const excluded = exclude.map(realPathLoose);
-  return (value ?? '').split(path.delimiter).filter((entry) => {
+/** The absolute PATH entries, in order, as written (`entry`) and unquoted (`dir`), with the `exclude` folder holding each, if any. */
+function absoluteEntries(value: string | undefined, exclude: string[]): { entry: string; dir: string; root: string | undefined }[] {
+  const excluded = exclude.map((root) => ({ root, real: realPathLoose(root) }));
+  return (value ?? '').split(path.delimiter).flatMap((entry) => {
     const dir = unquote(entry);
-    if (!isFullPath(dir)) return false;
+    if (!isFullPath(dir)) return [];
     const real = realPathLoose(dir);
-    return !excluded.some((x) => isWithin(x, real));
+    return [{ entry, dir, root: excluded.find((x) => isWithin(x.real, real))?.root }];
   });
+}
+
+/** The PATH entries that may be searched, as written and in order: absolute, and outside every `exclude` folder. */
+const searchableEntries = (value: string | undefined, exclude: string[]): string[] =>
+  absoluteEntries(value, exclude).filter((e) => e.root === undefined).map((e) => e.entry);
+
+/** The PATH entries in `env` left out for being inside an `exclude` folder, with that folder. */
+export function droppedEntries(env: NodeJS.ProcessEnv, exclude: string[]): { dir: string; root: string }[] {
+  return absoluteEntries(envValue(env, 'PATH'), exclude).flatMap(({ dir, root }) => (root === undefined ? [] : [{ dir, root }]));
 }
 
 /** PATH without what a project could supply, for a child whose own bare commands are looked up through it. */
@@ -79,6 +88,13 @@ export function resolveCommand(name: string, lookup: CommandLookup): string | nu
 /** `resolveCommand` with PATH and PATHEXT from `env`, under whichever spelling of the key it has. */
 export const resolveFromEnv = (name: string, env: NodeJS.ProcessEnv, exclude: string[]): string | null =>
   resolveCommand(name, { PATH: envValue(env, 'PATH'), PATHEXT: envValue(env, 'PATHEXT'), exclude });
+
+/** Where `name` is if only a dropped entry holds it, or null. Only looks: nothing found here may be started. */
+export function resolveOnlyInDropped(name: string, env: NodeJS.ProcessEnv, exclude: string[]): string | null {
+  if (resolveFromEnv(name, env, exclude) !== null) return null;
+  const PATH = droppedEntries(env, exclude).map((d) => d.dir).join(path.delimiter);
+  return resolveCommand(name, { PATH, PATHEXT: envValue(env, 'PATHEXT') });
+}
 
 /** The system's own taskkill. tree-kill runs a bare `taskkill` through a shell, found in the current folder first. */
 export function taskkillPath(env: NodeJS.ProcessEnv = process.env): string {

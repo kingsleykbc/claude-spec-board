@@ -36,6 +36,11 @@ describe('runButtonState', () => {
     expect(runButtonState(null, 'T-104', NONE).runState).toBe('fallback');
     expect(runButtonState(null, 'T-104', null).runState).toBe('ready');
   });
+  it('passes on what blocked Claude Code only in the fallback', () => {
+    const blocked = { ...NONE, blockedBy: 'C:\\p\\claude.cmd' };
+    expect(runButtonState(null, 'T-104', blocked)).toEqual({ runState: 'fallback', runningId: null, runBlockedBy: 'C:\\p\\claude.cmd' });
+    expect(runButtonState(null, 'T-104', NONE)).toEqual({ runState: 'fallback', runningId: null });
+  });
   it('ready when idle, or after a run ended', () => {
     expect(runButtonState(null, 'T-104', OK).runState).toBe('ready');
     expect(runButtonState(run({ status: 'finished' }), 'T-104', OK).runState).toBe('ready');

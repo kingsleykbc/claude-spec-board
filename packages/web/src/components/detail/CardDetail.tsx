@@ -41,6 +41,8 @@ export interface CardDetailProps {
   runState?: RunState;
   /** The spec Claude is working on, for the disabled Run note. */
   runningId?: string | null;
+  /** In the fallback: the path inside a registered project that runs left out. */
+  runBlockedBy?: string | undefined;
   /** A run is working on this spec (the subtask "In progress" pill). */
   runActive?: boolean;
   onRun?: () => void;
@@ -101,6 +103,7 @@ function SpecDetail({
   down = false,
   runState = 'ready',
   runningId = null,
+  runBlockedBy,
   runActive = false,
   onRun = () => undefined,
   onStop = () => undefined,
@@ -268,6 +271,7 @@ function SpecDetail({
           allCategories={allCategories}
           runState={runState}
           runningId={runningId}
+          runBlockedBy={runBlockedBy}
           runHold={runHold(spec, all)}
           onRun={onRun}
           onStop={onStop}

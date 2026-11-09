@@ -1,11 +1,18 @@
+import os from 'node:os';
 import path from 'node:path';
 import spawn from 'cross-spawn';
 import { Registry } from '../registry.js';
 import { specboardHome } from '../setup.js';
-import { envKeys, killTree, resolveFromEnv, searchablePath } from './resolve.js';
+import { droppedEntries, envKeys, killTree, resolveFromEnv, resolveOnlyInDropped, searchablePath } from './resolve.js';
 
-export interface ClaudeStatus { installed: boolean; loggedIn: boolean; version: string | null }
-export type ClaudeRunner = (args: string[]) => Promise<{ code: number | null; stdout: string }>;
+export interface ClaudeStatus {
+  installed: boolean;
+  loggedIn: boolean;
+  version: string | null;
+  /** Not installed as far as runs go, but a terminal may find it: the path inside a registered project that was left out. */
+  blockedBy?: string;
+}
+export type ClaudeRunner = (args: string[]) => Promise<{ code: number | null; stdout: string; blockedBy?: string }>;
 /** `recheckIfDown`: don't trust a remembered "not installed" or "not logged in"; the person may have just fixed it. */
 export type ClaudeStatusCheck = (opts?: { recheckIfDown?: boolean }) => Promise<ClaudeStatus>;
 /** The folders no status check may run a program from. Rejects if they can't be known, which reads as not installed. */
@@ -53,17 +60,46 @@ export function childEnv(exclude: string[], source: NodeJS.ProcessEnv = process.
 /** Every registered project's root, read fresh: another process (`init`, a second `start`) can add one at any time. */
 export const registeredRoots: ProjectRoots = () => new Registry(path.join(specboardHome(), 'projects.json')).roots();
 
+/** `name` was found only inside a registered project, so it was not run. */
+class CommandBlockedError extends Error {
+  constructor(name: string, readonly blockedBy: string) {
+    super(`${name} not found outside the registered projects: ${blockedBy}`);
+    this.name = 'CommandBlockedError';
+  }
+}
+
+let warnedFor: string | null = null;
+
+/** The board says "not found" where a terminal works, so say why. Once per set of registered projects. Starts nothing. */
+function warnDropped(env: NodeJS.ProcessEnv, exclude: string[]): void {
+  const key = JSON.stringify([...exclude].sort());
+  if (key === warnedFor) return;
+  warnedFor = key;
+  for (const { dir, root } of droppedEntries(env, exclude)) {
+    console.warn(`PATH entry ${dir} is inside the registered project ${root}, so the status check and runs leave it out.`);
+  }
+  for (const tool of ['git', 'node']) {
+    const at = resolveOnlyInDropped(tool, env, exclude);
+    if (at !== null) console.warn(`${tool} is only on PATH inside a registered project (${at}), so runs won't find it.`);
+  }
+}
+
 /**
  * Runs `name` by the absolute path we found, never a bare name, so whatever folder the server started in can't supply it.
  * This runs when a project is opened, before any approval, so nothing inside any of `roots` counts: a `claude` found only
- * there reads as not installed.
+ * there reads as not installed. It starts in the temp folder, so the folder the server started in, perhaps a project, is
+ * not its current folder either.
  */
 export const commandRunner = (name: string, env: NodeJS.ProcessEnv, roots: ProjectRoots): ClaudeRunner => async (args) => {
   const exclude = await roots();
+  warnDropped(env, exclude);
   const bin = resolveFromEnv(name, env, exclude);
-  if (bin === null) throw new Error(`${name} not found`);
+  if (bin === null) {
+    const inside = resolveOnlyInDropped(name, env, exclude);
+    throw inside === null ? new Error(`${name} not found`) : new CommandBlockedError(name, inside);
+  }
   return new Promise((resolve, reject) => {
-    const child = spawn(bin, args, { env: childEnv(exclude), stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
+    const child = spawn(bin, args, { cwd: os.tmpdir(), env: childEnv(exclude), stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
     let stdout = '';
     const timer = setTimeout(() => {
       if (child.pid !== undefined) killTree(child.pid, 'SIGKILL');
@@ -76,7 +112,8 @@ export const commandRunner = (name: string, env: NodeJS.ProcessEnv, roots: Proje
     });
     child.on('close', (code) => {
       clearTimeout(timer);
-      resolve({ code, stdout });
+      const dropped = code === 0 ? undefined : droppedEntries(env, exclude)[0]; // a shim may have needed what was left out
+      resolve({ code, stdout, ...(dropped ? { blockedBy: dropped.dir } : {}) });
     });
   });
 };
@@ -87,10 +124,10 @@ async function check(run: ClaudeRunner): Promise<ClaudeStatus> {
   let version: string;
   try {
     const out = await run(['--version']);
-    if (out.code !== 0) return DOWN;
+    if (out.code !== 0) return out.blockedBy ? { ...DOWN, blockedBy: out.blockedBy } : DOWN;
     version = out.stdout.trim().split(/\s+/)[0] ?? '';
-  } catch {
-    return DOWN;
+  } catch (e) {
+    return e instanceof CommandBlockedError ? { ...DOWN, blockedBy: e.blockedBy } : DOWN;
   }
   const installed = { installed: true, version: version || null };
   try {

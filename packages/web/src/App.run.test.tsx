@@ -229,6 +229,7 @@ describe('refusals', () => {
     ['not-approved', new ApiError(412, 'x', { setup: 'not-approved' }), 'This project isn’t set up for runs', initHint('/x/recipe-box')],
     ['logged-out', new ApiError(503, 'x', { claude: 'logged-out' }), 'Claude Code isn’t logged in', 'Run `claude` in a terminal and log in.'],
     ['not-installed', new ApiError(503, 'x', { claude: 'not-installed' }), 'Claude Code isn’t installed', 'Install Claude Code, then run again.'],
+    ['blocked', new ApiError(503, 'x', { claude: 'not-installed', blockedBy: 'C:\\p\\claude.cmd' }), 'Claude Code isn’t available', 'Claude Code is inside a registered project (C:\\p\\claude.cmd), so runs won’t use it.'],
     ['other error', new ApiError(500, 'Disk full'), 'Couldn’t reach Claude for T-104', 'Disk full'],
     ['network', new TypeError('fetch failed'), 'Disconnected from the local server.', 'Edits won’t save until it’s back.'],
   ])('%s', async (_name, rejection, text, sub) => {
@@ -389,6 +390,12 @@ describe('the Run button, from the run state', () => {
   it('Claude Code not installed: the copy fallback', async () => {
     await mount(null, '/?project=p1&spec=T-104', { claude: { installed: false, loggedIn: false, version: null } });
     expect(screen.getByText('Claude Code not found')).toBeTruthy();
+  });
+
+  it('Claude Code inside a registered project: the fallback says so, through the whole card', async () => {
+    await mount(null, '/?project=p1&spec=T-104', { claude: { installed: false, loggedIn: false, version: null, blockedBy: 'C:\\p\\claude.cmd' } });
+    expect(screen.getByText('Claude Code is inside a registered project (C:\\p\\claude.cmd), so runs won’t use it.')).toBeTruthy();
+    expect(screen.queryByText('Claude Code not found')).toBeNull();
   });
 
   it('claude not loaded yet: ready', async () => {

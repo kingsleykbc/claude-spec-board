@@ -7,7 +7,7 @@ export type { LiveChannel } from './useProject';
 
 export type StartResult =
   | { ok: true }
-  | { ok: false; reason: 'busy' | 'not-approved' | 'logged-out' | 'not-installed' | 'offline' | 'error'; message: string; run?: RunSnapshot };
+  | { ok: false; reason: 'busy' | 'not-approved' | 'logged-out' | 'not-installed' | 'offline' | 'error'; message: string; run?: RunSnapshot; blockedBy?: string };
 
 export interface UseRun {
   /** The project's current run (running, or ended and not yet dismissed), or null. */
@@ -195,14 +195,14 @@ export function useRun(pid: string, live: LiveChannel): UseRun {
           // fetch rejects with a TypeError when the server cannot be reached
           return e instanceof TypeError ? { ok: false, reason: 'offline', message: 'Disconnected from the local server.' } : { ok: false, reason: 'error', message: message(e) };
         }
-        const body = (e.body ?? {}) as { run?: RunSnapshot; setup?: string; claude?: string };
+        const body = (e.body ?? {}) as { run?: RunSnapshot; setup?: string; claude?: string; blockedBy?: string };
         if (e.status === 409 && body.run) {
           if (mine === epoch.current) setRun(mergeRun(ref.current.run, body.run));
           return { ok: false, reason: 'busy', message: e.message, run: body.run };
         }
         if (e.status === 412 && body.setup === 'not-approved') return { ok: false, reason: 'not-approved', message: e.message };
         if (e.status === 503 && (body.claude === 'not-installed' || body.claude === 'logged-out')) {
-          return { ok: false, reason: body.claude, message: e.message };
+          return { ok: false, reason: body.claude, message: e.message, ...(body.blockedBy ? { blockedBy: body.blockedBy } : {}) };
         }
         return { ok: false, reason: 'error', message: e.message };
       }

@@ -45,6 +45,13 @@ describe('RunButton', () => {
     expect((screen.getByRole('button', { name: /Tell Claude to start/ }) as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it('fallback with blockedBy says what holds Claude Code, not that it is missing', () => {
+    render(<RunButton id="T-104" state="fallback" blockedBy={'C:\\p\\claude.cmd'} onRun={() => undefined} onStop={() => undefined} />);
+    expect(screen.getByText('Claude Code is inside a registered project (C:\\p\\claude.cmd), so runs won’t use it.')).toBeTruthy();
+    expect(screen.queryByText('Claude Code not found')).toBeNull();
+    expect(screen.getByRole('button', { name: '⧉ Copy command' })).toBeTruthy();
+  });
+
   it('fallback copies the command and confirms for 2.6 s', async () => {
     vi.useFakeTimers();
     const writeText = vi.fn(async () => undefined);

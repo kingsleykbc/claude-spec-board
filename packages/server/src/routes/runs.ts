@@ -53,7 +53,7 @@ export function runRoutes(deps: RunRouteDeps): Hono {
     } catch (e) {
       if (e instanceof RunBusyError) return c.json({ error: e.message, run: e.run }, 409);
       if (e instanceof NotApprovedError) return c.json({ error: e.message, setup: 'not-approved', command: 'specboard init' }, 412);
-      if (e instanceof ClaudeUnavailableError) return c.json({ error: e.message, claude: e.reason }, 503);
+      if (e instanceof ClaudeUnavailableError) return c.json({ error: e.message, claude: e.reason, ...(e.blockedBy ? { blockedBy: e.blockedBy } : {}) }, 503);
       if (e instanceof RegistryUnreadableError) return c.json({ error: e.message }, 503);
       throw e;
     }

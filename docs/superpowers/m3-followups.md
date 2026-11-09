@@ -104,6 +104,11 @@ These were checked by reading the code and by whether M3 touched the files; none
 - `setup.ts:343` refuses a project that holds the kit, so in M4 a project that installs Spec Board as a local dependency can't be set up. Decide before publishing.
 - The toast for a refused refresh shows the rule without `allowHint`, so it lacks the "run this from the Spec Board repo" wording the Run panel has.
 
+- `init`'s `SPECBOARD_HOME` suggestion can lead a person to a home whose folder becomes a project root holding `claude`, `node` or `git`, which then drop out of PATH. Warn at `init`.
+- A corrupt `projects.json` is replaced on the next `start` (a `.bak` is kept), which drops the exclusion of every old project. Log it or refuse.
+- The unreadable-registry message rarely reaches the page: with a corrupt file the run routes answer 404 before `start`, and the status path only logs it.
+- PATH resolution isn't memoized: every status check and run does real-path lookups for each entry, synchronously, and an offline `\\nas\...` entry blocks the event loop while it times out. Memoize it.
+
 ## Closed by Task 9
 - Streamed `run-line` carries `subtask`: confirmed in the real test (`[1, 2]`) and on the page.
 - `env`/`apiKeyHelper` wording: now in `documentation.md` section 9, confirmed by a probe.

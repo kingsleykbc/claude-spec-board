@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { initHint } from '../lib/prePublish';
 import type { Spec } from '@specboard/core';
 import type { ClaudeStatus, RunEvent, RunKind, RunSnapshot } from '../api/client';
+import { blockedText } from '../components/detail/RunButton';
 import type { RunState } from '../components/detail/RunButton';
 import { OFFLINE_TOAST } from './actions';
 import type { PushToast, ToastKind } from './toasts';
@@ -14,9 +15,10 @@ type ToastArgs = [kind: ToastKind, text: string, sub?: string];
 const isRunning = (run: RunSnapshot | null): run is RunSnapshot => run?.status === 'running';
 
 /** The Run button of `specId`, from the run this tab holds. A `claude` not loaded yet stays ready: `start` handles a refusal. */
-export function runButtonState(run: RunSnapshot | null, specId: string, claude: ClaudeStatus | null): { runState: RunState; runningId: string | null } {
+export function runButtonState(run: RunSnapshot | null, specId: string, claude: ClaudeStatus | null): { runState: RunState; runningId: string | null; runBlockedBy?: string } {
   if (isRunning(run)) return { runState: run.specId === specId ? 'running' : 'disabled', runningId: run.specId };
-  return { runState: claude?.installed === false ? 'fallback' : 'ready', runningId: null };
+  if (claude?.installed !== false) return { runState: 'ready', runningId: null };
+  return { runState: 'fallback', runningId: null, ...(claude.blockedBy ? { runBlockedBy: claude.blockedBy } : {}) };
 }
 
 /** What a run means for one spec: `running` and `writing` for its card, `runActive` for its subtask list. */
@@ -104,6 +106,7 @@ function refusalToast(r: Extract<StartResult, { ok: false }>, specId: string | u
     case 'logged-out':
       return ['err', 'Claude Code isn’t logged in', 'Run `claude` in a terminal and log in.'];
     case 'not-installed':
+      if (r.blockedBy) return ['err', 'Claude Code isn’t available', blockedText(r.blockedBy)];
       return ['err', 'Claude Code isn’t installed', 'Install Claude Code, then run again.'];
     case 'busy':
       return ['err', `Claude is already working on ${r.run?.specId ?? 'the overview'}`];

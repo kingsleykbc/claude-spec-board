@@ -10,6 +10,8 @@ export interface RunButtonProps {
   runningId?: string | null;
   /** Why this spec shouldn't start yet (blocked or a draft), so no usage is spent finding out. */
   hold?: string | null;
+  /** In the fallback: the path inside a registered project that runs left out, so "not found" would mislead. */
+  blockedBy?: string | undefined;
   onRun: () => void;
   onStop: () => void;
 }
@@ -18,8 +20,10 @@ export const COPIED_MS = 2600;
 /** How long "Copy failed: run …" stays, so the command can be selected by hand. */
 export const COPY_FAILED_MS = 6000;
 
+export const blockedText = (where: string): string => `Claude Code is inside a registered project (${where}), so runs won’t use it.`;
+
 /** The header's Run control in its four states (prototype lines 128-131, 679-683). */
-export function RunButton({ id, state, runningId, hold, onRun, onStop }: RunButtonProps) {
+export function RunButton({ id, state, runningId, hold, blockedBy, onRun, onStop }: RunButtonProps) {
   const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const alive = useRef(true);
@@ -89,7 +93,7 @@ export function RunButton({ id, state, runningId, hold, onRun, onStop }: RunButt
             Copy failed: run <span style={{ userSelect: 'all', fontFamily: 'var(--mono)' }}>{command}</span>
           </span>
         ) : (
-          <span className={s.runNote}>Claude Code not found</span>
+          <span className={s.runNote}>{blockedBy ? blockedText(blockedBy) : 'Claude Code not found'}</span>
         )}
         <button type="button" className={s.copy} data-copied={copied} onClick={doCopy}>
           {copied ? '✓ Copied: paste it into Claude Code' : '⧉ Copy command'}

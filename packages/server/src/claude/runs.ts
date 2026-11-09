@@ -27,8 +27,8 @@ export class NotApprovedError extends Error {
   }
 }
 export class ClaudeUnavailableError extends Error {
-  constructor(readonly reason: 'not-installed' | 'logged-out') {
-    super(reason === 'not-installed' ? "Claude Code isn't installed." : "Claude Code isn't logged in.");
+  constructor(readonly reason: 'not-installed' | 'logged-out', readonly blockedBy?: string) {
+    super(blockedBy ? `Claude Code is inside a registered project (${blockedBy}), so runs won't use it.` : reason === 'not-installed' ? "Claude Code isn't installed." : "Claude Code isn't logged in.");
     this.name = 'ClaudeUnavailableError';
   }
 }
@@ -218,7 +218,7 @@ export class RunManager {
       approved = perms;
       const status = await this.status({ recheckIfDown: true });
       exclude = [...new Set([entry.root, ...(await this.roots())])]; // before the checks below: an unreadable list says so, not "not installed"
-      if (!status.installed) throw new ClaudeUnavailableError('not-installed');
+      if (!status.installed) throw new ClaudeUnavailableError('not-installed', status.blockedBy);
       if (!status.loggedIn) throw new ClaudeUnavailableError('logged-out');
       run.before = await loadSpec(entry.root, specId);
       if (specId !== null && !run.before) throw new Error(`Spec ${specId} was not found.`);

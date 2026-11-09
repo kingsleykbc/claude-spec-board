@@ -3,7 +3,7 @@ import nodeFs from 'node:fs';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { commandLauncher, RunManager, type RunEvent, type RunSnapshot } from '../src/claude/runs.js';
 import { runRoutes } from '../src/routes/runs.js';
 import { resolveCommand } from '../src/claude/resolve.js';
@@ -48,6 +48,7 @@ A demo.
 let tmp: string;
 let root: string;
 let bin: string;
+let warned: MockInstance<typeof console.warn>;
 
 const exists = (f: string): Promise<boolean> => fs.access(f).then(() => true, () => false);
 const noRoots = async (): Promise<string[]> => [];
@@ -68,6 +69,7 @@ beforeEach(async () => {
   bin = path.join(tmp, 'safe bin (x86)');
   await fs.mkdir(root);
   await fs.mkdir(bin);
+  warned = vi.spyOn(console, 'warn').mockImplementation(() => undefined); // dropped PATH entries are reported this way
 });
 
 afterEach(async () => {
@@ -127,8 +129,52 @@ describe.runIf(WIN)('the status check and registered projects', () => {
   it('a real CLI only inside a project reads as not installed', async () => {
     const roots = async () => [root];
     const status = makeClaudeStatus(commandRunner(FAKE_NAME, { PATH: scripts, PATHEXT }, roots), () => 1000, roots);
-    expect(await status()).toEqual(DOWN);
+    expect(await status()).toEqual({ ...DOWN, blockedBy: path.join(scripts, `${FAKE_NAME}.cmd`) });
     expect(await exists(planted)).toBe(false);
+  });
+
+  it('a shim that fails with entries dropped names the first of them; with none dropped it says nothing extra', async () => {
+    await fs.writeFile(path.join(bin, `${FAKE_NAME}.cmd`), '@echo off\r\nexit /b 9\r\n');
+    const roots = async () => [root];
+    const dropped = makeClaudeStatus(commandRunner(FAKE_NAME, { PATH: [scripts, bin].join(D), PATHEXT }, roots), () => 1000, roots);
+    expect(await dropped()).toEqual({ ...DOWN, blockedBy: scripts });
+    expect(await exists(planted)).toBe(false);
+    const clean = makeClaudeStatus(commandRunner(FAKE_NAME, { PATH: bin, PATHEXT }, roots), () => 1000, roots);
+    expect(await clean()).toEqual(DOWN);
+  });
+
+  it('warns about each dropped entry and its project once per root set, and again when the set changes', async () => {
+    const other = path.join(tmp, 'other');
+    await fs.mkdir(other);
+    await fs.writeFile(path.join(bin, `${FAKE_NAME}.cmd`), versionCmd(safe, '1.2.3'));
+    let registered = [root];
+    const run = commandRunner(FAKE_NAME, { PATH: [scripts, bin].join(D), PATHEXT }, async () => registered);
+    await run(['--version']);
+    await run(['--version']);
+    expect(warned).toHaveBeenCalledTimes(1);
+    expect(warned.mock.calls[0]![0]).toContain(scripts);
+    expect(warned.mock.calls[0]![0]).toContain(root);
+    registered = [root, other];
+    await run(['--version']);
+    expect(warned).toHaveBeenCalledTimes(2);
+    await commandRunner(FAKE_NAME, { PATH: bin, PATHEXT }, async () => [bin + '-none'])(['--version']);
+    expect(warned).toHaveBeenCalledTimes(2); // nothing dropped, nothing to say
+  });
+
+  it('warns if git or node are only in dropped folders, and never starts them', async () => {
+    const gitRan = path.join(tmp, 'git-ran');
+    const nodeRan = path.join(tmp, 'node-ran');
+    await fs.writeFile(path.join(scripts, 'git.cmd'), markerCmd(gitRan));
+    await fs.writeFile(path.join(scripts, 'node.cmd'), markerCmd(nodeRan));
+    await fs.writeFile(path.join(bin, 'node.cmd'), ''); // node also exists outside, so only git is missing
+    await fs.writeFile(path.join(bin, `${FAKE_NAME}.cmd`), versionCmd(safe, '1.2.3'));
+    await commandRunner(FAKE_NAME, { PATH: [scripts, bin].join(D), PATHEXT }, async () => [root])(['--version']);
+    const said = warned.mock.calls.map((c) => String(c[0]));
+    expect(said.filter((t) => t.startsWith('git '))).toHaveLength(1);
+    expect(said.find((t) => t.startsWith('git '))).toContain(path.join(scripts, 'git.cmd'));
+    expect(said.some((t) => t.startsWith('node '))).toBe(false);
+    expect(await exists(gitRan)).toBe(false);
+    expect(await exists(nodeRan)).toBe(false);
   });
 
   it('fails safe when the registered set cannot be read: not installed, and nothing starts', async () => {
@@ -156,7 +202,7 @@ describe.runIf(WIN)('the status check and registered projects', () => {
     vi.stubEnv('PATH', scripts);
     vi.stubEnv('PATHEXT', PATHEXT);
     expect(await registeredRoots()).toEqual([root]);
-    expect(await claudeStatus()).toEqual(DOWN);
+    expect(await claudeStatus()).toEqual({ ...DOWN, blockedBy: path.join(scripts, 'claude.cmd') });
     expect(await exists(planted)).toBe(false);
   });
 });
@@ -306,9 +352,24 @@ describe('the child PATH', () => {
       expect(await exists(ran.second)).toBe(false);
     };
 
-    it('from the status check, cannot reach a registered project or a relative entry', async () => {
-      await commandRunner(FAKE_NAME, { PATH: bin, PATHEXT }, async () => [root])(['--version']);
+    it('from the status check, started in a folder holding the planted file, runs in the temp folder and cannot reach it', async () => {
+      const seenCwd = path.join(tmp, 'status-cwd');
+      // `.\\` reaches the current folder whatever the search variable says, so only pinning the folder keeps this out.
+      await fs.writeFile(path.join(bin, `${FAKE_NAME}.cmd`), `@echo off\r\necho %CD%> "${seenCwd}"\r\ncall .\\${TOOL}\r\ncall ${TOOL}\r\necho 1.0.0\r\n`);
+      // Relative to where the child now runs, so this entry would really work if it were kept.
+      const venv = path.join(root, '.venv', 'Scripts');
+      const relative = path.relative(await fs.realpath(os.tmpdir()), path.join(tmp, 'relative'));
+      vi.stubEnv('PATH', [venv, relative, path.join(tmp, 'first'), path.join(tmp, 'second')].join(D));
+      const before = process.cwd();
+      process.chdir(root);
+      try {
+        expect(await exists(path.join(process.cwd(), `${TOOL}.cmd`))).toBe(true);
+        await commandRunner(FAKE_NAME, { PATH: bin, PATHEXT }, async () => [root])(['--version']);
+      } finally {
+        process.chdir(before);
+      }
       await expectOnlyFirstRan();
+      expect(await fs.realpath((await fs.readFile(seenCwd, 'utf8')).trim())).toBe(await fs.realpath(os.tmpdir()));
     });
 
     it('from a run, cannot reach the project, a relative entry, or a command in its own folder', async () => {
@@ -389,6 +450,26 @@ describe.runIf(WIN)('a run and the other registered projects', () => {
   it('the control: with B not registered, its program is what starts', async () => {
     await runInA(noRoots);
     expect(await exists(plantedRan)).toBe(true);
+    expect(await exists(safeRan)).toBe(false);
+  });
+
+  it('a refused run names what blocked it, on the error and in the response', async () => {
+    const blockedBy = path.join(otherScripts, 'claude.cmd');
+    const m = new RunManager({
+      approved,
+      roots: noRoots,
+      status: async () => ({ ...DOWN, blockedBy }),
+      command: commandLauncher('claude', { PATH: bin, PATHEXT }),
+      emit: () => undefined,
+    });
+    const app = runRoutes({ registry: { get: async () => entry } as unknown as Registry, runs: m, approved, status: async () => DOWN });
+    const res = await app.request(`/api/projects/${entry.id}/runs`, { method: 'POST', body: JSON.stringify({ kind: 'run', specId: 'T-001' }), headers: { 'content-type': 'application/json' } });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: `Claude Code is inside a registered project (${blockedBy}), so runs won't use it.`,
+      claude: 'not-installed',
+      blockedBy,
+    });
     expect(await exists(safeRan)).toBe(false);
   });
 

@@ -56,6 +56,14 @@ export const Fallback: Story = {
   },
 };
 
+export const Blocked: Story = {
+  args: { state: 'fallback', blockedBy: 'C:\\Projects\\repo\\.venv\\Scripts\\claude.cmd' },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    expect(c.getByText(/Claude Code is inside a registered project/)).toBeTruthy();
+  },
+};
+
 export const CopyFailed: Story = {
   args: { state: 'fallback' },
   play: async ({ canvasElement }) => {

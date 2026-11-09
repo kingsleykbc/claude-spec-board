@@ -73,6 +73,8 @@ export interface ClaudeStatus {
   installed: boolean;
   loggedIn: boolean;
   version: string | null;
+  /** Not usable by runs, though a terminal may find it: the path inside a registered project that was left out. */
+  blockedBy?: string;
 }
 export interface RunState {
   run: RunSnapshot | null;
