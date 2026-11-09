@@ -57,7 +57,7 @@ export const Fallback: Story = {
 };
 
 export const Blocked: Story = {
-  args: { state: 'fallback', blockedBy: 'C:\\Projects\\repo\\.venv\\Scripts\\claude.cmd' },
+  args: { state: 'fallback', blockedNote: 'Claude Code is inside a registered project (C:\\Projects\\repo\\.venv\\Scripts\\claude.cmd), so runs won’t use it.' },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     expect(c.getByText(/Claude Code is inside a registered project/)).toBeTruthy();

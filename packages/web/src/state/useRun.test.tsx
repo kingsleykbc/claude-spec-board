@@ -422,6 +422,7 @@ describe('useRun: actions', () => {
       [err(503, { error: 'login', claude: 'logged-out' }), { reason: 'logged-out', message: 'login' }],
       [err(503, { error: 'install', claude: 'not-installed' }), { reason: 'not-installed', message: 'install' }],
       [err(503, { error: 'held', claude: 'not-installed', blockedBy: 'C:\\p' }), { reason: 'not-installed', message: 'held', blockedBy: 'C:\\p' }],
+      [err(503, { error: 'perhaps', claude: 'not-installed', maybeBlockedBy: 'C:\\p' }), { reason: 'not-installed', message: 'perhaps', maybeBlockedBy: 'C:\\p' }],
       [err(503, { error: 'odd' }), { reason: 'error', message: 'odd' }],
       [err(400, { error: 'bad' }), { reason: 'error', message: 'bad' }],
       [new TypeError('Failed to fetch'), { reason: 'offline' }],

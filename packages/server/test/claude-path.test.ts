@@ -133,11 +133,11 @@ describe.runIf(WIN)('the status check and registered projects', () => {
     expect(await exists(planted)).toBe(false);
   });
 
-  it('a shim that fails with entries dropped names the first of them; with none dropped it says nothing extra', async () => {
+  it('a shim that fails with entries dropped only says they may be why; with none dropped it says nothing extra', async () => {
     await fs.writeFile(path.join(bin, `${FAKE_NAME}.cmd`), '@echo off\r\nexit /b 9\r\n');
     const roots = async () => [root];
     const dropped = makeClaudeStatus(commandRunner(FAKE_NAME, { PATH: [scripts, bin].join(D), PATHEXT }, roots), () => 1000, roots);
-    expect(await dropped()).toEqual({ ...DOWN, blockedBy: scripts });
+    expect(await dropped()).toEqual({ ...DOWN, maybeBlockedBy: scripts }); // it was found outside, so it is not "inside a project"
     expect(await exists(planted)).toBe(false);
     const clean = makeClaudeStatus(commandRunner(FAKE_NAME, { PATH: bin, PATHEXT }, roots), () => 1000, roots);
     expect(await clean()).toEqual(DOWN);
@@ -469,6 +469,25 @@ describe.runIf(WIN)('a run and the other registered projects', () => {
       error: `Claude Code is inside a registered project (${blockedBy}), so runs won't use it.`,
       claude: 'not-installed',
       blockedBy,
+    });
+    expect(await exists(safeRan)).toBe(false);
+  });
+
+  it('a refused run after a failed shim says a left-out folder may be why, and claims no more', async () => {
+    const m = new RunManager({
+      approved,
+      roots: noRoots,
+      status: async () => ({ ...DOWN, maybeBlockedBy: otherScripts }),
+      command: commandLauncher('claude', { PATH: bin, PATHEXT }),
+      emit: () => undefined,
+    });
+    const app = runRoutes({ registry: { get: async () => entry } as unknown as Registry, runs: m, approved, status: async () => DOWN });
+    const res = await app.request(`/api/projects/${entry.id}/runs`, { method: 'POST', body: JSON.stringify({ kind: 'run', specId: 'T-001' }), headers: { 'content-type': 'application/json' } });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: `Claude Code didn't start. A folder inside a registered project (${otherScripts}) was left out of its PATH, which may be why.`,
+      claude: 'not-installed',
+      maybeBlockedBy: otherScripts,
     });
     expect(await exists(safeRan)).toBe(false);
   });

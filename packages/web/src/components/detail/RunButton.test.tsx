@@ -45,9 +45,9 @@ describe('RunButton', () => {
     expect((screen.getByRole('button', { name: /Tell Claude to start/ }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('fallback with blockedBy says what holds Claude Code, not that it is missing', () => {
-    render(<RunButton id="T-104" state="fallback" blockedBy={'C:\\p\\claude.cmd'} onRun={() => undefined} onStop={() => undefined} />);
-    expect(screen.getByText('Claude Code is inside a registered project (C:\\p\\claude.cmd), so runs won’t use it.')).toBeTruthy();
+  it('fallback with a note shows it in place of "not found"', () => {
+    render(<RunButton id="T-104" state="fallback" blockedNote="Held back for a reason." onRun={() => undefined} onStop={() => undefined} />);
+    expect(screen.getByText('Held back for a reason.')).toBeTruthy();
     expect(screen.queryByText('Claude Code not found')).toBeNull();
     expect(screen.getByRole('button', { name: '⧉ Copy command' })).toBeTruthy();
   });

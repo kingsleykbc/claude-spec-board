@@ -38,7 +38,17 @@ describe('runButtonState', () => {
   });
   it('passes on what blocked Claude Code only in the fallback', () => {
     const blocked = { ...NONE, blockedBy: 'C:\\p\\claude.cmd' };
-    expect(runButtonState(null, 'T-104', blocked)).toEqual({ runState: 'fallback', runningId: null, runBlockedBy: 'C:\\p\\claude.cmd' });
+    expect(runButtonState(null, 'T-104', blocked)).toEqual({
+      runState: 'fallback',
+      runningId: null,
+      runBlockedNote: 'Claude Code is inside a registered project (C:\\p\\claude.cmd), so runs won’t use it.',
+    });
+    const maybe = { ...NONE, maybeBlockedBy: 'C:\\p\\.venv' };
+    expect(runButtonState(null, 'T-104', maybe)).toEqual({
+      runState: 'fallback',
+      runningId: null,
+      runBlockedNote: 'Claude Code didn’t start. A folder inside a registered project (C:\\p\\.venv) was left out of its PATH, which may be why.',
+    });
     expect(runButtonState(null, 'T-104', NONE)).toEqual({ runState: 'fallback', runningId: null });
   });
   it('ready when idle, or after a run ended', () => {

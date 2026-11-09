@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef } from 'react';
 import { initHint } from '../lib/prePublish';
 import type { Spec } from '@specboard/core';
 import type { ClaudeStatus, RunEvent, RunKind, RunSnapshot } from '../api/client';
-import { blockedText } from '../components/detail/RunButton';
 import type { RunState } from '../components/detail/RunButton';
 import { OFFLINE_TOAST } from './actions';
 import type { PushToast, ToastKind } from './toasts';
@@ -15,10 +14,18 @@ type ToastArgs = [kind: ToastKind, text: string, sub?: string];
 const isRunning = (run: RunSnapshot | null): run is RunSnapshot => run?.status === 'running';
 
 /** The Run button of `specId`, from the run this tab holds. A `claude` not loaded yet stays ready: `start` handles a refusal. */
-export function runButtonState(run: RunSnapshot | null, specId: string, claude: ClaudeStatus | null): { runState: RunState; runningId: string | null; runBlockedBy?: string } {
+/** Why Claude Code can't be used, when a folder left out of PATH is involved. Definite only when `claude` itself was in one. */
+function blockedNote({ blockedBy, maybeBlockedBy }: { blockedBy?: string; maybeBlockedBy?: string }): string | null {
+  if (blockedBy) return `Claude Code is inside a registered project (${blockedBy}), so runs won’t use it.`;
+  if (maybeBlockedBy) return `Claude Code didn’t start. A folder inside a registered project (${maybeBlockedBy}) was left out of its PATH, which may be why.`;
+  return null;
+}
+
+export function runButtonState(run: RunSnapshot | null, specId: string, claude: ClaudeStatus | null): { runState: RunState; runningId: string | null; runBlockedNote?: string } {
   if (isRunning(run)) return { runState: run.specId === specId ? 'running' : 'disabled', runningId: run.specId };
   if (claude?.installed !== false) return { runState: 'ready', runningId: null };
-  return { runState: 'fallback', runningId: null, ...(claude.blockedBy ? { runBlockedBy: claude.blockedBy } : {}) };
+  const note = blockedNote(claude);
+  return { runState: 'fallback', runningId: null, ...(note ? { runBlockedNote: note } : {}) };
 }
 
 /** What a run means for one spec: `running` and `writing` for its card, `runActive` for its subtask list. */
@@ -105,9 +112,10 @@ function refusalToast(r: Extract<StartResult, { ok: false }>, specId: string | u
       return ['err', 'This project isn’t set up for runs', initHint(root)];
     case 'logged-out':
       return ['err', 'Claude Code isn’t logged in', 'Run `claude` in a terminal and log in.'];
-    case 'not-installed':
-      if (r.blockedBy) return ['err', 'Claude Code isn’t available', blockedText(r.blockedBy)];
-      return ['err', 'Claude Code isn’t installed', 'Install Claude Code, then run again.'];
+    case 'not-installed': {
+      const note = blockedNote(r);
+      return note ? ['err', 'Claude Code isn’t available', note] : ['err', 'Claude Code isn’t installed', 'Install Claude Code, then run again.'];
+    }
     case 'busy':
       return ['err', `Claude is already working on ${r.run?.specId ?? 'the overview'}`];
     case 'error':

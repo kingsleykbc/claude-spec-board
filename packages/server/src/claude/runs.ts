@@ -9,7 +9,7 @@ import { InvalidApprovalError, type ApprovedPermissions, type Permissions } from
 import { classifyEnd, type EndInfo, type RunKind, type RunStatus } from './classify.js';
 import { LineSplitter, parseEvent, type ClaudeResult, type ParsedLine, type RunLine } from './events.js';
 import { killTree, resolveFromEnv } from './resolve.js';
-import { childEnv, claudeStatus, type ClaudeStatusCheck, type ProjectRoots } from './status.js';
+import { childEnv, claudeStatus, type ClaudeStatus, type ClaudeStatusCheck, type ProjectRoots } from './status.js';
 
 export interface RunSnapshot { id: string; pid: string; kind: RunKind; specId: string | null; status: RunStatus; lines: RunLine[]; end: EndInfo | null; startedAt: string; dismissed: boolean }
 export type RunEvent = { type: 'run-started'; run: RunSnapshot } | { type: 'run-line'; runId: string; line: RunLine } | { type: 'run-ended'; run: RunSnapshot };
@@ -26,9 +26,21 @@ export class NotApprovedError extends Error {
     this.name = 'NotApprovedError';
   }
 }
+function unavailableText(reason: 'not-installed' | 'logged-out', { blockedBy, maybeBlockedBy }: UnavailableDetail): string {
+  if (blockedBy) return `Claude Code is inside a registered project (${blockedBy}), so runs won't use it.`;
+  if (maybeBlockedBy) return `Claude Code didn't start. A folder inside a registered project (${maybeBlockedBy}) was left out of its PATH, which may be why.`;
+  return reason === 'not-installed' ? "Claude Code isn't installed." : "Claude Code isn't logged in.";
+}
+
+type UnavailableDetail = Pick<ClaudeStatus, 'blockedBy' | 'maybeBlockedBy'>;
+
 export class ClaudeUnavailableError extends Error {
-  constructor(readonly reason: 'not-installed' | 'logged-out', readonly blockedBy?: string) {
-    super(blockedBy ? `Claude Code is inside a registered project (${blockedBy}), so runs won't use it.` : reason === 'not-installed' ? "Claude Code isn't installed." : "Claude Code isn't logged in.");
+  readonly detail: UnavailableDetail;
+
+  constructor(readonly reason: 'not-installed' | 'logged-out', { blockedBy, maybeBlockedBy }: UnavailableDetail = {}) {
+    const detail = { ...(blockedBy ? { blockedBy } : {}), ...(maybeBlockedBy ? { maybeBlockedBy } : {}) };
+    super(unavailableText(reason, detail));
+    this.detail = detail;
     this.name = 'ClaudeUnavailableError';
   }
 }
@@ -218,7 +230,7 @@ export class RunManager {
       approved = perms;
       const status = await this.status({ recheckIfDown: true });
       exclude = [...new Set([entry.root, ...(await this.roots())])]; // before the checks below: an unreadable list says so, not "not installed"
-      if (!status.installed) throw new ClaudeUnavailableError('not-installed', status.blockedBy);
+      if (!status.installed) throw new ClaudeUnavailableError('not-installed', status);
       if (!status.loggedIn) throw new ClaudeUnavailableError('logged-out');
       run.before = await loadSpec(entry.root, specId);
       if (specId !== null && !run.before) throw new Error(`Spec ${specId} was not found.`);

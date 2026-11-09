@@ -230,6 +230,7 @@ describe('refusals', () => {
     ['logged-out', new ApiError(503, 'x', { claude: 'logged-out' }), 'Claude Code isn’t logged in', 'Run `claude` in a terminal and log in.'],
     ['not-installed', new ApiError(503, 'x', { claude: 'not-installed' }), 'Claude Code isn’t installed', 'Install Claude Code, then run again.'],
     ['blocked', new ApiError(503, 'x', { claude: 'not-installed', blockedBy: 'C:\\p\\claude.cmd' }), 'Claude Code isn’t available', 'Claude Code is inside a registered project (C:\\p\\claude.cmd), so runs won’t use it.'],
+    ['maybe blocked', new ApiError(503, 'x', { claude: 'not-installed', maybeBlockedBy: 'C:\\p\\.venv' }), 'Claude Code isn’t available', 'Claude Code didn’t start. A folder inside a registered project (C:\\p\\.venv) was left out of its PATH, which may be why.'],
     ['other error', new ApiError(500, 'Disk full'), 'Couldn’t reach Claude for T-104', 'Disk full'],
     ['network', new TypeError('fetch failed'), 'Disconnected from the local server.', 'Edits won’t save until it’s back.'],
   ])('%s', async (_name, rejection, text, sub) => {
@@ -396,6 +397,12 @@ describe('the Run button, from the run state', () => {
     await mount(null, '/?project=p1&spec=T-104', { claude: { installed: false, loggedIn: false, version: null, blockedBy: 'C:\\p\\claude.cmd' } });
     expect(screen.getByText('Claude Code is inside a registered project (C:\\p\\claude.cmd), so runs won’t use it.')).toBeTruthy();
     expect(screen.queryByText('Claude Code not found')).toBeNull();
+  });
+
+  it('a failed shim with a folder left out: the fallback only says it may be why', async () => {
+    await mount(null, '/?project=p1&spec=T-104', { claude: { installed: false, loggedIn: false, version: null, maybeBlockedBy: 'C:\\p\\.venv' } });
+    expect(screen.getByText('Claude Code didn’t start. A folder inside a registered project (C:\\p\\.venv) was left out of its PATH, which may be why.')).toBeTruthy();
+    expect(screen.queryByText(/is inside a registered project/)).toBeNull();
   });
 
   it('claude not loaded yet: ready', async () => {

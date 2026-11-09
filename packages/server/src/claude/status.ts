@@ -9,10 +9,12 @@ export interface ClaudeStatus {
   installed: boolean;
   loggedIn: boolean;
   version: string | null;
-  /** Not installed as far as runs go, but a terminal may find it: the path inside a registered project that was left out. */
+  /** `claude` was found only inside a registered project, here, so it was not run. A terminal may still find it. */
   blockedBy?: string;
+  /** `claude` was found outside but failed to start, with this folder left out of its PATH. That may or may not be why. */
+  maybeBlockedBy?: string;
 }
-export type ClaudeRunner = (args: string[]) => Promise<{ code: number | null; stdout: string; blockedBy?: string }>;
+export type ClaudeRunner = (args: string[]) => Promise<{ code: number | null; stdout: string; maybeBlockedBy?: string }>;
 /** `recheckIfDown`: don't trust a remembered "not installed" or "not logged in"; the person may have just fixed it. */
 export type ClaudeStatusCheck = (opts?: { recheckIfDown?: boolean }) => Promise<ClaudeStatus>;
 /** The folders no status check may run a program from. Rejects if they can't be known, which reads as not installed. */
@@ -113,7 +115,7 @@ export const commandRunner = (name: string, env: NodeJS.ProcessEnv, roots: Proje
     child.on('close', (code) => {
       clearTimeout(timer);
       const dropped = code === 0 ? undefined : droppedEntries(env, exclude)[0]; // a shim may have needed what was left out
-      resolve({ code, stdout, ...(dropped ? { blockedBy: dropped.dir } : {}) });
+      resolve({ code, stdout, ...(dropped ? { maybeBlockedBy: dropped.dir } : {}) });
     });
   });
 };
@@ -124,7 +126,7 @@ async function check(run: ClaudeRunner): Promise<ClaudeStatus> {
   let version: string;
   try {
     const out = await run(['--version']);
-    if (out.code !== 0) return out.blockedBy ? { ...DOWN, blockedBy: out.blockedBy } : DOWN;
+    if (out.code !== 0) return out.maybeBlockedBy ? { ...DOWN, maybeBlockedBy: out.maybeBlockedBy } : DOWN;
     version = out.stdout.trim().split(/\s+/)[0] ?? '';
   } catch (e) {
     return e instanceof CommandBlockedError ? { ...DOWN, blockedBy: e.blockedBy } : DOWN;

@@ -73,8 +73,10 @@ export interface ClaudeStatus {
   installed: boolean;
   loggedIn: boolean;
   version: string | null;
-  /** Not usable by runs, though a terminal may find it: the path inside a registered project that was left out. */
+  /** `claude` was found only inside a registered project, here, so it was not run. A terminal may still find it. */
   blockedBy?: string;
+  /** `claude` was found outside but failed to start, with this folder left out of its PATH. That may or may not be why. */
+  maybeBlockedBy?: string;
 }
 export interface RunState {
   run: RunSnapshot | null;

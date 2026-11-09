@@ -148,6 +148,22 @@ export const RunFallback: Story = {
   },
 };
 
+/** A path with no spaces, longer than the row: all of it stays readable, inside the dialog. */
+export const RunFallbackLongPath: Story = {
+  name: 'Run: fallback with a long path',
+  args: { runState: 'fallback', runBlockedNote: `Claude Code didn’t start. A folder inside a registered project (C:\\Users\\someone\\Documents\\AVeryLongFolderNameWithNoSpacesAtAllThatKeepsGoingAndGoing\\AnotherVeryLongFolderNameWithNoSpacesThatKeepsGoing\\.venv\\Scripts\\claude.cmd) was left out of its PATH, which may be why.` },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    const note = await c.findByText(/left out of its PATH/);
+    const close = c.getByRole('button', { name: 'Close' });
+    expect(note.scrollWidth).toBeLessThanOrEqual(note.clientWidth);
+    expect(note.getBoundingClientRect().height).toBeGreaterThan(20); // it wrapped, rather than cutting the path off
+    expect(note.getBoundingClientRect().right).toBeLessThanOrEqual(close.getBoundingClientRect().left);
+    const dialog = c.getByRole('dialog').getBoundingClientRect();
+    expect(close.getBoundingClientRect().right).toBeLessThanOrEqual(dialog.right);
+  },
+};
+
 export const WithRunPanel: Story = {
   name: 'With run output',
   args: {
