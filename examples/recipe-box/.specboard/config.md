@@ -1,5 +1,6 @@
 ---
 name: Recipe Box
+closing_steps: [Write tests, Update the docs]
 references:
   - CLAUDE.md
   - docs/CONTEXT.md

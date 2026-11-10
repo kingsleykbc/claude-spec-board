@@ -4,7 +4,7 @@ Everything lives in `.specboard/` in your project, as files you can read and edi
 
 ```
 .specboard/
-  config.md                  project name, description and reference documents
+  config.md                  project name, description, reference documents and closing steps
   overview.md                a progress summary
   specs/T-001-booking-page/
     spec.md                  the spec
@@ -35,6 +35,10 @@ Customers pick a barber, a service and a time slot, then confirm.
 - Barber picker
 - Time-slot grid
 
+## Done when
+- A customer can pick a barber and a time slot and see a confirmation.
+- A slot that is already taken can't be picked.
+
 ## Open questions
 - [ ] Q1 (yesno): Should customers be able to cancel a booking? (recommended: Yes)
   > answer:
@@ -42,9 +46,54 @@ Customers pick a barber, a service and a time slot, then confirm.
   > answer:
 
 ## Subtasks
-- [ ] 1. Create the page scaffold
-- [ ] 2. Build the time-slot grid
+- [ ] 1. (you) Add the booking page design to designs/
+- [ ] 2. Create the page scaffold
+- [ ] 3. Build the time-slot grid
+- [ ] 4. Write tests
+- [ ] 5. Update the docs
+- [ ] 6. (you) Try a booking on your phone
 ```
+
+The first sentence under `## Spec` should explain the whole spec on its own, because the card shows the start of the description.
+
+## Done when
+
+A short list of what you will see or be able to do once the spec is finished, in plain words. For example:
+
+```
+## Done when
+- A customer can pay for a basket with a test card and sees the confirmation.
+- An empty basket shows "Your basket is empty" and no pay button.
+```
+
+Two to five lines is plenty. Each one is a result you can check, not a way of building it. Before Claude moves a spec to Review, it checks each line and writes in the last subtask's log whether it was met and how it checked. If a line is not met, the card does not go to Review: Claude fixes it, or adds a required question and stops. A line Claude has no way to check is logged as "needs your check" and doesn't hold the card back. Something only you can see, such as how a page looks on a phone, belongs in a `(you)` step instead.
+
+The section is optional. A spec without one works as before.
+
+## Steps for you
+
+A subtask that starts with `(you)` is something only you can do, such as adding a design or an API key, or trying the result on your phone:
+
+```
+- [ ] 1. (you) Add the checkout design to designs/
+```
+
+The card shows a small "you" tag on these. Claude never ticks one for you. Do the step, tick it on the board, then run the spec again.
+
+- **A `(you)` step with work after it** stops the run. The run panel says **Waiting on you**, with the step, and it isn't an error.
+- **A `(you)` step at the end** doesn't stop anything. Claude finishes, checks **Done when**, moves the card to Review and lists the steps still left for you.
+
+Use a question for a decision ("Email or SMS?") and a `(you)` step for something you do.
+
+## Closing steps
+
+Some steps belong at the end of every spec, such as writing tests and updating the docs. Set them once in `.specboard/config.md`:
+
+```
+closing_steps: [Write tests, Update the docs]
+```
+
+`/plan-project` asks you about these and fills them in, and you can edit the line by hand. Every spec Claude writes after that ends with those subtasks, in order. It leaves one out when a spec plainly doesn't need it, a docs-only spec having no "Write tests", and says so. "Write tests" uses the test command already allowed in `.claude/settings.json`. "Update the docs" means the documents listed in `references` plus the README.
 
 ## Open questions
 

@@ -32,6 +32,7 @@ It doesn't show Claude's messages or the commands it runs. Those stay in the cha
 
 - **It needs a decision.** Claude adds a required question and stops. Answer it on the card, then start the spec again and it carries on.
 - **An action was refused in the background.** The card shows what was refused and the rule that would allow it, if it's safe to offer. Run the `allow` command it gives you in a terminal, then run again.
+- **It's waiting on you.** The spec has a `(you)` step before more work, such as adding a file or a key. The run panel says **Waiting on you** and names the step. Do it, tick it on the card, then run again. This is a pause, not an error.
 - **It finished.** The card moves to Review. Only you can move a card to Done.
 
 A blocked spec or a draft can't be started from the card. If you start one from a chat anyway, Claude refuses and says why.

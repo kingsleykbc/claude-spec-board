@@ -390,42 +390,42 @@ export const recipeSpecs: Spec[] = [
         "n": 1,
         "title": "Collect ingredients from planned meals",
         "done": false,
-        "line": 37,
+        "line": 42,
         "hasLog": false
       },
       {
         "n": 2,
         "title": "Merge duplicate ingredients",
         "done": false,
-        "line": 38,
+        "line": 43,
         "hasLog": false
       },
       {
         "n": 3,
         "title": "Group by aisle",
         "done": false,
-        "line": 39,
+        "line": 44,
         "hasLog": false
       },
       {
         "n": 4,
         "title": "Export file",
         "done": false,
-        "line": 40,
+        "line": 45,
         "hasLog": false
       },
       {
         "n": 5,
         "title": "Export button on planner",
         "done": false,
-        "line": 41,
+        "line": 46,
         "hasLog": false
       }
     ],
     "problems": [],
     "dir": "examples/recipe-box/.specboard/specs/T-105-shopping-list-export",
     "path": "examples/recipe-box/.specboard/specs/T-105-shopping-list-export/spec.md",
-    "hash": "52f8c621a40fe395726aa81ed683bc81c537df4b6837f1463724426c3dbd2763",
+    "hash": "f83e1de090fa6711c99cb623c27f90e6b39b06ed2786ea6275d57e49fd8bd16b",
     "archived": false,
     "slug": "shopping-list-export",
     "progress": {
@@ -433,8 +433,8 @@ export const recipeSpecs: Spec[] = [
       "total": 5
     },
     "logs": {},
-    "bodyMd": "Combine the ingredients from every meal in the planned week into one shopping list, then export it so it can be printed or sent to a phone.\n\n## Features\n\n- Collects ingredients from all planned meals in the chosen range\n- Merges duplicates, so **2 x 200 g flour** becomes **400 g flour**\n- Groups items by aisle: produce, dairy, pantry, other\n- Exports in the format chosen below\n\n## Depends on\n\nNeeds saved meals from T-104 (the `planned_meals` table).",
-    "bodyHash": "35a6304cc735652e2af32a41052dee35e5769b38dc5d2a06e76946978d224cfd",
+    "bodyMd": "Combine the ingredients from every meal in the planned week into one shopping list, then export it so it can be printed or sent to a phone.\n\n## Features\n\n- Collects ingredients from all planned meals in the chosen range\n- Merges duplicates, so **2 x 200 g flour** becomes **400 g flour**\n- Groups items by aisle: produce, dairy, pantry, other\n- Exports in the format chosen below\n\n## Done when\n\n- A planned week turns into one shopping list with duplicate ingredients merged.\n- The list is grouped by aisle and can be exported in the chosen format.\n\n## Depends on\n\nNeeds saved meals from T-104 (the `planned_meals` table).",
+    "bodyHash": "741b290576ab251518e56f6c31d65408eec97aecb0faed8ae1a05ee2d1c593b9",
     "dependents": [],
     "blocked": true,
     "blockedReasons": [
@@ -620,17 +620,24 @@ export const recipeSpecs: Spec[] = [
         "done": false,
         "line": 34,
         "hasLog": false
+      },
+      {
+        "n": 5,
+        "title": "(you) Open a shared link in a private window",
+        "done": false,
+        "line": 35,
+        "hasLog": false
       }
     ],
     "problems": [],
     "dir": "examples/recipe-box/.specboard/specs/T-108-share-recipe-link",
     "path": "examples/recipe-box/.specboard/specs/T-108-share-recipe-link/spec.md",
-    "hash": "69e80c5c725d2c77a49b34079728d62754808a1dc85136b591e98675a8d550de",
+    "hash": "d718cf1c6c3f5ea4d1269905d5340c1a16a162f58c6f296670a8a162ca94c5d5",
     "archived": false,
     "slug": "share-recipe-link",
     "progress": {
       "done": 0,
-      "total": 4
+      "total": 5
     },
     "logs": {},
     "bodyMd": "Generate a public, read-only link for a single recipe that anyone can open without an account.\n\n## Features\n\n- Unguessable token per recipe\n- Owner can revoke the link\n- Shared page hides edit controls",

@@ -25,6 +25,18 @@ Use a real path in place of `<your project folder>`, without the `<` and `>`. Th
 3. Shows the actions a background run may use, and asks you to approve them.
 4. Adds the board's list of projects and your approvals to `~/.specboard/`, outside the repo.
 
+## Plan the project
+
+Open a Claude chat in your project folder and run:
+
+```
+/plan-project
+```
+
+It works for a new project and for an existing codebase. For existing code, Claude reads it first so it can describe what the project does today. Then it asks a few questions, one at a time: what the project is for, whether you want tests (and the command to run them), and which docs it should keep up to date. It writes `.specboard/config.md`, including the closing steps every spec will end with, and suggests your first specs. When you say OK it adds them as drafts, which you write up one at a time with `/create-spec`. It never changes your code.
+
+If you already have plans from another tool, `/import-specs <path>` turns them into cards instead.
+
 ## Open the board
 
 ```
@@ -48,6 +60,7 @@ The board remembers your choice in this browser, for every project.
 Open a Claude chat in your project folder, in the terminal or the desktop app, and use the commands directly:
 
 ```
+/plan-project
 /create-spec A page where customers can book a time slot
 /run-spec T-001
 ```

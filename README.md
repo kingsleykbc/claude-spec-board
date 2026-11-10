@@ -25,7 +25,13 @@ npm run specboard -- init "<your project folder>"
 npm run board -- "<your project folder>"
 ```
 
-Then open a Claude chat in your project folder and create your first spec:
+Then open a Claude chat in your project folder and set the project up. It works for a new project or an existing codebase:
+
+```
+/plan-project
+```
+
+Claude asks a few questions, then suggests your first specs as drafts. To write one up, or to start from an idea:
 
 ```
 /create-spec A page where customers can book a time slot
@@ -37,8 +43,8 @@ The card appears on the board. Answer its required questions there, press **Copy
 
 - [Getting started](docs/guide/getting-started.md): install, set up a project, and use Spec Board as a plugin or through `npx`.
 - [Running a spec](docs/guide/running-specs.md): your Claude chat or the background, and which to choose.
-- [Specs and questions](docs/guide/writing-specs.md): the file format, and required and optional questions.
-- [Commands](docs/guide/commands.md): every Claude command and terminal command.
+- [Specs and questions](docs/guide/writing-specs.md): the file format, "Done when", steps for you, closing steps, and required and optional questions.
+- [Commands](docs/guide/commands.md): every Claude command and terminal command, including `/plan-project`, `/import-specs` and `/reorganize`.
 - [Safety](docs/guide/safety.md): what a run can and can't do. Read this before running a repo you don't trust.
 
 The board shows these same pages: open the menu under the logo and choose **Documentation**.

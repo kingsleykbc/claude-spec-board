@@ -33,3 +33,4 @@ Generate a public, read-only link for a single recipe that anyone can open witho
 - [ ] 2. Read-only recipe page
 - [ ] 3. Copy link button
 - [ ] 4. Revoke link
+- [ ] 5. (you) Open a shared link in a private window

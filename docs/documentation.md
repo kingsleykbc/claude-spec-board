@@ -149,7 +149,7 @@ Everything lives in one folder at the project root. **(my call: `.specboard/`)**
 
 ```
 .specboard/
-  config.md            # project name + description; list of reference doc paths
+  config.md            # project name + description; list of reference doc paths; optional closing_steps
   overview.md          # written by /refresh-overview
                        # reference docs are linked by path in config.md; new ones are created in docs/ (per the design)
   specs/
@@ -183,6 +183,9 @@ Customers pick a barber, a service and a time slot...
 - Barber picker
 - Time-slot grid
 
+## Done when
+- A customer can book a slot and sees a confirmation.
+
 ## Open questions
 - [ ] Q1 (yesno): Do you want an X button?
   > answer:
@@ -193,10 +196,14 @@ Customers pick a barber, a service and a time slot...
 - [x] 1. Create scaffold
 - [x] 2. Second task
 - [ ] 3. Third task
+- [ ] 4. (you) Try it on your phone
 ```
 
 Rules:
 - **Required and optional questions:** a question is required unless marked `(optional yesno)`. An unanswered required question blocks the spec. An unanswered optional one doesn't: Claude goes with its recommendation and says so in the log. A trailing `(recommended: Yes)` is shown in brackets on the board. Decided by Kingsley on 2026-11-09.
+- **Done when** (added 2026-11-10) is an ordinary extra section: 2 to 5 plain checks of what the person will see or be able to do. The parser keeps it like any unknown section and the card detail shows it with the description. Before moving a spec to Review, Claude checks each line and logs the result in the last subtask's log. A line it checked and found not met stops the move (it fixes it, or adds a required question). A line it can't check is logged as "needs your check" and doesn't block. Specs without it keep working.
+- **`(you)` subtasks** (added 2026-11-10): a subtask titled `(you) ...` is for the person. Claude never ticks one. A run that reaches an unticked `(you)` subtask with Claude's work after it keeps `status: doing`, clears `current_subtask`, says what is needed and stops. `(you)` subtasks at the end don't stop a run: Claude checks Done when, moves the card to Review and lists them. The card detail shows a small "you" tag in place of the prefix. The run panel shows a stop at a `(you)` step as **Waiting on you**: "Claude stopped at your step: <step>. Do it, tick it, then run again." It is a calm pause, not an error.
+- **Closing steps** (added 2026-11-10): the optional `closing_steps: [Write tests, Update the docs]` key in `config.md`. Every skill that writes subtasks ends each new spec with these, in order, unless a spec plainly doesn't need one, and says so when it leaves one out. The board ignores the key.
 - **Status** lives in front matter. Moving a card changes only that field.
 - **Blocked** isn't a status. It's worked out from unanswered required questions and unfinished dependencies.
 - **Dependents** aren't stored. The app works them out from other specs' `depends_on`.
@@ -218,6 +225,9 @@ Kingsley named these:
 | Command | What it does |
 |---|---|
 | `/create-spec` | Turns an idea (or a draft from the board) into a full spec: description, features, open questions, subtasks, dependencies. |
+| `/plan-project` | Sets up a new project or an existing codebase (added 2026-11-10): reads the code, asks a few questions, writes `config.md` including `closing_steps`, and adds suggested first specs as drafts. It never changes code. |
+| `/import-specs <path>` | Turns plans from other tools (Spec Kit, OpenSpec, free-form) into cards, after showing a mapping and getting an OK. It never edits the source files. |
+| `/reorganize [instructions]` | Splits, merges, reorders and re-links specs board-wide, with the same safety rules as `/update-spec`. |
 | `/update-spec` | Changes an existing spec as instructed, e.g. bigger corrections Kingsley hands to Claude. |
 | `/refresh-overview` | Rewrites `overview.md` from the current state of all specs. |
 | `/refresh-logs` | Brings the subtask logs up to date from what was actually done (e.g. git history), for when logs were missed. |

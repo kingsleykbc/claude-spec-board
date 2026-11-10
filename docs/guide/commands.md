@@ -6,8 +6,11 @@ Type these in a chat open in your project folder. If you loaded the plugin with 
 
 | Command | What it does |
 |---|---|
-| `/create-spec <id or idea>` | Turns an idea, or a draft from the board, into a full spec with features, questions and subtasks. It doesn't start the work. |
-| `/run-spec <id>` | Works through a spec's subtasks, with a commit and a log for each, then moves the card to Review. |
+| `/plan-project [notes]` | Sets up a new project or an existing codebase: reads what's there, asks a few questions, writes `config.md` with the closing steps, and suggests the first specs as drafts. It never changes your code. |
+| `/create-spec <id or idea>` | Turns an idea, or a draft from the board, into a full spec with features, a "Done when" list, questions and subtasks. In a chat it may first ask you a couple of questions. It doesn't start the work. |
+| `/import-specs <path>` | Turns plans from another tool (Spec Kit, OpenSpec, or your own notes) into cards. It shows you what it will make and waits for your OK. It never edits the files it reads. |
+| `/reorganize [instructions]` | Tidies the board: splits big specs, merges small ones, reorders and fixes dependencies. Without instructions it proposes changes and waits for your OK. |
+| `/run-spec <id>` | Works through a spec's subtasks, with a commit and a log for each, then checks "Done when" and moves the card to Review. It stops at a `(you)` step that has work after it. |
 | `/next` | Picks the most urgent spec that isn't blocked and runs it. |
 | `/update-spec <id> <instructions>` | Changes a spec as you describe. |
 | `/refresh-overview` | Rewrites `overview.md` from the current state of the specs. |
