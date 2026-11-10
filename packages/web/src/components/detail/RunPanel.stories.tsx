@@ -69,6 +69,21 @@ export const Needs: Story = {
   },
 };
 
+export const WaitingOnYou: Story = {
+  name: 'Waiting on you',
+  args: {
+    status: 'needs',
+    end: { status: 'needs', title: 'Waiting on you', text: 'Add the key', waiting: 'Add the key' },
+    lines: withLine({ k: 'warn', text: 'Paused: waiting on you', code: 'Add the key', time: '16:45' }),
+  },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    expect(c.getByTestId('run-chip').textContent).toBe('Waiting on you');
+    expect(c.getByText('Claude stopped at your step: Add the key. Do it, tick it, then run again.')).toBeTruthy();
+    expect(c.queryByRole('button', { name: 'Go to question' })).toBeNull();
+  },
+};
+
 export const Permission: Story = {
   name: 'Permission needed',
   args: {

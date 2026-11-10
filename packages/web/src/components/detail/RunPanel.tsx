@@ -78,6 +78,14 @@ const END: Record<Exclude<RunStatus, 'running'>, End> = {
   },
 };
 
+/** A `needs` end at a `(you)` step: a calm pause for the person's own work, with nothing to jump to. */
+const WAITING: End = {
+  title: 'Waiting on you',
+  text: '',
+  ink: 'var(--review-ink)',
+  border: 'var(--review)',
+};
+
 /** A finished write-up or fix did not move anything to Review. */
 const FINISHED: Partial<Record<RunKind, { title: string; text: string }>> = {
   'write-up': { title: 'Written up', text: 'Features, questions and subtasks are on the card. Check them, then run it.' },
@@ -108,17 +116,18 @@ export const COPY_FAILED_MS = 6000;
 
 export function RunPanel({ kind = 'run', status, lines, end: server, projectRoot, onDismiss, onAction }: RunPanelProps) {
   const running = status === 'running';
-  const base = running ? null : END[status];
+  const waiting = status === 'needs' ? server?.waiting : undefined;
+  const base = running ? null : waiting ? WAITING : END[status];
   const fallback = base && status === 'finished' ? (FINISHED[kind] ?? base) : base;
   // `fix` is absent when the action is blocked by policy: then there is nothing to copy, and the text says why.
   const fix = status === 'permission' ? server?.fix : undefined;
   const end = base && {
     ...base,
     title: server?.title ?? fallback!.title,
-    text: server?.text ?? fallback!.text,
+    text: waiting ? `Claude stopped at your step: ${waiting}. Do it, tick it, then run again.` : (server?.text ?? fallback!.text),
     action: status === 'permission' && !fix ? undefined : base.action,
   };
-  const [chipLabel, chipBg, chipInk] = CHIP[status];
+  const [chipLabel, chipBg, chipInk] = waiting ? ['Waiting on you', ...CHIP.needs.slice(1)] : CHIP[status];
 
   // Copy rule: the same honest feedback as RunButton's copy (confirm only once the clipboard took it).
   const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle');

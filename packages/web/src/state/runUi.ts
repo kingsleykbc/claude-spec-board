@@ -53,7 +53,7 @@ function startedToast(run: RunSnapshot, title: string | undefined): ToastArgs | 
   }
 }
 
-function endedToast(run: RunSnapshot): ToastArgs {
+export function endedToast(run: RunSnapshot): ToastArgs {
   const id = run.specId;
   const end = run.end;
   if (run.kind === 'refresh-overview') {
@@ -66,6 +66,7 @@ function endedToast(run: RunSnapshot): ToastArgs {
     case 'stopped':
       return ['info', `Stopped Claude on ${id}`, 'Work so far is committed.'];
     case 'needs':
+      if (end?.waiting) return ['warn', `${id} is waiting on you`, end.waiting];
       return ['warn', `Claude needs your answer on ${id}`, end?.text];
     case 'permission':
       return ['err', `Claude stopped on ${id}`, 'It needs permission to continue.'];

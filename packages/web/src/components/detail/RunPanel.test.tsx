@@ -62,6 +62,16 @@ describe('RunPanel', () => {
     expect(onDismiss).toHaveBeenCalled();
   });
 
+  it('a needs end that waits on a (you) step is a calm pause with no question button', () => {
+    const { panel } = setup('needs', { status: 'needs', title: 'Waiting on you', text: 'Add the key', waiting: 'Add the key' });
+    const p = within(panel);
+    expect(p.getByTestId('run-chip').textContent).toBe('Waiting on you');
+    const card = within(p.getByTestId('run-end'));
+    expect(card.getByText('Waiting on you')).toBeTruthy();
+    expect(card.getByText('Claude stopped at your step: Add the key. Do it, tick it, then run again.')).toBeTruthy();
+    expect(p.queryByRole('button', { name: 'Go to question' })).toBeNull();
+  });
+
   it('needs and error actions call onAction', () => {
     const { panel, onAction } = setup('needs');
     fireEvent.click(within(panel).getByRole('button', { name: 'Go to question' }));

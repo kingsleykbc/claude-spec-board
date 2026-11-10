@@ -53,6 +53,8 @@ export interface EndInfo {
   text?: string;
   fix?: string;
   denied?: Denial[];
+  /** The `(you)` step Claude stopped at. Set only on a `needs` end that waits on a person, not on an answer. */
+  waiting?: string;
 }
 export interface RunSnapshot {
   id: string;

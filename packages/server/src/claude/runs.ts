@@ -173,6 +173,7 @@ function finalLine(kind: RunKind, end: EndInfo, before: Spec | null, after: Spec
     case 'stopped':
       return { k: 'stop', text: 'Stopped by you' };
     case 'needs': {
+      if (end.waiting) return { k: 'warn', text: 'Paused: waiting on you', code: end.waiting };
       const known = new Set(before?.questions.map((q) => q.id));
       const added = after?.questions.some((q) => q.required && q.answer === null && !known.has(q.id));
       return { k: 'warn', text: added ? 'Paused: Claude added an open question' : 'Paused: an open question needs your answer' };

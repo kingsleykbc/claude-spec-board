@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ClaudeStatus, RunSnapshot } from '../api/client';
 import { recipeSpec } from '../fixtures/recipeBox';
-import { cardRun, runButtonState } from './runUi';
+import { cardRun, endedToast, runButtonState } from './runUi';
 
 const run = (over: Partial<RunSnapshot> = {}): RunSnapshot => ({
   id: 'r1',
@@ -78,5 +78,16 @@ describe('cardRun', () => {
     expect(cardRun(run({ specId: 'T-103' }), spec)).toEqual(idle);
     expect(cardRun(run({ status: 'stopped' }), spec)).toEqual(idle);
     expect(cardRun(null, spec)).toEqual(idle);
+  });
+});
+
+describe('endedToast', () => {
+  it('a run waiting on a (you) step says so and names the step', () => {
+    const end = { status: 'needs' as const, title: 'Waiting on you', text: 'Add the key', waiting: 'Add the key' };
+    expect(endedToast(run({ status: 'needs', end }))).toEqual(['warn', 'T-104 is waiting on you', 'Add the key']);
+  });
+  it('a run that needs an answer is unchanged', () => {
+    const end = { status: 'needs' as const, title: 'Claude has a question', text: 'There is 1 unanswered question on this spec.' };
+    expect(endedToast(run({ status: 'needs', end }))).toEqual(['warn', 'Claude needs your answer on T-104', end.text]);
   });
 });

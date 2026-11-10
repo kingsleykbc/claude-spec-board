@@ -1,9 +1,9 @@
-import type { SpecDoc } from '@specboard/core';
+import { firstOpenYouStep, type SpecDoc } from '@specboard/core';
 import type { ClaudeResult, Denial } from './events.js';
 
 export type RunKind = 'run' | 'write-up' | 'fix-file' | 'refresh-overview';
 export type RunStatus = 'running' | 'finished' | 'stopped' | 'needs' | 'permission' | 'error';
-export interface EndInfo { status: RunStatus; title?: string; text?: string; fix?: string; denied?: Denial[] }
+export interface EndInfo { status: RunStatus; title?: string; text?: string; fix?: string; denied?: Denial[]; waiting?: string }
 
 const AUTH = /authenticate|logged in|\/login/i;
 const CLIP_AT = 500;
@@ -276,6 +276,9 @@ export function classifyEnd(input: ClassifyInput): EndInfo {
 
   if (open.length > 0 && !afterInReview) return needs();
   if (afterInReview) return withRefusals({ status: 'finished' }, result.denials);
+
+  const you = after ? firstOpenYouStep(after.subtasks) : null;
+  if (you) return withRefusals({ status: 'needs', title: 'Waiting on you', text: you, waiting: you }, result.denials);
 
   const left = (after?.subtasks ?? []).filter((t) => !t.done).map((t) => t.n);
   const why = !after

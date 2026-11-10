@@ -138,6 +138,38 @@ describe('classifyEnd', () => {
   });
 });
 
+describe('a stop at a (you) step', () => {
+  const sub = (n: number, title: string, done: boolean) => ({ n, title, done, line: n, hasLog: false });
+  const waiting = { status: 'needs', title: 'Waiting on you', text: 'Add the key', waiting: 'Add the key' };
+
+  it('stopping at a (you) step is waiting, not an error', () => {
+    const after = spec({ status: 'doing', subtasks: [sub(1, 'Build', true), sub(2, '(you) Add the key', false), sub(3, 'Wire up', false)] });
+    expect(end({ after })).toEqual(waiting);
+  });
+
+  it('only trailing (you) steps left but not in Review is still waiting', () => {
+    const after = spec({ status: 'doing', subtasks: [sub(1, 'Build', true), sub(2, '(you) Add the key', false), sub(3, '(you) Deploy', false)] });
+    expect(end({ after })).toEqual(waiting);
+  });
+
+  it('a refused action wins over a (you) step', () => {
+    const after = spec({ status: 'doing', subtasks: [sub(1, '(you) Add the key', false)] });
+    expect(end({ after, result: res({ denials: [bash('npm install date-fns')] }) }).status).toBe('permission');
+  });
+
+  it('a new question wins over a (you) step', () => {
+    const after = spec({ status: 'doing', open: ['Q1'], subtasks: [sub(1, '(you) Add the key', false)] });
+    const e = end({ after });
+    expect(e).toMatchObject({ status: 'needs', title: 'Claude has a question' });
+    expect(e.waiting).toBeUndefined();
+  });
+
+  it('an ordinary unticked subtask is still an error', () => {
+    const after = spec({ status: 'doing', subtasks: [sub(1, 'Build', true), sub(2, 'Wire up', false)] });
+    expect(end({ after })).toMatchObject({ status: 'error', title: 'Claude stopped before finishing' });
+  });
+});
+
 describe('suggestRule', () => {
   it.each([
     ['npm install date-fns', 'Bash(npm install:*)'],

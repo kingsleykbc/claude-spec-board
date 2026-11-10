@@ -612,6 +612,15 @@ describe('how a run ends', () => {
     expect(run.lines.at(-1)).toMatchObject({ k: 'warn', text: 'Paused: Claude added an open question' });
   });
 
+  it('stopping at a (you) step ends in needs with a waiting line', async () => {
+    const entry = await makeProject();
+    const { m } = manager('you-step');
+    const run = await ended((await m.start(entry, 'run', 'T-001')).id);
+    expect(run.status).toBe('needs');
+    expect(run.end).toMatchObject({ title: 'Waiting on you', waiting: 'Add the key' });
+    expect(run.lines.at(-1)).toMatchObject({ k: 'warn', text: 'Paused: waiting on you', code: 'Add the key' });
+  });
+
   it('clears a leftover current_subtask and leaves the rest of the file alone', async () => {
     const entry = await makeProject();
     const { m } = manager('leftover');

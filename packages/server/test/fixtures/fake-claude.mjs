@@ -49,6 +49,10 @@ const scenarios = {
     editSpec((t) => t.replace('## Subtasks', '## Open questions\n- [ ] Q1 (text): Which one?\n  > answer:\n\n## Subtasks'));
     result();
   },
+  'you-step'() {
+    editSpec((t) => t.replace('- [ ] 1. First', '- [x] 1. First').replace('- [ ] 2. Second', '- [ ] 2. (you) Add the key'));
+    result();
+  },
   'denied-push': () => denied('git push origin HEAD'),
   'denied-npm': () => denied('npm install date-fns'),
   crash() {
