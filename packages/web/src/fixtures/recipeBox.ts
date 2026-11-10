@@ -358,7 +358,7 @@ export const recipeSpecs: Spec[] = [
         "text": "Should the export include quantities?",
         "options": [],
         "answer": null,
-        "line": 28
+        "line": 33
       },
       {
         "id": "Q2",
@@ -368,7 +368,7 @@ export const recipeSpecs: Spec[] = [
         "text": "How many weeks ahead should the list cover?",
         "options": [],
         "answer": null,
-        "line": 30
+        "line": 35
       },
       {
         "id": "Q3",
@@ -382,7 +382,7 @@ export const recipeSpecs: Spec[] = [
           "Plain text"
         ],
         "answer": null,
-        "line": 32
+        "line": 37
       }
     ],
     "subtasks": [
