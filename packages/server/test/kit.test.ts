@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { parseSpec, splitFrontMatter } from '@specboard/core';
+import { parseSpec, specBodyMd, splitFrontMatter, youStep } from '@specboard/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { installSkills, kitPluginDir, kitSkills } from '../src/kit.js';
 
@@ -96,9 +96,25 @@ describe('kit content', () => {
       expect(doc.questions[2]!.options).toEqual(['Email', 'SMS', 'Both']);
       expect(doc.questions[1]!.answer).toBe('14');
       expect(doc.questions[0]!.answer).toBeNull();
-      expect(doc.subtasks.map((s) => [s.n, s.done])).toEqual([[1, true], [2, false], [3, false]]);
+      expect(doc.subtasks.map((s) => [s.n, s.done])).toEqual([[1, true], [2, false], [3, false], [4, false]]);
+      expect(specBodyMd(sample)).toContain('## Done when');
+      expect(youStep(doc.subtasks[doc.subtasks.length - 1]!.title)).not.toBeNull();
       expect(doc.featuresMd).toContain('- ');
     }
+  });
+
+  it('the format documents Done when, (you) steps and closing_steps', async () => {
+    const text = (await kitSkills()).find((s) => s.name === 'specboard')!.text;
+    expect(text).toContain('## Done when');
+    expect(text).toContain('(you) ');
+    expect(text).toContain('closing_steps');
+  });
+
+  it('running stops at a (you) step with Claude work after it, and checks Done when before Review', async () => {
+    const section = runningSection((await kitSkills()).find((s) => s.name === 'specboard')!.text);
+    expect(section).toContain('(you)');
+    expect(section).toContain('Done when');
+    expect(section).toContain('needs your check');
   });
 
   it('the log sample has the documented front matter keys and a dated entry', async () => {

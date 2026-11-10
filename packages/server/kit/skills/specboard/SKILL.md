@@ -11,7 +11,7 @@ Spec Board is a kanban board over plain Markdown files in `.specboard/`. People 
 
 ```
 .specboard/
-  config.md                     # front matter: name, references (list of repo-relative paths); body = project description
+  config.md                     # front matter: name, references (list of repo-relative paths), closing_steps (list, optional); body = project description
   overview.md                   # front matter: updated (YYYY-MM-DD); body = progress summary
   specs/<ID>-<slug>/spec.md
   specs/<ID>-<slug>/logs/<n>-<slug>.md
@@ -38,7 +38,7 @@ Front matter keys:
 | `current_subtask` | the number being worked on right now, or `null` |
 | `created`, `updated` | `YYYY-MM-DD` |
 
-Body sections, matched case-insensitively: `## Spec`, `## Features`, `## Open questions`, `## Subtasks`. Any other section is kept untouched.
+Body sections, matched case-insensitively: `## Spec`, `## Features`, `## Done when`, `## Open questions`, `## Subtasks`. Any other section is kept untouched.
 
 Complete example (this is exactly the grammar the board's parser accepts):
 
@@ -63,6 +63,10 @@ Customers pick a barber, a service and a time slot, then confirm.
 - Barber picker
 - Time-slot grid
 
+## Done when
+- A customer can book a slot and sees the confirmation.
+- A taken slot cannot be booked twice.
+
 ## Open questions
 - [ ] Q1 (yesno): Should customers be able to cancel a booking? (recommended: Yes)
   > answer:
@@ -77,6 +81,7 @@ Customers pick a barber, a service and a time slot, then confirm.
 - [x] 1. Create the page scaffold
 - [ ] 2. Build the time-slot grid
 - [ ] 3. Wire up confirmation
+- [ ] 4. (you) Try a booking on your phone
 ```
 
 Question line: `- [ ] Q<k> (<type>): <text>`, then an indented line `  > answer: <value>`.
@@ -87,6 +92,21 @@ Question line: `- [ ] Q<k> (<type>): <text>`, then an indented line `  > answer:
 - To add a question, append it at the end of `## Open questions` (add that section if it is missing).
 
 Subtask line: `- [ ] <n>. <title>`, and `- [x] <n>. <title>` when done. Numbers run 1, 2, 3 in order.
+
+A subtask whose title starts with `(you) ` is for the person, not Claude: `- [ ] 3. (you) Add the API key to .env`. Things needed before the work go first; checks the person does afterwards go last. Claude never ticks a `(you)` subtask. The person ticks it on the board. Use a `(you)` subtask for something the person does, and an open question for a decision.
+
+`## Done when` is 2 to 5 plain checks of what the person will see or be able to do. Each line is a result, not a piece of work. It is an ordinary section, so the board shows it as part of the spec.
+
+`closing_steps` in config.md is an optional list of subtasks every spec in the project ends with, for example `closing_steps: [Write tests, Update the docs]`. Edit it by hand or leave it out.
+
+## Writing a good spec
+
+1. The first sentence of `## Spec` explains the whole spec on its own. The card shows only the start of it.
+2. `## Done when` has 2 to 5 observable checks. Prefer checks a test or the code can prove. Something only a person can see (on a phone, in a browser) becomes a `(you)` subtask at the end instead.
+3. Keep subtasks small: each one doable and checkable on its own, with one commit.
+4. Put the `closing_steps` from config.md last, in order. Leave one out only when the spec plainly does not need it (a docs-only spec needs no "Write tests"), and say so.
+5. Put `(you)` subtasks where they belong: what is needed before the work first, what the person checks afterwards last.
+6. Ask a question only for a real decision, with a recommendation when you have a view. Do not ask what the spec or the code already answers.
 
 ## Logs: logs/<n>-<slug>.md
 
@@ -122,15 +142,22 @@ Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never s
    Otherwise read the saved answers and use them as decisions. For an unanswered optional question, go with its recommendation, leave the question unanswered, and say which you assumed in the log of the first subtask it affects. If it has no recommendation, use your best judgment and say so the same way.
 3. Edit the front matter: `status: doing`, and `updated` to today.
 4. For each unticked subtask, in order:
-   1. Set `current_subtask: <n>`.
-   2. Do the work the subtask describes, using the Spec and Features sections and the answers.
-   3. Run the project's tests. Read `.claude/settings.json`, take the test command from the `Bash(...)` entries in `permissions.allow` (the entry that runs the tests, for example `Bash(npm test)` means `npm test`), and run exactly that command, alone, with the Bash tool. Do not pick another test command and do not chain anything onto it. If it fails, fix the cause. If you cannot, treat it as step 5 and do not commit failing work. If no test command is listed, do not run or add tests and do not edit `package.json` to create a test script; write "No test command is set up" in the subtask's log entry and carry on.
-   4. Commit only this subtask's code with the Bash tool: `git add <the files you changed>`, then `git commit -m "<ID> · <n>. <subtask title>"`. Do not add `.specboard/` files to the commit.
-   5. Get the short hash with `git log -1 --format=%h` and the changed files with `git diff --name-only HEAD~1 HEAD`.
-   6. Write `.specboard/specs/<ID>-<slug>/logs/<n>-<slug>.md` in the log format: `subtask`, `commit`, `files`, and a dated entry (`### YYYY-MM-DD HH:mm`) of what you did.
-   7. Tick the subtask (`- [x]`) and set `updated`.
+   1. If it is a `(you)` subtask and Claude subtasks come after it: set `current_subtask: null`, leave the status as `doing`, say exactly what the person needs to do, and **stop**. Never tick it. The person ticks it on the board and runs again. A `(you)` subtask with only `(you)` subtasks after it does not stop the run: go to step 6.
+   2. Set `current_subtask: <n>`.
+   3. Do the work the subtask describes, using the Spec and Features sections and the answers.
+   4. Run the project's tests. Read `.claude/settings.json`, take the test command from the `Bash(...)` entries in `permissions.allow` (the entry that runs the tests, for example `Bash(npm test)` means `npm test`), and run exactly that command, alone, with the Bash tool. Do not pick another test command and do not chain anything onto it. If it fails, fix the cause. If you cannot, treat it as step 5 and do not commit failing work. If no test command is listed, do not run or add tests and do not edit `package.json` to create a test script; write "No test command is set up" in the subtask's log entry and carry on.
+   5. Commit only this subtask's code with the Bash tool: `git add <the files you changed>`, then `git commit -m "<ID> · <n>. <subtask title>"`. Do not add `.specboard/` files to the commit.
+   6. Get the short hash with `git log -1 --format=%h` and the changed files with `git diff --name-only HEAD~1 HEAD`.
+   7. Write `.specboard/specs/<ID>-<slug>/logs/<n>-<slug>.md` in the log format: `subtask`, `commit`, `files`, and a dated entry (`### YYYY-MM-DD HH:mm`) of what you did.
+   8. Tick the subtask (`- [x]`) and set `updated`.
 5. When you reach a decision you cannot make from the spec and its answers (or tests cannot be fixed): add a required open question (`- [ ] Q<k> (<type>): <text>` then `  > answer:`, with a recommendation if you have one), set `current_subtask: null`, leave the status as `doing`, say what you need, and **stop**. Do not guess and do not carry on to the next subtask. A refused action is different: see rule 8.
-6. When every subtask is ticked: set `current_subtask: null`, `status: review` and `updated` to today. Never set `status: done`.
+6. When only `(you)` subtasks (or none) are left unticked, check each line of `## Done when` before moving to Review:
+   - Check it with the code, the tests or a command you may run. Write the result of each line in a log entry: met, not met, or needs your check (when only a person can check it), and how you checked.
+   - If no subtask was done in this run, add the entry as a new dated entry in the log of the last code subtask.
+   - A line you checked and found not met: fix it, or add a required question (step 5) and stop. Do not move to Review.
+   - A line you cannot check yourself is "needs your check". It does not block Review and is not a question.
+   - Otherwise set `current_subtask: null`, `status: review` and `updated` to today, and list the `(you)` subtasks still to do in your summary. Never set `status: done`.
+   - A spec without `## Done when` has nothing to check: go straight to Review.
 7. Finish with a short summary: subtasks completed, commits made, anything the reviewer should look at.
 
 ## Rules
