@@ -28,7 +28,8 @@ Any input is the person's instructions for what to change.
    - Answers already given are kept, and question numbers are never reused.
    - Never set `status: done`, and do not move a spec into the archive.
    - A split keeps the original ID on the first part, with every ticked or logged subtask, and gives the next free IDs to the rest. Update `depends_on` across the board so it still points at the right part.
-   - A merge copies the work into one spec and archives nothing by itself: say which card can be archived.
+   - A merge keeps the card with the most finished work (the lower ID if equal). Append the other card's `## Spec`, `## Features` and `## Done when` content to the kept card, its unanswered questions with new numbers, and only its unticked subtasks as new subtasks at the end.
+   - The other card's ticked subtasks, answered questions and logs stay where they are. A merge archives nothing by itself: say that the other card can be archived.
    - Set `updated` to today on every spec you change.
 5. If a change would need a decision you cannot make, add an open question to that spec instead of guessing.
 6. Do not change code. Finish with a short list of what changed, per spec, and which cards the person can archive.
