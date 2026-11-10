@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
 import type { Spec } from '@specboard/core';
+// Subpath import: the core index pulls in node:crypto, which the browser build cannot load.
+import { youStep } from '@specboard/core/you';
 import { api, ConflictError } from '../../api/client';
 import { OFFLINE_TOAST, type Mutate } from '../../state/actions';
 import type { PushToast } from '../../state/toasts';
@@ -82,6 +84,7 @@ export function Subtasks({ pid, spec, client = api, mutate, refresh, toast, down
         {subtasks.map((t) => {
           const key = `${id}:${t.n}`;
           const inputId = `st-${key}`;
+          const you = youStep(t.title);
           const log = spec.logs?.[t.n];
           const open = openLog === t.n && log !== undefined;
           return (
@@ -100,7 +103,12 @@ export function Subtasks({ pid, spec, client = api, mutate, refresh, toast, down
                   onChange={() => void toggle(t.n, !t.done)}
                 />
                 <label htmlFor={inputId} className={s.stName} style={{ color: t.done ? 'var(--fg2)' : 'var(--fg)' }}>
-                  {t.title}
+                  {you !== null && (
+                    <span data-testid="you-tag" className={s.you} title="Your step: Claude stops here and waits for you to tick it">
+                      you
+                    </span>
+                  )}
+                  {you ?? t.title}
                 </label>
                 {runActive && spec.currentSubtask === t.n && (
                   <span className={s.active}>

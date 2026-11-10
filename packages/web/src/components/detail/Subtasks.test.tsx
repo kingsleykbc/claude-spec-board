@@ -157,6 +157,24 @@ describe('Subtasks', () => {
     setup({ ...sp, logs: undefined as unknown as Spec['logs'] });
     expect(screen.queryByRole('button', { name: /Log/ })).toBeNull();
   });
+
+  it('a (you) subtask shows a "you" tag and its text without the prefix', () => {
+    const sp = recipeSpec('T-104');
+    setup({
+      ...sp,
+      subtasks: [
+        { n: 1, title: '(you) Add the design', done: false, line: 0, hasLog: false },
+        { n: 2, title: 'Build it', done: false, line: 0, hasLog: false },
+      ],
+    });
+    expect(screen.getByText('Add the design')).toBeTruthy();
+    expect(screen.queryByText('(you) Add the design')).toBeNull();
+    const tags = screen.getAllByTestId('you-tag');
+    expect(tags).toHaveLength(1);
+    expect(tags[0]!.textContent).toBe('you');
+    expect(row(1).contains(tags[0]!)).toBe(true);
+    expect(screen.getByLabelText(/Add the design/)).toBeTruthy();
+  });
 });
 
 describe('SubtaskLog', () => {

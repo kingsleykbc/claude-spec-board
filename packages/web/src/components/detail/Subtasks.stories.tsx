@@ -81,3 +81,24 @@ export const Empty: Story = {
     expect(within(canvasElement).getByText('No subtasks yet. Claude adds them when it writes up the spec.')).toBeTruthy();
   },
 };
+
+export const PersonSteps: Story = {
+  name: 'Person steps',
+  args: {
+    spec: {
+      ...recipeSpec('T-104'),
+      subtasks: [
+        { n: 1, title: '(you) Add the design', done: false, line: 0, hasLog: false },
+        { n: 2, title: 'Build the calendar grid', done: false, line: 0, hasLog: false },
+        { n: 3, title: '(you) Check it on your phone', done: true, line: 0, hasLog: false },
+      ],
+      logs: {},
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    expect(c.getAllByTestId('you-tag')).toHaveLength(2);
+    expect(c.getByText('Add the design')).toBeTruthy();
+    expect(c.queryByText('(you) Add the design')).toBeNull();
+  },
+};
