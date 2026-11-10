@@ -53,6 +53,11 @@ const scenarios = {
     editSpec((t) => t.replace('- [ ] 1. First', '- [x] 1. First').replace('- [ ] 2. Second', '- [ ] 2. (you) Add the key'));
     result();
   },
+  'you-final'() {
+    editSpec((t) => t.replace(/^status: .*$/m, 'status: review').replace('- [ ] 1. First', '- [x] 1. First').replace('- [ ] 2. Second', '- [ ] 2. (you) Check it on your phone'));
+    writeLog(1, 'first', 'aaa1111');
+    result();
+  },
   'denied-push': () => denied('git push origin HEAD'),
   'denied-npm': () => denied('npm install date-fns'),
   crash() {

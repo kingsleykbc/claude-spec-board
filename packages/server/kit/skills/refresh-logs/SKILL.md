@@ -13,7 +13,7 @@ Limit to this spec if an ID is given, otherwise do every spec: $ARGUMENTS
 
 ## Steps
 
-1. For each spec, list its ticked subtasks and the files in its `logs/` folder. A ticked subtask with no log, or a log with an empty `commit` or `files`, needs work.
+1. For each spec, list its ticked subtasks (skip `(you)` subtasks: they have no commit and need no log) and the files in its `logs/` folder. A ticked subtask with no log, or a log with an empty `commit` or `files`, needs work.
 2. Find the commit for each. Runs commit with the message `<ID> · <n>. <title>`, so search with `git log --grep="<ID> · <n>\." --format="%h %cd" --date=format:"%Y-%m-%d %H:%M"`, then get the files with `git diff --name-only <hash>~1 <hash>`.
 3. If there is no such commit, look through `git log --stat` for commits that plainly match the subtask. Use a match only if you are sure; otherwise leave `commit` empty and write in the entry that the commit was not found.
 4. Write or complete `logs/<n>-<slug>.md` in the log format with the real hash, the files, and a dated entry (use the commit's date) saying what the commit did, based on its diff. Never invent details. Keep existing entries and add to them.

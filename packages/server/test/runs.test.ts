@@ -199,6 +199,17 @@ describe('childEnv', () => {
   });
 });
 
+describe('a run that reaches Review with (you) checks left', () => {
+  it('says the subtasks of Claude are done and how many are left for the person', async () => {
+    const entry = await makeProject();
+    const { m } = manager('you-final');
+    const started = await m.start(entry, 'run', 'T-001');
+    const run = await ended(started.id);
+    expect(run.status).toBe('finished');
+    expect(run.lines.at(-1)).toMatchObject({ k: 'done', text: "Claude's subtasks done · 1 left for you · committed", code: 'aaa1111' });
+  });
+});
+
 describe('a run that succeeds', () => {
   it('goes running to finished, in order, with the spec in Review', async () => {
     const entry = await makeProject();

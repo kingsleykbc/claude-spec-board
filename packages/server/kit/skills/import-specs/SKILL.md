@@ -24,7 +24,7 @@ The input is the folder or file to import from. Never edit, move or delete the s
 4. On the OK, write one spec per card with the Write tool, using the next free IDs, following "Writing a good spec" in the rules:
    - description → `## Spec`, with a first sentence that explains the whole card. End the section with a line naming the source file, for example `Source: specs/003-checkout/spec.md`, so nothing is lost.
    - acceptance criteria or scenarios → `## Done when`, shortened to 2 to 5 plain checks.
-   - task lists → `## Subtasks`: done items stay ticked, items only the person can do become `(you)` subtasks. Add the `closing_steps` from `.specboard/config.md` only to cards that are not already finished.
+   - task lists → `## Subtasks`: done items stay ticked, items only the person can do become `(you)` subtasks. Add the `closing_steps` from `.specboard/config.md` only to cards that are not already finished, after Claude's work and before any `(you)` checks (the order in the rules).
    - open points → `## Open questions`, each with an empty `  > answer:` line.
    - order and "depends on" notes → `depends_on`.
    - status → `status`: not started is `todo`, in progress is `doing`, finished is `review` at most. Never set `status: done`; only a person does.

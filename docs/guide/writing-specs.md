@@ -66,7 +66,7 @@ A short list of what you will see or be able to do once the spec is finished, in
 - An empty basket shows "Your basket is empty" and no pay button.
 ```
 
-Two to five lines is plenty. Each one is a result you can check, not a way of building it. Before Claude moves a spec to Review, it checks each line and writes in the last subtask's log whether it was met and how it checked. If a line is not met, the card does not go to Review: Claude fixes it, or adds a required question and stops. A line Claude has no way to check is logged as "needs your check" and doesn't hold the card back. Something only you can see, such as how a page looks on a phone, belongs in a `(you)` step instead.
+Two to five lines is plenty. Each one is a result you can check, not a way of building it. Before Claude moves a spec to Review, it checks each line and writes in the log of the last subtask it did whether it was met and how it checked. If a line is not met, the card does not go to Review: Claude fixes it, or adds a required question and stops. A line Claude has no way to check is logged as "needs your check" and doesn't hold the card back. Something only you can see, such as how a page looks on a phone, belongs in a `(you)` step instead.
 
 The section is optional. A spec without one works as before.
 
@@ -93,7 +93,7 @@ Some steps belong at the end of every spec, such as writing tests and updating t
 closing_steps: [Write tests, Update the docs]
 ```
 
-`/plan-project` asks you about these and fills them in, and you can edit the line by hand. Every spec Claude writes after that ends with those subtasks, in order. It leaves one out when a spec plainly doesn't need it, a docs-only spec having no "Write tests", and says so. "Write tests" uses the test command already allowed in `.claude/settings.json`. "Update the docs" means the documents listed in `references` plus the README.
+`/plan-project` asks you about these and fills them in, and you can edit the line by hand. Every spec Claude writes after that has those subtasks after Claude's work, in order, ahead of any final `(you)` checks. It leaves one out when a spec plainly doesn't need it, a docs-only spec having no "Write tests", and says so. "Write tests" uses the test command already allowed in `.claude/settings.json`. "Update the docs" means the documents listed in `references` plus the README.
 
 ## Open questions
 

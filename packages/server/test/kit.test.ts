@@ -110,6 +110,15 @@ describe('kit content', () => {
     expect(text).toContain('closing_steps');
   });
 
+  it('states the subtask order once and create-spec and import-specs echo it', async () => {
+    const skills = await kitSkills();
+    const text = (name: string): string => skills.find((s) => s.name === name)!.text;
+    expect(text('specboard')).toContain("Subtask order: `(you)` steps needed before the work, then Claude's work, then the `closing_steps`");
+    expect(text('specboard')).toContain('then the `(you)` checks the person does afterwards');
+    expect(text('create-spec')).toContain('then `(you)` checks the person does afterwards');
+    expect(text('import-specs')).toContain('before any `(you)` checks');
+  });
+
   it('running stops at a (you) step with Claude work after it, and checks Done when before Review', async () => {
     const section = runningSection((await kitSkills()).find((s) => s.name === 'specboard')!.text);
     expect(section).toContain('(you)');

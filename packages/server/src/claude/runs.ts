@@ -1,7 +1,7 @@
 import type { ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
-import { hashText, loadProject, parseSpec, setMetaField, writeIfUnchanged, type Spec } from '@specboard/core';
+import { hashText, loadProject, parseSpec, setMetaField, writeIfUnchanged, youStep, type Spec } from '@specboard/core';
 import spawn from 'cross-spawn';
 import { kitPluginDir } from '../kit.js';
 import type { ProjectEntry } from '../registry.js';
@@ -168,7 +168,9 @@ function finalLine(kind: RunKind, end: EndInfo, before: Spec | null, after: Spec
     case 'finished': {
       if (kind !== 'run') return { k: 'done', text: FINISHED_TEXT[kind] };
       const commit = [...(after?.subtasks ?? [])].reverse().map((t) => after?.logs[t.n]?.commit).find(Boolean);
-      return commit ? { k: 'done', text: 'All subtasks done · committed', code: commit } : { k: 'done', text: 'All subtasks done' };
+      const left = (after?.subtasks ?? []).filter((t) => !t.done && youStep(t.title) !== null).length;
+      const text = left > 0 ? `Claude's subtasks done · ${left} left for you` : 'All subtasks done';
+      return commit ? { k: 'done', text: `${text} · committed`, code: commit } : { k: 'done', text };
     }
     case 'stopped':
       return { k: 'stop', text: 'Stopped by you' };

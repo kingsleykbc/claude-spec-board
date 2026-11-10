@@ -104,7 +104,7 @@ export function Subtasks({ pid, spec, client = api, mutate, refresh, toast, down
                 />
                 <label htmlFor={inputId} className={s.stName} style={{ color: t.done ? 'var(--fg2)' : 'var(--fg)' }}>
                   {you !== null && (
-                    <span data-testid="you-tag" className={s.you} title="Your step: Claude stops here and waits for you to tick it">
+                    <span data-testid="you-tag" className={s.you} title="Your step: Claude never ticks it">
                       you
                     </span>
                   )}

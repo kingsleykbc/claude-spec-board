@@ -118,10 +118,12 @@ describe('setConfigReferences', () => {
     const out = setConfigReferences(configText, ['CLAUDE.md', 'docs/X.md']);
     const lines = out.split('\n');
     const orig = configText.split('\n');
-    expect(lines[2]).toBe('references: [CLAUDE.md, docs/X.md]');
-    // Everything before and after the old references block is untouched.
-    expect(lines.slice(0, 2)).toEqual(orig.slice(0, 2));
-    expect(lines.slice(3)).toEqual(orig.slice(orig.indexOf('---', 1)));
+    const at = orig.findIndex((l) => l.startsWith('references:'));
+    expect(lines[at]).toBe('references: [CLAUDE.md, docs/X.md]');
+    // Everything before and after the old references block (including closing_steps) is untouched.
+    expect(orig.slice(0, at)).toContain('closing_steps: [Write tests, Update the docs]');
+    expect(lines.slice(0, at)).toEqual(orig.slice(0, at));
+    expect(lines.slice(at + 1)).toEqual(orig.slice(orig.indexOf('---', 1)));
   });
   it('handles empty lists, a missing key and CRLF', () => {
     expect(setConfigReferences('---\nname: A\nreferences: [b]\n---\n', [])).toBe('---\nname: A\nreferences: []\n---\n');

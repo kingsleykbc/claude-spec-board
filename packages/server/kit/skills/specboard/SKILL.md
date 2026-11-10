@@ -93,7 +93,7 @@ Question line: `- [ ] Q<k> (<type>): <text>`, then an indented line `  > answer:
 
 Subtask line: `- [ ] <n>. <title>`, and `- [x] <n>. <title>` when done. Numbers run 1, 2, 3 in order.
 
-A subtask whose title starts with `(you) ` is for the person, not Claude: `- [ ] 3. (you) Add the API key to .env`. Things needed before the work go first; checks the person does afterwards go last. Claude never ticks a `(you)` subtask. The person ticks it on the board. Use a `(you)` subtask for something the person does, and an open question for a decision.
+A subtask whose title starts with `(you) ` is for the person, not Claude: `- [ ] 3. (you) Add the API key to .env`. Things needed before the work go first; checks the person does afterwards go last. Claude never ticks a `(you)` subtask. The person ticks it on the board. A `(you)` subtask has no commit and needs no log. Use a `(you)` subtask for something the person does, and an open question for a decision.
 
 `## Done when` is 2 to 5 plain checks of what the person will see or be able to do. Each line is a result, not a piece of work. It is an ordinary section, so the board shows it as part of the spec.
 
@@ -104,8 +104,8 @@ A subtask whose title starts with `(you) ` is for the person, not Claude: `- [ ]
 1. The first sentence of `## Spec` explains the whole spec on its own. The card shows only the start of it.
 2. `## Done when` has 2 to 5 observable checks. Prefer checks a test or the code can prove. Something only a person can see (on a phone, in a browser) becomes a `(you)` subtask at the end instead.
 3. Keep subtasks small: each one doable and checkable on its own, with one commit.
-4. Put the `closing_steps` from config.md last, in order. Leave one out only when the spec plainly does not need it (a docs-only spec needs no "Write tests"), and say so.
-5. Put `(you)` subtasks where they belong: what is needed before the work first, what the person checks afterwards last.
+4. Subtask order: `(you)` steps needed before the work, then Claude's work, then the `closing_steps` from config.md in order, then the `(you)` checks the person does afterwards. Leave a closing step out only when the spec plainly does not need it (a docs-only spec needs no "Write tests"), and say so.
+5. Put each `(you)` subtask in its place in that order: before the work if it is needed first, at the very end if it is a check.
 6. Ask a question only for a real decision, with a recommendation when you have a view. Do not ask what the spec or the code already answers.
 
 ## Logs: logs/<n>-<slug>.md
@@ -134,7 +134,7 @@ Built the time-slot grid. Slots come from the barber's opening hours. Tests adde
 
 Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never start a spec on your own.
 
-1. Find `.specboard/specs/<ID>-*/spec.md` (Glob) and read it, then read its existing logs. Say so and stop if there is no such spec, or if `draft: true` (it needs `/create-spec` first), or if `status` is already `review` or `done` and every subtask is ticked.
+1. Find `.specboard/specs/<ID>-*/spec.md` (Glob) and read it, then read its existing logs. Say so and stop if there is no such spec, or if `draft: true` (it needs `/create-spec` first), or if `status` is already `review` or `done` and all of Claude's subtasks (everything except trailing `(you)` steps) are ticked.
 2. **Refuse to start** (change nothing, say why, stop) when:
    - any required question under `## Open questions` is unanswered. List them with their numbers; or
    - a spec in `depends_on` is not finished, or does not exist. Name it.
@@ -142,10 +142,10 @@ Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never s
    Otherwise read the saved answers and use them as decisions. For an unanswered optional question, go with its recommendation, leave the question unanswered, and say which you assumed in the log of the first subtask it affects. If it has no recommendation, use your best judgment and say so the same way.
 3. Edit the front matter: `status: doing`, and `updated` to today.
 4. For each unticked subtask, in order:
-   1. If it is a `(you)` subtask and Claude subtasks come after it: set `current_subtask: null`, leave the status as `doing`, say exactly what the person needs to do, and **stop**. Never tick it. The person ticks it on the board and runs again. A `(you)` subtask with only `(you)` subtasks after it does not stop the run: go to step 6.
+   1. If it is a `(you)` subtask and Claude subtasks come after it: set `current_subtask: null`, leave the status as `doing`, say exactly what the person needs to do, and **stop**. Never tick it. The person ticks it on the board and runs again. A `(you)` subtask with only `(you)` subtasks after it does not stop the run: go to step 6 of Running a spec (the Done when check).
    2. Set `current_subtask: <n>`.
    3. Do the work the subtask describes, using the Spec and Features sections and the answers.
-   4. Run the project's tests. Read `.claude/settings.json`, take the test command from the `Bash(...)` entries in `permissions.allow` (the entry that runs the tests, for example `Bash(npm test)` means `npm test`), and run exactly that command, alone, with the Bash tool. Do not pick another test command and do not chain anything onto it. If it fails, fix the cause. If you cannot, treat it as step 5 and do not commit failing work. If no test command is listed, do not run or add tests and do not edit `package.json` to create a test script; write "No test command is set up" in the subtask's log entry and carry on.
+   4. Run the project's tests. Read `.claude/settings.json`, take the test command from the `Bash(...)` entries in `permissions.allow` (the entry that runs the tests, for example `Bash(npm test)` means `npm test`), and run exactly that command, alone, with the Bash tool. Do not pick another test command and do not chain anything onto it. If it fails, fix the cause. If you cannot, treat it as the decision step (step 5 of Running a spec) and do not commit failing work. If no test command is listed, do not run or add tests and do not edit `package.json` to create a test script; write "No test command is set up" in the subtask's log entry and carry on.
    5. Commit only this subtask's code with the Bash tool: `git add <the files you changed>`, then `git commit -m "<ID> · <n>. <subtask title>"`. Do not add `.specboard/` files to the commit.
    6. Get the short hash with `git log -1 --format=%h` and the changed files with `git diff --name-only HEAD~1 HEAD`.
    7. Write `.specboard/specs/<ID>-<slug>/logs/<n>-<slug>.md` in the log format: `subtask`, `commit`, `files`, and a dated entry (`### YYYY-MM-DD HH:mm`) of what you did.
@@ -153,8 +153,8 @@ Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never s
 5. When you reach a decision you cannot make from the spec and its answers (or tests cannot be fixed): add a required open question (`- [ ] Q<k> (<type>): <text>` then `  > answer:`, with a recommendation if you have one), set `current_subtask: null`, leave the status as `doing`, say what you need, and **stop**. Do not guess and do not carry on to the next subtask. A refused action is different: see rule 8.
 6. When only `(you)` subtasks (or none) are left unticked, check each line of `## Done when` before moving to Review:
    - Check it with the code, the tests or a command you may run. Write the result of each line in a log entry: met, not met, or needs your check (when only a person can check it), and how you checked.
-   - If no subtask was done in this run, add the entry as a new dated entry in the log of the last code subtask.
-   - A line you checked and found not met: fix it, or add a required question (step 5) and stop. Do not move to Review.
+   - Write the results in the log of the last subtask done in this run (or, if none was done this run, as a new dated entry in the log of the last code subtask).
+   - A line you checked and found not met: fix it and commit the fix as `<ID> · <n>. <title>` of the last code subtask, adding a dated entry to its log; or add a required question (step 5) and stop. Do not move to Review.
    - A line you cannot check yourself is "needs your check". It does not block Review and is not a question.
    - Otherwise set `current_subtask: null`, `status: review` and `updated` to today, and list the `(you)` subtasks still to do in your summary. Never set `status: done`.
    - A spec without `## Done when` has nothing to check: go straight to Review.
@@ -162,7 +162,7 @@ Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never s
 
 ## Rules
 
-1. Never set `status: done`. Only a person moves a card to Done. When all subtasks are finished, set `status: review`.
+1. Never set `status: done`. Only a person moves a card to Done. When all of Claude's subtasks (everything except trailing `(you)` steps) are finished, set `status: review`.
 2. Never guess. When you need a decision that the spec does not give you, add an open question and stop. Do not continue on an assumption. When you start, read the answers already saved on the board and use them.
 3. Use the Bash tool for git, for the project's tests, and for a command the spec's work names or plainly needs. Whether such a command may run is for the permission list to decide, not you: try it, on its own, not chained with other commands (rule 8 says what to do if it is refused). Do not run ad-hoc scripts. Do not use the PowerShell tool. Read and list files with Read, Glob and Grep, never with `cat`, `ls` or `find` in Bash.
 4. Never run `git push`. Never create branches or worktrees. Never rewrite history (`reset`, `rebase`, `commit --amend`).
