@@ -5,7 +5,7 @@ import { parseSpec, specBodyMd, splitFrontMatter, youStep } from '@specboard/cor
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { installSkills, kitPluginDir, kitSkills } from '../src/kit.js';
 
-const COMMANDS = ['create-spec', 'update-spec', 'run-spec', 'next', 'refresh-overview', 'refresh-logs', 'correct-specs'];
+const COMMANDS = ['create-spec', 'update-spec', 'run-spec', 'next', 'refresh-overview', 'refresh-logs', 'correct-specs', 'plan-project', 'import-specs', 'reorganize'];
 
 /** Read the flat `key: value` lines of a SKILL.md front matter. */
 function frontMatter(text: string): Record<string, string> {
@@ -123,6 +123,22 @@ describe('kit content', () => {
     expect(create).toContain('--board');
     expect(create).toContain('in the chat');
     expect(skills.find((s) => s.name === 'next')!.text).toContain('(you)');
+  });
+
+  it('import-specs never edits, moves or deletes the source files', async () => {
+    const text = (await kitSkills()).find((s) => s.name === 'import-specs')!.text;
+    expect(text).toMatch(/never edit, move or delete the source/i);
+  });
+
+  it('plan-project creates the first specs as drafts and points to specboard init', async () => {
+    const text = (await kitSkills()).find((s) => s.name === 'plan-project')!.text;
+    expect(text).toContain('draft: true');
+    expect(text).toContain('specboard init');
+  });
+
+  it('reorganize keeps the numbers of ticked or logged subtasks', async () => {
+    const text = (await kitSkills()).find((s) => s.name === 'reorganize')!.text;
+    expect(text).toContain('keep their numbers');
   });
 
   it('the log sample has the documented front matter keys and a dated entry', async () => {
