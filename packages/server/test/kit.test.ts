@@ -117,6 +117,14 @@ describe('kit content', () => {
     expect(section).toContain('needs your check');
   });
 
+  it('create-spec asks in the chat first unless the board started it; next skips (you) steps', async () => {
+    const skills = await kitSkills();
+    const create = skills.find((s) => s.name === 'create-spec')!.text;
+    expect(create).toContain('--board');
+    expect(create).toContain('in the chat');
+    expect(skills.find((s) => s.name === 'next')!.text).toContain('(you)');
+  });
+
   it('the log sample has the documented front matter keys and a dated entry', async () => {
     const rules = (await kitSkills()).find((s) => s.name === 'specboard')!;
     const [sample] = fenced(rules.text, 'log');

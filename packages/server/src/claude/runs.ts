@@ -75,7 +75,7 @@ export function runPrompt(kind: RunKind, specId: string | null): string {
   if (specId === null || !SPEC_ID.test(specId)) throw new Error(`Invalid spec ID: ${String(specId)}`);
   switch (kind) {
     case 'run': return `/specboard:run-spec ${specId}`;
-    case 'write-up': return `/specboard:create-spec ${specId}`;
+    case 'write-up': return `/specboard:create-spec ${specId} --board`;
     case 'fix-file': return `/specboard:update-spec ${specId} Fix this file's formatting problems. Keep all content.`;
   }
 }

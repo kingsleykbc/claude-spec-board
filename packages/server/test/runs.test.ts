@@ -166,7 +166,7 @@ describe('buildRunArgs', () => {
 describe('runPrompt', () => {
   it('is fixed by kind', () => {
     expect(runPrompt('run', 'T-001')).toBe('/specboard:run-spec T-001');
-    expect(runPrompt('write-up', 'T-001')).toBe('/specboard:create-spec T-001');
+    expect(runPrompt('write-up', 'T-001')).toBe('/specboard:create-spec T-001 --board');
     expect(runPrompt('fix-file', 'T-001')).toBe("/specboard:update-spec T-001 Fix this file's formatting problems. Keep all content.");
     expect(runPrompt('refresh-overview', null)).toBe('/specboard:refresh-overview');
   });
@@ -245,7 +245,7 @@ describe('a run that succeeds', () => {
     const run = await m.start(entry, 'write-up', 'T-001');
     await ended(run.id);
     const { args } = JSON.parse(await fs.readFile(records[0]!, 'utf8')) as { args: string[] };
-    expect(args).toEqual(buildRunArgs('/specboard:create-spec T-001', APPROVED, kitPluginDir()));
+    expect(args).toEqual(buildRunArgs('/specboard:create-spec T-001 --board', APPROVED, kitPluginDir()));
     expect(args.join(' ')).not.toContain('curl');
     expect(args).not.toContain('--dangerously-skip-permissions');
     expect(args[args.indexOf('--setting-sources') + 1]).toBe('');
