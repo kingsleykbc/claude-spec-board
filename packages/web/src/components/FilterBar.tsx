@@ -36,7 +36,7 @@ function Switch({ on, label, title, onToggle }: { on: boolean; label: string; ti
 export function FilterBar({ filters: f, onChange, categories, waits, onWait, menu, onMenu, simple = false, onSimple }: FilterBarProps) {
   const chips = filterChips(f);
   return (
-    <div className={s.bar}>
+    <div className={s.bar} data-tour="filters">
       <div className={s.wrap}>
         <button type="button" className={s.btn} aria-expanded={menu === 'cat'} onClick={() => onMenu(menu === 'cat' ? null : 'cat')}>
           Category{f.cats.length > 0 && <span className={s.n}>{f.cats.length}</span>}

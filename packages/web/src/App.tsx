@@ -7,6 +7,7 @@ import { ESC, useEscape } from './lib/escape';
 import { interceptPop } from './lib/popGuard';
 import { PlusIcon } from './lib/icons';
 import { runHold } from './lib/vm';
+import { startTour, tourSeen } from './lib/tour';
 import { categoryOptions, NO_FILTERS, waitItems, type Filters, type WaitItem } from './state/filters';
 import { createMutator } from './state/mutate';
 import { FileLinks } from './state/fileLinks';
@@ -26,6 +27,7 @@ import { OverviewModal } from './components/OverviewModal';
 import { ReferencesModal } from './components/ReferencesModal';
 import { Toasts } from './components/Toasts';
 import { TopBar } from './components/TopBar';
+import { Footer } from './components/Footer';
 import boardCss from './components/Board.module.css';
 
 // URL state: ?project=<id> and ?spec=<id>, kept with history.pushState and popstate (no router).
@@ -237,6 +239,14 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
     else if (w.target) openSpec(w.target);
   };
 
+  // The first-time tour starts once the board is on screen, unless a card or a modal is open.
+  const boardShown = !!project && !openId;
+  useEffect(() => {
+    if (!boardShown || tourSeen()) return;
+    const t = setTimeout(startTour, 400);
+    return () => clearTimeout(t);
+  }, [boardShown]);
+
   const openAdd = () => setModal('add');
   const closeModal = () => setModal(null);
 
@@ -274,6 +284,11 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
         onToggleTheme={onToggleTheme}
         onOpenRefs={() => setModal('refs')}
         onOpenOverview={() => setModal('overview')}
+        onTour={() => {
+          if (openId) closeSpec();
+          setModal(null);
+          setTimeout(startTour, 0);
+        }}
       />
       <ConnectionBanner
         conn={conn}
@@ -310,10 +325,11 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
             onWriteUp={(s) => void startRun('write-up', s.id)}
             onAdd={openAdd}
           />
-          <button type="button" className={boardCss.fab} onClick={openAdd}>
+          <button type="button" className={boardCss.fab} onClick={openAdd} data-tour="add">
             <PlusIcon aria-hidden className={boardCss.fabPlus} />
             Add new spec
           </button>
+          <Footer />
           {openId && (
             <CardDetail
               key={openId}

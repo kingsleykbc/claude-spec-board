@@ -1,6 +1,6 @@
 import type { Conn } from '../api/live';
 import { DOCS_PATH } from '../lib/docsPages';
-import { BoardIcon, CaretIcon, DocsIcon, MoonIcon, SunIcon } from '../lib/icons';
+import { BoardIcon, CaretIcon, DocsIcon, MoonIcon, SunIcon, TourIcon } from '../lib/icons';
 import type { Theme } from '../lib/theme';
 import { Spinner } from './ConnectionBanner';
 import { ProjectSwitcher, type ProjectSwitcherProps } from './ProjectSwitcher';
@@ -31,17 +31,19 @@ export interface TopBarProps {
   onToggleTheme: () => void;
   onOpenRefs?: () => void;
   onOpenOverview?: () => void;
+  /** Replays the first-time tour (board only). */
+  onTour?: () => void;
 }
 
 /** Sticky top bar (prototype lines 32-52), on the board and on the docs page. */
-export function TopBar({ switcher, brandOpen = false, onToggleBrand, page = 'board', conn, theme, onToggleTheme, onOpenRefs, onOpenOverview }: TopBarProps) {
+export function TopBar({ switcher, brandOpen = false, onToggleBrand, page = 'board', conn, theme, onToggleTheme, onOpenRefs, onOpenOverview, onTour }: TopBarProps) {
   const docs = page === 'docs';
   const project = switcher?.current ?? null;
   const live = conn ? LIVE[conn] : null;
   return (
     <header className={s.bar}>
       <div className={s.sw}>
-        <button type="button" className={s.brand} aria-haspopup="true" aria-expanded={brandOpen} onClick={onToggleBrand}>
+        <button type="button" className={s.brand} data-tour="brand" aria-haspopup="true" aria-expanded={brandOpen} onClick={onToggleBrand}>
           <span className={s.logo}>
             <span style={{ height: 6, background: 'var(--bg)' }} />
             <span style={{ height: 11, background: 'var(--bg)' }} />
@@ -62,10 +64,25 @@ export function TopBar({ switcher, brandOpen = false, onToggleBrand, page = 'boa
                 </a>
               </>
             ) : (
-              // A new tab, so unsaved work on the board is safe.
-              <a role="menuitem" className={s.brandItem} href={docsHref(project)} target="_blank" rel="noopener" onClick={onToggleBrand}>
-                <DocsIcon aria-hidden /> Documentation
-              </a>
+              <>
+                {/* A new tab, so unsaved work on the board is safe. */}
+                <a role="menuitem" className={s.brandItem} href={docsHref(project)} target="_blank" rel="noopener" onClick={onToggleBrand}>
+                  <DocsIcon aria-hidden /> Documentation
+                </a>
+                {onTour && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={s.brandItem}
+                    onClick={() => {
+                      onToggleBrand?.();
+                      onTour();
+                    }}
+                  >
+                    <TourIcon aria-hidden /> Take the tour
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
@@ -78,7 +95,7 @@ export function TopBar({ switcher, brandOpen = false, onToggleBrand, page = 'boa
       )}
       <div className={s.flex} />
       {onOpenRefs && (
-        <button type="button" className={s.btn} onClick={onOpenRefs}>
+        <button type="button" className={s.btn} onClick={onOpenRefs} data-tour="project">
           References
         </button>
       )}

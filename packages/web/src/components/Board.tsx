@@ -142,7 +142,7 @@ export function Board(props: BoardProps) {
 
   return (
     <DndContext sensors={sensors} collisionDetection={collision} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={reset} accessibility={{ announcements }}>
-      <main className={s.board}>
+      <main className={s.board} data-tour="columns">
         {ORDER.map((k) => {
           const list = sortSpecs([...visible.filter((x) => x.status === k), ...(k === 'done' ? visibleArchived : [])]);
           const over = !!(active && overId === k && active.status !== k);

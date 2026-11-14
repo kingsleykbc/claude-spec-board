@@ -53,6 +53,8 @@ beforeEach(() => {
   history.replaceState(null, '', '/');
   try {
     localStorage.clear();
+    // The first-time tour has its own test below.
+    localStorage.setItem('specboard.tour', 'seen');
   } catch {
     // ignore
   }
@@ -79,6 +81,17 @@ describe('App', () => {
     expect(location.search).toBe('?project=p1');
     expect(screen.getByRole('button', { name: /Recipe Box/ }).textContent).toContain('3/9 done');
     expect(screen.getByText('1 to review')).toBeTruthy();
+  });
+
+  it('shows the first-time tour once, starting with a welcome, and remembers it was seen', async () => {
+    localStorage.removeItem('specboard.tour');
+    render(<App />);
+    await board();
+    expect(await screen.findByText('Welcome to Spec Board', {}, { timeout: 2000 })).toBeTruthy();
+    expect(screen.getByText('1 / 7')).toBeTruthy();
+    fireEvent.click(document.querySelector<HTMLElement>('.driver-popover-close-btn')!);
+    await waitFor(() => expect(screen.queryByText('Welcome to Spec Board')).toBeNull());
+    expect(localStorage.getItem('specboard.tour')).toBe('seen');
   });
 
   it('reads ?project= and switches projects through the switcher, resetting filters', async () => {
