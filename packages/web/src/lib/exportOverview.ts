@@ -1,7 +1,7 @@
 import type { Project, Spec } from '@specboard/core';
 import { groupByMilestone } from '@specboard/core/milestones';
-import { sortSpecs } from '../state/filters';
-import { ORDER, ST } from './vm';
+import { orderSpecs } from '../state/filters';
+import { ST } from './vm';
 
 // The Overview's numbers and its Markdown export (pinned behaviour 17, Ruling 4).
 
@@ -42,14 +42,9 @@ export function slug(name: string): string {
   return s || 'project';
 }
 
-/** Status order (to-do, doing, review, done), then the board's order within a status. */
-function ordered(specs: Spec[]): Spec[] {
-  return ORDER.flatMap((st) => sortSpecs(specs.filter((x) => x.status === st)));
-}
-
 function table(specs: Spec[]): string {
-  const cell = (x: string) => x.replace(/\|/g, '\\|');
-  const rows = ordered(specs).map((x) => `| ${x.id} | ${cell(x.title)} | ${ST[x.status].label} | ${x.subtasks.filter((t) => t.done).length}/${x.subtasks.length} |`);
+  const cell = (x: string) => x.replace(/\r?\n/g, ' ').replace(/\|/g, '\\|');
+  const rows = orderSpecs(specs).map((x) => `| ${x.id} | ${cell(x.title)} | ${ST[x.status].label} | ${x.subtasks.filter((t) => t.done).length}/${x.subtasks.length} |`);
   return ['| ID | Title | Status | Progress |', '| --- | --- | --- | --- |', ...rows].join('\n') + '\n';
 }
 

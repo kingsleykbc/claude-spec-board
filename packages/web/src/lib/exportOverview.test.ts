@@ -34,10 +34,15 @@ describe('exportOverview', () => {
     expect(text).not.toContain('## Progress');
   });
 
-  it('writes one Tasks table without milestones: status order, escaped pipes, active specs only', () => {
-    const p = small([mk('T-2', 'Plan | shop', 'todo', null, 0, 2), mk('T-1', 'Recipe list', 'done', null, 4, 4), mk('T-3', 'Planner', 'doing', null, 1, 3)], []);
+  it('writes one Tasks table without milestones: status order, escaped pipes, newlines flattened, active specs only', () => {
+    const p = {
+      ...small([mk('T-2', 'Plan \| shop | To-do| shop', 'todo', null, 0, 2), mk('T-1', 'Recipe list', 'done', null, 4, 4), mk('T-4', 'Review\nme', 'review', null, 2, 2), mk('T-3', 'Planner', 'doing', null, 1, 3)], []),
+      archived: [{ ...recipeProject.archived[0]!, id: 'T-0', title: 'Old archived' }],
+    };
     expect(exportOverview(p).text).toBe(
-      head('- To-do: 1\n- Doing: 1\n- Review: 0\n- Done: 1\n- Blocked: 0') + '\n## Tasks\n' + table('| T-2 | Plan \\| shop | To-do | 0/2 |\n| T-3 | Planner | Doing | 1/3 |\n| T-1 | Recipe list | Done | 4/4 |'),
+      head('- To-do: 1\n- Doing: 1\n- Review: 1\n- Done: 2\n- Blocked: 0') +
+        '\n## Tasks\n' +
+        table('| T-2 | Plan \\| shop | To-do | 0/2 |\n| T-3 | Planner | Doing | 1/3 |\n| T-4 | Review me | Review | 2/2 |\n| T-1 | Recipe list | Done | 4/4 |'),
     );
   });
 

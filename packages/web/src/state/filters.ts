@@ -1,7 +1,7 @@
 import type { Question, Spec, Urgency } from '@specboard/core';
 import { groupByMilestone, milestoneOf } from '@specboard/core/milestones';
 import { firstOpenYouStep } from '@specboard/core/you';
-import { URG } from '../lib/vm';
+import { ORDER, URG } from '../lib/vm';
 
 // Board filters, sort and "waiting" items (pinned behaviours 1, 3, 4), copied from the prototype's renderVals.
 
@@ -67,6 +67,11 @@ export function compareSpecs(a: Spec, b: Spec): number {
 /** A sorted copy. */
 export function sortSpecs(specs: Spec[]): Spec[] {
   return [...specs].sort(compareSpecs);
+}
+
+/** Status order (to-do, doing, review, done), then the board's order within a status. Shared by the table and the export. */
+export function orderSpecs(specs: Spec[]): Spec[] {
+  return ORDER.flatMap((st) => sortSpecs(specs.filter((x) => x.status === st)));
 }
 
 /** The board's milestone: the chosen one while it is still an option (or null, all), else `fallback` (the current milestone). */

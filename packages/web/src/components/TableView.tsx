@@ -4,8 +4,8 @@ import type { Spec } from '@specboard/core';
 import { youStep } from '@specboard/core/you';
 import { CaretIcon, CaretRightIcon, CheckIcon } from '../lib/icons';
 import { formatTokens } from '../lib/formatTokens';
-import { ORDER, tokensUsed } from '../lib/vm';
-import { filterSpecs, milestoneOptions, NO_FILTERS, sortSpecs, waitingReason, type Filters } from '../state/filters';
+import { tokensUsed } from '../lib/vm';
+import { filterSpecs, milestoneOptions, NO_FILTERS, orderSpecs, waitingReason, type Filters } from '../state/filters';
 import { CategoryTag } from './CategoryTag';
 import { StatusChip } from './StatusChip';
 import { Urgency } from './Urgency';
@@ -35,11 +35,6 @@ interface Cols {
   trackTokens: boolean;
   compact: boolean;
   onOpen?: (id: string) => void;
-}
-
-/** Status order (to-do, doing, review, done), then the board's order within a status. */
-function ordered(specs: Spec[]): Spec[] {
-  return ORDER.flatMap((st) => sortSpecs(specs.filter((x) => x.status === st)));
 }
 
 function Row({ spec, c, span }: { spec: Spec; c: Cols; span: number }) {
@@ -166,7 +161,7 @@ function SpecTable({ specs, c, empty }: { specs: Spec[]; c: Cols; empty?: string
         </tr>
       </thead>
       <tbody>
-        {ordered(specs).map((x) => (
+        {orderSpecs(specs).map((x) => (
           <Row key={x.id} spec={x} c={c} span={span} />
         ))}
         {specs.length === 0 && empty && (
