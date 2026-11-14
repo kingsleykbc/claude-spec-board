@@ -1,6 +1,8 @@
 import type { Project, Spec } from '@specboard/core';
 import { groupByMilestone } from '@specboard/core/milestones';
+import { projectTokens } from '../state/allLogs';
 import { orderSpecs } from '../state/filters';
+import { formatTokens } from './formatTokens';
 import { ST } from './vm';
 
 // The Overview's numbers and its Markdown export (pinned behaviour 17, Ruling 4).
@@ -64,9 +66,10 @@ export function exportOverview(project: Project, name: string = project.config?.
   const c = overviewCounts(project);
   const description = project.config?.description.trim() ?? '';
   const summary = project.overview?.summaryMd.trim() ?? '';
+  const tokens = project.settings.trackTokens ? projectTokens(project) : 0;
   const text =
     `# ${name}\n\n${description}\n\n` +
-    `## Counts\n- To-do: ${c.todo}\n- Doing: ${c.doing}\n- Review: ${c.review}\n- Done: ${c.done}\n- Blocked: ${c.blocked}\n\n` +
+    `## Counts\n- To-do: ${c.todo}\n- Doing: ${c.doing}\n- Review: ${c.review}\n- Done: ${c.done}\n- Blocked: ${c.blocked}\n${tokens > 0 ? `- Tokens used: ${formatTokens(tokens)}\n` : ''}\n` +
     `## Summary\n${summary}\n` +
     tasksSection(project);
   return { filename: `${slug(name)}-overview.md`, text };

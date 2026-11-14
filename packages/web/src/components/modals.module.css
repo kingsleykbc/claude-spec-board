@@ -20,6 +20,9 @@
 .ovCount { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: 8px; background: var(--panel); font-size: 13px; }
 .ovCountIcon { display: inline-flex; font-size: 13px; }
 .ovCountN { font-family: var(--mono); font-weight: 600; }
+.ovTokens { padding: 0 28px 16px; font-size: 13px; color: var(--fg2); }
+.ovLink { border: 0; background: transparent; padding: 3px 6px; border-radius: 6px; color: var(--accent); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.ovLink:hover { background: var(--panel); }
 .ovRule { margin: 0 28px; border-top: 1px solid var(--line); }
 .ovProgress { padding: 20px 28px 8px; display: flex; flex-direction: column; gap: 12px; }
 .ovProgHead { display: flex; align-items: center; gap: 10px; }

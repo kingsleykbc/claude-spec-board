@@ -1,8 +1,10 @@
 import { useId, useState } from 'react';
 import type { Project } from '@specboard/core';
 import { exportOverview, overviewCounts } from '../lib/exportOverview';
+import { formatTokens } from '../lib/formatTokens';
 import { CaretIcon, CaretRightIcon, CloseIcon, ErrorIcon, ExportIcon, RefreshIcon } from '../lib/icons';
 import { ORDER, relTime, ST } from '../lib/vm';
+import { projectTokens } from '../state/allLogs';
 import type { PushToast } from '../state/toasts';
 import { Spinner } from './ConnectionBanner';
 import { Markdown } from './Markdown';
@@ -19,6 +21,8 @@ export interface OverviewModalProps {
   refreshing?: boolean;
   /** Start a refresh run; refusals and the outcome are toasts. */
   onRefresh: () => void;
+  /** Switches to the all-logs modal; the link shows when given. */
+  onOpenLogs?: () => void;
   onClose: () => void;
   /** For "Last updated"; defaults to the current time. */
   now?: Date;
@@ -38,7 +42,7 @@ function download(filename: string, text: string): void {
 }
 
 /** Project overview (pinned behaviour 17; prototype lines 295-319 and 748-751). */
-export function OverviewModal({ project, name, toast, refreshing = false, onRefresh, onClose, now }: OverviewModalProps) {
+export function OverviewModal({ project, name, toast, refreshing = false, onRefresh, onOpenLogs, onClose, now }: OverviewModalProps) {
   const c = overviewCounts(project);
   const [tasksOpen, setTasksOpen] = useState(false);
   const tasksId = useId();
@@ -47,6 +51,7 @@ export function OverviewModal({ project, name, toast, refreshing = false, onRefr
     ...ORDER.map((k) => ({ key: k, label: ST[k].label, icon: ST[k].icon, ink: ST[k].ink, n: c[k] })),
     { key: 'blocked', label: 'Blocked', icon: ErrorIcon, ink: 'var(--block-ink)', n: c.blocked },
   ];
+  const tokens = project.settings.trackTokens ? projectTokens(project) : 0;
   const summary = project.overview?.summaryMd.trim() ?? '';
   const rel = relTime(project.overview?.updated, now);
   const updated = refreshing ? 'Updating…' : rel ? `Last updated ${rel}` : '';
@@ -90,10 +95,16 @@ export function OverviewModal({ project, name, toast, refreshing = false, onRefr
             </div>
           ))}
         </div>
+        {tokens > 0 && <div className={s.ovTokens}>Tokens used: {formatTokens(tokens)}</div>}
         <div className={s.ovRule} />
         <div className={s.ovProgress}>
           <div className={s.ovProgHead}>
             <span className={s.ovProgLabel}>SUMMARY</span>
+            {onOpenLogs && (
+              <button type="button" className={s.ovLink} onClick={onOpenLogs}>
+                View all logs
+              </button>
+            )}
             {updated && <span className={s.ovUpdated}>{updated}</span>}
             <span className={s.grow} />
             <button type="button" className={s.ovRefresh} disabled={refreshing} onClick={onRefresh}>

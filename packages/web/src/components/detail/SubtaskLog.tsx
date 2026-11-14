@@ -17,7 +17,7 @@ function isHttpUrl(v: string): boolean {
   }
 }
 
-function obsoleteText(o: NonNullable<Log['obsolete']>): string {
+export function obsoleteText(o: NonNullable<Log['obsolete']>): string {
   return o.since ? `Obsolete since ${o.since}: ${o.reason}` : `Obsolete: ${o.reason}`;
 }
 

@@ -1,6 +1,6 @@
 import type { Conn } from '../api/live';
 import { DOCS_PATH } from '../lib/docsPages';
-import { BoardIcon, CaretIcon, DocsIcon, MoonIcon, RefreshIcon, SunIcon, TourIcon, WarnIcon } from '../lib/icons';
+import { BoardIcon, CaretIcon, DocsIcon, MoonIcon, RefreshIcon, SettingsIcon, SunIcon, TourIcon, WarnIcon } from '../lib/icons';
 import type { Theme } from '../lib/theme';
 import { Spinner } from './ConnectionBanner';
 import { ManualNotice } from './ManualNotice';
@@ -33,6 +33,7 @@ export interface TopBarProps {
   onToggleTheme: () => void;
   onOpenRefs?: () => void;
   onOpenOverview?: () => void;
+  onOpenLogs?: () => void;
   /** Replays the first-time tour (board only). */
   onTour?: () => void;
   /** Why runs are off here; the board's manual-mode notice shows when set. */
@@ -42,6 +43,8 @@ export interface TopBarProps {
   /** A project-wide sync proposal is waiting: "Sync proposal waiting" reopens it. */
   syncWaiting?: boolean;
   onSyncWaiting?: () => void;
+  /** "Settings" in the logo menu (board only). */
+  onSettings?: () => void;
 }
 
 /** Sticky top bar (prototype lines 32-52), on the board and on the docs page. */
@@ -55,11 +58,13 @@ export function TopBar({
   onToggleTheme,
   onOpenRefs,
   onOpenOverview,
+  onOpenLogs,
   onTour,
   manual = null,
   onSync,
   syncWaiting = false,
   onSyncWaiting,
+  onSettings,
 }: TopBarProps) {
   const docs = page === 'docs';
   /** A menu item that closes the menu, then does its thing. */
@@ -111,6 +116,7 @@ export function TopBar({
                 {onTour && item('Take the tour', TourIcon, onTour)}
                 {onSync && item('Sync with code', RefreshIcon, onSync)}
                 {syncWaiting && onSyncWaiting && item('Sync proposal waiting', WarnIcon, onSyncWaiting, true)}
+                {onSettings && item('Settings', SettingsIcon, onSettings)}
               </>
             )}
           </div>
@@ -131,6 +137,11 @@ export function TopBar({
       {onOpenOverview && (
         <button type="button" className={s.btn} onClick={onOpenOverview}>
           Overview
+        </button>
+      )}
+      {onOpenLogs && (
+        <button type="button" className={s.btn} onClick={onOpenLogs}>
+          Logs
         </button>
       )}
       {docs && (

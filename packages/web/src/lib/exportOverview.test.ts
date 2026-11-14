@@ -74,3 +74,18 @@ describe('exportOverview', () => {
     });
   });
 });
+
+describe('exportOverview tokens', () => {
+  const withTokens = (trackTokens: boolean, tokens: number | null) => {
+    const sp = recipeProject.specs[0]!;
+    const log = { subtask: 1, commit: null, files: [], pr: null, doneAt: null, tokens, obsolete: null, entries: [], problems: [] };
+    return { ...recipeProject, settings: { trackTokens, problems: [] }, specs: [{ ...sp, logs: { 1: log } }, ...recipeProject.specs.slice(1)] };
+  };
+  it('ends Counts with "- Tokens used" when tracking is on and the total is above 0', () => {
+    expect(exportOverview(withTokens(true, 48200)).text).toContain('- Blocked: 2\n- Tokens used: 48.2k\n\n## Summary');
+  });
+  it('leaves it out when tracking is off or the total is 0', () => {
+    expect(exportOverview(withTokens(false, 48200)).text).not.toContain('Tokens used');
+    expect(exportOverview(withTokens(true, null)).text).not.toContain('Tokens used');
+  });
+});

@@ -105,3 +105,28 @@ describe('OverviewModal summary and tasks', () => {
     expect(within(t).queryByText('T-100')).toBeNull();
   });
 });
+
+describe('OverviewModal tokens and logs link', () => {
+  const withTokens = (trackTokens: boolean, tokens: number | null) => {
+    const sp = recipeProject.specs[0]!;
+    const log = { subtask: 1, commit: null, files: [], pr: null, doneAt: null, tokens, obsolete: null, entries: [], problems: [] };
+    return { ...recipeProject, settings: { trackTokens, problems: [] }, specs: [{ ...sp, logs: { 1: log } }, ...recipeProject.specs.slice(1)] };
+  };
+  it('shows Tokens used when tracking is on and the total is above 0', () => {
+    setup({ project: withTokens(true, 48200) });
+    expect(screen.getByText('Tokens used: 48.2k')).toBeTruthy();
+  });
+  it('hides it when tracking is off or the total is 0', () => {
+    setup({ project: withTokens(false, 48200) });
+    expect(screen.queryByText(/Tokens used/)).toBeNull();
+    cleanup();
+    setup({ project: withTokens(true, null) });
+    expect(screen.queryByText(/Tokens used/)).toBeNull();
+  });
+  it('View all logs opens the logs', () => {
+    const onOpenLogs = vi.fn();
+    setup({ onOpenLogs });
+    fireEvent.click(screen.getByRole('button', { name: 'View all logs' }));
+    expect(onOpenLogs).toHaveBeenCalledOnce();
+  });
+});

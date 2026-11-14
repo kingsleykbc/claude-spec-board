@@ -1,4 +1,4 @@
-import type { MetaValues, Project, Spec } from '@specboard/core';
+import type { MetaValues, Project, ProjectSettings, Spec } from '@specboard/core';
 
 // Typed fetch wrappers for the server API (packages/server/src/app.ts and routes/).
 // Types come from core as type-only imports, so no Node code reaches the bundle.
@@ -169,6 +169,8 @@ export const api = {
   setBody: (pid: string, id: string, hash: string, bodyHash: string, md: string) =>
     request<SpecWrite>('PATCH', `${spec(pid, id)}/body`, { hash, bodyHash, md }),
   specDraftCopy: (pid: string, id: string, md: string) => request<{ path: string }>('POST', `${spec(pid, id)}/draft-copy`, { md }),
+  /** Saves `.specboard/settings.md`; the server answers with the settings as now parsed. */
+  setSettings: (pid: string, body: { trackTokens: boolean }) => request<{ settings: ProjectSettings }>('PUT', `${proj(pid)}/settings`, body),
   createSpec: (pid: string, body: { title: string; description: string; draft: boolean }) =>
     request<{ spec: Spec }>('POST', `${proj(pid)}/specs`, body),
   /** `opened: false` gives the full path to copy instead. */

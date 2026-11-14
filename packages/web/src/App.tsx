@@ -28,8 +28,10 @@ import { CardDetail } from './components/detail/CardDetail';
 import { RunPanel } from './components/detail/RunPanel';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { FilterBar, type FilterMenu } from './components/FilterBar';
+import { LogsModal } from './components/LogsModal';
 import { OverviewModal } from './components/OverviewModal';
 import { ReferencesModal } from './components/ReferencesModal';
+import { SettingsModal } from './components/SettingsModal';
 import { Toasts } from './components/Toasts';
 import { TopBar } from './components/TopBar';
 import { Footer } from './components/Footer';
@@ -193,8 +195,8 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
   /** Optimistic status while a move is in flight, so the card does not snap back before the refresh. */
   const [pending, setPending] = useState<Record<string, Status>>({});
   const wantReconnectToast = useRef(false);
-  /** The References, Overview or Add spec modal. */
-  const [modal, setModal] = useState<'refs' | 'overview' | 'add' | null>(null);
+  /** The References, Overview, Logs, Settings or Add spec modal. */
+  const [modal, setModal] = useState<'refs' | 'overview' | 'logs' | 'settings' | 'add' | null>(null);
 
   const mutate = useMemo(() => createMutator(() => Promise.reject(new Error('No default op')), applyWrite), [applyWrite]);
   const down = conn === 'disconnected';
@@ -312,6 +314,8 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
         onToggleTheme={onToggleTheme}
         onOpenRefs={() => setModal('refs')}
         onOpenOverview={() => setModal('overview')}
+        onOpenLogs={() => setModal('logs')}
+        onSettings={() => setModal('settings')}
         onTour={() => {
           if (openId) closeSpec();
           setModal(null);
@@ -432,9 +436,22 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
               toast={toast}
               refreshing={isRefreshing(run.run)}
               onRefresh={() => void startRun('refresh-overview')}
+              onOpenLogs={() => setModal('logs')}
               onClose={closeModal}
             />
           )}
+          {modal === 'logs' && (
+            <LogsModal
+              project={{ ...project, specs }}
+              onOpenSpec={(id) => {
+                closeModal();
+                openSpec(id);
+              }}
+              onOpenOverview={() => setModal('overview')}
+              onClose={closeModal}
+            />
+          )}
+          {modal === 'settings' && <SettingsModal pid={pid} trackTokens={project.settings.trackTokens} toast={toast} onClose={closeModal} />}
           {sync.dialog && <SyncDialog {...sync.dialog} toast={toast} />}
           {modal === 'refs' && <ReferencesModal pid={pid} toast={toast} down={down} stamp={project} onClose={closeModal} />}
           {modal === 'add' && data && (

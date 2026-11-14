@@ -96,3 +96,22 @@ describe('the manual mode notice', () => {
     expect(btn.compareDocumentPosition(screen.getByTestId('conn')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
+
+describe('logs and settings', () => {
+  it('Logs is a plain header button next to Overview', () => {
+    const onOpenLogs = vi.fn();
+    render(<TopBar {...props({ onOpenLogs })} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Logs' }));
+    expect(onOpenLogs).toHaveBeenCalledOnce();
+  });
+  it('Settings is in the logo menu after the sync items, and closes the menu', () => {
+    const onSettings = vi.fn();
+    const onToggleBrand = vi.fn();
+    render(<TopBar {...props({ brandOpen: true, onToggleBrand, onSettings, onSync: vi.fn() })} />);
+    const names = screen.getAllByRole('menuitem').map((m) => m.textContent?.trim());
+    expect(names.at(-1)).toBe('Settings');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Settings' }));
+    expect(onToggleBrand).toHaveBeenCalled();
+    expect(onSettings).toHaveBeenCalledOnce();
+  });
+});

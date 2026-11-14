@@ -26,6 +26,7 @@ export {
   LuMoon as MoonIcon,
   LuGithub as GithubIcon,
   LuSignpost as TourIcon,
+  LuSettings as SettingsIcon,
   LuStar as StarIcon,
   LuOctagonAlert as ErrorIcon,
   LuPencil as EditIcon,
