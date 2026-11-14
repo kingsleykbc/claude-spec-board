@@ -48,6 +48,13 @@ describe('sync proposal routes', () => {
     expect(await (await get()).json()).toMatchObject({ exists: true, scope: null, created: null, changes: 0 });
   });
 
+  it('a missing, empty or odd changes is null, not 0', async () => {
+    for (const line of ['', 'changes:\n', 'changes: ""\n', 'changes: many\n', 'changes: -2\n', 'changes: 1.5\n']) {
+      await fs.writeFile(file(), `---\nhead: "a1b2c3d"\n${line}---\nBody\n`);
+      expect(await (await get()).json(), JSON.stringify(line)).toMatchObject({ exists: true, changes: null });
+    }
+  });
+
   it('broken front matter gives problems, null fields and the body', async () => {
     await fs.writeFile(file(), '---\nhead: [oops\n---\n\n## Summary\nStill here.\n');
     const body = (await (await get()).json()) as Record<string, unknown>;

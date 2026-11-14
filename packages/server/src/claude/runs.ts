@@ -208,11 +208,11 @@ function endLine(kind: RunKind, end: EndInfo, before: Spec | null, after: Spec |
   }
 }
 
-const START_TEXT = {
+const START_TEXT: Partial<Record<RunKind, string>> = {
   'refresh-overview': 'Started refreshing the overview',
   'sync-plan': 'Started checking the board against the code',
   'sync-apply': 'Started syncing the board with the code',
-} as Record<RunKind, string>;
+};
 
 export class RunManager {
   private readonly approved: ApprovedPermissions;
@@ -280,7 +280,7 @@ export class RunManager {
     run.deny = approved.deny;
     run.ticked = new Set(run.before?.subtasks.filter((t) => t.done).map((t) => t.n));
     this.last.set(entry.id, run);
-    this.addLine(run, { k: 'start', text: specId !== null ? `Started on ${specId} · ${run.before!.title}` : START_TEXT[kind as 'refresh-overview'] }, false);
+    this.addLine(run, { k: 'start', text: specId !== null ? `Started on ${specId} · ${run.before!.title}` : START_TEXT[kind] ?? 'Started' }, false);
     run.announced = true;
     this.send(run, { type: 'run-started', run: copy(run.snap) });
 

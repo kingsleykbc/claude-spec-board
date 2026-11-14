@@ -35,7 +35,8 @@ export function parseProposal(raw: string): SyncProposal {
   const { yaml, body } = splitFrontMatter(raw);
   const { data, problems } = parseMapping(yaml);
   if (data === null) return { head: null, changes: null, created: null, scope: null, bodyMd: yaml === null ? raw : body, problems };
-  const n = typeof data.changes === 'number' ? data.changes : Number(text(data.changes));
+  const raw = typeof data.changes === 'number' ? data.changes : text(data.changes);
+  const n = raw === null ? Number.NaN : Number(raw);
   return {
     head: text(data.head),
     changes: Number.isInteger(n) && n >= 0 ? n : null,
