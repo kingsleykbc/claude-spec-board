@@ -18958,7 +18958,8 @@ function parseProposal(raw2) {
   const { yaml, body } = splitFrontMatter(raw2);
   const { data, problems } = parseMapping(yaml);
   if (data === null) return { head: null, changes: null, created: null, scope: null, bodyMd: yaml === null ? raw2 : body, problems };
-  const n = typeof data.changes === "number" ? data.changes : Number(text(data.changes));
+  const c = typeof data.changes === "number" ? data.changes : text(data.changes);
+  const n = c === null ? Number.NaN : Number(c);
   return {
     head: text(data.head),
     changes: Number.isInteger(n) && n >= 0 ? n : null,
@@ -19525,7 +19526,7 @@ var RunManager = class {
     run.deny = approved.deny;
     run.ticked = new Set(run.before?.subtasks.filter((t) => t.done).map((t) => t.n));
     this.last.set(entry.id, run);
-    this.addLine(run, { k: "start", text: specId !== null ? `Started on ${specId} \xB7 ${run.before.title}` : START_TEXT[kind] }, false);
+    this.addLine(run, { k: "start", text: specId !== null ? `Started on ${specId} \xB7 ${run.before.title}` : START_TEXT[kind] ?? "Started" }, false);
     run.announced = true;
     this.send(run, { type: "run-started", run: copy(run.snap) });
     if (launch === null) await this.finish(run);
