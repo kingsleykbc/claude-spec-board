@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import type { Spec } from '@specboard/core';
 import { recipeArchived, recipeSpecs } from '../fixtures/recipeBox';
+import { NO_FILTERS } from '../state/filters';
 import { TableView, type TableViewProps } from './TableView';
 
 afterEach(cleanup);
@@ -31,7 +32,7 @@ describe('TableView', () => {
     expect(p.onOpen).toHaveBeenCalledWith('T-104');
   });
 
-  it('shows status, progress and the "you" marker for a spec waiting on your review', () => {
+  it('shows status, progress and the "you" marker titled with why the spec waits on you', () => {
     table();
     const row = screen.getByTestId('row-T-104');
     const t104 = recipeSpecs.find((x) => x.id === 'T-104')!;
@@ -39,6 +40,8 @@ describe('TableView', () => {
     expect(within(row).getByText(`${t104.subtasks.filter((x) => x.done).length}/${t104.subtasks.length}`)).toBeTruthy();
     expect(within(screen.getByTestId('row-T-103')).getByTitle('Waiting on your review')).toBeTruthy();
     expect(screen.getAllByTitle('Waiting on your review')).toHaveLength(1);
+    expect(within(screen.getByTestId('row-T-105')).getByTitle('3 questions for you').textContent).toBe('you');
+    expect(within(screen.getByTestId('row-T-101')).queryByText('you')).toBeNull();
   });
 
   it('Simple mode hides the urgency and categories columns', () => {
@@ -69,16 +72,18 @@ describe('TableView', () => {
     table({ specs: recipeSpecs.map((x) => (x.id === 'T-104' ? { ...x, subtasks } : x)) });
     const btn = screen.getByRole('button', { name: 'Subtasks of T-104' });
     expect(btn.getAttribute('aria-expanded')).toBe('false');
-    expect(screen.queryByText('Build the grid')).toBeNull();
+    const list = document.getElementById(btn.getAttribute('aria-controls')!)!;
+    expect(list.hidden).toBe(true);
+    expect(within(screen.getByTestId('row-T-104')).getByTitle('Your step: Add the API key')).toBeTruthy();
     fireEvent.click(btn);
     expect(btn.getAttribute('aria-expanded')).toBe('true');
-    const list = document.getElementById(btn.getAttribute('aria-controls')!)!;
+    expect(list.hidden).toBe(false);
     const items = within(list).getAllByRole('listitem');
     expect(items.map((x) => x.textContent)).toEqual(['1.Build the grid', '2.Add the API keyyou']);
     expect(within(items[0]!).getByLabelText('Done')).toBeTruthy();
     expect(within(items[1]!).getByLabelText('Not done')).toBeTruthy();
     fireEvent.click(btn);
-    expect(screen.queryByText('Build the grid')).toBeNull();
+    expect(list.hidden).toBe(true);
   });
 
   it('archived specs sit in a closed Archived section', () => {
@@ -102,6 +107,25 @@ describe('TableView', () => {
     expect(screen.queryByTestId('row-T-105')).toBeNull();
     fireEvent.click(heads[1]!);
     expect(screen.getByTestId('row-T-105')).toBeTruthy();
+  });
+
+  it('applies category, urgency and blocked filters but never the milestone', () => {
+    table({ specs: withMs(recipeSpecs), archived: withMs(recipeArchived), milestones: MS, filters: { ...NO_FILTERS, blocked: true, milestone: 'Basics' } });
+    expect(screen.getAllByRole('table').flatMap(rowIds)).toEqual(['T-105', 'T-108']);
+  });
+
+  it('filters that hide everything → "No specs match the filters.", not "No specs yet."', () => {
+    table({ filters: { ...NO_FILTERS, cats: ['Nothing'] } });
+    expect(screen.getByText('No specs match the filters.')).toBeTruthy();
+    expect(screen.queryByText('No specs yet.')).toBeNull();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('a milestone whose only specs are archived has no empty message', () => {
+    const archived = recipeArchived.map((x) => ({ ...x, milestone: 'Polish' }));
+    table({ specs: withMs(recipeSpecs), archived, milestones: MS });
+    expect(screen.getByRole('button', { name: 'Polish · 1/1' })).toBeTruthy();
+    expect(screen.queryByText('No specs in this milestone yet.')).toBeNull();
   });
 
   it('no specs at all → "No specs yet."', () => {

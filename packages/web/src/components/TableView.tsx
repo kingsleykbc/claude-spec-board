@@ -4,18 +4,20 @@ import type { Spec } from '@specboard/core';
 import { youStep } from '@specboard/core/you';
 import { CaretIcon, CaretRightIcon, CheckIcon } from '../lib/icons';
 import { formatTokens } from '../lib/formatTokens';
-import { ORDER, tokensUsed, waitingOnYou } from '../lib/vm';
-import { filterSpecs, milestoneOptions, NO_FILTERS, sortSpecs } from '../state/filters';
+import { ORDER, tokensUsed } from '../lib/vm';
+import { filterSpecs, milestoneOptions, NO_FILTERS, sortSpecs, waitingReason, type Filters } from '../state/filters';
 import { CategoryTag } from './CategoryTag';
 import { StatusChip } from './StatusChip';
 import { Urgency } from './Urgency';
 import s from './TableView.module.css';
 
 export interface TableViewProps {
-  /** Active specs, already filtered by category, urgency and blocked (never by milestone). */
+  /** Active specs (unfiltered; the table applies `filters`). */
   specs: Spec[];
-  /** Archived specs, filtered the same way. */
+  /** Archived specs (unfiltered). */
   archived: Spec[];
+  /** Category, urgency and blocked apply; the milestone does not (the table always shows every milestone). */
+  filters?: Filters;
   /** The project's milestone list; empty means one table without sections. */
   milestones: string[];
   /** Simple mode: no Urgency or Categories columns. */
@@ -41,6 +43,7 @@ function Row({ spec, c, span }: { spec: Spec; c: Cols; span: number }) {
   const subId = useId();
   const done = spec.subtasks.filter((t) => t.done).length;
   const tokens = c.trackTokens ? tokensUsed(spec) : null;
+  const waiting = waitingReason(spec);
   return (
     <>
       <tr data-testid={`row-${spec.id}`} className={s.row}>
@@ -65,8 +68,8 @@ function Row({ spec, c, span }: { spec: Spec; c: Cols; span: number }) {
           <button type="button" className={s.title} onClick={() => c.onOpen(spec.id)}>
             {spec.title}
           </button>
-          {waitingOnYou(spec) && (
-            <span className={s.you} title="Waiting on your review">
+          {waiting !== null && (
+            <span className={s.you} title={waiting}>
               you
             </span>
           )}
@@ -97,32 +100,30 @@ function Row({ spec, c, span }: { spec: Spec; c: Cols; span: number }) {
           </td>
         )}
       </tr>
-      {open && (
-        <tr id={subId} className={s.subRow}>
-          <td />
-          <td colSpan={span - 1}>
-            {spec.subtasks.length === 0 ? (
-              <span className={s.muted}>No subtasks.</span>
-            ) : (
-              <ol className={s.subs}>
-                {spec.subtasks.map((t) => {
-                  const you = youStep(t.title);
-                  return (
-                    <li key={t.n} className={s.sub}>
-                      <span className={s.subN}>{t.n}.</span>
-                      <span role="img" className={s.tick} data-done={t.done} aria-label={t.done ? 'Done' : 'Not done'}>
-                        {t.done && <CheckIcon aria-hidden />}
-                      </span>
-                      <span>{you ?? t.title}</span>
-                      {you !== null && <span className={s.you}>you</span>}
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
-          </td>
-        </tr>
-      )}
+      <tr id={subId} className={s.subRow} hidden={!open}>
+        <td />
+        <td colSpan={span - 1}>
+          {spec.subtasks.length === 0 ? (
+            <span className={s.muted}>No subtasks.</span>
+          ) : (
+            <ol className={s.subs}>
+              {spec.subtasks.map((t) => {
+                const you = youStep(t.title);
+                return (
+                  <li key={t.n} className={s.sub}>
+                    <span className={s.subN}>{t.n}.</span>
+                    <span role="img" className={s.tick} data-done={t.done} aria-label={t.done ? 'Done' : 'Not done'}>
+                      {t.done && <CheckIcon aria-hidden />}
+                    </span>
+                    <span>{you ?? t.title}</span>
+                    {you !== null && <span className={s.you}>you</span>}
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </td>
+      </tr>
     </>
   );
 }
@@ -186,17 +187,23 @@ function Section({ title, initiallyOpen, children }: { title: string; initiallyO
 }
 
 /** Every spec as rows (design sections 7-8): by milestone, then status, then the board's order. Archived last, closed. */
-export function TableView({ specs, archived, milestones, simple, trackTokens = false, onOpen }: TableViewProps) {
+export function TableView({ specs: allSpecs, archived: allArchived, filters = NO_FILTERS, milestones, simple, trackTokens = false, onOpen }: TableViewProps) {
   const c: Cols = { simple, trackTokens, onOpen };
-  if (specs.length + archived.length === 0) {
+  if (allSpecs.length + allArchived.length === 0) {
     return <div className={s.none}>No specs yet.</div>;
+  }
+  const shown = { ...filters, milestone: null };
+  const specs = filterSpecs(allSpecs, shown);
+  const archived = filterSpecs(allArchived, shown);
+  if (specs.length + archived.length === 0) {
+    return <div className={s.none}>No specs match the filters.</div>;
   }
   return (
     <div className={s.scroll} data-testid="table-scroll">
       {milestones.length > 0 ? (
         milestoneOptions(specs, archived, milestones).map((o) => (
           <Section key={o.value} title={`${o.label} · ${o.done}/${o.total}`} initiallyOpen>
-            <SpecTable specs={filterSpecs(specs, { ...NO_FILTERS, milestone: o.value }, milestones)} c={c} empty="No specs in this milestone yet." />
+            <SpecTable specs={filterSpecs(specs, { ...NO_FILTERS, milestone: o.value }, milestones)} c={c} empty={o.total === 0 ? 'No specs in this milestone yet.' : undefined} />
           </Section>
         ))
       ) : (

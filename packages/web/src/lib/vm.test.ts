@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Spec } from '@specboard/core';
 import { recipeSpec, recipeSpecs } from '../fixtures/recipeBox';
 import { ReviewIcon, TodoIcon } from './icons';
-import { catColor, firstParagraph, fmtLogTime, relPath, relTime, runHold, statusMeta, tokensUsed, truncate, urgVm, waitingOnYou } from './vm';
+import { catColor, firstParagraph, fmtLogTime, relPath, relTime, runHold, statusMeta, tokensUsed, truncate, urgVm } from './vm';
 
 // The prototype's hue(), copied as-is, to pin catColor to it.
 const hue = (n: string) => {
@@ -120,8 +120,3 @@ describe('tokensUsed', () => {
   });
 });
 
-describe('waitingOnYou (the card’s "Waiting on your review")', () => {
-  it('is true only for a spec in Review', () => {
-    expect(recipeSpecs.filter(waitingOnYou).map((x) => x.id)).toEqual(['T-103']);
-  });
-});

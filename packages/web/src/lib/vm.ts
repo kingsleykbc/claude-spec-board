@@ -169,11 +169,6 @@ export function runHold(spec: Spec, all: Spec[]): string | null {
   return first ? `Blocked. ${first.text}` : null;
 }
 
-/** Waiting on the person: the card's "Waiting on your review" (a spec in Review). */
-export function waitingOnYou(spec: Spec): boolean {
-  return spec.status === 'review';
-}
-
 /** Tokens counted on the spec's subtask logs, summed; null when none are counted. */
 export function tokensUsed(spec: Spec): number | null {
   let total: number | null = null;

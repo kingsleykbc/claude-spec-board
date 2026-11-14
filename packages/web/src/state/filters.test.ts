@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { categoryOptions, filterChips, filterSpecs, milestoneOptions, NO_FILTERS, NO_MILESTONE, sortSpecs, waitItems } from './filters';
+import { categoryOptions, effectiveMilestone, filterChips, filterSpecs, milestoneOptions, NO_FILTERS, NO_MILESTONE, sortSpecs, waitingReason, waitItems } from './filters';
 import { recipeArchived, recipeSpecs } from '../fixtures/recipeBox';
 
 const ids = (xs: { id: string }[]) => xs.map((x) => x.id);
@@ -125,3 +125,40 @@ describe('milestoneOptions', () => {
   });
 });
 
+
+describe('effectiveMilestone', () => {
+  const opts = milestoneOptions(live, arch, MS);
+  it('keeps a chosen milestone that is still an option, and null (all)', () => {
+    expect(effectiveMilestone('Planner', opts, 'Basics')).toBe('Planner');
+    expect(effectiveMilestone(NO_MILESTONE, opts, 'Basics')).toBe(NO_MILESTONE);
+    expect(effectiveMilestone(null, opts, 'Basics')).toBeNull();
+  });
+
+  it('falls back to the current milestone when the choice is gone (config changed)', () => {
+    expect(effectiveMilestone('Renamed', opts, 'Basics')).toBe('Basics');
+  });
+});
+
+describe('waitingReason (the table’s "you" marker)', () => {
+  const base = { ...recipeSpecs.find((s) => s.id === 'T-107')!, status: 'todo' as const, questions: [], subtasks: [] };
+  const sub = (n: number, title: string, done: boolean) => ({ n, title, done, line: n, hasLog: false });
+  const q = (id: string, required: boolean, answer: string | null) => ({ ...recipeSpecs.find((s) => s.id === 'T-105')!.questions[0]!, id, required, answer });
+
+  it('nothing waiting → null', () => {
+    expect(waitingReason(base)).toBeNull();
+  });
+
+  it('a spec in Review', () => {
+    expect(waitingReason({ ...base, status: 'review' })).toBe('Waiting on your review');
+  });
+
+  it('open required questions (answered and optional ones do not count)', () => {
+    expect(waitingReason({ ...base, questions: [q('Q1', true, null), q('Q2', true, ''), q('Q3', false, null), q('Q4', true, 'Yes')] })).toBe('2 questions for you');
+    expect(waitingReason({ ...base, questions: [q('Q1', true, null)] })).toBe('1 question for you');
+  });
+
+  it('the first open subtask is a (you) step', () => {
+    expect(waitingReason({ ...base, subtasks: [sub(1, 'Build', true), sub(2, '(you) Add the API key', false)] })).toBe('Your step: Add the API key');
+    expect(waitingReason({ ...base, subtasks: [sub(1, 'Build', false), sub(2, '(you) Add the API key', false)] })).toBeNull();
+  });
+});

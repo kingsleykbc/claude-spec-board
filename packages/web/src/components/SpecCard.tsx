@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DragEvent, HTMLAttributes, KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import type { Spec } from '@specboard/core';
 import { MoreIcon, NeededByIcon, NeedsIcon, PlayIcon, ReviewIcon, WarnIcon } from '../lib/icons';
-import { firstParagraph, statusMeta, waitingOnYou } from '../lib/vm';
+import { firstParagraph, statusMeta } from '../lib/vm';
 import { useSimple } from '../state/simpleMode';
 import { CategoryTag } from './CategoryTag';
 import { Urgency } from './Urgency';
@@ -238,7 +238,7 @@ export function SpecCard({
                         {fileProblem}
                       </Detail>
                     )}
-                    {waitingOnYou(spec) && <Detail label="Status">Waiting on your review</Detail>}
+                    {spec.status === 'review' && <Detail label="Status">Waiting on your review</Detail>}
                     <Detail label="Urgency">
                       <Urgency level={spec.urgency} />
                     </Detail>
@@ -353,7 +353,7 @@ export function SpecCard({
           Claude is writing it up
         </div>
       )}
-      {!simple && waitingOnYou(spec) && (
+      {!simple && spec.status === 'review' && (
         <div className={`${s.banner} ${s.review}`}>
           <ReviewIcon aria-hidden className={s.diamond} />
           Waiting on your review

@@ -9,7 +9,7 @@ import { PlusIcon } from './lib/icons';
 import { runHold } from './lib/vm';
 import { startTour, tourSeen } from './lib/tour';
 import { currentMilestone } from '@specboard/core/milestones';
-import { categoryOptions, filterSpecs, milestoneOptions, NO_FILTERS, waitItems, type Filters, type WaitItem } from './state/filters';
+import { categoryOptions, effectiveMilestone, milestoneOptions, NO_FILTERS, waitItems, type Filters, type WaitItem } from './state/filters';
 import { createMutator } from './state/mutate';
 import { FileLinks } from './state/fileLinks';
 import { initialSimple, saveSimple, SimpleMode } from './state/simpleMode';
@@ -218,14 +218,15 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
   const milestones = project?.config?.milestones ?? [];
   // The milestone filter starts at the current milestone once per project load (archived counted as done);
   // after that it is the person's choice until the project changes (ProjectView is keyed by project).
+  const current = project ? currentMilestone([...project.specs, ...project.archived.map((x) => ({ ...x, status: 'done' as const }))], milestones) : null;
   const [milestoneSet, setMilestoneSet] = useState(false);
   if (project && !milestoneSet) {
     setMilestoneSet(true);
-    if (milestones.length > 0) {
-      const all = [...project.specs, ...project.archived.map((x) => ({ ...x, status: 'done' as const }))];
-      setFilters((f) => ({ ...f, milestone: currentMilestone(all, milestones) }));
-    }
+    if (milestones.length > 0) setFilters((f) => ({ ...f, milestone: current }));
   }
+  const msOptions = milestoneOptions(specs, archived, milestones);
+  // A chosen milestone that is gone (the config changed) falls back to the current one.
+  const boardFilters = { ...filters, milestone: effectiveMilestone(filters.milestone, msOptions, current) };
   useRunToasts(run, specs, toast);
   const { startRun, stopRun, dismissRun } = useRunActions(run, toast, project?.root);
   const name = project?.config?.name || data?.entry.name || summary?.name || pid;
@@ -321,7 +322,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
         <SimpleMode value={simple}>
         <FileLinks pid={pid} root={project.root} toast={toast}>
           <FilterBar
-            filters={filters}
+            filters={boardFilters}
             onChange={setFilters}
             categories={categoryOptions(specs, archived)}
             waits={waitItems(specs)}
@@ -332,12 +333,13 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
             onSimple={onSimple}
             view={view}
             onView={pickView}
-            milestones={milestoneOptions(specs, archived, milestones)}
+            milestones={msOptions}
           />
           {view === 'table' ? (
             <TableView
-              specs={filterSpecs(specs, { ...filters, milestone: null })}
-              archived={filterSpecs(archived, { ...filters, milestone: null })}
+              specs={specs}
+              archived={archived}
+              filters={filters}
               milestones={milestones}
               simple={simple}
               trackTokens={project.settings.trackTokens}
@@ -347,7 +349,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
           <Board
             specs={specs}
             archived={archived}
-            filters={filters}
+            filters={boardFilters}
             milestones={milestones}
             run={run.run}
             canDrag={!down}

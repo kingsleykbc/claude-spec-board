@@ -1,5 +1,6 @@
 import type { Question, Spec, Urgency } from '@specboard/core';
 import { groupByMilestone, milestoneOf } from '@specboard/core/milestones';
+import { firstOpenYouStep } from '@specboard/core/you';
 import { URG } from '../lib/vm';
 
 // Board filters, sort and "waiting" items (pinned behaviours 1, 3, 4), copied from the prototype's renderVals.
@@ -40,7 +41,7 @@ export interface MilestoneOption {
 }
 
 /** Done/total over specs, archived ones counted as done (like the project progress). */
-export function doneTotal(live: Spec[], archived: Spec[]): { done: number; total: number } {
+function doneTotal(live: Spec[], archived: Spec[]): { done: number; total: number } {
   return { done: live.filter((s) => s.status === 'done').length + archived.length, total: live.length + archived.length };
 }
 
@@ -68,9 +69,27 @@ export function sortSpecs(specs: Spec[]): Spec[] {
   return [...specs].sort(compareSpecs);
 }
 
+/** The board's milestone: the chosen one while it is still an option (or null, all), else `fallback` (the current milestone). */
+export function effectiveMilestone(chosen: string | null, options: MilestoneOption[], fallback: string | null): string | null {
+  if (chosen === null || options.length === 0 || options.some((o) => o.value === chosen)) return chosen;
+  return fallback;
+}
+
 /** The questions waiting on the person. An unanswered optional one isn't: Claude goes with its recommendation. */
 export function openQuestions(s: Spec): Question[] {
   return s.questions.filter((q) => q.required && (q.answer === null || q.answer === ''));
+}
+
+/**
+ * Why the spec is waiting on the person, or null: it is in Review, has open required questions,
+ * or its first open subtask is a `(you)` step. The table's "you" marker shows this as its title.
+ */
+export function waitingReason(s: Spec): string | null {
+  if (s.status === 'review') return 'Waiting on your review';
+  const q = openQuestions(s).length;
+  if (q > 0) return `${q} question${q > 1 ? 's' : ''} for you`;
+  const step = firstOpenYouStep(s.subtasks);
+  return step === null ? null : `Your step: ${step}`;
 }
 
 export interface WaitItem {
