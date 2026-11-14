@@ -11,11 +11,14 @@ Spec Board is a kanban board over plain Markdown files in `.specboard/`. People 
 
 ```
 .specboard/
-  config.md                     # front matter: name, references (list of repo-relative paths), closing_steps (list, optional); body = project description
+  config.md                     # front matter: name, created (YYYY-MM-DD), references (list of repo-relative paths), closing_steps and milestones (lists, optional); body = project description
   overview.md                   # front matter: updated (YYYY-MM-DD); body = progress summary
+  settings.md                   # optional, front matter only: track_tokens (true or false); the person sets it on the board
   specs/<ID>-<slug>/spec.md
   specs/<ID>-<slug>/logs/<n>-<slug>.md
   archive/<ID>-<slug>/...       # archived specs, same layout
+  sync-proposal.md              # only between the two steps of a board sync (see /sync-specs)
+  imported/<source-name>/...    # old plan files moved here by setup; the board ignores them
 ```
 
 - `<ID>` is `T-` plus at least three digits (`T-001`). The next free ID is one more than the highest number in `.specboard/specs/` and `.specboard/archive/` (use Glob to list them).
@@ -36,7 +39,8 @@ Front matter keys:
 | `depends_on` | list of spec IDs, for example `[T-000]` |
 | `draft` | `true` while the spec is only a rough idea; `false` (or absent) once written up |
 | `current_subtask` | the number being worked on right now, or `null` |
-| `created`, `updated` | `YYYY-MM-DD` |
+| `milestone` | optional; one name from `milestones` in config.md (see Milestones) |
+| `created`, `updated` | `YYYY-MM-DD`; set `updated` to today on every edit, never change `created` |
 
 Body sections, matched case-insensitively: `## Spec`, `## Features`, `## Done when`, `## Open questions`, `## Subtasks`. Any other section is kept untouched.
 
@@ -108,6 +112,56 @@ A subtask whose title starts with `(you) ` is for the person, not Claude: `- [ ]
 5. Put each `(you)` subtask in its place in that order: before the work if it is needed first, at the very end if it is a check.
 6. Ask a question only for a real decision, with a recommendation when you have a view. Do not ask what the spec or the code already answers.
 
+## Spec or subtask?
+
+- A **spec** is a result the person would want to follow as its own card: it changes what someone can see or do, has its own "Done when", can be reviewed on its own, and takes several sittings (about 2 to 8 subtasks).
+- A **subtask** is one step toward a spec: one commit, one sitting, not worth reviewing alone.
+- A **milestone** is a set of specs that ship together.
+- Signs to split a spec: more than about 8 subtasks, Done-when lines about unrelated things, or parts that could ship apart.
+- Signs to merge: a spec with one subtask, or two specs that cannot be reviewed apart.
+
+Examples (a recipe app):
+- "Meal planner calendar" is a spec: people see it and can review it. "Drag a recipe onto a day" is one of its subtasks.
+- "Add a loading spinner to the recipe grid" is a subtask of "Recipe list page", not a spec: one commit, nothing to review alone.
+- "User accounts" with sign up, sign in, sessions and password reset emails is close to the limit: password reset could ship later, so it can be its own spec.
+
+## Milestones
+
+Larger projects group specs into milestones: Project › Milestone › Spec › Subtask. Small projects have none and never need to think about them.
+
+- `milestones: [Basics, Sharing, Polish]` in config.md lists them in order. The project has milestones when this list is not empty.
+- `milestone: Basics` in a spec's front matter puts it in one. A spec with no milestone, or a name not in the list, shows under "No milestone". Use only names from the list.
+- Specs can depend on specs in other milestones as usual (`depends_on`).
+- The **current milestone** is the first in the list with a spec that is not done; if all are done, the last one.
+- To rename a milestone, change the list and every spec that uses the old name. Reordering means reordering the list.
+
+## Proposing changes
+
+Before writing more than one spec, or changing several specs or the milestones, show the result as a tree and wait for an OK or changes. One new spec needs no tree.
+
+The tree goes in a code block. Spec lines carry ID, title, status and `(draft)` when drafted, then the first sentence of `## Spec` cut to about 70 characters. Subtasks show a tick (`✓` done, `○` not). Milestones show done/total, in list order, with "No milestone" last. Without milestones there is no milestone level.
+
+Mark proposed changes: `+` new, `~` changed, and `→ <where>` at the end of an item that moves away (`→ Sharing`, `→ archive`). Counts are for the result. A proposal may leave out the subtasks of specs it does not change.
+
+```
+Recipe Box · 1/4 done
+├─ Milestone: Basics · 1/2
+│  ├─ T-101 Recipe list page · done
+│  │    A grid of saved recipes with photo, cook time and tags.
+│  ├─ ~ T-104 Meal planner calendar · doing
+│  │    A weekly calendar where recipes can be dragged onto days.
+│  │    ├─ ✓ 1. Calendar layout
+│  │    ├─ ✓ 2. Drag and drop
+│  │    └─ + ○ 3. Week navigation
+│  └─ T-108 Share recipe link · todo → Sharing
+└─ + Milestone: Sharing · 0/2
+   └─ + T-109 Recipe ratings · todo (draft)
+        Let people rate a recipe from one to five stars.
+```
+
+- Get the current tree with `specboard tree [--spec <ID>] [--milestone <name>] [<project folder>]` and build the proposal on it. If that command is missing or refused, build the tree from the files by the rules above: the first line is `<name> · <done>/<total> done` (the total includes archived specs, counted as done), a `(you) ` subtask shows as `you: <title>`, and archived specs are not listed.
+- In plan mode, put the tree and the list of files you will write or change in the plan, and write nothing until the plan is approved.
+
 ## Logs: logs/<n>-<slug>.md
 
 One file per subtask, numbered to match, with the slug taken from the subtask title:
@@ -124,7 +178,10 @@ Built the time-slot grid. Slots come from the barber's opening hours. Tests adde
 ```
 
 - `commit` is the short hash of the subtask's commit (empty if there is none), and `files` lists the files that commit changed.
-- Each entry is headed `### YYYY-MM-DD HH:mm`, followed by free text on what changed and any notes. Add a new entry to an existing log instead of replacing it.
+- `pr: <url>` (optional) links the open pull or merge request for the commit's branch. After the commit, try `gh pr view --json url -q .url`, then `glab mr view -F json` (take its `web_url`). If neither works or there is none, leave `pr:` out and say nothing. If you opened the PR yourself, use its link.
+- `done_at: YYYY-MM-DD HH:mm` (local time) is written when the subtask is ticked.
+- `obsolete: "<YYYY-MM-DD>: <reason>"` marks a log whose work no longer exists. Only sync sets it (see /sync-specs).
+- Each entry is headed `### YYYY-MM-DD HH:mm`, followed by free text on what changed and any notes. Add a new entry to an existing log instead of replacing it. Never delete or rewrite an entry.
 - `tokens:` is filled in automatically by the Spec Board plugin. Never write it yourself.
 
 ## Blocked
@@ -148,8 +205,8 @@ Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never s
    3. Do the work the subtask describes, using the Spec and Features sections and the answers.
    4. Run the project's tests. Read `.claude/settings.json`, take the test command from the `Bash(...)` entries in `permissions.allow` (the entry that runs the tests, for example `Bash(npm test)` means `npm test`), and run exactly that command, alone, with the Bash tool. Do not pick another test command and do not chain anything onto it. If it fails, fix the cause. If you cannot, treat it as the decision step (step 5 of Running a spec) and do not commit failing work. If no test command is listed, do not run or add tests and do not edit `package.json` to create a test script; write "No test command is set up" in the subtask's log entry and carry on.
    5. Commit only this subtask's code with the Bash tool: `git add <the files you changed>`, then `git commit -m "<ID> · <n>. <subtask title>"`. Do not add `.specboard/` files to the commit.
-   6. Get the short hash with `git log -1 --format=%h` and the changed files with `git diff --name-only HEAD~1 HEAD`.
-   7. Write `.specboard/specs/<ID>-<slug>/logs/<n>-<slug>.md` in the log format: `subtask`, `commit`, `files`, and a dated entry (`### YYYY-MM-DD HH:mm`) of what you did.
+   6. Get the short hash and local time with `git log -1 --format="%h %cd" --date=format:"%Y-%m-%d %H:%M"`, the changed files with `git diff --name-only HEAD~1 HEAD`, and the PR link as the log format says.
+   7. Write `.specboard/specs/<ID>-<slug>/logs/<n>-<slug>.md` in the log format: `subtask`, `commit`, `files`, `pr` (when found), `done_at` (the commit's time), and a dated entry (`### YYYY-MM-DD HH:mm`) of what you did.
    8. Tick the subtask (`- [x]`) and set `updated`.
 5. When you reach a decision you cannot make from the spec and its answers (or tests cannot be fixed): add a required open question (`- [ ] Q<k> (<type>): <text>` then `  > answer:`, with a recommendation if you have one), set `current_subtask: null`, leave the status as `doing`, say what you need, and **stop**. Do not guess and do not carry on to the next subtask. A refused action is different: see rule 8.
 6. When only `(you)` subtasks (or none) are left unticked, check each line of `## Done when` before moving to Review:
@@ -170,5 +227,5 @@ Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never s
 5. Edit `.specboard/` only for spec bookkeeping, plus the code the spec needs. Never edit anything under `.claude/`. Never touch files outside the project folder.
 6. Work with the file tools: Read, Edit, Write, Glob and Grep. Do not use shell commands such as `rm`, `mv`, `mkdir` or `echo` for files. Change a spec with small Edit calls so everything else in the file stays exactly as it was (comments, other sections, line endings). Do not rewrite a whole file just to change one line.
 7. Dates are `YYYY-MM-DD`. Take today's date from your context. If you do not have it, read it from the last commit: `git log -1 --format=%cd --date=format:"%Y-%m-%d %H:%M"`.
-8. If a tool call is refused (permission denied), do not look for a way around the refusal. If you only used the wrong tool (for example Bash to read a file), use the right one. If the action itself is needed (a commit, the tests, a command the spec needs, a file outside the project): do not try another way, set `current_subtask: null`, leave the status as `doing`, say which action was refused, and stop. Do not add an open question for it: the board shows the refusal and how to allow it, and an unanswered question would stop the next run after the person has allowed it.
+8. If a tool call is refused (permission denied), do not look for a way around the refusal. If you only used the wrong tool (for example Bash to read a file), use the right one. If the action itself is needed (a commit, the tests, a command the spec needs, a file outside the project): do not try another way, set `current_subtask: null`, leave the status as `doing`, say which action was refused, and stop. Do not add an open question for it: the board shows the refusal and how to allow it, and an unanswered question would stop the next run after the person has allowed it. Two exceptions are optional and simply skipped when refused: the PR link (`gh`, `glab`) and `specboard tree`.
 9. When something is unclear or the files do not match this format, say so in your answer and stop. Do not "fix" the format by inventing new keys.

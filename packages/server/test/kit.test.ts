@@ -5,7 +5,9 @@ import { parseSpec, specBodyMd, splitFrontMatter, youStep } from '@specboard/cor
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { installSkills, kitPluginDir, kitSkills } from '../src/kit.js';
 
-const COMMANDS = ['create-spec', 'update-spec', 'run-spec', 'next', 'refresh-overview', 'refresh-logs', 'correct-specs', 'plan-project', 'import-specs', 'reorganize'];
+const COMMANDS = ['create-spec', 'update-spec', 'run-spec', 'next', 'refresh-overview', 'refresh-logs', 'correct-specs', 'plan-project', 'import-specs', 'reorganize', 'setup', 'structure', 'sync-specs'];
+/** Skills a plain request may trigger; the other commands only run when typed. */
+const MODEL_INVOCABLE = ['specboard', 'setup'];
 
 /** Read the flat `key: value` lines of a SKILL.md front matter. */
 function frontMatter(text: string): Record<string, string> {
@@ -43,8 +45,8 @@ describe('plugin folder', () => {
   const repo = path.resolve(import.meta.dirname, '../../..');
   it('reads the skills from plugin/skills and hands runs the plugin folder', async () => {
     expect(kitPluginDir()).toBe(path.join(repo, 'plugin'));
-    expect((await kitSkills()).length).toBe(11);
-    expect((await fs.readdir(path.join(repo, 'plugin', 'skills'))).length).toBe(11);
+    expect((await kitSkills()).length).toBe(14);
+    expect((await fs.readdir(path.join(repo, 'plugin', 'skills'))).length).toBe(14);
   });
   it('plugin.json and marketplace.json parse and agree', async () => {
     const plugin = JSON.parse(await fs.readFile(path.join(repo, 'plugin', '.claude-plugin', 'plugin.json'), 'utf8'));
@@ -63,12 +65,12 @@ describe('kit content', () => {
     expect(names).toEqual(['specboard', ...COMMANDS].sort());
   });
 
-  it('every skill has a name matching its folder and a description; commands are not model-invocable', async () => {
+  it('every skill has a name matching its folder and a description; commands other than setup are not model-invocable', async () => {
     for (const { name, text } of await kitSkills()) {
       const fm = frontMatter(text);
       expect(fm.name, name).toBe(name);
       expect(fm.description, name).toBeTruthy();
-      if (name === 'specboard') expect(fm['disable-model-invocation'], name).toBeUndefined();
+      if (MODEL_INVOCABLE.includes(name)) expect(fm['disable-model-invocation'], name).toBeUndefined();
       else expect(fm['disable-model-invocation'], name).toBe('true');
     }
   });
@@ -150,6 +152,45 @@ describe('kit content', () => {
     expect(create).toContain('--board');
     expect(create).toContain('in the chat');
     expect(skills.find((s) => s.name === 'next')!.text).toContain('(you)');
+  });
+
+  it('the rules cover proposing changes, milestones, spec or subtask, PR links, done_at and tokens', async () => {
+    const text = (await kitSkills()).find((s) => s.name === 'specboard')!.text;
+    for (const h of ['## Proposing changes', '## Milestones', '## Spec or subtask?']) expect(text).toContain(h);
+    expect(text).toContain('pr:');
+    expect(text).toContain('gh pr view --json url -q .url');
+    expect(text).toContain('glab mr view -F json');
+    expect(text).toContain('done_at:');
+    expect(text).toContain('specboard tree');
+    expect(text).toMatch(/plan mode/i);
+    expect(text).toMatch(/`tokens:`.*Never write it yourself/);
+  });
+
+  it('setup is triggered by plain requests, runs init from the plugin and finishes by starting the board', async () => {
+    const text = (await kitSkills()).find((s) => s.name === 'setup')!.text;
+    expect(frontMatter(text).description).toMatch(/^Set up Spec Board/);
+    expect(text).toContain('specboard init --yes --no-skills --runs');
+    expect(text).toContain('.specboard/imported/<source-name>/');
+    expect(text).toContain('specboard --detach');
+  });
+
+  it('structure prints the tree read-only; sync-specs uses the proposal file and checks head and scope', async () => {
+    const skills = await kitSkills();
+    const structure = skills.find((s) => s.name === 'structure')!.text;
+    expect(structure).toContain('specboard tree');
+    expect(frontMatter(structure)['argument-hint']).toBe('[ID | milestone]');
+    const sync = skills.find((s) => s.name === 'sync-specs')!.text;
+    for (const s of ['sync-proposal.md', 'head', 'scope', 'git rev-parse --short HEAD', 'Run Sync again', 'obsolete:', '--dry-run', '--apply']) expect(sync, s).toContain(s);
+  });
+
+  it('skills that write several specs use milestones and show a tree first; next prefers the current milestone', async () => {
+    const skills = await kitSkills();
+    for (const name of ['plan-project', 'import-specs', 'reorganize', 'create-spec', 'setup', 'sync-specs']) {
+      const text = skills.find((s) => s.name === name)!.text;
+      expect(text, name).toMatch(/milestone/i);
+      expect(text, name).toMatch(/tree/);
+    }
+    expect(skills.find((s) => s.name === 'next')!.text).toContain('current milestone');
   });
 
   it('import-specs never edits, moves or deletes the source files', async () => {
