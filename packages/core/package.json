@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./you": "./src/you.ts"
+    "./you": "./src/you.ts",
+    "./milestones": "./src/milestones.ts"
   },
   "types": "./src/index.ts",
   "scripts": {

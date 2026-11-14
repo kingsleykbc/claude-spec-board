@@ -14,5 +14,5 @@ export interface Question {
   recommendation: string | null;
 }
 export interface Subtask { n: number; title: string; done: boolean; line: number; hasLog: boolean }
-export interface SpecMeta { id: string; title: string; status: Status; urgency: Urgency; categories: string[]; dependsOn: string[]; draft: boolean; currentSubtask: number | null; created: string | null; updated: string | null }
+export interface SpecMeta { id: string; title: string; status: Status; urgency: Urgency; categories: string[]; dependsOn: string[]; draft: boolean; milestone: string | null; currentSubtask: number | null; created: string | null; updated: string | null }
 export interface SpecDoc extends SpecMeta { specMd: string; featuresMd: string; questions: Question[]; subtasks: Subtask[]; problems: string[] }

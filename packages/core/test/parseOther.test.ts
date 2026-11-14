@@ -62,7 +62,7 @@ describe('parseLog', () => {
 describe('parseConfig', () => {
   it('missing references gives []; description is trimmed body', () => {
     const c = parseConfig('---\nname: Demo\n---\n\nA project.\n\n');
-    expect(c).toEqual({ name: 'Demo', references: [], description: 'A project.', problems: [] });
+    expect(c).toEqual({ name: 'Demo', references: [], milestones: [], closingSteps: [], description: 'A project.', problems: [] });
   });
 
   it('parses references', () => {

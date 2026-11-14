@@ -14,6 +14,7 @@ export const recipeSpecs: Spec[] = [
     ],
     "dependsOn": [],
     "draft": false,
+    "milestone": null,
     "currentSubtask": null,
     "created": "2026-11-01",
     "updated": "2026-11-08",
@@ -77,6 +78,7 @@ export const recipeSpecs: Spec[] = [
     ],
     "dependsOn": [],
     "draft": false,
+    "milestone": null,
     "currentSubtask": null,
     "created": "2026-11-01",
     "updated": "2026-11-08",
@@ -152,6 +154,7 @@ export const recipeSpecs: Spec[] = [
       "T-102"
     ],
     "draft": false,
+    "milestone": null,
     "currentSubtask": null,
     "created": "2026-11-01",
     "updated": "2026-11-08",
@@ -229,6 +232,7 @@ export const recipeSpecs: Spec[] = [
     ],
     "dependsOn": [],
     "draft": false,
+    "milestone": null,
     "currentSubtask": 3,
     "created": "2026-11-01",
     "updated": "2026-11-08",
@@ -286,6 +290,7 @@ export const recipeSpecs: Spec[] = [
       "1": {
         "subtask": 1,
         "commit": "4f2a91c",
+        "pr": null,
         "files": [
           "src/components/WeekGrid.tsx",
           "src/components/WeekGrid.test.tsx",
@@ -306,6 +311,7 @@ export const recipeSpecs: Spec[] = [
       "2": {
         "subtask": 2,
         "commit": "a1b2c3d",
+        "pr": null,
         "files": [
           "src/components/RecipeSidebar.tsx",
           "src/components/WeekGrid.tsx",
@@ -344,6 +350,7 @@ export const recipeSpecs: Spec[] = [
       "T-104"
     ],
     "draft": false,
+    "milestone": null,
     "currentSubtask": null,
     "created": "2026-11-01",
     "updated": "2026-11-08",
@@ -453,6 +460,7 @@ export const recipeSpecs: Spec[] = [
     ],
     "dependsOn": [],
     "draft": false,
+    "milestone": null,
     "currentSubtask": null,
     "created": "2026-11-01",
     "updated": "2026-11-08",
@@ -550,6 +558,7 @@ export const recipeSpecs: Spec[] = [
     ],
     "dependsOn": [],
     "draft": true,
+    "milestone": null,
     "currentSubtask": null,
     "created": "2026-11-01",
     "updated": "2026-11-08",
@@ -586,6 +595,7 @@ export const recipeSpecs: Spec[] = [
       "T-106"
     ],
     "draft": false,
+    "milestone": null,
     "currentSubtask": null,
     "created": "2026-11-01",
     "updated": "2026-11-08",
@@ -661,6 +671,7 @@ export const recipeArchived: Spec[] = [
     ],
     "dependsOn": [],
     "draft": false,
+    "milestone": null,
     "currentSubtask": null,
     "created": "2026-11-01",
     "updated": "2026-11-08",
@@ -727,6 +738,7 @@ export const fileProblemSpec: Spec = {
   ],
   "dependsOn": [],
   "draft": false,
+  "milestone": null,
   "currentSubtask": null,
   "created": "2026-11-01",
   "updated": "2026-11-08",
@@ -786,6 +798,8 @@ export const recipeProject: Project = {
     name: 'Recipe Box',
     description: "A web app to save recipes, plan the week's meals and turn the plan into a shopping list.",
     references: ['CLAUDE.md', 'docs/CONTEXT.md', 'docs/RULES.md', 'docs/API-NOTES.md', 'docs/STYLE-GUIDE.md'],
+    milestones: [],
+    closingSteps: [],
     problems: [],
   },
   overview: {

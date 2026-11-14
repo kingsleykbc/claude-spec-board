@@ -217,6 +217,13 @@ export async function loadProject(root: string): Promise<Project> {
     if (group.length > 1) for (const s of group) s.problems.push(`Duplicate id ${id}`);
   }
 
+  const listed = config?.milestones ?? [];
+  if (listed.length > 0) {
+    for (const s of [...rawActive, ...rawArchived]) {
+      if (s.milestone !== null && !listed.includes(s.milestone)) s.problems.push(`Unknown milestone "${s.milestone}"`);
+    }
+  }
+
   const state = deriveState(rawActive, rawArchived);
   const finish = (s: RawSpec): Spec => ({ ...s, ...(state.get(s.id) ?? { dependents: [], blocked: false, blockedReasons: [] }) });
   return { root, config, overview, specs: rawActive.map(finish), archived: rawArchived.map(finish), problems };

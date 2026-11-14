@@ -2,8 +2,8 @@ import { isScalar, parseDocument, type Document } from 'yaml';
 import { splitFrontMatter } from './frontmatter.js';
 
 export interface LogEntry { at: string; text: string }
-export interface SubtaskLog { subtask: number | null; commit: string | null; files: string[]; entries: LogEntry[]; problems: string[] }
-export interface ProjectConfig { name: string; references: string[]; description: string; problems: string[] }
+export interface SubtaskLog { subtask: number | null; commit: string | null; files: string[]; pr: string | null; entries: LogEntry[]; problems: string[] }
+export interface ProjectConfig { name: string; references: string[]; milestones: string[]; closingSteps: string[]; description: string; problems: string[] }
 export interface Overview { updated: string | null; summaryMd: string }
 
 /** Parse YAML into a mapping. Never throws; returns null data plus problems when unusable. */
@@ -55,7 +55,7 @@ function parseEntries(body: string): LogEntry[] {
 export function parseLog(text: string): SubtaskLog {
   const { yaml, body } = splitFrontMatter(text);
   const { data, problems, doc } = parseMapping(yaml);
-  const log: SubtaskLog = { subtask: null, commit: null, files: [], entries: parseEntries(body), problems };
+  const log: SubtaskLog = { subtask: null, commit: null, files: [], pr: null, entries: parseEntries(body), problems };
   if (!data) return log;
   if (data.subtask !== undefined && data.subtask !== null) {
     const n = typeof data.subtask === 'number' ? data.subtask : Number(data.subtask);
@@ -71,6 +71,7 @@ export function parseLog(text: string): SubtaskLog {
       ? optionalString(commit.source)
       : optionalString(data.commit);
   log.files = stringList(data.files);
+  log.pr = optionalString(data.pr);
   return log;
 }
 
@@ -78,10 +79,12 @@ export function parseLog(text: string): SubtaskLog {
 export function parseConfig(text: string): ProjectConfig {
   const { yaml, body } = splitFrontMatter(text);
   const { data, problems } = parseMapping(yaml);
-  const config: ProjectConfig = { name: '', references: [], description: body.trim(), problems };
+  const config: ProjectConfig = { name: '', references: [], milestones: [], closingSteps: [], description: body.trim(), problems };
   if (!data) return config;
   config.name = optionalString(data.name) ?? '';
   config.references = stringList(data.references);
+  config.milestones = [...new Set(stringList(data.milestones).map((m) => m.trim()).filter((m) => m !== ''))];
+  config.closingSteps = stringList(data.closing_steps);
   return config;
 }
 

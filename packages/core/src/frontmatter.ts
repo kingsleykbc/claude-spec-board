@@ -29,6 +29,7 @@ function defaultMeta(): SpecMeta {
     categories: [],
     dependsOn: [],
     draft: false,
+    milestone: null,
     currentSubtask: null,
     created: null,
     updated: null,
@@ -84,6 +85,7 @@ export function parseSpecMeta(yaml: string | null): { meta: SpecMeta; problems: 
   meta.categories = stringList(o.categories);
   meta.dependsOn = stringList(o.depends_on);
   meta.draft = o.draft === true;
+  meta.milestone = optionalString(o.milestone)?.trim() || null;
 
   if (o.current_subtask !== undefined && o.current_subtask !== null) {
     const n = Number(o.current_subtask);

@@ -25,6 +25,7 @@ describe('parseSpecMeta', () => {
       categories: ['auth', 'ui'],
       dependsOn: ['T-000'],
       draft: true,
+      milestone: null,
       currentSubtask: 2,
       created: '2026-01-02',
       updated: '2026-01-03',
