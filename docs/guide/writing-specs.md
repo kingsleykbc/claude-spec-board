@@ -66,7 +66,7 @@ Claude uses these rules when it writes specs, and you can use them when you edit
 - A **subtask** is one step toward a spec: one commit, one sitting, not worth reviewing alone.
 - A **milestone** is a set of specs that ship together.
 
-Signs a spec is too big: more than about 8 subtasks, "Done when" lines about unrelated things, or parts that could ship apart. Split it. Signs it's too small: it has one subtask, or it can't be reviewed apart from another spec. Merge it. In the sample project, "Meal planner calendar" is a spec, and "Calendar layout" and "Drag and drop" are its subtasks. "Basics" and "Planning" are milestones.
+Signs a spec is too big: more than about 8 subtasks, "Done when" lines about unrelated things, or parts that could ship apart. Split it. Signs it's too small: it has one subtask, or it can't be reviewed apart from another spec. Merge it. In the sample project, "Meal planner calendar" is a spec, and "Create calendar grid" and "Drag recipe onto a day" are two of its subtasks. "Basics" and "Planning" are milestones.
 
 ## Milestones
 

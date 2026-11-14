@@ -24,7 +24,7 @@ Any command that would create or change several specs shows the result as a tree
 
 ## In a terminal
 
-While the plugin is on, Claude can run the `specboard` command itself, and the commands above call it for you. From a copy of the Spec Board repo, use `npm run specboard -- <command>` for the same commands, and `npm run board -- "<project>"` to open the board. Use real paths, without the `<` and `>`.
+The rows below show `specboard <command>`. With the plugin, that is the command Claude runs for you (it is on Claude's PATH, not necessarily yours); when you run `init` that way, add `--no-skills`. Without the plugin, run the same thing from a copy of the Spec Board repo as `npm run specboard -- <command>`, and open the board with `npm run board -- "<project>"`. Use real paths, without the `<` and `>`.
 
 | Command | What it does |
 |---|---|

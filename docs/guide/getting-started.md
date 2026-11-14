@@ -65,7 +65,7 @@ The board remembers your choice in this browser, for every project.
 
 - A small dot next to the project name shows the connection: green is connected, amber is reconnecting, red is disconnected. In the project list, a green dot means that project's folder can be reached and grey means it can't.
 - **Overview** shows a summary, the counts, the total tokens used and a table of every spec. **Logs** shows every subtask log in the project, newest first, with a search box. **References** lists the documents the project points Claude at.
-- The menu under the logo holds **Documentation**, **Sync with code**, **Settings** and the **Dark mode** switch (and, in Simple mode, References, Overview and Logs).
+- The menu under the logo holds **Documentation**, **Take the tour**, **Sync with code** (and **Sync proposal waiting** when one is waiting) and **Settings**. In Simple mode, and on small screens, it also holds References, Overview and Logs, and on small screens the **Manual** notice. The **Dark mode** switch is last.
 - On a small screen the board scrolls sideways one column at a time, the card detail fills the screen, and the header's extra buttons join the logo menu.
 
 ## Use it from Claude

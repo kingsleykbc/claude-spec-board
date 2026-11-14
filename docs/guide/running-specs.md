@@ -16,8 +16,8 @@ There are two ways to have Claude work on a spec, and the card shows both as equ
 
 Background runs need two things: Claude Code installed and logged in, and your approval of the actions a run may use. Until both are true, the board is in manual mode (next section).
 
-- **With the plugin:** run `/specboard:setup`. When it asks about background runs, it shows the actions and writes them once you say yes. In a project that already has `.specboard/`, run `specboard init --runs yes "<project folder>"` instead, which shows the actions and applies them.
-- **From a terminal:** run `npm run specboard -- init "<project folder>"` from a copy of the repo. It shows the list of actions and asks you to approve it.
+- **With the plugin:** run `/specboard:setup`. When it asks about background runs, it shows the actions and writes them once you say yes. In a project that already has `.specboard/`, ask Claude to turn runs on. It runs `specboard init --yes --no-skills --runs yes "<project folder>"` for you (`--no-skills` keeps `init` from copying commands that the plugin already has).
+- **From a terminal, without the plugin:** run `npm run specboard -- init "<project folder>"` from a copy of the repo. It shows the list of actions and asks you to approve it.
 
 The approved list is kept in `~/.specboard/`, outside the repo. [Safety](safety.md) explains what it lets a run do.
 
@@ -63,7 +63,7 @@ The board can show roughly how many tokens Claude used for each subtask, in the 
 - **Claude never writes them.** Claude in a chat can't see its own usage, so the plugin does the counting. An obsolete log keeps its tokens, because they were spent.
 - **You can turn it off.** Choose **Settings** in the logo menu and switch off **Track tokens**. The column and the total then disappear too.
 
-A background run also shows its total on the last line of its run panel, for example "Used 48.2k tokens".
+A background run also shows its total on the last line of its run panel, which ends with "· 48.2k tokens".
 
 ## Sync with code
 
@@ -74,7 +74,7 @@ Over time the board can drift from the code: work gets done without a tick, or a
 - **You see it first.** From the board, Claude writes a proposal and changes nothing else. A dialog shows a warning, the list of changes and the tree. Choose **Confirm** to apply exactly that proposal, or **Cancel** to throw it away. If the code changed between the two steps, the apply stops and asks you to sync again.
 - **Specs to archive** are archived by the board once you confirm. In a chat, sync names them and you archive them on the board.
 - **Old logs stay.** When sync unticks a subtask or archives a spec, it marks the matching logs obsolete instead of deleting them.
-- **If the browser closes** before you confirm, a **Sync proposal waiting** item in the logo menu brings the dialog back.
+- **If the browser closes** before you confirm, a **Sync proposal waiting** item in the logo menu brings the dialog back for a whole-project sync. For one spec, a **Sync proposal waiting** button beside **Sync** in that card does the same.
 - **In manual mode** the dialog shows the command to copy: `/specboard:sync-specs`, or with a spec ID.
 
 ## When Claude stops
