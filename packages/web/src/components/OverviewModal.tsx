@@ -1,11 +1,13 @@
+import { useId, useState } from 'react';
 import type { Project } from '@specboard/core';
 import { exportOverview, overviewCounts } from '../lib/exportOverview';
-import { CloseIcon, ErrorIcon, ExportIcon, RefreshIcon } from '../lib/icons';
+import { CaretIcon, CaretRightIcon, CloseIcon, ErrorIcon, ExportIcon, RefreshIcon } from '../lib/icons';
 import { ORDER, relTime, ST } from '../lib/vm';
 import type { PushToast } from '../state/toasts';
 import { Spinner } from './ConnectionBanner';
 import { Markdown } from './Markdown';
 import { Modal } from './Modal';
+import { TableView } from './TableView';
 import s from './modals.module.css';
 
 export interface OverviewModalProps {
@@ -38,6 +40,8 @@ function download(filename: string, text: string): void {
 /** Project overview (pinned behaviour 17; prototype lines 295-319 and 748-751). */
 export function OverviewModal({ project, name, toast, refreshing = false, onRefresh, onClose, now }: OverviewModalProps) {
   const c = overviewCounts(project);
+  const [tasksOpen, setTasksOpen] = useState(false);
+  const tasksId = useId();
   const deg = c.total ? Math.round((c.done / c.total) * 360) : 0;
   const counts = [
     ...ORDER.map((k) => ({ key: k, label: ST[k].label, icon: ST[k].icon, ink: ST[k].ink, n: c[k] })),
@@ -89,7 +93,7 @@ export function OverviewModal({ project, name, toast, refreshing = false, onRefr
         <div className={s.ovRule} />
         <div className={s.ovProgress}>
           <div className={s.ovProgHead}>
-            <span className={s.ovProgLabel}>PROGRESS</span>
+            <span className={s.ovProgLabel}>SUMMARY</span>
             {updated && <span className={s.ovUpdated}>{updated}</span>}
             <span className={s.grow} />
             <button type="button" className={s.ovRefresh} disabled={refreshing} onClick={onRefresh}>
@@ -122,6 +126,15 @@ export function OverviewModal({ project, name, toast, refreshing = false, onRefr
               </button>
             </div>
           )}
+        </div>
+        <div className={s.ovTasks}>
+          <button type="button" className={s.ovTasksBtn} aria-expanded={tasksOpen} aria-controls={tasksId} onClick={() => setTasksOpen((o) => !o)}>
+            {tasksOpen ? <CaretIcon aria-hidden /> : <CaretRightIcon aria-hidden />}
+            Tasks
+          </button>
+          <div id={tasksId} hidden={!tasksOpen}>
+            {tasksOpen && <TableView compact specs={project.specs} archived={[]} milestones={project.config?.milestones ?? []} simple={false} />}
+          </div>
         </div>
         <div className={s.ovFoot}>
           <button type="button" className={s.ovExport} onClick={onExport}>

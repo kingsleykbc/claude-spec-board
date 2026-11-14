@@ -48,3 +48,12 @@ export const Refreshing: Story = {
     expect(within(dlg).getByText('Claude is rewriting the summary…')).toBeTruthy();
   },
 };
+
+export const TasksExpanded: Story = {
+  play: async ({ canvasElement, userEvent }) => {
+    const dlg = within(canvasElement).getByRole('dialog', { name: 'Overview' });
+    expect(within(dlg).getByText('SUMMARY')).toBeTruthy();
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Tasks' }));
+    expect(within(dlg).getByRole('table')).toBeTruthy();
+  },
+};

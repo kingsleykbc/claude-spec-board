@@ -83,3 +83,25 @@ describe('OverviewModal', () => {
     await waitFor(() => expect(p.toast).toHaveBeenCalledWith('ok', 'Exported overview', 'recipe-box-overview.md'));
   });
 });
+
+describe('OverviewModal summary and tasks', () => {
+  it('labels the summary SUMMARY, not PROGRESS', () => {
+    setup();
+    expect(screen.getByText('SUMMARY')).toBeTruthy();
+    expect(screen.queryByText('PROGRESS')).toBeNull();
+  });
+
+  it('Tasks is collapsed by default and expands to a read-only table of the active specs', () => {
+    setup();
+    const btn = screen.getByRole('button', { name: 'Tasks' });
+    expect(btn.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('table')).toBeNull();
+    fireEvent.click(btn);
+    expect(btn.getAttribute('aria-expanded')).toBe('true');
+    const t = screen.getByRole('table');
+    expect(within(t).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['ID', 'Title', 'Status', 'Progress']);
+    expect(within(t).getAllByTestId('spec-id')).toHaveLength(recipeProject.specs.length);
+    expect(within(t).queryByRole('button')).toBeNull();
+    expect(within(t).queryByText('T-100')).toBeNull();
+  });
+});

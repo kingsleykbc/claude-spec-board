@@ -143,3 +143,15 @@ describe('TableView', () => {
     expect(screen.getByTestId('table-scroll').contains(screen.getAllByRole('table')[0]!)).toBe(true);
   });
 });
+
+describe('TableView compact', () => {
+  it('shows only ID, Title, Status and Progress; no buttons, no archived section', () => {
+    table({ compact: true, onOpen: undefined, milestones: MS, specs: withMs(recipeSpecs), archived: withMs(recipeArchived) });
+    const tables = screen.getAllByRole('table');
+    expect(headers(tables[0]!)).toEqual(['ID', 'Title', 'Status', 'Progress']);
+    expect(within(tables[0]!).queryByRole('button')).toBeNull();
+    expect(screen.queryByText(/Archived/)).toBeNull();
+    expect(screen.queryByText('T-100')).toBeNull();
+    expect(screen.getAllByRole('button').every((b) => b.hasAttribute('data-section'))).toBe(true);
+  });
+});

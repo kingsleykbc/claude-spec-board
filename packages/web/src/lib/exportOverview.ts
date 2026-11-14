@@ -1,4 +1,7 @@
-import type { Project } from '@specboard/core';
+import type { Project, Spec } from '@specboard/core';
+import { groupByMilestone } from '@specboard/core/milestones';
+import { sortSpecs } from '../state/filters';
+import { ORDER, ST } from './vm';
 
 // The Overview's numbers and its Markdown export (pinned behaviour 17, Ruling 4).
 
@@ -39,7 +42,29 @@ export function slug(name: string): string {
   return s || 'project';
 }
 
-/** `<slug(name)>-overview.md` with a heading, the description, the counts list and the summary. */
+/** Status order (to-do, doing, review, done), then the board's order within a status. */
+function ordered(specs: Spec[]): Spec[] {
+  return ORDER.flatMap((st) => sortSpecs(specs.filter((x) => x.status === st)));
+}
+
+function table(specs: Spec[]): string {
+  const cell = (x: string) => x.replace(/\|/g, '\\|');
+  const rows = ordered(specs).map((x) => `| ${x.id} | ${cell(x.title)} | ${ST[x.status].label} | ${x.subtasks.filter((t) => t.done).length}/${x.subtasks.length} |`);
+  return ['| ID | Title | Status | Progress |', '| --- | --- | --- | --- |', ...rows].join('\n') + '\n';
+}
+
+/** The "## Tasks" section: active specs only; one table per milestone that has a spec, or one table without milestones. Empty when no active specs. */
+function tasksSection(project: Project): string {
+  if (project.specs.length === 0) return '';
+  const milestones = project.config?.milestones ?? [];
+  if (milestones.length === 0) return `\n## Tasks\n${table(project.specs)}`;
+  const groups = groupByMilestone(project.specs, milestones)
+    .filter((g) => g.specs.length > 0)
+    .map((g) => `### ${g.name ?? 'No milestone'}\n${table(g.specs)}`);
+  return `\n## Tasks\n${groups.join('\n')}`;
+}
+
+/** `<slug(name)>-overview.md` with a heading, the description, the counts list, the summary and the tasks tables. */
 export function exportOverview(project: Project, name: string = project.config?.name || 'Project'): { filename: string; text: string } {
   const c = overviewCounts(project);
   const description = project.config?.description.trim() ?? '';
@@ -47,6 +72,7 @@ export function exportOverview(project: Project, name: string = project.config?.
   const text =
     `# ${name}\n\n${description}\n\n` +
     `## Counts\n- To-do: ${c.todo}\n- Doing: ${c.doing}\n- Review: ${c.review}\n- Done: ${c.done}\n- Blocked: ${c.blocked}\n\n` +
-    `## Progress\n${summary}\n`;
+    `## Summary\n${summary}\n` +
+    tasksSection(project);
   return { filename: `${slug(name)}-overview.md`, text };
 }

@@ -24,13 +24,17 @@ export interface TableViewProps {
   simple: boolean;
   /** Show the Tokens column (the project's `track_tokens` setting). */
   trackTokens?: boolean;
-  onOpen: (id: string) => void;
+  /** Read-only overview table: ID, Title, Status and Progress only; no subtask rows, no Archived section, titles are plain text. */
+  compact?: boolean;
+  /** Opens a spec's detail; not needed when `compact`. */
+  onOpen?: (id: string) => void;
 }
 
 interface Cols {
   simple: boolean;
   trackTokens: boolean;
-  onOpen: (id: string) => void;
+  compact: boolean;
+  onOpen?: (id: string) => void;
 }
 
 /** Status order (to-do, doing, review, done), then the board's order within a status. */
@@ -47,28 +51,34 @@ function Row({ spec, c, span }: { spec: Spec; c: Cols; span: number }) {
   return (
     <>
       <tr data-testid={`row-${spec.id}`} className={s.row}>
-        <td className={s.expandCell}>
-          <button
-            type="button"
-            className={s.expand}
-            aria-label={`Subtasks of ${spec.id}`}
-            aria-expanded={open}
-            aria-controls={subId}
-            onClick={() => setOpen((o) => !o)}
-          >
-            {open ? <CaretIcon aria-hidden /> : <CaretRightIcon aria-hidden />}
-          </button>
-        </td>
+        {!c.compact && (
+          <td className={s.expandCell}>
+            <button
+              type="button"
+              className={s.expand}
+              aria-label={`Subtasks of ${spec.id}`}
+              aria-expanded={open}
+              aria-controls={subId}
+              onClick={() => setOpen((o) => !o)}
+            >
+              {open ? <CaretIcon aria-hidden /> : <CaretRightIcon aria-hidden />}
+            </button>
+          </td>
+        )}
         <td>
           <span className={s.id} data-testid="spec-id">
             {spec.id}
           </span>
         </td>
         <td className={s.titleCell}>
-          <button type="button" className={s.title} onClick={() => c.onOpen(spec.id)}>
-            {spec.title}
-          </button>
-          {waiting !== null && (
+          {c.compact ? (
+            <span className={s.title}>{spec.title}</span>
+          ) : (
+            <button type="button" className={s.title} onClick={() => c.onOpen?.(spec.id)}>
+              {spec.title}
+            </button>
+          )}
+          {!c.compact && waiting !== null && (
             <span className={s.you} title={waiting}>
               you
             </span>
@@ -80,7 +90,7 @@ function Row({ spec, c, span }: { spec: Spec; c: Cols; span: number }) {
         <td className={s.num}>
           {done}/{spec.subtasks.length}
         </td>
-        {!c.simple && (
+        {!c.compact && !c.simple && (
           <>
             <td>
               <Urgency level={spec.urgency} />
@@ -94,61 +104,65 @@ function Row({ spec, c, span }: { spec: Spec; c: Cols; span: number }) {
             </td>
           </>
         )}
-        {c.trackTokens && (
+        {!c.compact && c.trackTokens && (
           <td className={s.num} data-testid="tokens">
             {tokens === null ? '' : formatTokens(tokens)}
           </td>
         )}
       </tr>
-      <tr id={subId} className={s.subRow} hidden={!open}>
-        <td />
-        <td colSpan={span - 1}>
-          {spec.subtasks.length === 0 ? (
-            <span className={s.muted}>No subtasks.</span>
-          ) : (
-            <ol className={s.subs}>
-              {spec.subtasks.map((t) => {
-                const you = youStep(t.title);
-                return (
-                  <li key={t.n} className={s.sub}>
-                    <span className={s.subN}>{t.n}.</span>
-                    <span role="img" className={s.tick} data-done={t.done} aria-label={t.done ? 'Done' : 'Not done'}>
-                      {t.done && <CheckIcon aria-hidden />}
-                    </span>
-                    <span>{you ?? t.title}</span>
-                    {you !== null && <span className={s.you}>you</span>}
-                  </li>
-                );
-              })}
-            </ol>
-          )}
-        </td>
-      </tr>
+      {!c.compact && (
+        <tr id={subId} className={s.subRow} hidden={!open}>
+          <td />
+          <td colSpan={span - 1}>
+            {spec.subtasks.length === 0 ? (
+              <span className={s.muted}>No subtasks.</span>
+            ) : (
+              <ol className={s.subs}>
+                {spec.subtasks.map((t) => {
+                  const you = youStep(t.title);
+                  return (
+                    <li key={t.n} className={s.sub}>
+                      <span className={s.subN}>{t.n}.</span>
+                      <span role="img" className={s.tick} data-done={t.done} aria-label={t.done ? 'Done' : 'Not done'}>
+                        {t.done && <CheckIcon aria-hidden />}
+                      </span>
+                      <span>{you ?? t.title}</span>
+                      {you !== null && <span className={s.you}>you</span>}
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </td>
+        </tr>
+      )}
     </>
   );
 }
 
 /** One real table of specs. `empty` is shown in the body when there are no rows. */
 function SpecTable({ specs, c, empty }: { specs: Spec[]; c: Cols; empty?: string }) {
-  const span = 5 + (c.simple ? 0 : 2) + (c.trackTokens ? 1 : 0);
+  const span = c.compact ? 4 : 5 + (c.simple ? 0 : 2) + (c.trackTokens ? 1 : 0);
   return (
     <table className={s.table}>
       <thead>
         <tr>
-          <th scope="col" className={s.expandCell}>
-            <span className={s.srOnly}>Subtasks</span>
-          </th>
+          {!c.compact && (
+            <th scope="col" className={s.expandCell}>
+              <span className={s.srOnly}>Subtasks</span>
+            </th>
+          )}
           <th scope="col">ID</th>
           <th scope="col">Title</th>
           <th scope="col">Status</th>
           <th scope="col">Progress</th>
-          {!c.simple && (
+          {!c.compact && !c.simple && (
             <>
               <th scope="col">Urgency</th>
               <th scope="col">Categories</th>
             </>
           )}
-          {c.trackTokens && <th scope="col">Tokens</th>}
+          {!c.compact && c.trackTokens && <th scope="col">Tokens</th>}
         </tr>
       </thead>
       <tbody>
@@ -187,8 +201,17 @@ function Section({ title, initiallyOpen, children }: { title: string; initiallyO
 }
 
 /** Every spec as rows (design sections 7-8): by milestone, then status, then the board's order. Archived last, closed. */
-export function TableView({ specs: allSpecs, archived: allArchived, filters = NO_FILTERS, milestones, simple, trackTokens = false, onOpen }: TableViewProps) {
-  const c: Cols = { simple, trackTokens, onOpen };
+export function TableView({
+  specs: allSpecs,
+  archived: allArchived,
+  filters = NO_FILTERS,
+  milestones,
+  simple,
+  trackTokens = false,
+  compact = false,
+  onOpen,
+}: TableViewProps) {
+  const c: Cols = { simple, trackTokens, compact, onOpen };
   if (allSpecs.length + allArchived.length === 0) {
     return <div className={s.none}>No specs yet.</div>;
   }
@@ -203,13 +226,17 @@ export function TableView({ specs: allSpecs, archived: allArchived, filters = NO
       {milestones.length > 0 ? (
         milestoneOptions(specs, archived, milestones).map((o) => (
           <Section key={o.value} title={`${o.label} · ${o.done}/${o.total}`} initiallyOpen>
-            <SpecTable specs={filterSpecs(specs, { ...NO_FILTERS, milestone: o.value }, milestones)} c={c} empty={o.total === 0 ? 'No specs in this milestone yet.' : undefined} />
+            <SpecTable
+              specs={filterSpecs(specs, { ...NO_FILTERS, milestone: o.value }, milestones)}
+              c={c}
+              empty={o.total === 0 ? 'No specs in this milestone yet.' : undefined}
+            />
           </Section>
         ))
       ) : (
         <SpecTable specs={specs} c={c} />
       )}
-      {archived.length > 0 && (
+      {!compact && archived.length > 0 && (
         <Section title={`Archived · ${archived.length}`} initiallyOpen={false}>
           <SpecTable specs={archived} c={c} />
         </Section>

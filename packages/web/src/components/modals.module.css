@@ -29,6 +29,9 @@
 .ovRefresh:hover:not(:disabled) { border-color: var(--line2); }
 .ovRefresh:disabled { cursor: default; }
 .ovSummary { max-width: 64ch; }
+.ovTasks { padding: 4px 28px 8px; display: flex; flex-direction: column; gap: 8px; }
+.ovTasksBtn { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px; border: 0; border-radius: 6px; background: transparent; color: var(--fg2); font: inherit; font-size: 11.5px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; cursor: pointer; }
+.ovTasksBtn:hover { background: var(--panel); }
 .ovSkeleton { display: flex; flex-direction: column; gap: 9px; padding: 4px 0; }
 .ovSkelText { font-size: 13px; color: var(--doing-ink); }
 .ovSkelBar { height: 10px; border-radius: 4px; background: var(--panel); }
