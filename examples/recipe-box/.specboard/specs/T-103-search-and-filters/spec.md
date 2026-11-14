@@ -9,6 +9,7 @@ categories:
 depends_on:
   - T-102
 draft: false
+milestone: Basics
 current_subtask: null
 created: 2026-11-01
 updated: 2026-11-08

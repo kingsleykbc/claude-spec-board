@@ -54,6 +54,6 @@ export const TasksExpanded: Story = {
     const dlg = within(canvasElement).getByRole('dialog', { name: 'Overview' });
     expect(within(dlg).getByText('SUMMARY')).toBeTruthy();
     await userEvent.click(within(dlg).getByRole('button', { name: 'Tasks' }));
-    expect(within(dlg).getByRole('table')).toBeTruthy();
+    expect(within(dlg).getAllByRole('table')[0]).toBeTruthy();
   },
 };

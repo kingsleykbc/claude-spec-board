@@ -9,6 +9,7 @@ const mk = (id: string, title: string, status: 'todo' | 'doing' | 'review' | 'do
   title,
   status,
   milestone,
+  logs: {},
   blocked: false,
   subtasks: Array.from({ length: total }, (_, i) => sub(i + 1, i < done)),
 });
@@ -29,7 +30,7 @@ describe('exportOverview', () => {
     expect(text.startsWith('# Recipe Box\n\n')).toBe(true);
     expect(text).toContain('- Done: 3');
     expect(text).toContain(
-      '## Counts\n- To-do: 4\n- Doing: 1\n- Review: 1\n- Done: 3\n- Blocked: 2\n\n' + `## Summary\n${recipeProject.overview!.summaryMd}\n\n## Tasks\n| ID | Title | Status | Progress |`,
+      '## Counts\n- To-do: 4\n- Doing: 1\n- Review: 1\n- Done: 3\n- Blocked: 2\n- Tokens used: 48.2k\n\n' + `## Summary\n${recipeProject.overview!.summaryMd}\n\n## Tasks\n### Basics\n| ID | Title | Status | Progress |`,
     );
     expect(text).not.toContain('## Progress');
   });

@@ -7,6 +7,7 @@ categories:
   - Frontend
 depends_on: []
 draft: false
+milestone: Planning
 current_subtask: 3
 created: 2026-11-01
 updated: 2026-11-08

@@ -1,5 +1,7 @@
 ---
 name: Recipe Box
+created: 2026-11-01
+milestones: [Basics, Planning]
 closing_steps: [Write tests, Update the docs]
 references:
   - CLAUDE.md

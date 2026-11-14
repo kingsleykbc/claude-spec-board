@@ -10,7 +10,7 @@
 
 ## Try it
 
-From the Spec Board repo, until it is published (section 9 says why the commands look like this):
+Install the plugin (`/plugin marketplace add kingsleykbc/claude-spec-board`, then `/plugin install specboard@spec-board`) and run `/specboard:setup` in a Claude chat in your project. Or, without the plugin, from the Spec Board repo (section 9 says why the commands look like this):
 
 ```
 npm run specboard -- init <project path>
@@ -132,8 +132,11 @@ From top to bottom:
 ### 5.3 Overview (modal)
 - The project name and a **progress ring**, e.g. "2/10 Complete". The app counts this live from the files.
 - A written description of the project.
-- **Progress:** a written summary of what's done and what's left. Claude writes it with `/refresh-overview` and it's stored as a file.
-- An **Export** button, which downloads the overview as a Markdown file. **(my call on the format)**
+- **Summary** (called Progress at first): a written summary of what's done and what's left. Claude writes it with `/refresh-overview` and it's stored as a file.
+- **Tokens used** for the whole project (active and archived specs), when token tracking is on and the total is above 0.
+- **Tasks**: a collapsed, read-only table of every spec (ID, title, status, progress), grouped by milestone when the project has them.
+- A **View all logs** link that opens the Logs window.
+- An **Export** button, which downloads the overview as a Markdown file with the name, description, `## Counts` (and `- Tokens used`), `## Summary` and `## Tasks`. **(my call on the format)**
 
 ### 5.4 Reference documents (modal)
 - Tabs for the project's standing documents: **CLAUDE.md, CONTEXT.md, RULES.md**, and so on, scrolling sideways when there are many.
@@ -149,7 +152,8 @@ Everything lives in one folder at the project root. **(my call: `.specboard/`)**
 
 ```
 .specboard/
-  config.md            # project name + description; list of reference doc paths; optional closing_steps
+  config.md            # project name + description; created date; list of reference doc paths; optional closing_steps and milestones
+  settings.md          # optional: track_tokens (default true)
   overview.md          # written by /refresh-overview
                        # reference docs are linked by path in config.md; new ones are created in docs/ (per the design)
   specs/
@@ -172,6 +176,7 @@ status: todo            # todo | doing | review | done
 urgency: normal         # low | normal | high | urgent
 categories: [Frontend]
 depends_on: [T-000]
+milestone: Basics       # optional; a name from `milestones` in config.md
 created: 2026-11-07
 updated: 2026-11-07
 ---
@@ -204,6 +209,10 @@ Rules:
 - **Done when** (added 2026-11-10) is an ordinary extra section: 2 to 5 plain checks of what the person will see or be able to do. The parser keeps it like any unknown section and the card detail shows it with the description. Before moving a spec to Review, Claude checks each line and logs the result in the last subtask's log. A line it checked and found not met stops the move (it fixes it, or adds a required question). A line it can't check is logged as "needs your check" and doesn't block. Specs without it keep working.
 - **`(you)` subtasks** (added 2026-11-10): a subtask titled `(you) ...` is for the person. Claude never ticks one. A run that reaches an unticked `(you)` subtask with Claude's work after it keeps `status: doing`, clears `current_subtask`, says what is needed and stops. `(you)` subtasks at the end don't stop a run: Claude checks Done when, moves the card to Review and lists them. The card detail shows a small "you" tag in place of the prefix. The run panel shows a stop at a `(you)` step as **Waiting on you**: "Claude stopped at your step: <step>. Do it, tick it, then run again." It is a calm pause, not an error.
 - **Closing steps** (added 2026-11-10): the optional `closing_steps: [Write tests, Update the docs]` key in `config.md`. Every skill that writes subtasks ends each new spec with these, in order, unless a spec plainly doesn't need one, and says so when it leaves one out. The board ignores the key.
+- **Milestones** (added 2026-11-14): the optional `milestones: [Basics, Sharing]` list in `config.md` (in order) and `milestone: Basics` in a spec. A project has milestones when the list isn't empty. Specs with no or an unknown milestone show under "No milestone", last, and an unknown name is flagged as a file problem. The current milestone is the first with a spec that isn't done (the last when all are done). It's called a milestone, not a phase, because Spec Kit and OpenSpec use "phase" for task groups inside one spec.
+- **Settings** (added 2026-11-14): `.specboard/settings.md` is optional and holds front matter only. `track_tokens: true` is the default when the file or key is missing. The board writes it from **Settings** in the logo menu.
+- **Dates:** a spec has `created` and `updated` (every edit changes `updated`). `config.md` has `created`. Every log entry heading is `### YYYY-MM-DD HH:mm`, and a log has `done_at` (local `YYYY-MM-DD HH:mm`) from when its subtask was ticked.
+- **Log front matter** (added 2026-11-14): besides `subtask`, `commit` and `files`, a log may have `pr` (a pull or merge request link), `tokens` (an approximate count, written by the plugin's hook and never by Claude), `done_at` and `obsolete: "<date>: <reason>"`. Sync adds `obsolete` when a log's work no longer exists, with a dated entry "Marked obsolete by sync: <reason>", and never deletes or rewrites a log entry. Obsolete logs keep their tokens.
 - **Status** lives in front matter. Moving a card changes only that field.
 - **Blocked** isn't a status. It's worked out from unanswered required questions and unfinished dependencies.
 - **Dependents** aren't stored. The app works them out from other specs' `depends_on`.
@@ -232,6 +241,9 @@ Kingsley named these:
 | `/refresh-overview` | Rewrites `overview.md` from the current state of all specs. |
 | `/refresh-logs` | Brings the subtask logs up to date from what was actually done (e.g. git history), for when logs were missed. |
 | `/correct-specs` | Finds specs that no longer match the code (e.g. after manual edits) and fixes them. |
+| `/specboard:setup` | Sets up a project from a chat: looks for existing plans, imports them or starts fresh, asks small or large, previews the structure as a tree, then opens the board (added 2026-11-14). |
+| `/specboard:structure [ID or milestone]` | Prints the board as a tree. Read-only. It runs `specboard tree [--spec ID] [--milestone NAME]`. |
+| `/specboard:sync-specs [ID]` | Brings the board in line with the code, after showing the changes as a tree. With `--board` and `--dry-run` or `--apply` it is the board's two-step sync, using `.specboard/sync-proposal.md`. |
 
 Added **(my call)**, because the Run button needs them:
 
@@ -245,6 +257,12 @@ A **skill** ships with the commands. It teaches Claude the file format and the r
 **One kit, delivered two ways.** The commands and the skill live in one folder in the package (`plugin`):
 - **As a plugin, for board runs.** A run loads the kit with `--plugin-dir` and calls it as `/specboard:run-spec T-001`. A project can't change what a board run is told to do, because the run doesn't read the project's copy.
 - **As project skills, for typed commands.** `specboard init` also copies the skills into `.claude/skills/`, so typing `/run-spec T-001` in your own Claude Code session works.
+
+**Plugin install (added 2026-11-14).** The repo's `.claude-plugin/marketplace.json` names the marketplace `spec-board`, and `plugin/.claude-plugin/plugin.json` names the plugin `specboard`, so commands are `/specboard:<name>`. The plugin ships the CLI as one built file (`plugin/bin/specboard.mjs`) and the built board (`plugin/web`), so installing needs no npm step; `npm run build:plugin` rebuilds both. Its hook (`plugin/hooks/hooks.json`) runs `specboard hook-tokens` after Claude writes a subtask log, and adds the tokens the session used since the previous log to the log's `tokens`. The count is approximate and only exists where the plugin is on.
+
+**Terminal commands.** `specboard [path] [--port N] [--no-open] [--detach]`, `specboard init [path] [--yes] [--force-skills] [--no-skills] [--runs yes|no]`, `specboard allow <rule> [path]`, `specboard tree [--spec ID] [--milestone NAME] [path]`, `specboard hook-tokens` (used by the hook) and `specboard --version`.
+
+**Views and sync (added 2026-11-14).** The filter bar has a Board | Table switch and, for projects with milestones, a milestone menu for the board. The table has one row per spec that opens to its subtasks, a Tokens column (hidden when tracking is off), one section per milestone and a closed Archived section. The Logs window lists every log newest first, grouped by day, with live search. Sync with code (whole project from the logo menu, or one spec from its card) runs `/specboard:sync-specs ... --board --dry-run`, shows the proposal, and on Confirm runs `--apply`. In manual mode, where the board can't run Claude, it shows the command to copy.
 
 Board runs don't load `CLAUDE.md` by themselves, so every command tells Claude to read it.
 

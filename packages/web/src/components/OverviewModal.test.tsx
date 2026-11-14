@@ -98,11 +98,13 @@ describe('OverviewModal summary and tasks', () => {
     expect(screen.queryByRole('table')).toBeNull();
     fireEvent.click(btn);
     expect(btn.getAttribute('aria-expanded')).toBe('true');
-    const t = screen.getByRole('table');
-    expect(within(t).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['ID', 'Title', 'Status', 'Progress']);
-    expect(within(t).getAllByTestId('spec-id')).toHaveLength(recipeProject.specs.length);
-    expect(within(t).queryByRole('button')).toBeNull();
-    expect(within(t).queryByText('T-100')).toBeNull();
+    // The sample has two milestones and one spec with none: a table for each.
+    const tables = screen.getAllByRole('table');
+    expect(tables).toHaveLength(3);
+    expect(within(tables[0]!).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['ID', 'Title', 'Status', 'Progress']);
+    expect(screen.getAllByTestId('spec-id')).toHaveLength(recipeProject.specs.length);
+    expect(within(tables[0]!).queryByRole('button')).toBeNull();
+    expect(screen.queryByText('T-100')).toBeNull();
   });
 });
 

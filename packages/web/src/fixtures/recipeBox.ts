@@ -14,7 +14,7 @@ export const recipeSpecs: Spec[] = [
     ],
     "dependsOn": [],
     "draft": false,
-    "milestone": null,
+    "milestone": "Basics",
     "currentSubtask": null,
     "created": "2026-11-01",
     "updated": "2026-11-08",
@@ -27,14 +27,14 @@ export const recipeSpecs: Spec[] = [
         "title": "Recipe card component",
         "done": true,
         "line": 30,
-        "hasLog": false
+        "hasLog": true
       },
       {
         "n": 2,
         "title": "Grid layout",
         "done": true,
         "line": 31,
-        "hasLog": false
+        "hasLog": true
       },
       {
         "n": 3,
@@ -61,7 +61,52 @@ export const recipeSpecs: Spec[] = [
       "done": 4,
       "total": 4
     },
-    "logs": {},
+    "logs": {
+      "1": {
+        "subtask": 1,
+        "commit": "9d3e7b1",
+        "pr": "https://github.com/kingsleykbc/claude-spec-board/pull/1",
+        "doneAt": "2026-11-07 15:12",
+        "tokens": 48210,
+        "obsolete": null,
+        "files": [
+          "src/components/RecipeCard.tsx",
+          "src/components/RecipeCard.test.tsx"
+        ],
+        "entries": [
+          {
+            "at": "2026-11-07 15:12",
+            "text": "Added the RecipeCard component with photo, title, cook time and tag chips."
+          }
+        ],
+        "problems": []
+      },
+      "2": {
+        "subtask": 2,
+        "commit": "5c8a0f4",
+        "pr": null,
+        "doneAt": null,
+        "tokens": null,
+        "obsolete": {
+          "since": "2026-11-10",
+          "reason": "the fixed grid was replaced by a responsive one"
+        },
+        "files": [
+          "src/components/RecipeGrid.tsx"
+        ],
+        "entries": [
+          {
+            "at": "2026-11-07 15:40",
+            "text": "Laid the cards out in a grid that goes from one to four columns."
+          },
+          {
+            "at": "2026-11-10 09:05",
+            "text": "Marked obsolete by sync: the fixed grid was replaced by a responsive one."
+          }
+        ],
+        "problems": []
+      }
+    },
     "bodyMd": "A grid of saved recipes with photo, cook time and tags. Loads from the local API and handles empty and loading states.\n\n## Features\n\n- Responsive grid, 1 to 4 columns\n- Card shows photo, title, cook time and tags\n- Skeleton cards while loading",
     "bodyHash": "e9986a4b6d3f9ce4c265da128d0cb0a574a29b6b8814fca8f53cbed6ef61a844",
     "dependents": [],
@@ -78,7 +123,7 @@ export const recipeSpecs: Spec[] = [
     ],
     "dependsOn": [],
     "draft": false,
-    "milestone": null,
+    "milestone": "Basics",
     "currentSubtask": null,
     "created": "2026-11-01",
     "updated": "2026-11-08",
@@ -154,7 +199,7 @@ export const recipeSpecs: Spec[] = [
       "T-102"
     ],
     "draft": false,
-    "milestone": null,
+    "milestone": "Basics",
     "currentSubtask": null,
     "created": "2026-11-01",
     "updated": "2026-11-08",
@@ -232,7 +277,7 @@ export const recipeSpecs: Spec[] = [
     ],
     "dependsOn": [],
     "draft": false,
-    "milestone": null,
+    "milestone": "Planning",
     "currentSubtask": 3,
     "created": "2026-11-01",
     "updated": "2026-11-08",
@@ -356,7 +401,7 @@ export const recipeSpecs: Spec[] = [
       "T-104"
     ],
     "draft": false,
-    "milestone": null,
+    "milestone": "Planning",
     "currentSubtask": null,
     "created": "2026-11-01",
     "updated": "2026-11-08",
@@ -466,7 +511,7 @@ export const recipeSpecs: Spec[] = [
     ],
     "dependsOn": [],
     "draft": false,
-    "milestone": null,
+    "milestone": "Planning",
     "currentSubtask": null,
     "created": "2026-11-01",
     "updated": "2026-11-08",
@@ -601,7 +646,7 @@ export const recipeSpecs: Spec[] = [
       "T-106"
     ],
     "draft": false,
-    "milestone": null,
+    "milestone": "Planning",
     "currentSubtask": null,
     "created": "2026-11-01",
     "updated": "2026-11-08",
@@ -802,10 +847,10 @@ export const recipeProject: Project = {
   root: 'examples/recipe-box',
   config: {
     name: 'Recipe Box',
-    created: null,
+    created: '2026-11-01',
     description: "A web app to save recipes, plan the week's meals and turn the plan into a shopping list.",
     references: ['CLAUDE.md', 'docs/CONTEXT.md', 'docs/RULES.md', 'docs/API-NOTES.md', 'docs/STYLE-GUIDE.md'],
-    milestones: [],
+    milestones: ['Basics', 'Planning'],
     closingSteps: [],
     problems: [],
   },

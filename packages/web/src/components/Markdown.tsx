@@ -1,6 +1,23 @@
+import { isValidElement, type ReactNode } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import s from './Markdown.module.css';
+
+/** A heading's text as a page anchor, the way GitHub makes them: "Turn on background runs" becomes turn-on-background-runs. */
+export function headingId(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .trim()
+    .replace(/\s+/g, '-');
+}
+
+function textOf(node: ReactNode): string {
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(textOf).join('');
+  if (isValidElement(node)) return textOf((node.props as { children?: ReactNode }).children);
+  return '';
+}
 
 const BLANK = { target: '_blank', rel: 'noopener noreferrer' } as const;
 
@@ -8,8 +25,8 @@ const BLANK = { target: '_blank', rel: 'noopener noreferrer' } as const;
 // Raw HTML is never enabled (no rehype-raw), and images are shown as links so nothing loads on its own.
 const components: Components = {
   h1: ({ node: _n, ...p }) => <h2 {...p} />,
-  h2: ({ node: _n, ...p }) => <h3 {...p} />,
-  h3: ({ node: _n, ...p }) => <h4 {...p} />,
+  h2: ({ node: _n, ...p }) => <h3 id={headingId(textOf(p.children))} {...p} />,
+  h3: ({ node: _n, ...p }) => <h4 id={headingId(textOf(p.children))} {...p} />,
   a: ({ node: _n, href, children }) => (
     <a href={href} {...BLANK}>
       {children}

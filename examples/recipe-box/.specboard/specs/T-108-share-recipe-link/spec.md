@@ -8,6 +8,7 @@ categories:
 depends_on:
   - T-106
 draft: false
+milestone: Planning
 current_subtask: null
 created: 2026-11-01
 updated: 2026-11-08

@@ -44,7 +44,8 @@ export const SimpleWithTokens: Story = {
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     expect(c.queryByRole('columnheader', { name: 'Urgency' })).toBeNull();
-    expect(c.getByText('48.2k')).toBeTruthy();
+    // T-101 (from the sample's own log) and T-104 (added above) both come to 48.2k.
+    expect(c.getAllByText('48.2k')).toHaveLength(2);
   },
 };
 

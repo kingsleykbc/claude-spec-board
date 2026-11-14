@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { DOCS_PAGES, docsLink, isDocsPath, pageForPath } from '../lib/docsPages';
 import { DocsPage } from './DocsPage';
+import { headingId } from './Markdown';
 
 afterEach(cleanup);
 
@@ -39,10 +40,18 @@ describe('the documentation files', () => {
     for (const href of links(md)) expect(docsLink(href), href).not.toBeNull();
   });
 
-  it('don’t claim the unpublished install works', () => {
+  it('don’t claim an npm install works', () => {
     const readme = DOCS_PAGES[0]!.md;
-    expect(readme).toMatch(/isn't published yet/);
+    expect(readme).toMatch(/isn't published to npm/);
     expect(DOCS_PAGES.flatMap((p) => p.md.split('\n')).filter((l) => /^\s*npx /.test(l))).toEqual([]);
+  });
+});
+
+describe('the manual notice link', () => {
+  it('lands on a heading that exists on the running-specs page', () => {
+    const md = DOCS_PAGES.find((p) => p.slug === 'running-specs')!.md;
+    expect(md).toMatch(/^## Turn on background runs$/m);
+    expect(headingId('Turn on background runs')).toBe('turn-on-background-runs');
   });
 });
 

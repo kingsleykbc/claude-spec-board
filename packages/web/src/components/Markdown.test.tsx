@@ -17,6 +17,12 @@ describe('Markdown', () => {
     expect(container.querySelector('table td')?.textContent).toBe('1');
   });
 
+  it('gives headings anchors like GitHub does', () => {
+    render(<Markdown md={'## Turn on background runs\n\n### What\'s `new`?\n'} />);
+    expect(screen.getByRole('heading', { name: 'Turn on background runs' }).id).toBe('turn-on-background-runs');
+    expect(screen.getByRole('heading', { level: 4 }).id).toBe('whats-new');
+  });
+
   it('shows a placeholder for empty input and records the size', () => {
     const { container } = render(<Markdown md="  " size="sm" />);
     expect(screen.getByText('Nothing here yet.')).toBeTruthy();

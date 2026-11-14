@@ -46,6 +46,12 @@ export function DocsPage({ pathname, search = '', loadProjects = api.projects, g
     };
   }, [loadProjects]);
 
+  // A link like /docs/running-specs#turn-on-background-runs lands on its heading.
+  useEffect(() => {
+    const id = decodeURIComponent(location.hash.slice(1));
+    if (id) document.getElementById(id)?.scrollIntoView?.();
+  }, [page.slug]);
+
   const wanted = new URLSearchParams(search).get('project');
   const current = projects?.find((p) => p.id === wanted) ?? projects?.[0];
   const kept = current ? `?project=${encodeURIComponent(current.id)}` : '';

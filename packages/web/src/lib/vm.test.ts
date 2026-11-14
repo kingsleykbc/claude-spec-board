@@ -112,7 +112,7 @@ describe('runHold', () => {
 
 describe('tokensUsed', () => {
   it('sums the log tokens, null when none are counted', () => {
-    const base = recipeSpecs[0]!;
+    const base = { ...recipeSpecs[0]!, logs: {} };
     const log = { subtask: 1, commit: null, files: [], pr: null, doneAt: null, obsolete: null, entries: [], problems: [] };
     expect(tokensUsed(base)).toBeNull();
     expect(tokensUsed({ ...base, logs: { 1: { ...log, tokens: null } } })).toBeNull();

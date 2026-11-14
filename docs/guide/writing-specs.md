@@ -4,8 +4,9 @@ Everything lives in `.specboard/` in your project, as files you can read and edi
 
 ```
 .specboard/
-  config.md                  project name, description, reference documents and closing steps
-  overview.md                a progress summary
+  config.md                  project name, description, reference documents, closing steps and milestones
+  settings.md                optional, board settings (token tracking)
+  overview.md                a summary of the project's progress
   specs/T-001-booking-page/
     spec.md                  the spec
     logs/1-page-scaffold.md  one log per subtask
@@ -23,6 +24,7 @@ urgency: normal
 categories: [Frontend]
 depends_on: [T-000]
 draft: false
+milestone: Basics
 current_subtask: null
 created: 2026-11-07
 updated: 2026-11-07
@@ -54,7 +56,38 @@ Customers pick a barber, a service and a time slot, then confirm.
 - [ ] 6. (you) Try a booking on your phone
 ```
 
-The first sentence under `## Spec` should explain the whole spec on its own, because the card shows the start of the description.
+The first sentence under `## Spec` should explain the whole spec on its own, because the card shows the start of the description. `milestone` is optional; see Milestones below. `created` is the day the spec was made, and `updated` changes every time the spec is edited.
+
+## Spec or subtask?
+
+Claude uses these rules when it writes specs, and you can use them when you edit.
+
+- A **spec** is a result you would want to follow as its own card. It changes what someone can see or do, has its own "Done when", can be reviewed on its own, and takes several sittings, about 2 to 8 subtasks.
+- A **subtask** is one step toward a spec: one commit, one sitting, not worth reviewing alone.
+- A **milestone** is a set of specs that ship together.
+
+Signs a spec is too big: more than about 8 subtasks, "Done when" lines about unrelated things, or parts that could ship apart. Split it. Signs it's too small: it has one subtask, or it can't be reviewed apart from another spec. Merge it. In the sample project, "Meal planner calendar" is a spec, and "Calendar layout" and "Drag and drop" are its subtasks. "Basics" and "Planning" are milestones.
+
+## Milestones
+
+Bigger projects can group specs into milestones: Project, Milestone, Spec, Subtask. Small projects don't have any, and never need to think about them. The top group is called a milestone, not a phase, so it isn't confused with the phases some planning tools use inside one spec.
+
+List them, in order, in `.specboard/config.md`:
+
+```
+milestones: [Basics, Sharing, Polish]
+```
+
+Then give each spec one in its front matter:
+
+```
+milestone: Basics
+```
+
+- A project has milestones when the list isn't empty. A spec with no milestone, or a name that isn't in the list, shows under **No milestone**, last. A name that isn't in the list is also flagged as a file problem.
+- Specs can depend on specs in other milestones as usual.
+- The **current milestone** is the first one in the list that has a spec that isn't done. If all are done, it's the last. The board opens on it, and `/specboard:next` picks from it first.
+- To rename a milestone, change the list and every spec that uses the name, or ask `/specboard:reorganize`. It can also create and reorder milestones and move specs between them.
 
 ## Done when
 
@@ -115,6 +148,44 @@ Claude makes a question required when the work can't go ahead without your decis
 End a question with `(recommended: <value>)` to show what Claude would pick. The board shows it in brackets after the question. Every optional question should have one, and Claude adds one to any other question when it has a view.
 
 A recommendation is only a suggestion: nothing is filled in for you, and a required question still needs your answer even if you agree with it.
+
+## Subtask logs
+
+Each subtask Claude finishes gets a log in `logs/<n>-<title>.md`, with a short entry for each sitting, headed by the date and time:
+
+```
+---
+subtask: 2
+commit: a1b2c3d
+pr: https://github.com/you/your-repo/pull/12
+tokens: 48210
+done_at: "2026-11-07 16:40"
+files:
+  - src/components/RecipeSidebar.tsx
+---
+
+### 2026-11-07 16:40
+
+Dropping on an empty slot places the recipe.
+```
+
+- `commit` is the commit for the subtask.
+- `pr` is the pull or merge request link, when the branch has one. Claude looks it up with `gh` or `glab` and skips it if neither works.
+- `tokens` is an approximate token count, filled in by the plugin. [Running a spec](running-specs.md#tokens) explains how it's counted. Claude never writes it.
+- `done_at` is when the subtask was ticked, in your local time.
+- `obsolete` appears after a [sync](running-specs.md#sync-with-code) finds that the work in a log no longer exists, for example `obsolete: "2026-11-10: the CSV export was replaced"`. The board shows a warning icon on the log. Sync never deletes or rewrites a log, and the tokens in an obsolete log still count, because they were spent.
+
+## Settings
+
+`.specboard/settings.md` is optional and holds only front matter:
+
+```
+---
+track_tokens: true
+---
+```
+
+`track_tokens` is on when the file or the key is missing. Turn it off with **Settings** in the logo menu on the board, which creates the file for you. When it's off, no tokens are recorded and the board hides the Tokens column and the total.
 
 ## Blocked
 
