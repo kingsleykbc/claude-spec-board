@@ -185,4 +185,40 @@ describe('SubtaskLog', () => {
     expect(screen.queryByText('FILES CHANGED')).toBeNull();
     expect(screen.queryByText('COMMIT')).toBeNull();
   });
+
+  const base = { subtask: 1, commit: '4f2a91c', pr: null, doneAt: null, tokens: null, obsolete: null, files: [], entries: [], problems: [] };
+
+  it('shows a PR link, done time and tokens after the commit', () => {
+    render(<SubtaskLog log={{ ...base, pr: 'https://github.com/o/r/pull/7', doneAt: '2026-11-07 15:12', tokens: 48200 }} />);
+    const a = screen.getByRole('link', { name: 'PR' });
+    expect(a.getAttribute('href')).toBe('https://github.com/o/r/pull/7');
+    expect(a.getAttribute('target')).toBe('_blank');
+    expect(a.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(screen.getByText('Done Nov 7, 15:12')).toBeTruthy();
+    expect(screen.getByText('48.2k tokens')).toBeTruthy();
+    const meta = screen.getByTestId('log-meta').textContent ?? '';
+    expect(meta.indexOf('4f2a91c')).toBeLessThan(meta.indexOf('PR'));
+    expect(meta.indexOf('PR')).toBeLessThan(meta.indexOf('Done'));
+    expect(meta.indexOf('Done')).toBeLessThan(meta.indexOf('tokens'));
+  });
+
+  it('shows a non-http PR value as plain text, not a link', () => {
+    render(<SubtaskLog log={{ ...base, pr: 'javascript:alert(1)' }} />);
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.getByText('javascript:alert(1)')).toBeTruthy();
+  });
+
+  it('obsolete marker reveals the reason on click', () => {
+    render(<SubtaskLog log={{ ...base, obsolete: { since: '2026-11-10', reason: 'Replaced by T-9' } }} />);
+    const b = screen.getByRole('button', { name: 'Obsolete' });
+    expect(b.getAttribute('title')).toBe('Obsolete since 2026-11-10: Replaced by T-9');
+    expect(screen.queryByRole('note')).toBeNull();
+    fireEvent.click(b);
+    expect(screen.getByRole('note').textContent).toBe('Obsolete since 2026-11-10: Replaced by T-9');
+  });
+
+  it('obsolete without a date omits "since"', () => {
+    render(<SubtaskLog log={{ ...base, obsolete: { since: null, reason: 'Dropped' } }} />);
+    expect(screen.getByRole('button', { name: 'Obsolete' }).getAttribute('title')).toBe('Obsolete: Dropped');
+  });
 });

@@ -100,3 +100,12 @@ button.dep:hover { background: var(--panel); }
 .depsStack { display: flex; flex-direction: column; gap: 10px; }
 .depsStack .depCol { padding: 0; }
 .depsStack .depCol + .depCol { border-left: 0; }
+
+/* Subtask log metadata (commit, PR, done time, tokens) and the obsolete marker */
+.logMeta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.metaText { font-size: 12px; color: var(--fg3); }
+.prLink { font-size: 12px; font-weight: 600; color: var(--accent); text-decoration: none; }
+.prLink:hover { text-decoration: underline; }
+.obsoleteBtn { align-self: flex-start; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent; font-size: 15px; color: var(--review-ink); cursor: pointer; }
+.obsoleteBtn:hover { background: var(--review-soft); }
+.obsoleteNote { font-size: 12.5px; line-height: 1.5; padding: 6px 9px; border-radius: 6px; background: var(--review-soft); color: var(--review-ink); }
