@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { archiveSpec, createSpec, initProject, nextId, unarchiveSpec, writeIfUnchanged } from '../src/write.js';
+import { archiveSpec, createSpec, initProject, nextId, unarchiveSpec, writeIfUnchanged, writeSettings } from '../src/write.js';
 import { slugify } from '../src/slug.js';
 import { setMetaField, setSubtaskDone } from '../src/edit.js';
 import { findSections } from '../src/sections.js';
@@ -233,5 +233,42 @@ describe('final fixes: concurrency', () => {
     expect([...findSections(lines).keys()]).toEqual(['spec', 'features', 'open questions', 'subtasks']);
     expect(s.featuresMd).toBe('');
     expect(s.specMd).toContain('### Features');
+  });
+});
+
+describe('settings and created', () => {
+  it('initProject writes created and leaves existing configs alone', async () => {
+    const root = await tmp();
+    await initProject(root, 'p');
+    const p = await loadProject(root);
+    expect(p.config?.created).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    const file = path.join(root, '.specboard', 'config.md');
+    await fs.writeFile(file, '---\nname: old\n---\n');
+    await initProject(root, 'p');
+    expect(await fs.readFile(file, 'utf8')).toBe('---\nname: old\n---\n');
+  });
+  it('loadProject defaults settings, writeSettings creates the file', async () => {
+    const root = await tmp();
+    await initProject(root, 'p');
+    expect((await loadProject(root)).settings).toEqual({ trackTokens: true, problems: [] });
+    await writeSettings(root, { trackTokens: false });
+    expect(await fs.readFile(path.join(root, '.specboard', 'settings.md'), 'utf8')).toBe('---\ntrack_tokens: false\n---\n');
+    expect((await loadProject(root)).settings.trackTokens).toBe(false);
+  });
+  it('writeSettings updates only the track_tokens line', async () => {
+    const root = await tmp();
+    await initProject(root, 'p');
+    const file = path.join(root, '.specboard', 'settings.md');
+    await fs.writeFile(file, '---\nfoo: bar\ntrack_tokens: true\nbaz: [1, 2]\n---\n\nBody text\n');
+    await writeSettings(root, { trackTokens: false });
+    expect(await fs.readFile(file, 'utf8')).toBe('---\nfoo: bar\ntrack_tokens: false\nbaz: [1, 2]\n---\n\nBody text\n');
+  });
+  it('writeSettings adds the key when missing', async () => {
+    const root = await tmp();
+    await initProject(root, 'p');
+    const file = path.join(root, '.specboard', 'settings.md');
+    await fs.writeFile(file, '---\nfoo: bar\n---\nBody\n');
+    await writeSettings(root, { trackTokens: true });
+    expect(await fs.readFile(file, 'utf8')).toBe('---\nfoo: bar\ntrack_tokens: true\n---\nBody\n');
   });
 });

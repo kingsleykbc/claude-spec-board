@@ -4,7 +4,7 @@ import { diffProjects } from './useProject';
 
 const spec = (id: string, hash: string, extra: Partial<Spec> = {}): Spec =>
   ({ id, hash, archived: false, subtasks: [], questions: [], ...extra }) as unknown as Spec;
-const project = (specs: Spec[], archived: Spec[] = []): Project => ({ root: '/', config: null, overview: null, specs, archived, problems: [] });
+const project = (specs: Spec[], archived: Spec[] = []): Project => ({ root: '/', config: null, overview: null, settings: { trackTokens: true, problems: [] }, specs, archived, problems: [] });
 const sub = (n: number, done: boolean) => ({ n, title: `S${n}`, done, line: 0, hasLog: false });
 const q = (id: string) => ({ id, type: 'text' as const, text: id, options: [], answer: null, required: true, recommendation: null, line: 0 });
 

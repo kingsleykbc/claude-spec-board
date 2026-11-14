@@ -17,6 +17,7 @@ const project = (name: string, specs = recipeSpecs, archived = recipeArchived): 
   root: `/x/${name}`,
   config: { name, description: '', references: [] } as unknown as Project['config'],
   overview: null,
+  settings: { trackTokens: true, problems: [] },
   specs,
   archived,
   problems: [],

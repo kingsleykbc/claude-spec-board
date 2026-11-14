@@ -161,13 +161,50 @@ export async function initProject(root: string, name: string): Promise<void> {
   }
   await fs.mkdir(path.join(sb, 'specs'), { recursive: true });
   await fs.mkdir(path.join(sb, 'archive'), { recursive: true });
-  await fs.writeFile(config, `---\nname: ${JSON.stringify(name)}\nreferences: []\n---\n`, 'utf8');
+  await fs.writeFile(config, `---\nname: ${JSON.stringify(name)}\ncreated: ${today()}\nreferences: []\n---\n`, 'utf8');
   const overview = path.join(sb, 'overview.md');
   try {
     await fs.access(overview);
   } catch {
     await fs.writeFile(overview, '---\nupdated: null\n---\n', 'utf8');
   }
+}
+
+/** Create `.specboard/settings.md` or update its `track_tokens` line, leaving other keys and the body untouched. */
+export async function writeSettings(root: string, s: { trackTokens: boolean }): Promise<void> {
+  const file = path.join(root, '.specboard', 'settings.md');
+  await withLock(lockKey(file), async () => {
+    let text: string | null = null;
+    try {
+      text = await withRetry(() => fs.readFile(file, 'utf8'));
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+    }
+    const line = `track_tokens: ${s.trackTokens}`;
+    const open = text === null ? null : /^---[ \t]*\r?\n/.exec(text);
+    const close = text !== null && open ? /^---[ \t]*(?:\r?\n|$)/m.exec(text.slice(open[0].length)) : null;
+    let next: string;
+    if (text === null || !open || !close) {
+      next = `---\n${line}\n---\n${text !== null && !open ? text : ''}`;
+    } else {
+      const start = open[0].length;
+      const end = start + close.index;
+      const fm = text.slice(start, end);
+      const re = /^track_tokens:[^\r\n]*/m;
+      const eol = open[0].endsWith('\r\n') ? '\r\n' : '\n';
+      const nextFm = re.test(fm) ? fm.replace(re, line) : fm === '' || fm.endsWith('\n') ? fm + line + eol : fm + eol + line + eol;
+      next = text.slice(0, start) + nextFm + text.slice(end);
+    }
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    const tmp = `${file}.${randomBytes(6).toString('hex')}.tmp`;
+    await fs.writeFile(tmp, next, 'utf8');
+    try {
+      await withRetry(() => fs.rename(tmp, file));
+    } catch (e) {
+      await fs.rm(tmp, { force: true });
+      throw e;
+    }
+  });
 }
 
 /** Write `<dir>/<base>.draft.md` next to `file` (overwriting any earlier draft) and return its path. */

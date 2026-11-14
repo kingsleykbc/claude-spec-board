@@ -10,6 +10,8 @@ export interface ProjectEntry {
 }
 export interface ProjectSummary extends ProjectEntry {
   progress: { done: number; total: number };
+  /** `.specboard/config.md` exists. */
+  available: boolean;
 }
 export interface ProjectData {
   entry: ProjectEntry;

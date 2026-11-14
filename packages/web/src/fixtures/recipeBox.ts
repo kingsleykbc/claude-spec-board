@@ -291,6 +291,9 @@ export const recipeSpecs: Spec[] = [
         "subtask": 1,
         "commit": "4f2a91c",
         "pr": null,
+        "doneAt": null,
+        "tokens": null,
+        "obsolete": null,
         "files": [
           "src/components/WeekGrid.tsx",
           "src/components/WeekGrid.test.tsx",
@@ -312,6 +315,9 @@ export const recipeSpecs: Spec[] = [
         "subtask": 2,
         "commit": "a1b2c3d",
         "pr": null,
+        "doneAt": null,
+        "tokens": null,
+        "obsolete": null,
         "files": [
           "src/components/RecipeSidebar.tsx",
           "src/components/WeekGrid.tsx",
@@ -796,12 +802,14 @@ export const recipeProject: Project = {
   root: 'examples/recipe-box',
   config: {
     name: 'Recipe Box',
+    created: null,
     description: "A web app to save recipes, plan the week's meals and turn the plan into a shopping list.",
     references: ['CLAUDE.md', 'docs/CONTEXT.md', 'docs/RULES.md', 'docs/API-NOTES.md', 'docs/STYLE-GUIDE.md'],
     milestones: [],
     closingSteps: [],
     problems: [],
   },
+  settings: { trackTokens: true, problems: [] },
   overview: {
     updated: '2026-11-08T09:30',
     summaryMd:

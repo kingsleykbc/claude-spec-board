@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseConfig, parseLog, parseOverview } from '../src/parseOther.js';
+import { parseConfig, parseLog, parseOverview, parseSettings } from '../src/parseOther.js';
 
 const LOG = [
   '---',
@@ -62,7 +62,7 @@ describe('parseLog', () => {
 describe('parseConfig', () => {
   it('missing references gives []; description is trimmed body', () => {
     const c = parseConfig('---\nname: Demo\n---\n\nA project.\n\n');
-    expect(c).toEqual({ name: 'Demo', references: [], milestones: [], closingSteps: [], description: 'A project.', problems: [] });
+    expect(c).toEqual({ name: 'Demo', created: null, references: [], milestones: [], closingSteps: [], description: 'A project.', problems: [] });
   });
 
   it('parses references', () => {
@@ -107,5 +107,55 @@ describe('final fixes: logs', () => {
       expect(log.entries).toEqual([{ at: h, text: 'body' }]);
     }
     expect(parseLog('---\nsubtask: 1\n---\n### 2026-11-08 14\nbody\n').entries).toEqual([]);
+  });
+});
+
+describe('log times, tokens and obsolete', () => {
+  const fm = (lines: string[]) => `---\nsubtask: 1\n${lines.join('\n')}\n---\n`;
+  it('defaults to null', () => {
+    const l = parseLog(fm([]));
+    expect(l).toMatchObject({ doneAt: null, tokens: null, obsolete: null, problems: [] });
+  });
+  it('reads done_at and tokens', () => {
+    const l = parseLog(fm(['done_at: 2026-11-14 10:30', 'tokens: 1200']));
+    expect(l.doneAt).toBe('2026-11-14 10:30');
+    expect(l.tokens).toBe(1200);
+    expect(l.problems).toEqual([]);
+  });
+  it.each(['-5', '1.5', 'lots', '"12"'])('rejects tokens %s', (v) => {
+    const l = parseLog(fm([`tokens: ${v}`]));
+    expect(l.tokens).toBeNull();
+    expect(l.problems).toContain('Invalid tokens');
+  });
+  it('accepts zero tokens', () => {
+    expect(parseLog(fm(['tokens: 0'])).tokens).toBe(0);
+  });
+  it('splits obsolete into since and reason', () => {
+    expect(parseLog(fm(['obsolete: "2026-11-14: replaced by T-005"'])).obsolete).toEqual({ since: '2026-11-14', reason: 'replaced by T-005' });
+  });
+  it('keeps the whole string as reason without a date', () => {
+    expect(parseLog(fm(['obsolete: no longer needed'])).obsolete).toEqual({ since: null, reason: 'no longer needed' });
+  });
+});
+
+describe('parseConfig created', () => {
+  it('reads created', () => {
+    expect(parseConfig('---\nname: A\ncreated: 2026-11-14\n---\n').created).toBe('2026-11-14');
+  });
+});
+
+describe('parseSettings', () => {
+  it('defaults trackTokens to true', () => {
+    expect(parseSettings('')).toEqual({ trackTokens: true, problems: [] });
+    expect(parseSettings('---\nother: 1\n---\n')).toEqual({ trackTokens: true, problems: [] });
+  });
+  it('reads booleans', () => {
+    expect(parseSettings('---\ntrack_tokens: false\n---\n').trackTokens).toBe(false);
+    expect(parseSettings('---\ntrack_tokens: true\n---\n').trackTokens).toBe(true);
+  });
+  it('keeps the default and reports a non-boolean', () => {
+    const s = parseSettings('---\ntrack_tokens: maybe\n---\n');
+    expect(s.trackTokens).toBe(true);
+    expect(s.problems).toHaveLength(1);
   });
 });

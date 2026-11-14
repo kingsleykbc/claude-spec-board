@@ -170,7 +170,7 @@ describe('loadProject edge cases', () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'specboard-'));
     tmpDirs.push(root);
     const p = await loadProject(root);
-    expect(p).toEqual({ root, config: null, overview: null, specs: [], archived: [], problems: ['No .specboard folder'] });
+    expect(p).toEqual({ root, config: null, overview: null, settings: { trackTokens: true, problems: [] }, specs: [], archived: [], problems: ['No .specboard folder'] });
   });
 
   it('files logs by the leading integer of the filename', async () => {

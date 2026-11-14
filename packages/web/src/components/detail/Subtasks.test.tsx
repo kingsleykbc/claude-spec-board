@@ -179,7 +179,7 @@ describe('Subtasks', () => {
 
 describe('SubtaskLog', () => {
   it('missing data shows nothing for that part', () => {
-    render(<SubtaskLog log={{ subtask: 1, commit: null, pr: null, files: [], entries: [{ at: 'sometime', text: 'Did a thing.' }], problems: [] }} />);
+    render(<SubtaskLog log={{ subtask: 1, commit: null, pr: null, doneAt: null, tokens: null, obsolete: null, files: [], entries: [{ at: 'sometime', text: 'Did a thing.' }], problems: [] }} />);
     expect(screen.getByText('sometime')).toBeTruthy();
     expect(screen.getByText('Did a thing.')).toBeTruthy();
     expect(screen.queryByText('FILES CHANGED')).toBeNull();

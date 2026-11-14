@@ -24,6 +24,7 @@ const project: Project = {
   root: '/x/recipe-box',
   config: { name: 'Recipe Box', description: '', references: [] } as unknown as Project['config'],
   overview: null,
+  settings: { trackTokens: true, problems: [] },
   specs: [...recipeSpecs, fileProblemSpec],
   archived: recipeArchived,
   problems: [],

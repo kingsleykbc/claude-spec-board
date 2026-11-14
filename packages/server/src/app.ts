@@ -71,7 +71,8 @@ export function createApp(deps: AppDeps): Hono {
         const p = await loadProject(entry.root);
         // Archived specs count as done.
         const done = p.archived.length + p.specs.filter((s) => s.status === 'done').length;
-        return { ...entry, progress: { done, total: p.specs.length + p.archived.length } };
+        const available = await fs.access(path.join(entry.root, '.specboard', 'config.md')).then(() => true, () => false);
+        return { ...entry, available, progress: { done, total: p.specs.length + p.archived.length } };
       }),
     );
     return c.json(out);

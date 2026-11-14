@@ -2,8 +2,22 @@ import { isScalar, parseDocument, type Document } from 'yaml';
 import { splitFrontMatter } from './frontmatter.js';
 
 export interface LogEntry { at: string; text: string }
-export interface SubtaskLog { subtask: number | null; commit: string | null; files: string[]; pr: string | null; entries: LogEntry[]; problems: string[] }
-export interface ProjectConfig { name: string; references: string[]; milestones: string[]; closingSteps: string[]; description: string; problems: string[] }
+export interface SubtaskLog {
+  subtask: number | null;
+  commit: string | null;
+  files: string[];
+  pr: string | null;
+  /** `done_at` as written. */
+  doneAt: string | null;
+  /** Tokens spent on the subtask; null when absent or invalid. */
+  tokens: number | null;
+  /** Set when the subtask was dropped as obsolete: `"<date>: <reason>"`. */
+  obsolete: { since: string | null; reason: string } | null;
+  entries: LogEntry[];
+  problems: string[];
+}
+export interface ProjectConfig { name: string; created: string | null; references: string[]; milestones: string[]; closingSteps: string[]; description: string; problems: string[] }
+export interface ProjectSettings { trackTokens: boolean; problems: string[] }
 export interface Overview { updated: string | null; summaryMd: string }
 
 /** Parse YAML into a mapping. Never throws; returns null data plus problems when unusable. */
@@ -55,7 +69,7 @@ function parseEntries(body: string): LogEntry[] {
 export function parseLog(text: string): SubtaskLog {
   const { yaml, body } = splitFrontMatter(text);
   const { data, problems, doc } = parseMapping(yaml);
-  const log: SubtaskLog = { subtask: null, commit: null, files: [], pr: null, entries: parseEntries(body), problems };
+  const log: SubtaskLog = { subtask: null, commit: null, files: [], pr: null, doneAt: null, tokens: null, obsolete: null, entries: parseEntries(body), problems };
   if (!data) return log;
   if (data.subtask !== undefined && data.subtask !== null) {
     const n = typeof data.subtask === 'number' ? data.subtask : Number(data.subtask);
@@ -72,6 +86,17 @@ export function parseLog(text: string): SubtaskLog {
       : optionalString(data.commit);
   log.files = stringList(data.files);
   log.pr = optionalString(data.pr);
+  log.doneAt = optionalString(data.done_at);
+  if (data.tokens !== undefined && data.tokens !== null) {
+    const t = data.tokens;
+    if (typeof t === 'number' && Number.isInteger(t) && t >= 0) log.tokens = t;
+    else problems.push('Invalid tokens');
+  }
+  const obsolete = optionalString(data.obsolete);
+  if (obsolete !== null) {
+    const i = obsolete.indexOf(': ');
+    log.obsolete = i < 0 ? { since: null, reason: obsolete } : { since: obsolete.slice(0, i).trim() || null, reason: obsolete.slice(i + 2).trim() };
+  }
   return log;
 }
 
@@ -79,9 +104,10 @@ export function parseLog(text: string): SubtaskLog {
 export function parseConfig(text: string): ProjectConfig {
   const { yaml, body } = splitFrontMatter(text);
   const { data, problems } = parseMapping(yaml);
-  const config: ProjectConfig = { name: '', references: [], milestones: [], closingSteps: [], description: body.trim(), problems };
+  const config: ProjectConfig = { name: '', created: null, references: [], milestones: [], closingSteps: [], description: body.trim(), problems };
   if (!data) return config;
   config.name = optionalString(data.name) ?? '';
+  config.created = optionalString(data.created);
   config.references = stringList(data.references);
   config.milestones = [...new Set(stringList(data.milestones).map((m) => m.trim()).filter((m) => m !== ''))];
   config.closingSteps = stringList(data.closing_steps);
@@ -93,4 +119,16 @@ export function parseOverview(text: string): Overview {
   const { yaml, body } = splitFrontMatter(text);
   const { data } = parseMapping(yaml);
   return { updated: data ? optionalString(data.updated) : null, summaryMd: body.trim() };
+}
+
+/** Parse .specboard/settings.md. Never throws; `trackTokens` defaults to true. */
+export function parseSettings(text: string): ProjectSettings {
+  const { yaml } = splitFrontMatter(text);
+  const { data, problems } = parseMapping(yaml);
+  const settings: ProjectSettings = { trackTokens: true, problems: yaml === null ? [] : problems };
+  if (!data) return settings;
+  const v = data.track_tokens;
+  if (typeof v === 'boolean') settings.trackTokens = v;
+  else if (v !== undefined && v !== null) settings.problems.push(`Invalid track_tokens "${String(v)}"`);
+  return settings;
 }

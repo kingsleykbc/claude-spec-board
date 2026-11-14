@@ -13,6 +13,7 @@ import {
   setSubtaskDone,
   unarchiveSpec,
   writeIfUnchanged,
+  writeSettings,
   writeSiblingDraft,
 } from '@specboard/core';
 import type { Spec } from '@specboard/core';
@@ -157,6 +158,14 @@ export function specRoutes(registry: Registry): Hono {
     const entry = await project(c);
     await unarchiveSpec(entry.root, c.req.param('id') ?? '');
     return c.body(null, 204);
+  });
+
+  app.put('/api/projects/:pid/settings', async (c) => {
+    const entry = await project(c);
+    const b = await readJson(c);
+    if (typeof b.trackTokens !== 'boolean') throw new HttpError(400, 'Missing or invalid "trackTokens"');
+    await writeSettings(entry.root, { trackTokens: b.trackTokens });
+    return c.json({ settings: (await loadProject(entry.root)).settings });
   });
 
   app.onError(onError);

@@ -74,8 +74,8 @@ describe('DocsPage', () => {
 
 describe('DocsPage top bar', () => {
   const list = [
-    { id: 'a1', name: 'Recipe Box', root: 'C:/p/recipe-box', progress: { done: 3, total: 9 } },
-    { id: 'b2', name: 'Other', root: 'C:/p/other', progress: { done: 0, total: 0 } },
+    { id: 'a1', name: 'Recipe Box', root: 'C:/p/recipe-box', available: true, progress: { done: 3, total: 9 } },
+    { id: 'b2', name: 'Other', root: 'C:/p/other', available: true, progress: { done: 0, total: 0 } },
   ];
 
   it('shows the project the docs were opened from, and keeps it on links between pages', async () => {

@@ -4,7 +4,7 @@ import { hashText } from './hash.js';
 import { specBodyMd } from './edit.js';
 import { withRetry } from './retry.js';
 import { parseSpec } from './parseSpec.js';
-import { parseConfig, parseLog, parseOverview, type Overview, type ProjectConfig, type SubtaskLog } from './parseOther.js';
+import { parseConfig, parseLog, parseOverview, parseSettings, type Overview, type ProjectConfig, type ProjectSettings, type SubtaskLog } from './parseOther.js';
 import type { SpecDoc } from './types.js';
 
 export { hashText } from './hash.js';
@@ -30,6 +30,7 @@ export interface Project {
   root: string;
   config: ProjectConfig | null;
   overview: Overview | null;
+  settings: ProjectSettings;
   specs: Spec[];
   archived: Spec[];
   problems: string[];
@@ -174,7 +175,7 @@ export async function loadProject(root: string): Promise<Project> {
     const st = await fs.stat(sb);
     if (!st.isDirectory()) throw new Error('not a directory');
   } catch {
-    return { root, config: null, overview: null, specs: [], archived: [], problems: ['No .specboard folder'] };
+    return { root, config: null, overview: null, settings: parseSettings(''), specs: [], archived: [], problems: ['No .specboard folder'] };
   }
 
   const problems: string[] = [];
@@ -192,6 +193,14 @@ export async function loadProject(root: string): Promise<Project> {
     if (t !== null) overview = parseOverview(t);
   } catch (e) {
     problems.push(`overview.md: ${(e as Error).message}`);
+  }
+
+  let settings = parseSettings('');
+  try {
+    const t = await readIfExists(path.join(sb, 'settings.md'));
+    if (t !== null) settings = parseSettings(t);
+  } catch (e) {
+    problems.push(`settings.md: ${(e as Error).message}`);
   }
 
   const collect = async (kind: 'specs' | 'archive', archived: boolean): Promise<RawSpec[]> => {
@@ -226,5 +235,5 @@ export async function loadProject(root: string): Promise<Project> {
 
   const state = deriveState(rawActive, rawArchived);
   const finish = (s: RawSpec): Spec => ({ ...s, ...(state.get(s.id) ?? { dependents: [], blocked: false, blockedReasons: [] }) });
-  return { root, config, overview, specs: rawActive.map(finish), archived: rawArchived.map(finish), problems };
+  return { root, config, overview, settings, specs: rawActive.map(finish), archived: rawArchived.map(finish), problems };
 }

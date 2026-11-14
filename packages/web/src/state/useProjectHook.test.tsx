@@ -35,7 +35,7 @@ const spec = (id: string, hash: string, extra: Partial<Spec> = {}): Spec =>
   ({ id, hash, archived: false, subtasks: [], questions: [], ...extra }) as unknown as Spec;
 const data = (specs: Spec[]): ProjectData => ({
   entry: { id: 'p1', name: 'P', root: '/' },
-  project: { root: '/', config: null, overview: null, specs, archived: [], problems: [] } as Project,
+  project: { root: '/', config: null, overview: null, settings: { trackTokens: true, problems: [] }, specs, archived: [], problems: [] } as Project,
   nextId: 'T-9',
 });
 const sub = (n: number, done: boolean) => ({ n, title: `S${n}`, done, line: 0, hasLog: false });

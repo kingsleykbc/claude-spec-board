@@ -170,3 +170,30 @@ describe('static files', () => {
     expect(await evil.text()).toBe('<html>board</html>');
   });
 });
+
+describe('settings and availability', () => {
+  it('lists available true when config.md exists, false when not', async () => {
+    const entry = await reg.add(proj);
+    let body = (await (await app.request('/api/projects', { headers: HOST })).json()) as Array<{ available: boolean }>;
+    expect(body[0]!.available).toBe(true);
+    await fs.rm(path.join(proj, '.specboard', 'config.md'));
+    body = (await (await app.request('/api/projects', { headers: HOST })).json()) as Array<{ available: boolean }>;
+    expect(body[0]!.available).toBe(false);
+    expect(entry.id).toBeTruthy();
+  });
+  const put = (pid: string, body: unknown) =>
+    app.request(`/api/projects/${pid}/settings`, { method: 'PUT', headers: { ...HOST, 'content-type': 'application/json' }, body: typeof body === 'string' ? body : JSON.stringify(body) });
+  it('PUT settings writes the file and returns settings', async () => {
+    const entry = await reg.add(proj);
+    const res = await put(entry.id, { trackTokens: false });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ settings: { trackTokens: false, problems: [] } });
+    expect(await fs.readFile(path.join(proj, '.specboard', 'settings.md'), 'utf8')).toContain('track_tokens: false');
+  });
+  it('PUT settings rejects a bad body and unknown projects', async () => {
+    const entry = await reg.add(proj);
+    expect((await put(entry.id, { trackTokens: 'no' })).status).toBe(400);
+    expect((await put(entry.id, 'nope')).status).toBe(400);
+    expect((await put('missing', { trackTokens: true })).status).toBe(404);
+  });
+});
