@@ -1,0 +1,1 @@
+{ "hooks": { "PostToolUse": [ { "matcher": "Write|Edit|MultiEdit", "hooks": [ { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/specboard.mjs\" hook-tokens" } ] } ] } }

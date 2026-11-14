@@ -2,9 +2,11 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
+import os from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { loadProject, renderTree } from '@specboard/core';
 import { pluginDir } from './paths.js';
+import { runTokenHook } from './hookTokens.js';
 import { initHint } from './prePublish.js';
 import { allowCommand, initCommand, terminalIO } from './setup.js';
 import { isSpecBoard, start, type StartOptions } from './start.js';
@@ -175,6 +177,18 @@ async function main(): Promise<void> {
   if (cmd === '--version') {
     console.log(pluginVersion());
     return;
+  }
+  if (cmd === 'hook-tokens') {
+    // Never fail and never print: a hook must not disturb Claude.
+    try {
+      const chunks: Buffer[] = [];
+      for await (const c of process.stdin) chunks.push(c as Buffer);
+      const input = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      await runTokenHook(input, { dataDir: process.env.CLAUDE_PLUGIN_DATA || path.join(os.homedir(), '.specboard', 'plugin-data') });
+    } catch {
+      // swallowed on purpose
+    }
+    process.exit(0);
   }
   if (cmd === 'init') {
     const a = parseInitArgs(rest);

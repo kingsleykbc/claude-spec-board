@@ -125,6 +125,7 @@ Built the time-slot grid. Slots come from the barber's opening hours. Tests adde
 
 - `commit` is the short hash of the subtask's commit (empty if there is none), and `files` lists the files that commit changed.
 - Each entry is headed `### YYYY-MM-DD HH:mm`, followed by free text on what changed and any notes. Add a new entry to an existing log instead of replacing it.
+- `tokens:` is filled in automatically by the Spec Board plugin. Never write it yourself.
 
 ## Blocked
 
