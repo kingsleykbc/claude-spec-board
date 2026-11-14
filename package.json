@@ -10,9 +10,11 @@
     "specboard": "tsx packages/server/src/cli.ts",
     "web:dev": "npm run dev -w @specboard/web",
     "storybook": "npm run storybook -w @specboard/web",
-    "test:claude": "npm run test:claude -w @specboard/server"
+    "test:claude": "npm run test:claude -w @specboard/server",
+    "build:plugin": "npm run build -w @specboard/web && node scripts/build-plugin.mjs"
   },
   "devDependencies": {
+    "esbuild": "0.28.2",
     "tsx": "4.20.5"
   }
 }

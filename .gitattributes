@@ -1,2 +1,4 @@
 * text=auto eol=lf
 *.png binary
+plugin/bin/*.mjs -diff linguist-generated
+plugin/web/** -diff linguist-generated
