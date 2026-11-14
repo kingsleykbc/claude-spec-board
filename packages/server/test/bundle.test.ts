@@ -40,11 +40,13 @@ describe('plugin bundle', () => {
   it('prints the plugin.json version', () => {
     const version = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugin/.claude-plugin/plugin.json'), 'utf8')).version;
     const r = run(['--version']);
+    expect(r.status).toBe(0);
     expect(r.stdout.trim()).toBe(version);
   });
 
   it('prints the project tree', () => {
     const r = run(['tree', SAMPLE]);
+    expect(r.status).toBe(0);
     expect(r.stdout.startsWith('Recipe Box')).toBe(true);
   });
 
@@ -74,6 +76,12 @@ describe('plugin bundle', () => {
     expect(page.headers.get('content-type')).toContain('text/html');
     expect(await page.text()).toContain('<html');
   }, 30000);
+
+  it('commits the POSIX shim as executable', () => {
+    const r = spawnSync('git', ['ls-files', '-s', 'plugin/bin/specboard'], { cwd: ROOT, encoding: 'utf8' });
+    if (r.error || r.status !== 0) return; // git unavailable
+    expect(r.stdout.startsWith('100755')).toBe(true);
+  });
 
   it.skipIf(!!process.env.CI)('is not older than its sources (git checkouts reset mtimes, so skipped on CI)', () => {
     expect(fs.existsSync(BUNDLE), 'plugin/bin/specboard.mjs missing: run npm run build:plugin').toBe(true);

@@ -1,5 +1,6 @@
 // Bundles the CLI + server into one file and copies the web build into the plugin folder.
 import { build } from 'esbuild';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -30,3 +31,6 @@ fs.cpSync(webDist, path.join(plugin, 'web'), { recursive: true });
 
 fs.writeFileSync(path.join(plugin, 'bin/specboard.cmd'), '@node "%~dp0specboard.mjs" %*\r\n');
 fs.writeFileSync(path.join(plugin, 'bin/specboard'), '#!/bin/sh\nexec node "$(dirname "$0")/specboard.mjs" "$@"\n', { mode: 0o755 });
+
+// File modes do not survive Windows; make sure git records the shim as executable (no-op outside git).
+spawnSync('git', ['update-index', '--add', '--chmod=+x', 'plugin/bin/specboard'], { cwd: root, stdio: 'ignore' });
