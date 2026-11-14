@@ -13,8 +13,7 @@ Input: $ARGUMENTS
 
 - A spec ID (`T-` and digits) limits the sync to that spec (its **scope**). Without one, the scope is the whole project.
 - `--board`: the board started you and no one is in the chat. Then `--dry-run` writes the proposal file and stops; `--apply` applies the proposal file. With `--board` and neither, say so and stop.
-- No flags: you are in a chat. Work out the changes, show them, ask, and apply on an OK. No proposal file is needed.
-- Without `--board`, `--dry-run` only shows the changes, and `--apply` applies an existing proposal file as below.
+- Without `--board` you are in a chat: see "In a chat" below. `--dry-run` and `--apply` are for the board only; ignore them in a chat.
 
 ## What sync may change
 
@@ -24,31 +23,32 @@ Read the specs (and their logs) in scope, `git log` and the code they describe. 
 - new specs for clear work in the code that has no card: drafts, or `review` when the work is finished (whole-project sync only), placed in a milestone when the project has them;
 - specs that no longer match anything, to archive.
 
-Sync never deletes a spec file or a log, never deletes or rewrites a log entry, and never changes `created`. When it unticks a subtask, archives a spec, or finds a log whose work no longer exists, the proposal also marks that log obsolete: on apply, add `obsolete: "<YYYY-MM-DD>: <short reason>"` to the log's front matter and a dated entry `Marked obsolete by sync: <reason>`.
-
-Sync does not move spec folders. An archive is done by the person with the Archive button on the board: sync marks the logs as above and lists the spec to archive in its summary.
+Sync never deletes a spec file or a log, never deletes or rewrites a log entry, and never changes `created`.
+- A tick is like any tick: in the subtask's log write `done_at:` (now) and a dated entry `Ticked by sync: <evidence>`, creating the log in the log format if it is missing.
+- When sync unticks a subtask, archives a spec, or finds a log whose work no longer exists, it marks that log obsolete: add `obsolete: "<YYYY-MM-DD>: <short reason>"` to the log's front matter and a dated entry `Marked obsolete by sync: <reason>`.
+- Sync does not move spec folders itself. After a board apply, the board archives every spec named on an `Archive <ID>` line. In a chat, tell the person to archive those specs with the Archive button on the board.
 
 ## The proposal
 
-Make a summary (one line per spec that changes), the tree with `+`, `~` and `→` marks (see "Proposing changes" in the rules; with an ID, just that spec), and a numbered list of exact operations, one per line, for example:
+Make a summary (one line per spec that changes), the tree with `+`, `~` and `→` marks (see "Proposing changes" in the rules; with an ID, just that spec), and a numbered list of exact operations, one per line. Write `Archive <ID>` with the ID straight after the word. For example:
 
 ```
 1. Tick T-104 subtask 2 (commit a1b2c3d)
 2. Untick T-104 subtask 3 (the export code was removed in f00ba12)
 3. Move T-106 to review
 4. Mark obsolete: T-090 log 2 (the CSV export was removed)
-5. Archive T-090 (on the board, by you)
+5. Archive T-090 (the CSV export was removed)
 6. Create draft: Recipe ratings in Sharing
 ```
 
-If nothing needs changing, say "The board already matches the code." and stop without writing a file.
+## --board --dry-run
 
-The proposal file is `.specboard/sync-proposal.md`:
+Write `.specboard/sync-proposal.md` and change no other file:
 
 ```
 ---
 created: "YYYY-MM-DD HH:mm"
-head: "<output of git rev-parse --short HEAD>"
+head: "<output of git log -1 --format=%h>"
 scope: T-104
 changes: <number of specs that change>
 ---
@@ -63,21 +63,17 @@ changes: <number of specs that change>
 1. ...
 ```
 
-Leave out `scope:` for a whole-project sync. Quote `created` and `head` as shown.
+Leave out `scope:` for a whole-project sync. Quote `created` and `head` as shown. If nothing needs changing, still write the file, with `changes: 0`, the summary line "The board already matches the code." and no tree or operations. Finish with the summary.
 
-## --dry-run
-
-With `--board`, write `.specboard/sync-proposal.md` and change no other file. In a chat, show the summary and the tree and change nothing. Finish with the summary.
-
-## --apply
+## --board --apply
 
 1. Read `.specboard/sync-proposal.md`. If it is missing, say "There is no sync proposal to apply." and stop.
-2. Run `git rev-parse --short HEAD`. If it differs from `head`, change nothing and stop with: "The code changed since the proposal. Run Sync again."
+2. Run `git log -1 --format=%h`. If it differs from `head`, change nothing and stop with: "The code changed since the proposal. Run Sync again."
 3. If the proposal's `scope` differs from the ID you were given (one present and not the other, or two different IDs), change nothing and stop with: "This proposal is for a different scope. Run Sync again."
-4. Apply exactly the listed operations, in order, with small Edit calls (Write for a new draft). Do nothing else. Set `updated` to today on every spec you change. A new draft follows "Writing a good spec" only as far as a draft does: front matter and a short `## Spec`.
-5. The proposal is now used up. With `--board`, leave the file: background runs may not delete files, so the board deletes it when the run ends. In a chat, delete `.specboard/sync-proposal.md` with the Bash tool (the person approves it). It is the only file sync ever deletes.
-6. Finish with what changed, and the specs the person should archive on the board.
+4. Apply exactly the listed operations, in order, with small Edit calls (Write for a new draft or log). Do nothing else. Set `updated` to today on every spec you change. A new draft has front matter and a short `## Spec`, like any draft. For an `Archive <ID>` line, change only that spec's logs as above: the board archives the spec.
+5. Leave the proposal file: the board archives the listed specs and deletes the file when the run ends.
+6. Finish with a short list of what changed.
 
-## In a chat (no flags)
+## In a chat
 
-Show the summary and the tree, and ask for an OK or changes. On the OK, apply the operations as in `--apply` step 4 (no proposal file, no head check). Finish as in step 6.
+Show the summary and the tree, and ask for an OK or changes. On the OK, apply the operations as in `--board --apply` step 4. There is no proposal file and no head check. Finish with what changed and the specs the person should archive on the board.

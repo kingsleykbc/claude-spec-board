@@ -180,7 +180,9 @@ describe('kit content', () => {
     expect(structure).toContain('specboard tree');
     expect(frontMatter(structure)['argument-hint']).toBe('[ID | milestone]');
     const sync = skills.find((s) => s.name === 'sync-specs')!.text;
-    for (const s of ['sync-proposal.md', 'head', 'scope', 'git rev-parse --short HEAD', 'Run Sync again', 'obsolete:', '--dry-run', '--apply']) expect(sync, s).toContain(s);
+    for (const s of ['sync-proposal.md', 'head', 'scope', 'git log -1 --format=%h', 'Run Sync again', 'obsolete:', 'Ticked by sync', 'changes: 0', '--dry-run', '--apply']) expect(sync, s).toContain(s);
+    expect(sync).not.toContain('rev-parse'); // not on the background runs' allow list
+    expect(sync).toMatch(/^\d+\. Archive T-\d+ /m); // the board archives specs named on these lines
   });
 
   it('skills that write several specs use milestones and show a tree first; next prefers the current milestone', async () => {
