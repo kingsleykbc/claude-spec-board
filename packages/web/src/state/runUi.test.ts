@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { ClaudeStatus, RunSnapshot } from '../api/client';
 import { recipeSpec } from '../fixtures/recipeBox';
+import { resetMode, setPluginMode } from '../lib/mode';
 import { cardRun, endedToast, manualReason, runButtonState } from './runUi';
+
+const PLUGIN_HINT = 'Ask Claude to run /specboard:setup again to update the allowed commands, or ask Claude to run `specboard init --yes --no-skills --runs yes <project path>`.';
 
 const run = (over: Partial<RunSnapshot> = {}): RunSnapshot => ({
   id: 'r1',
@@ -127,6 +130,30 @@ describe('endedToast for sync runs', () => {
       'Couldn’t sync with the code',
       'Run this in a terminal, then sync again: specboard init',
     ]);
+  });
+  it('in the plugin, a refused sync command asks Claude instead of a terminal specboard allow', () => {
+    setPluginMode(true);
+    try {
+      const fix = 'specboard allow "Bash(npm test:*)"';
+      expect(sync('sync-plan', null, 'permission', { status: 'permission', fix })).toEqual(['err', 'Couldn’t sync with the code', PLUGIN_HINT]);
+    } finally {
+      resetMode();
+    }
+  });
+});
+
+describe('refresh-overview permission toast', () => {
+  const refused = run({ kind: 'refresh-overview', specId: null, status: 'permission', end: { status: 'permission', fix: 'specboard allow "Bash(npm test:*)"' } });
+  it('from the repo, gives the rule to run in a terminal', () => {
+    expect(endedToast(refused)).toEqual(['err', 'Couldn’t refresh the overview', 'Run this in a terminal, then refresh again: specboard allow "Bash(npm test:*)"']);
+  });
+  it('in the plugin, asks Claude instead of a terminal specboard allow', () => {
+    setPluginMode(true);
+    try {
+      expect(endedToast(refused)).toEqual(['err', 'Couldn’t refresh the overview', PLUGIN_HINT]);
+    } finally {
+      resetMode();
+    }
   });
 });
 

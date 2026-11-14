@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { initHint } from '../lib/prePublish';
+import { allowHint, initHint } from '../lib/prePublish';
+import { isPluginMode } from '../lib/mode';
 import type { Spec } from '@specboard/core';
 import type { ClaudeStatus, RunEvent, RunKind, RunSnapshot } from '../api/client';
 import type { RunState } from '../components/detail/RunButton';
@@ -90,7 +91,7 @@ function syncEndedToast(run: RunSnapshot): ToastArgs {
   }
   if (run.status === 'stopped') return ['info', id ? `Stopped syncing ${id}` : 'Stopped the sync'];
   const failed = id ? `Couldn’t sync ${id}` : 'Couldn’t sync with the code';
-  if (run.status === 'permission' && end?.fix) return ['err', failed, `Run this in a terminal, then sync again: ${end.fix}`];
+  if (run.status === 'permission' && end?.fix) return ['err', failed, isPluginMode() ? allowHint(undefined, true) : `Run this in a terminal, then sync again: ${end.fix}`];
   return ['err', failed, end?.title ?? end?.text];
 }
 
@@ -101,7 +102,7 @@ export function endedToast(run: RunSnapshot): ToastArgs {
   if (run.kind === 'refresh-overview') {
     if (run.status === 'finished') return ['ok', 'Overview updated', 'Claude rewrote the progress summary.'];
     // A refresh has no run panel, so the toast is the only place a refused action's rule can show.
-    if (run.status === 'permission' && end?.fix) return ['err', 'Couldn’t refresh the overview', `Run this in a terminal, then refresh again: ${end.fix}`];
+    if (run.status === 'permission' && end?.fix) return ['err', 'Couldn’t refresh the overview', isPluginMode() ? allowHint(undefined, true) : `Run this in a terminal, then refresh again: ${end.fix}`];
     return ['err', 'Couldn’t refresh the overview', end?.title ?? end?.text];
   }
   switch (run.status) {
