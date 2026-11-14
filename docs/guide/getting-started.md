@@ -69,10 +69,10 @@ Open a Claude chat in your project folder, in the terminal or the desktop app, a
 
 ### As a plugin
 
-The commands are also packaged as a Claude Code plugin in `packages/server/kit`. In the terminal version of Claude Code you can load it for one session, without running `init`'s copy step in that project:
+The commands are also packaged as a Claude Code plugin in `plugin`. In the terminal version of Claude Code you can load it for one session, without running `init`'s copy step in that project:
 
 ```
-claude --plugin-dir "<this repo>/packages/server/kit"
+claude --plugin-dir "<this repo>/plugin"
 ```
 
 Plugin commands carry the plugin's name, for example `/specboard:run-spec T-001`. The project still needs a `.specboard/` folder.

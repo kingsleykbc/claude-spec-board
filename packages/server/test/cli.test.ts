@@ -1,10 +1,11 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs/promises';
+import http from 'node:http';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { parseArgs, shutdown } from '../src/cli.js';
+import { detachArgs, parseArgs, parseInitArgs, runDetached, shutdown } from '../src/cli.js';
 import { start } from '../src/start.js';
 
 const SAMPLE = path.resolve(import.meta.dirname, '../../../examples/recipe-box');
@@ -59,14 +60,18 @@ describe('parseArgs', () => {
     expect(parseArgs([]).path).toBe(process.cwd());
   });
   it('defaults', () => {
-    expect(parseArgs([])).toEqual({ path: process.cwd(), port: 4949, open: true });
+    expect(parseArgs([])).toEqual({ path: process.cwd(), port: 4949, open: true, detach: false });
   });
   it('defaults the path to INIT_CWD when set', () => {
     process.env.INIT_CWD = path.join(os.tmpdir(), 'initcwd');
     expect(parseArgs([]).path).toBe(path.join(os.tmpdir(), 'initcwd'));
   });
   it('reads a path, --port and --no-open', () => {
-    expect(parseArgs(['some/dir', '--port', '5050', '--no-open'])).toEqual({ path: path.resolve(process.cwd(), 'some/dir'), port: 5050, open: false });
+    expect(parseArgs(['some/dir', '--port', '5050', '--no-open'])).toEqual({ path: path.resolve(process.cwd(), 'some/dir'), port: 5050, open: false, detach: false });
+  });
+  it('reads --detach and --no-detach', () => {
+    expect(parseArgs(['--detach']).detach).toBe(true);
+    expect(parseArgs(['--detach', '--no-detach']).detach).toBe(false);
   });
   it('resolves a relative path argument against INIT_CWD (npm runs scripts from the repo root)', () => {
     const init = path.join(os.tmpdir(), 'initcwd');
@@ -81,6 +86,67 @@ describe('parseArgs', () => {
   });
   it('rejects a bad port', () => {
     expect(() => parseArgs(['--port', 'abc'])).toThrow('Invalid port');
+  });
+});
+
+describe('parseInitArgs', () => {
+  it('reads --no-skills and --runs', () => {
+    const a = parseInitArgs(['--no-skills', '--runs', 'yes']);
+    expect(a.noSkills).toBe(true);
+    expect(a.runs).toBe('yes');
+    expect(parseInitArgs([]).noSkills).toBe(false);
+    expect(parseInitArgs([]).runs).toBeUndefined();
+    expect(parseInitArgs(['--runs', 'no']).runs).toBe('no');
+  });
+  it('rejects a bad --runs value', () => {
+    expect(() => parseInitArgs(['--runs', 'maybe'])).toThrow('--runs needs yes or no');
+    expect(() => parseInitArgs(['--runs'])).toThrow('--runs needs yes or no');
+  });
+});
+
+describe('detach', () => {
+  it('detachArgs drops --detach and adds --no-detach once', () => {
+    expect(detachArgs(['proj', '--detach', '--port', '5050'])).toEqual(['proj', '--port', '5050', '--no-detach']);
+    expect(detachArgs(['--no-detach', '--detach'])).toEqual(['--no-detach']);
+  });
+
+  it('with a board already running: registers the project and returns 0 without spawning', async () => {
+    const proj = await copySample('a');
+    const fake = http.createServer((req, res) => {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: true, app: 'specboard' }));
+    });
+    await new Promise<void>((r) => fake.listen(0, '127.0.0.1', r));
+    blockers.push(fake);
+    const port = (fake.address() as net.AddressInfo).port;
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const spawned = vi.fn();
+    expect(await runDetached({ path: proj, port, open: false }, [proj, '--detach'], { spawn: spawned })).toBe(0);
+    expect(spawned).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith(`Spec Board running at http://127.0.0.1:${port}`);
+    log.mockRestore();
+    const registry = JSON.parse(await fs.readFile(path.join(home, 'projects.json'), 'utf8'));
+    expect(JSON.stringify(registry)).toContain(path.basename(proj));
+  });
+
+  it('returns 1 when the child never answers', async () => {
+    const proj = await copySample('b');
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const spawned = vi.fn();
+    expect(await runDetached({ path: proj, port: await freePort(), open: false }, [proj], { spawn: spawned, timeoutMs: 300 })).toBe(1);
+    expect(spawned).toHaveBeenCalledTimes(1);
+    expect(err).toHaveBeenCalled();
+    err.mockRestore();
+  });
+});
+
+describe('--version', () => {
+  it('prints the plugin.json version', async () => {
+    const cli = path.resolve(import.meta.dirname, '../src/cli.ts');
+    const r = spawnSync(process.execPath, ['--import', 'tsx', cli, '--version'], { encoding: 'utf8', cwd: path.resolve(import.meta.dirname, '..') });
+    const manifest = JSON.parse(await fs.readFile(path.resolve(import.meta.dirname, '../../../plugin/.claude-plugin/plugin.json'), 'utf8'));
+    expect(r.status).toBe(0);
+    expect(r.stdout.trim()).toBe(manifest.version);
   });
 });
 

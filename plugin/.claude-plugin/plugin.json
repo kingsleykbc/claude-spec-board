@@ -1,0 +1,6 @@
+{
+  "name": "specboard",
+  "version": "0.2.0",
+  "description": "Spec Board: plan a project as specs, then run them with Claude Code and follow the work on a board.",
+  "author": { "name": "Kingsley Anyabuike" }
+}

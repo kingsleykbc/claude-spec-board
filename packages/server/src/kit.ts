@@ -1,12 +1,13 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const PLUGIN_DIR = path.resolve(import.meta.dirname, '..', 'kit');
-const KIT_DIR = path.join(PLUGIN_DIR, 'skills');
+import { pluginDir } from './paths.js';
+
+const kitDir = (): string => path.join(pluginDir(), 'skills');
 
 /** The kit as a Claude Code plugin named `specboard`, for `--plugin-dir`. */
 export function kitPluginDir(): string {
-  return PLUGIN_DIR;
+  return pluginDir();
 }
 
 export type InstallResult = { name: string; action: 'created' | 'unchanged' | 'updated' | 'skipped-modified' };
@@ -18,12 +19,12 @@ function normalize(text: string): string {
 
 /** The skills shipped with Spec Board, in folder-name order. Text always uses LF. */
 export async function kitSkills(): Promise<{ name: string; text: string }[]> {
-  const entries = await fs.readdir(KIT_DIR, { withFileTypes: true });
+  const entries = await fs.readdir(kitDir(), { withFileTypes: true });
   const names = entries.filter((e) => e.isDirectory()).map((e) => e.name).sort();
   return Promise.all(
     names.map(async (name) => ({
       name,
-      text: normalize(await fs.readFile(path.join(KIT_DIR, name, 'SKILL.md'), 'utf8')),
+      text: normalize(await fs.readFile(path.join(kitDir(), name, 'SKILL.md'), 'utf8')),
     })),
   );
 }

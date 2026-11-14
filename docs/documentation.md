@@ -242,7 +242,7 @@ Added **(my call)**, because the Run button needs them:
 
 A **skill** ships with the commands. It teaches Claude the file format and the rules: always log per subtask, never edit outside `.specboard/` except for real code work, ask through open questions instead of guessing, and pick up answers saved on the board before continuing.
 
-**One kit, delivered two ways.** The commands and the skill live in one folder in the package (`packages/server/kit`):
+**One kit, delivered two ways.** The commands and the skill live in one folder in the package (`plugin`):
 - **As a plugin, for board runs.** A run loads the kit with `--plugin-dir` and calls it as `/specboard:run-spec T-001`. A project can't change what a board run is told to do, because the run doesn't read the project's copy.
 - **As project skills, for typed commands.** `specboard init` also copies the skills into `.claude/skills/`, so typing `/run-spec T-001` in your own Claude Code session works.
 

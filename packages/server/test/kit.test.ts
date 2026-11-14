@@ -39,6 +39,24 @@ afterEach(async () => {
   await fs.rm(tmp, { recursive: true, force: true });
 });
 
+describe('plugin folder', () => {
+  const repo = path.resolve(import.meta.dirname, '../../..');
+  it('reads the skills from plugin/skills and hands runs the plugin folder', async () => {
+    expect(kitPluginDir()).toBe(path.join(repo, 'plugin'));
+    expect((await kitSkills()).length).toBe(11);
+    expect((await fs.readdir(path.join(repo, 'plugin', 'skills'))).length).toBe(11);
+  });
+  it('plugin.json and marketplace.json parse and agree', async () => {
+    const plugin = JSON.parse(await fs.readFile(path.join(repo, 'plugin', '.claude-plugin', 'plugin.json'), 'utf8'));
+    const market = JSON.parse(await fs.readFile(path.join(repo, '.claude-plugin', 'marketplace.json'), 'utf8'));
+    expect(plugin.name).toBe('specboard');
+    expect(plugin.version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(market.name).toBe('spec-board');
+    expect(market.owner.name).toBeTruthy();
+    expect(market.plugins).toEqual([expect.objectContaining({ name: plugin.name, source: './plugin' })]);
+  });
+});
+
 describe('kit content', () => {
   it('ships the rules skill and every command', async () => {
     const names = (await kitSkills()).map((s) => s.name).sort();

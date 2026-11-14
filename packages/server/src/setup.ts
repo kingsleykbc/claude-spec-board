@@ -114,6 +114,7 @@ function assertAllowable(rule: string, deny: string[]): void {
 const BASE_ALLOW = [
   'Read(./**)', 'Edit(./**)', 'Write(./**)',
   'Bash(git status:*)', 'Bash(git diff:*)', 'Bash(git log:*)', 'Bash(git add:*)', 'Bash(git commit:*)',
+  'Bash(specboard tree:*)', 'Bash(gh pr view:*)', 'Bash(glab mr view:*)',
 ];
 const DENY = [
   'Bash(git push:*)', 'Bash(git reset:*)', 'Bash(rm -rf:*)',
@@ -332,11 +333,11 @@ export function approvedStore(): ApprovedPermissions {
 }
 
 export async function initCommand(
-  opts: { root: string; yes: boolean; forceSkills: boolean; kitDir?: string },
+  opts: { root: string; yes: boolean; forceSkills: boolean; noSkills?: boolean; runs?: 'yes' | 'no'; kitDir?: string },
   io: SetupIO,
 ): Promise<{ approved: boolean; id: string }> {
   const root = path.resolve(opts.root);
-  if (!opts.yes && !io.isTTY) {
+  if (!opts.yes && !opts.runs && !io.isTTY) {
     throw new Error('specboard init asks you to approve permissions and needs a terminal. Run it in one, or pass --yes to approve the default list.');
   }
   if (!(await fs.stat(root).catch(() => null))?.isDirectory()) throw new Error(`${root} is not a folder.`);
@@ -348,7 +349,7 @@ export async function initCommand(
   }
 
   // Skills first: if a link blocks the install, nothing else has changed yet.
-  const skills = await installSkills(root, { force: opts.forceSkills });
+  const skills = opts.noSkills ? [] : await installSkills(root, { force: opts.forceSkills });
   // initProject writes through whatever is there, so refuse links under .specboard too.
   const realRoot = await fs.realpath(root);
   for (const parts of [['.specboard'], ['.specboard', 'config.md'], ['.specboard', 'specs'], ['.specboard', 'archive'], ['.specboard', 'overview.md']]) {
@@ -381,7 +382,7 @@ export async function initCommand(
   io.log('Headless runs may use:');
   for (const r of allow) io.log(`  allow  ${r}`);
   for (const r of deny) io.log(`  deny   ${r}`);
-  const approved = opts.yes || (await io.confirm('Allow these actions for headless runs? [y/N] '));
+  const approved = opts.runs ? opts.runs === 'yes' : opts.yes || (await io.confirm('Allow these actions for headless runs? [y/N] '));
   if (!approved) {
     if (previous) {
       io.log(`Existing approval is unchanged. To revoke it, delete the "${id}" entry from ${path.join(specboardHome(), 'permissions.json')}.`);

@@ -7,6 +7,7 @@ import { parseAllowArgs, parseInitArgs } from '../src/cli.js';
 import { projectId } from '../src/registry.js';
 import {
   allowCommand,
+  approvedStore,
   ApprovedPermissions,
   defaultAllowList,
   initCommand,
@@ -105,6 +106,7 @@ describe('defaultAllowList', () => {
       ]),
     );
     expect(a.allow).toEqual(expect.arrayContaining(['Read(./**)', 'Edit(./**)', 'Write(./**)', 'Bash(git commit:*)']));
+    expect(a.allow).toEqual(expect.arrayContaining(['Bash(specboard tree:*)', 'Bash(gh pr view:*)', 'Bash(glab mr view:*)']));
     expect(a.allow).not.toContain('Bash(npm test:*)');
     const b = await defaultAllowList(await project('b', { scripts: { test: 'vitest' } }));
     expect(b.allow).toEqual(expect.arrayContaining(['Bash(npm test:*)', 'Bash(npm run test:*)']));
@@ -290,6 +292,30 @@ describe('initCommand', () => {
     await expect(initCommand({ root, yes: false, forceSkills: false }, io({ tty: false }))).rejects.toThrow(/--yes|terminal/);
     expect(await fs.readdir(root)).toEqual([]);
     await expect(fs.stat(home)).rejects.toThrow();
+  });
+
+  it('--no-skills writes no .claude/skills', async () => {
+    const root = await project('ns');
+    await initCommand({ root, yes: true, forceSkills: false, noSkills: true }, io({ tty: false }));
+    await expect(fs.stat(path.join(root, '.claude', 'skills'))).rejects.toThrow();
+    expect((await fs.stat(path.join(root, '.specboard', 'config.md'))).isFile()).toBe(true);
+  });
+
+  it('--runs no works without a TTY and writes no settings', async () => {
+    const root = await project('rn');
+    const r = await initCommand({ root, yes: false, forceSkills: false, runs: 'no' }, io({ tty: false }));
+    expect(r.approved).toBe(false);
+    await expect(fs.stat(path.join(root, '.claude', 'settings.json'))).rejects.toThrow();
+    expect(await approvedStore().get(r.id, root)).toBeNull();
+  });
+
+  it('--runs yes works without a TTY and approves the defaults', async () => {
+    const root = await project('ry');
+    const i = io({ tty: false });
+    const r = await initCommand({ root, yes: false, forceSkills: false, runs: 'yes' }, i);
+    expect(r.approved).toBe(true);
+    expect(i.asked).toEqual([]);
+    expect(await approvedStore().get(r.id, root)).not.toBeNull();
   });
 
   it('--yes completes: project, skills, both permission files, registry', async () => {
@@ -524,7 +550,7 @@ describe('cli', () => {
   it('parses init and allow arguments', () => {
     process.env.INIT_CWD = tmp;
     try {
-      expect(parseInitArgs(['p', '--yes', '--force-skills'])).toEqual({ path: path.join(tmp, 'p'), yes: true, forceSkills: true });
+      expect(parseInitArgs(['p', '--yes', '--force-skills'])).toEqual({ path: path.join(tmp, 'p'), yes: true, forceSkills: true, noSkills: false, runs: undefined });
       expect(() => parseInitArgs(['--nope'])).toThrow(/Unknown option/);
       expect(parseAllowArgs(['Bash(npm test:*)', 'p'])).toEqual({ rule: 'Bash(npm test:*)', path: path.join(tmp, 'p') });
       expect(() => parseAllowArgs(['Bash(npm test:*)', '--yes'])).toThrow(/no --yes/);

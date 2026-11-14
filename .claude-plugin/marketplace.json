@@ -1,0 +1,11 @@
+{
+  "name": "spec-board",
+  "owner": { "name": "Kingsley Anyabuike" },
+  "plugins": [
+    {
+      "name": "specboard",
+      "source": "./plugin",
+      "description": "Spec Board: plan a project as specs, then run them with Claude Code and follow the work on a board."
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import { createAdaptorServer } from '@hono/node-server';
 import getPort from 'get-port';
 import open from 'open';
 import { attachRealtime, createApp, type Realtime } from './app.js';
+import { webDistDir } from './paths.js';
 import { initHint } from './prePublish.js';
 import { Registry } from './registry.js';
 import { RunManager } from './claude/runs.js';
@@ -34,7 +35,7 @@ function registryFile(): string {
 }
 
 /** True when a Spec Board server answers on `port` within 500 ms. */
-async function isSpecBoard(port: number): Promise<boolean> {
+export async function isSpecBoard(port: number): Promise<boolean> {
   try {
     const res = await fetch(`http://${HOST}:${port}/api/health`, { signal: AbortSignal.timeout(500) });
     if (!res.ok) return false;
@@ -43,11 +44,6 @@ async function isSpecBoard(port: number): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-function webDistDir(): string | null {
-  const dir = path.resolve(import.meta.dirname, '../../web/dist');
-  return fs.existsSync(dir) ? dir : null;
 }
 
 async function tryOpen(opts: StartOptions, base: string, id: string): Promise<void> {
