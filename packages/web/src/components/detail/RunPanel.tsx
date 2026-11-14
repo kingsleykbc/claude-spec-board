@@ -86,8 +86,10 @@ const WAITING: End = {
   border: 'var(--review)',
 };
 
-/** A finished write-up or fix did not move anything to Review. */
+/** A finished write-up, fix or sync did not move anything to Review. */
 const FINISHED: Partial<Record<RunKind, { title: string; text: string }>> = {
+  'sync-plan': { title: 'Sync proposal ready', text: 'Check what will change, then confirm or cancel it.' },
+  'sync-apply': { title: 'Synced with the code', text: 'The spec now matches the code.' },
   'write-up': { title: 'Written up', text: 'Features, questions and subtasks are on the card. Check them, then run it.' },
   'fix-file': { title: 'Fixed', text: 'Claude finished fixing the file. Check the spec.' },
 };

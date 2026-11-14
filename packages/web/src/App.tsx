@@ -18,6 +18,8 @@ import { useToasts, type PushToast } from './state/toasts';
 import { useProject } from './state/useProject';
 import { cardRun, isRefreshing, manualReason, runButtonState, useRunActions, useRunToasts } from './state/runUi';
 import { useRun } from './state/useRun';
+import { useSync } from './state/useSync';
+import { SyncDialog } from './components/SyncDialog';
 import { Board } from './components/Board';
 import { TableView } from './components/TableView';
 import { AppSkeleton, BoardSkeleton } from './components/Skeleton';
@@ -229,6 +231,8 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
   const boardFilters = { ...filters, milestone: effectiveMilestone(filters.milestone, msOptions, current) };
   useRunToasts(run, specs, toast);
   const { startRun, stopRun, dismissRun } = useRunActions(run, toast, project?.root);
+  const manual = manualReason(run.claude, run.approved);
+  const sync = useSync({ pid, stamp: data, run: run.run, manual: manual !== null, startRun, stopRun: () => void stopRun(), toast });
   const name = project?.config?.name || data?.entry.name || summary?.name || pid;
   const progress = project
     ? { done: archived.length + project.specs.filter((x) => x.status === 'done').length, total: project.specs.length + archived.length }
@@ -297,7 +301,10 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
             toast('info', 'Run spec-board in a project folder', 'It will appear in this list.');
           },
         }}
-        manual={manualReason(run.claude, run.approved)}
+        manual={manual}
+        onSync={() => sync.openSync(null)}
+        syncWaiting={!!sync.proposal && sync.proposal.scope === null}
+        onSyncWaiting={sync.openWaiting}
         brandOpen={menu === 'brand'}
         onToggleBrand={() => setMenu((m) => (m === 'brand' ? null : 'brand'))}
         conn={conn}
@@ -390,6 +397,9 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
               onRun={() => void startRun('run', openId)}
               onStop={() => void stopRun()}
               onFixFile={() => void startRun('fix-file', openId)}
+              onSync={() => sync.openSync(openId)}
+              syncWaiting={sync.proposal?.scope === openId}
+              onSyncWaiting={sync.openWaiting}
               {...(shownRun
                 ? {
                     aside: (goToQuestions: () => void) => (
@@ -425,7 +435,8 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
               onClose={closeModal}
             />
           )}
-          {modal === 'refs' && <ReferencesModal pid={pid} toast={toast} down={down} stamp={project} onClose={closeModal} />}
+          {sync.dialog && <SyncDialog {...sync.dialog} toast={toast} />}
+          {modal === 'refs' &&<ReferencesModal pid={pid} toast={toast} down={down} stamp={project} onClose={closeModal} />}
           {modal === 'add' && data && (
             <AddSpecModal
               pid={pid}
@@ -433,7 +444,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
               toast={toast}
               down={down}
               refresh={refresh}
-              onWriteUp={(s) => startRun('write-up', s.id)}
+              onWriteUp={async (s) => void (await startRun('write-up', s.id))}
               onClose={closeModal}
             />
           )}

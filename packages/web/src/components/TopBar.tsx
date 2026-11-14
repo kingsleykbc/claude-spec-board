@@ -1,6 +1,6 @@
 import type { Conn } from '../api/live';
 import { DOCS_PATH } from '../lib/docsPages';
-import { BoardIcon, CaretIcon, DocsIcon, MoonIcon, SunIcon, TourIcon } from '../lib/icons';
+import { BoardIcon, CaretIcon, DocsIcon, MoonIcon, RefreshIcon, SunIcon, TourIcon, WarnIcon } from '../lib/icons';
 import type { Theme } from '../lib/theme';
 import { Spinner } from './ConnectionBanner';
 import { ManualNotice } from './ManualNotice';
@@ -37,11 +37,46 @@ export interface TopBarProps {
   onTour?: () => void;
   /** Why runs are off here; the board's manual-mode notice shows when set. */
   manual?: ManualReason | null;
+  /** "Sync with code" in the logo menu (board only). */
+  onSync?: () => void;
+  /** A project-wide sync proposal is waiting: "Sync proposal waiting" reopens it. */
+  syncWaiting?: boolean;
+  onSyncWaiting?: () => void;
 }
 
 /** Sticky top bar (prototype lines 32-52), on the board and on the docs page. */
-export function TopBar({ switcher, brandOpen = false, onToggleBrand, page = 'board', conn, theme, onToggleTheme, onOpenRefs, onOpenOverview, onTour, manual = null }: TopBarProps) {
+export function TopBar({
+  switcher,
+  brandOpen = false,
+  onToggleBrand,
+  page = 'board',
+  conn,
+  theme,
+  onToggleTheme,
+  onOpenRefs,
+  onOpenOverview,
+  onTour,
+  manual = null,
+  onSync,
+  syncWaiting = false,
+  onSyncWaiting,
+}: TopBarProps) {
   const docs = page === 'docs';
+  /** A menu item that closes the menu, then does its thing. */
+  const item = (label: string, Icon: typeof TourIcon, act: () => void, dot = false) => (
+    <button
+      type="button"
+      role="menuitem"
+      className={s.brandItem}
+      onClick={() => {
+        onToggleBrand?.();
+        act();
+      }}
+    >
+      <Icon aria-hidden /> {label}
+      {dot && <span className={s.waitDot} aria-hidden />}
+    </button>
+  );
   const project = switcher?.current ?? null;
   const live = conn ? LIVE[conn] : null;
   return (
@@ -73,19 +108,9 @@ export function TopBar({ switcher, brandOpen = false, onToggleBrand, page = 'boa
                 <a role="menuitem" className={s.brandItem} href={docsHref(project)} target="_blank" rel="noopener" onClick={onToggleBrand}>
                   <DocsIcon aria-hidden /> Documentation
                 </a>
-                {onTour && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={s.brandItem}
-                    onClick={() => {
-                      onToggleBrand?.();
-                      onTour();
-                    }}
-                  >
-                    <TourIcon aria-hidden /> Take the tour
-                  </button>
-                )}
+                {onTour && item('Take the tour', TourIcon, onTour)}
+                {onSync && item('Sync with code', RefreshIcon, onSync)}
+                {syncWaiting && onSyncWaiting && item('Sync proposal waiting', WarnIcon, onSyncWaiting, true)}
               </>
             )}
           </div>

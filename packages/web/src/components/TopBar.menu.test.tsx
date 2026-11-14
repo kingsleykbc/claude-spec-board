@@ -35,6 +35,25 @@ describe('the menu under the logo', () => {
   });
 });
 
+describe('sync in the logo menu', () => {
+  it('"Sync with code" is always there on the board, and closes the menu', () => {
+    const onSync = vi.fn();
+    const onToggleBrand = vi.fn();
+    render(<TopBar {...props({ brandOpen: true, onToggleBrand, onSync })} />);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Sync with code' }));
+    expect(onSync).toHaveBeenCalled();
+    expect(onToggleBrand).toHaveBeenCalled();
+    expect(screen.queryByRole('menuitem', { name: /Sync proposal waiting/ })).toBeNull();
+  });
+
+  it('"Sync proposal waiting" shows only when a proposal is waiting, and reopens it', () => {
+    const onSyncWaiting = vi.fn();
+    render(<TopBar {...props({ brandOpen: true, onSync: vi.fn(), onSyncWaiting, syncWaiting: true })} />);
+    fireEvent.click(screen.getByRole('menuitem', { name: /Sync proposal waiting/ }));
+    expect(onSyncWaiting).toHaveBeenCalled();
+  });
+});
+
 describe('the top bar on the docs page', () => {
   const docs = (over: Partial<TopBarProps> = {}) => {
     const { conn: _c, onOpenRefs: _r, onOpenOverview: _o, ...rest } = props(over);

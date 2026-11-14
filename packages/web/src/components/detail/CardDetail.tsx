@@ -51,6 +51,11 @@ export interface CardDetailProps {
   onStop?: () => void;
   /** "Ask Claude to fix" on a file problem. */
   onFixFile?: () => void;
+  /** The header's Sync (this spec against the code); no button without it. */
+  onSync?: () => void;
+  /** A sync proposal for this spec is waiting: a button beside Sync reopens it. */
+  syncWaiting?: boolean;
+  onSyncWaiting?: () => void;
   /** The run column, e.g. a RunPanel; widens the modal when present. Gets a function that scrolls to the questions. */
   aside?: (goToQuestions: () => void) => ReactNode;
   /** Open another spec (`?spec=<id>`), from Dependencies. */
@@ -110,6 +115,9 @@ function SpecDetail({
   onRun = () => undefined,
   onStop = () => undefined,
   onFixFile = () => undefined,
+  onSync,
+  syncWaiting = false,
+  onSyncWaiting,
   aside,
   onOpenSpec = () => undefined,
   changed,
@@ -294,6 +302,9 @@ function SpecDetail({
           runHold={runHold(spec, all)}
           onRun={onRun}
           onStop={onStop}
+          {...(onSync ? { onSync } : {})}
+          syncWaiting={syncWaiting}
+          {...(onSyncWaiting ? { onSyncWaiting } : {})}
           onStatus={(k) => void onMove(spec, k)}
           onUrgency={setUrgency}
           onAddCategory={(c) => setCategories([...categories, c])}

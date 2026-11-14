@@ -26,6 +26,7 @@
 .runHelp:hover { background: var(--panel); }
 .copy:hover { background: var(--raise); border-color: var(--fg3); }
 .copy[data-copied="true"] { border-color: var(--done); color: var(--done-ink); }
+.syncWaiting { display: flex; align-items: center; height: 28px; padding: 0 10px; border: 0; border-radius: 99px; background: var(--review-soft); color: var(--review-ink); font-family: inherit; font-weight: 600; font-size: 12px; cursor: pointer; white-space: nowrap; }
 
 /* Status menu */
 .statusWrap { position: relative; z-index: 5; flex: none; }

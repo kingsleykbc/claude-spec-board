@@ -92,6 +92,31 @@ describe('endedToast', () => {
   });
 });
 
+describe('endedToast for sync runs', () => {
+  const sync = (kind: 'sync-plan' | 'sync-apply', specId: string | null, status: RunSnapshot['status'], end: RunSnapshot['end'] = null) =>
+    endedToast(run({ kind, specId, status, end }));
+  it('project-level: no spec ID in the text', () => {
+    expect(sync('sync-plan', null, 'finished')).toEqual(['ok', 'Sync proposal ready']);
+    expect(sync('sync-apply', null, 'finished')).toEqual(['ok', 'Board synced with the code']);
+    expect(sync('sync-plan', null, 'stopped')).toEqual(['info', 'Stopped the sync']);
+    const end = { status: 'error' as const, title: 'Claude stopped before finishing', text: 'No sync proposal was written.' };
+    expect(sync('sync-plan', null, 'error', end)).toEqual(['err', 'Couldn’t sync with the code', end.title]);
+  });
+  it('card-level: names the spec', () => {
+    expect(sync('sync-plan', 'T-104', 'finished')).toEqual(['ok', 'T-104 sync proposal ready']);
+    expect(sync('sync-apply', 'T-104', 'finished')).toEqual(['ok', 'T-104 synced with the code']);
+    expect(sync('sync-apply', 'T-104', 'stopped')).toEqual(['info', 'Stopped syncing T-104']);
+    expect(sync('sync-apply', 'T-104', 'error', { status: 'error', title: 'The code changed' })).toEqual(['err', 'Couldn’t sync T-104', 'The code changed']);
+  });
+  it('a refused command gives the fix to run', () => {
+    expect(sync('sync-plan', null, 'permission', { status: 'permission', fix: 'specboard init' })).toEqual([
+      'err',
+      'Couldn’t sync with the code',
+      'Run this in a terminal, then sync again: specboard init',
+    ]);
+  });
+});
+
 describe('manualReason', () => {
   const cases: [string, ClaudeStatus | null, boolean | null, string | null][] = [
     ['status not loaded yet', null, null, null],

@@ -70,7 +70,22 @@ function startedToast(run: RunSnapshot, title: string | undefined): ToastArgs | 
   }
 }
 
+/** A sync run's ending. With a spec ID it names that card; a project-level one has none to name. */
+function syncEndedToast(run: RunSnapshot): ToastArgs {
+  const id = run.specId;
+  const end = run.end;
+  if (run.status === 'finished') {
+    if (run.kind === 'sync-plan') return ['ok', id ? `${id} sync proposal ready` : 'Sync proposal ready'];
+    return ['ok', id ? `${id} synced with the code` : 'Board synced with the code'];
+  }
+  if (run.status === 'stopped') return ['info', id ? `Stopped syncing ${id}` : 'Stopped the sync'];
+  const failed = id ? `Couldn’t sync ${id}` : 'Couldn’t sync with the code';
+  if (run.status === 'permission' && end?.fix) return ['err', failed, `Run this in a terminal, then sync again: ${end.fix}`];
+  return ['err', failed, end?.title ?? end?.text];
+}
+
 export function endedToast(run: RunSnapshot): ToastArgs {
+  if (run.kind === 'sync-plan' || run.kind === 'sync-apply') return syncEndedToast(run);
   const id = run.specId;
   const end = run.end;
   if (run.kind === 'refresh-overview') {
@@ -135,7 +150,7 @@ function refusalToast(r: Extract<StartResult, { ok: false }>, specId: string | u
       return note ? ['err', 'Claude Code isn’t available', note] : ['err', 'Claude Code isn’t installed', 'Install Claude Code, then run again.'];
     }
     case 'busy':
-      return ['err', `Claude is already working on ${r.run?.specId ?? 'the overview'}`];
+      return ['err', `Claude is already working on ${r.run?.specId ?? (r.run?.kind === 'sync-plan' || r.run?.kind === 'sync-apply' ? 'a sync' : 'the overview')}`];
     case 'error':
       return ['err', specId ? `Couldn’t reach Claude for ${specId}` : 'Couldn’t reach Claude', r.message];
   }
@@ -148,13 +163,15 @@ export function useRunActions({ run, start, stop, dismiss }: Pick<UseRun, 'run' 
   /** Set synchronously, so a double click sends one start. */
   const starting = useRef(false);
 
+  /** Resolves true once the run started; a refusal is toasted and gives false. */
   const startRun = useCallback(
-    async (kind: RunKind, specId?: string): Promise<void> => {
-      if (starting.current) return;
+    async (kind: RunKind, specId?: string): Promise<boolean> => {
+      if (starting.current) return false;
       starting.current = true;
       try {
         const result = await start(kind, specId);
         if (!result.ok) toast(...refusalToast(result, specId, root));
+        return result.ok;
       } finally {
         starting.current = false;
       }
