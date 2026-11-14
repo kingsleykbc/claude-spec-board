@@ -237,3 +237,55 @@ Content: README leads with installing the plugin (the two commands), then `/spec
 - [ ] **Step 2:** write the docs; check every command name and flag against the skills and CLI.
 - [ ] **Step 3:** `npm run build:plugin`; `npm test`; tsc for all packages; stories.
 - [ ] **Step 4: Commit** `docs: plugin install, milestones, table view, sync; sample milestones`.
+
+---
+
+## Round 2 amendments (design §11–§18)
+
+**Execution order:** 1, 2, 14, 3, 4, 15, 5, 6, 7, 8, 9, 10, 11, 16, 17, 12, 13.
+
+**Changes to earlier tasks:**
+- **Task 5 (skills)** also: `done_at:` written when a subtask is ticked (local `YYYY-MM-DD HH:mm`); `created:` in config written by setup; sync-specs takes an optional `<ID>` (scope), writes `scope:` in the proposal, apply checks it; sync never deletes/rewrites log entries, marks obsolete logs with `obsolete: "<date>: <reason>"` plus a dated entry "Marked obsolete by sync: <reason>"; rules say tokens are counted by the plugin automatically (Claude never writes `tokens:` itself).
+- **Task 6 (server):** do **not** append the token log entry; keep the run-panel total. `sync-plan`/`sync-apply` accept an optional spec ID: prompt `/specboard:sync-specs <ID> --board --dry-run` / `--apply`; with an ID the run belongs to that card (like `run`). Proposal GET returns `scope: string | null`.
+- **Task 8 (table):** add a **Tokens** column = sum of the spec's `logs[n].tokens` (blank when none), formatted with the web `formatTokens`; hidden when `project.settings.trackTokens` is false.
+- **Task 10 (sync dialog):** also a **Sync** button in the card detail beside Run, starting the scoped flow; the dialog shows "Sync T-104 with the code" and, in manual mode, the command `/specboard:sync-specs T-104`.
+- **Task 11 (log view):** also show `tokens` ("48.2k tokens"), `done_at`, and an obsolete warning icon (WarnIcon) with tooltip/popover "Obsolete since <date>: <reason>" parsed from `obsolete`.
+- **Task 12 (small screens):** builds on Task 17's header (dark mode and, in Simple mode, References/Overview/Logs already live in the logo menu); on narrow screens the "More" items join the logo menu instead of a separate More button.
+
+### Task 14: Core + server — settings, times, obsolete, tokens fields
+
+**Files:** core `parseOther.ts` (SubtaskLog, ProjectConfig, new `parseSettings`), `project.ts` (load `settings.md`), `write.ts` (`initProject` writes `created`, new `writeSettings`), core tests; server `app.ts`/routes (settings PUT, projects `available`), server tests; web `api/client.ts` types.
+
+**Interfaces — Produces:**
+- `SubtaskLog.tokens: number | null` (non-negative integer, else null + problem `Invalid tokens`), `doneAt: string | null` (`done_at`), `obsolete: { since: string | null; reason: string } | null` (from `"<date>: <reason>"`; no `": "` → since null, reason = whole string).
+- `ProjectConfig.created: string | null`.
+- `ProjectSettings { trackTokens: boolean; problems: string[] }`; `parseSettings(text: string): ProjectSettings` (default `trackTokens: true` when missing; a non-boolean value keeps the default and adds a problem); `Project.settings: ProjectSettings` (defaults when `settings.md` absent).
+- `initProject` writes `created: <today YYYY-MM-DD>` into a new config.md (existing configs untouched).
+- `writeSettings(root: string, s: { trackTokens: boolean }): Promise<void>` — creates the file or updates the `track_tokens` key, keeping other keys and the body.
+- Server: `PUT /api/projects/:pid/settings` body `{ trackTokens: boolean }` → 200 `{ settings }`, 400 on a bad body; `GET /api/projects` items gain `available: boolean` (`.specboard/config.md` exists).
+- [ ] Steps: failing tests (each field incl. bad values; settings defaults; writeSettings create + update keeps other keys; init writes created; PUT route; available true/false) → implement → core/server/web tests + tsc → commit `core: settings, log times, tokens and obsolete fields`.
+
+### Task 15: Token hook
+
+**Files:** `packages/server/src/hookTokens.ts`, `cli.ts` (`hook-tokens` command), `plugin/hooks/hooks.json`, tests `packages/server/test/hook-tokens.test.ts` with fixture transcripts; rebuild the bundle.
+
+**Interfaces:** Consumes Task 14 (`parseSettings`, log front matter), Task 3 paths. Produces `runTokenHook(input: { transcript_path: string; session_id: string; tool_input: { file_path?: string }; cwd?: string }, opts: { dataDir: string }): Promise<{ wrote: number } | null>` and CLI `specboard hook-tokens` (reads JSON from stdin; dataDir = `process.env.CLAUDE_PLUGIN_DATA` or `~/.specboard/plugin-data`; always exits 0; prints nothing). hooks.json:
+
+    { "hooks": { "PostToolUse": [ { "matcher": "Write|Edit|MultiEdit", "hooks": [ { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/specboard.mjs\" hook-tokens" } ] } ] } }
+
+Rules (design §13): match `/.specboard/specs/<dir>/logs/<n>-*.md` with either slash; the project root is the folder above `.specboard`; skip when `track_tokens` is false; total = sum over assistant lines of `usage.input_tokens + output_tokens + cache_read_input_tokens + cache_creation_input_tokens`, each `message.id` counted once; delta = total − checkpoint (0 for a new session); delta ≤ 0 → only save the checkpoint; else add delta to the log's `tokens:` (create the key if missing, keep everything else byte-identical) and save the checkpoint `{ total }` at `<dataDir>/tokens/<session_id>.json`.
+- [ ] Steps: failing tests (non-log path → null, no write; first write gets the session total; second write gets only the delta; duplicate message ids counted once; track_tokens false → no write; broken transcript → null, no throw; existing `tokens: 100` becomes 100 + delta) → implement → tests + tsc → `npm run build:plugin` → commit `plugin: token-counting hook`.
+
+### Task 16: Web — settings, logs modal, token totals
+
+**Files:** create `SettingsModal.tsx`, `LogsModal.tsx` (+ css, tests, stories), `packages/web/src/state/allLogs.ts`, `packages/web/src/lib/formatTokens.ts` if Task 6 didn't add it; modify `TopBar.tsx` (Logs button next to Overview; Settings in the logo menu), `OverviewModal.tsx` (tokens line, "View all logs" link), `exportOverview.ts`, `App.tsx`, `api/client.ts` (`api.setSettings`).
+
+**Interfaces:** Produces `allLogEntries(project: Project): LogItem[]` where `LogItem = { at: string; specId: string; specTitle: string; subtask: number; subtaskTitle: string; text: string; tokens: number | null; obsolete: SubtaskLog['obsolete']; archived: boolean }`, newest first (ties: spec ID, then subtask); `groupByDay(items: LogItem[], today: Date): { label: string; items: LogItem[] }[]` with labels "Today", "Yesterday", else `YYYY-MM-DD`; `filterLogs(items, q)` case-insensitive over text, spec ID, spec title, subtask title; `projectTokens(project: Project): number` (active + archived). The Overview shows "Tokens used: <formatTokens>" only when tracking is on and the total > 0; the export adds `- Tokens used: …` at the end of `## Counts` under the same condition. The Logs modal has an "Open overview" link; the Overview has "View all logs".
+- [ ] Steps: failing tests (grouping labels with a fixed `today`; search filter; modal opens from the header, an entry click opens the spec and closes the modal; the two links; the settings switch calls `api.setSettings` and shows the saved value; tokens line hidden when off or 0; export line) → implement → web tests + stories + tsc → commit `web: logs, settings and token totals`.
+
+### Task 17: Web — header changes
+
+**Files:** `TopBar.tsx` + css, `ProjectSwitcher.tsx`, `App.tsx`, tests (`TopBar.menu.test.tsx`, `Shell.test.tsx`, `SimpleMode.test.tsx` as needed), `lib/tour.ts` (steps follow the new places).
+
+**Interfaces:** Consumes `available` (Task 14) and `conn`. Produces: no "Live" text; `ProjectSwitcher` shows a connection dot (`data-testid="conn"`, colour by state, `title` = the old LIVE titles) next to the current name, and a dot per project in its list (green when `available`, grey when not, titles "Folder found" / "Folder missing"). Logo menu order: Documentation, Take the tour, Sync with code (+ waiting item), Settings, separator, then in Simple mode References / Overview / Logs, then a "Dark mode" switch (`role="menuitemcheckbox"`, `aria-checked`). Header right side, not Simple mode: References, Overview, Logs, manual notice. Simple mode: only the manual notice.
+- [ ] Steps: failing tests (no "Live" text; dot titles; Simple mode moves the three buttons into the menu and they still open their modals; dark mode toggles from the menu; list dots) → implement → web tests + stories + tsc → commit `web: header tidy (live dot, dark mode and simple-mode items in the logo menu)`.
