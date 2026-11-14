@@ -269,7 +269,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
   const boardShown = !!project && !openId;
   useEffect(() => {
     if (!boardShown || tourSeen()) return;
-    const t = setTimeout(startTour, 400);
+    const t = setTimeout(() => startTour(simple), 400);
     return () => clearTimeout(t);
   }, [boardShown]);
 
@@ -307,6 +307,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
         onSync={() => sync.openSync(null)}
         syncWaiting={!!sync.proposal && sync.proposal.scope === null}
         onSyncWaiting={sync.openWaiting}
+        simple={simple}
         brandOpen={menu === 'brand'}
         onToggleBrand={() => setMenu((m) => (m === 'brand' ? null : 'brand'))}
         conn={conn}
@@ -319,7 +320,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
         onTour={() => {
           if (openId) closeSpec();
           setModal(null);
-          setTimeout(startTour, 0);
+          setTimeout(() => startTour(simple), 0);
         }}
       />
       <ConnectionBanner

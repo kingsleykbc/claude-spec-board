@@ -179,12 +179,12 @@ describe('App', () => {
     await board();
     act(() => live.onConn!('disconnected'));
     expect(screen.getByText('Disconnected from the local server.')).toBeTruthy();
-    expect(screen.getByTestId('conn').textContent).toBe('Disconnected');
+    expect(screen.getByTestId('conn').getAttribute('aria-label')).toBe('Disconnected');
     expect(screen.getByRole('button', { name: /^T-104 / }).getAttribute('aria-disabled')).toBe('true');
     const before = live.calls;
     fireEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
     expect(live.calls).toBe(before + 1);
-    expect(screen.getByTestId('conn').textContent).toBe('Reconnecting…');
+    expect(screen.getByTestId('conn').getAttribute('aria-label')).toBe('Reconnecting…');
     act(() => live.onConn!('live'));
     expect(await screen.findByText('Reconnected')).toBeTruthy();
     expect(screen.queryByText('Disconnected from the local server.')).toBeNull();
@@ -193,7 +193,8 @@ describe('App', () => {
   it('the theme toggle is remembered', async () => {
     render(<App />);
     await board();
-    const btn = screen.getByRole('button', { name: /Switch to (dark|light) theme/ });
+    fireEvent.click(screen.getByRole('button', { name: /SPEC-BOARD/ }));
+    const btn = screen.getByRole('menuitemcheckbox', { name: 'Dark mode' });
     const was = document.documentElement.dataset.theme;
     fireEvent.click(btn);
     const now = was === 'dark' ? 'light' : 'dark';

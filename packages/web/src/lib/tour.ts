@@ -31,6 +31,8 @@ interface TourStep {
   title: string;
   text: string;
   side?: 'top' | 'bottom' | 'left' | 'right';
+  /** In Simple mode the step points here instead, with this text. */
+  simple?: { target: string; text: string };
 }
 
 export const TOUR_STEPS: TourStep[] = [
@@ -58,8 +60,9 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     target: 'project',
-    title: 'References and Overview',
-    text: '<b>References</b> lists the docs Claude reads for this project. <b>Overview</b> is a short write-up of where the whole project stands.',
+    title: 'References, Overview and Logs',
+    text: '<b>References</b> lists the docs Claude reads for this project. <b>Overview</b> is a short write-up of where the whole project stands. <b>Logs</b> shows what Claude has been doing.',
+    simple: { target: 'brand', text: 'References, Overview and Logs are in this menu in Simple mode.' },
     side: 'bottom',
   },
   {
@@ -80,25 +83,27 @@ export const TOUR_STEPS: TourStep[] = [
 const TARGETS: Record<string, string> = { card: '[data-tour="columns"] [role="button"][aria-label]' };
 
 /** The steps whose targets are on screen (a board with no cards has no card step). */
-export function tourSteps(root: ParentNode = document): DriveStep[] {
+export function tourSteps(root: ParentNode = document, simple = false): DriveStep[] {
   const steps: DriveStep[] = [];
   for (const st of TOUR_STEPS) {
-    const popover = { title: st.title, description: st.text, ...(st.side ? { side: st.side, align: 'start' as const } : {}) };
-    if (!st.target) {
+    const alt = simple ? st.simple : undefined;
+    const target = alt?.target ?? st.target;
+    const popover = { title: st.title, description: alt?.text ?? st.text, ...(st.side ? { side: st.side, align: 'start' as const } : {}) };
+    if (!target) {
       steps.push({ popover });
       continue;
     }
-    const el = root.querySelector<HTMLElement>(TARGETS[st.target] ?? `[data-tour="${st.target}"]`);
+    const el = root.querySelector<HTMLElement>(TARGETS[target] ?? `[data-tour="${target}"]`);
     if (el) steps.push({ element: el, popover });
   }
   return steps;
 }
 
 /** Start the tour. It counts as seen once shown, so a reload part-way through does not bring it back. */
-export function startTour(): void {
+export function startTour(simple = false): void {
   markTourSeen();
   const d = driver({
-    steps: tourSteps(),
+    steps: tourSteps(document, simple),
     showProgress: true,
     progressText: '{{current}} / {{total}}',
     nextBtnText: 'Next',

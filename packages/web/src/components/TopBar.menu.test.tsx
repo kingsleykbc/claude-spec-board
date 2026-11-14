@@ -64,11 +64,19 @@ describe('the top bar on the docs page', () => {
     render(<TopBar {...docs()} />);
     expect(screen.getByRole('button', { name: /SPEC-BOARD/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Box/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Switch to dark theme' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Switch to/ })).toBeNull();
     expect(screen.queryByRole('button', { name: 'References' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Overview' })).toBeNull();
     expect(screen.queryByTestId('conn')).toBeNull();
     expect(screen.getByRole('link', { name: 'Open the board' }).getAttribute('href')).toBe('/?project=p');
+  });
+
+  it('its logo menu has Dark mode after a separator, as on the board', () => {
+    const onToggleTheme = vi.fn();
+    render(<TopBar {...docs({ brandOpen: true, onToggleTheme })} />);
+    expect(screen.getAllByRole('separator')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Dark mode' }));
+    expect(onToggleTheme).toHaveBeenCalledOnce();
   });
 
   it('its logo menu goes to the board, and marks Documentation as this page in this tab', () => {
@@ -88,12 +96,12 @@ describe('the top bar on the docs page', () => {
 });
 
 describe('the manual mode notice', () => {
-  it('shows before the live dot only when runs are off', () => {
+  it('shows only when runs are off, after Overview', () => {
     const { rerender } = render(<TopBar {...props()} />);
     expect(screen.queryByRole('button', { name: 'Manual mode: background runs are off' })).toBeNull();
     rerender(<TopBar {...props({ manual: 'not-installed' })} />);
     const btn = screen.getByRole('button', { name: 'Manual mode: background runs are off' });
-    expect(btn.compareDocumentPosition(screen.getByTestId('conn')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Overview' }).compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
 
@@ -113,5 +121,45 @@ describe('logs and settings', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Settings' }));
     expect(onToggleBrand).toHaveBeenCalled();
     expect(onSettings).toHaveBeenCalledOnce();
+  });
+});
+
+describe('the header in Simple mode', () => {
+  const simple = (over: Partial<TopBarProps> = {}) =>
+    props({ simple: true, brandOpen: true, onToggleBrand: vi.fn(), onSettings: vi.fn(), onSync: vi.fn(), onTour: vi.fn(), onOpenLogs: vi.fn(), ...over });
+
+  it('not Simple mode: References, Overview and Logs are header buttons, and not in the menu', () => {
+    render(<TopBar {...simple({ simple: false })} />);
+    for (const n of ['References', 'Overview', 'Logs']) {
+      expect(screen.getByRole('button', { name: n })).toBeTruthy();
+      expect(screen.queryByRole('menuitem', { name: n })).toBeNull();
+    }
+  });
+
+  it('moves the three into the logo menu after a separator and before Dark mode, and they still open and close the menu', () => {
+    const p = simple();
+    render(<TopBar {...p} />);
+    for (const n of ['References', 'Overview', 'Logs']) expect(screen.queryByRole('button', { name: n })).toBeNull();
+    const names = screen.getAllByRole('menuitem').map((m) => m.textContent?.trim());
+    expect(names).toEqual(['Documentation', 'Take the tour', 'Sync with code', 'Settings', 'References', 'Overview', 'Logs']);
+    expect(screen.getAllByRole('separator')).toHaveLength(1);
+    const order = [...screen.getByRole('menu').children].map((c) => c.getAttribute('role'));
+    expect(order.slice(-5)).toEqual(['separator', 'menuitem', 'menuitem', 'menuitem', 'menuitemcheckbox']);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'References' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Overview' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Logs' }));
+    expect(p.onOpenRefs).toHaveBeenCalledOnce();
+    expect(p.onOpenOverview).toHaveBeenCalledOnce();
+    expect(p.onOpenLogs).toHaveBeenCalledOnce();
+    expect(p.onToggleBrand).toHaveBeenCalledTimes(3);
+  });
+
+  it('leaves only the manual notice on the right', () => {
+    render(<TopBar {...simple({ brandOpen: false, manual: 'not-installed' })} />);
+    expect(screen.getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual([
+      expect.stringContaining('SPEC-BOARD'),
+      expect.stringContaining('Box'),
+      'Manual mode: background runs are off',
+    ]);
   });
 });

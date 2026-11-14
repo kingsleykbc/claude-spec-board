@@ -12,12 +12,11 @@
 .sep { width: 1px; height: 20px; background: var(--line); }
 .flex { flex: 1; }
 .btn { height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: transparent; font-size: 13px; font-weight: 500; cursor: pointer; }
-.btn:hover, .theme:hover { background: var(--panel); }
+.btn:hover { background: var(--panel); }
 .linkBtn { display: inline-flex; align-items: center; gap: 7px; color: var(--fg); text-decoration: none; }
 .linkBtn:hover { color: var(--fg); }
-.live { display: flex; align-items: center; gap: 7px; padding: 0 8px 0 6px; font-size: 12px; font-weight: 500; }
-.dot { width: 7px; height: 7px; border-radius: 99px; }
-.theme { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 8px; background: transparent; cursor: pointer; font-size: 15px; line-height: 1; }
+.dot { width: 7px; height: 7px; border-radius: 99px; flex: none; }
+.conn { display: inline-flex; align-items: center; justify-content: center; width: 11px; height: 11px; }
 
 .sw { position: relative; }
 .swBtn { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; font-size: 14px; font-weight: 600; }
@@ -30,8 +29,14 @@
 .item:hover, .folder:hover { background: var(--panel); }
 .tick { display: inline-flex; color: var(--accent-ink); font-size: 13px; }
 .itemText { display: flex; flex-direction: column; min-width: 0; }
-.itemName { font-size: 13.5px; font-weight: 600; }
+.itemName { display: flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 600; }
 .itemPath { font-family: var(--mono); font-size: 11px; color: var(--fg3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .itemProg { font-size: 12px; color: var(--fg2); }
 .rule { height: 1px; background: var(--line); margin: 4px 6px; }
 .folder { padding: 8px 10px 8px 34px; border: 0; border-radius: 7px; background: transparent; text-align: left; font-size: 13px; color: var(--fg2); cursor: pointer; }
+
+.menuRule { height: 1px; margin: 4px 6px; background: var(--line); }
+.switch { margin-left: auto; position: relative; width: 28px; height: 16px; border-radius: 99px; background: var(--line2); flex: none; transition: background 0.15s; }
+.switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 99px; background: var(--card); transition: transform 0.15s; }
+.switchOn { background: var(--accent); }
+.switchOn::after { transform: translateX(12px); }

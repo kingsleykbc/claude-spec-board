@@ -32,6 +32,19 @@ describe('tour', () => {
     expect(TOUR_STEPS.find((x) => x.target === 'filters')!.text).toContain('Switch between Board and Table');
   });
 
+  it('in Simple mode the References step points at the logo menu, with its own text, and keeps 7 steps', () => {
+    document.body.innerHTML = '<button data-tour="brand"></button><div data-tour="filters"></div><main data-tour="columns"></main><button data-tour="add"></button>';
+    const steps = tourSteps(document, true);
+    const i = steps.findIndex((x) => x.popover?.title === 'References, Overview and Logs');
+    expect((steps[i]!.element as HTMLElement).dataset.tour).toBe('brand');
+    expect(steps[i]!.popover?.description).toBe('References, Overview and Logs are in this menu in Simple mode.');
+    expect(TOUR_STEPS).toHaveLength(7);
+  });
+
+  it('in normal mode that step keeps the References button and mentions Logs', () => {
+    expect(TOUR_STEPS.find((x) => x.target === 'project')!.text).toContain('Logs');
+  });
+
   it('leaves out steps whose part is not on screen (no cards yet)', () => {
     document.body.innerHTML = '<main data-tour="columns"></main><button data-tour="add"></button>';
     const titles = tourSteps().map((x) => x.popover?.title);

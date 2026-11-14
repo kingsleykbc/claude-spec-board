@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { SunIcon } from '../lib/icons';
 import { TOAST } from '../state/toasts';
 import { TopBar, type TopBarProps } from './TopBar';
 import { ConnectionBanner } from './ConnectionBanner';
@@ -18,8 +17,8 @@ function topBar(props: Partial<TopBarProps> = {}) {
     name: 'Recipe Box',
     progress: { done: 3, total: 9 },
     projects: [
-      { id: 'p1', name: 'Recipe Box', root: '~/code/recipe-box', progress: { done: 3, total: 9 } },
-      { id: 'p2', name: 'Empty', root: '~/code/empty', progress: { done: 0, total: 0 } },
+      { id: 'p1', name: 'Recipe Box', root: '~/code/recipe-box', progress: { done: 3, total: 9 }, available: true },
+      { id: 'p2', name: 'Empty', root: '~/code/empty', progress: { done: 0, total: 0 }, available: false },
     ],
     current: 'p1',
     open: false,
@@ -36,27 +35,33 @@ describe('TopBar', () => {
   it('shows the project, its progress and the live state', () => {
     topBar();
     expect(screen.getByRole('button', { name: /Recipe Box/ }).textContent).toBe('Recipe Box3/9 done');
-    expect(screen.getByTestId('conn').textContent).toBe('Live');
+    expect(screen.getByTestId('conn').textContent).toBe('');
+    expect(screen.queryByText('Live')).toBeNull();
     expect(screen.getByTestId('conn').title).toBe('Connected. Watching specs/ for changes.');
     expect(screen.queryByTestId('spinner')).toBeNull();
   });
 
-  it('Reconnecting… has a spinner; Disconnected a red dot', () => {
+  it('Reconnecting… has a spinner; Disconnected a red dot; live a green one', () => {
     topBar({ conn: 'reconnecting' });
-    expect(screen.getByTestId('conn').textContent).toBe('Reconnecting…');
+    expect(screen.getByTestId('conn').title).toBe('Not connected to the local server');
     expect(screen.getByTestId('spinner')).toBeTruthy();
     cleanup();
     topBar({ conn: 'disconnected' });
-    expect(screen.getByTestId('conn').textContent).toBe('Disconnected');
-    expect(screen.getByTestId('conn').style.color).toBe('var(--block-ink)');
+    expect(screen.getByTestId('conn').title).toBe('Not connected to the local server');
+    expect(screen.getByTestId('conn').firstElementChild!.getAttribute('style')).toContain('var(--block)');
+    cleanup();
+    topBar({ conn: 'live' });
+    expect(screen.getByTestId('conn').firstElementChild!.getAttribute('style')).toContain('var(--done)');
   });
 
-  it('theme toggle icon and label', () => {
-    const p = topBar({ theme: 'dark' });
-    const b = screen.getByRole('button', { name: 'Switch to light theme' });
-    expect(b.innerHTML).toBe(renderToStaticMarkup(<SunIcon aria-hidden />));
-    fireEvent.click(b);
+  it('dark mode is a switch in the logo menu, and clicking it keeps the menu open', () => {
+    const p = topBar({ theme: 'dark', brandOpen: true });
+    const sw = screen.getByRole('menuitemcheckbox', { name: 'Dark mode' });
+    expect(sw.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(sw);
     expect(p.onToggleTheme).toHaveBeenCalled();
+    expect(screen.getByRole('menu')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Switch to (light|dark) theme/ })).toBeNull();
   });
 
   it('the switcher lists projects with progress and a tick', () => {
@@ -70,6 +75,18 @@ describe('TopBar', () => {
     expect(base.switcher.onPick).toHaveBeenCalledWith('p2');
     fireEvent.click(screen.getByRole('menuitem', { name: 'Open another project folder…' }));
     expect(base.switcher.onOpenFolder).toHaveBeenCalled();
+  });
+
+  it('each project in the list has a dot: green and "Folder found", or grey and "Folder missing"', () => {
+    const base = topBar();
+    cleanup();
+    topBar({ switcher: { ...base.switcher, open: true } });
+    const a = screen.getByTestId('avail-p1');
+    const b = screen.getByTestId('avail-p2');
+    expect(a.title).toBe('Folder found');
+    expect(a.getAttribute('style')).toContain('var(--done)');
+    expect(b.title).toBe('Folder missing');
+    expect(b.getAttribute('style')).toContain('var(--fg3)');
   });
 
   it('progressText', () => {

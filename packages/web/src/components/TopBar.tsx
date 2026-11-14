@@ -1,18 +1,11 @@
 import type { Conn } from '../api/live';
 import { DOCS_PATH } from '../lib/docsPages';
-import { BoardIcon, CaretIcon, DocsIcon, MoonIcon, RefreshIcon, SettingsIcon, SunIcon, TourIcon, WarnIcon } from '../lib/icons';
+import { BoardIcon, CaretIcon, DocsIcon, LogIcon, MoonIcon, ReadIcon, RefreshIcon, SettingsIcon, TourIcon, WarnIcon } from '../lib/icons';
 import type { Theme } from '../lib/theme';
-import { Spinner } from './ConnectionBanner';
 import { ManualNotice } from './ManualNotice';
 import type { ManualReason } from '../state/runUi';
 import { ProjectSwitcher, type ProjectSwitcherProps } from './ProjectSwitcher';
 import s from './TopBar.module.css';
-
-export const LIVE = {
-  live: { label: 'Live', ink: 'var(--fg2)', title: 'Connected. Watching specs/ for changes.' },
-  reconnecting: { label: 'Reconnecting…', ink: 'var(--review-ink)', title: 'Not connected to the local server' },
-  disconnected: { label: 'Disconnected', ink: 'var(--block-ink)', title: 'Not connected to the local server' },
-} as const;
 
 /** The board for a project, or the first one. */
 export const boardHref = (project?: string | null): string => (project ? `/?project=${encodeURIComponent(project)}` : '/');
@@ -25,6 +18,8 @@ export interface TopBarProps {
   /** The menu under the logo. */
   brandOpen?: boolean;
   onToggleBrand?: () => void;
+  /** Simple mode: References, Overview and Logs move from the header into the logo menu. */
+  simple?: boolean;
   /** 'docs': the documentation page's bar. No References, Overview or Live (they belong to a board), and a link back to it. */
   page?: 'board' | 'docs';
   /** The board's connection; the docs page has none. */
@@ -52,6 +47,7 @@ export function TopBar({
   switcher,
   brandOpen = false,
   onToggleBrand,
+  simple = false,
   page = 'board',
   conn,
   theme,
@@ -83,7 +79,6 @@ export function TopBar({
     </button>
   );
   const project = switcher?.current ?? null;
-  const live = conn ? LIVE[conn] : null;
   return (
     <header className={s.bar}>
       <div className={s.sw}>
@@ -119,27 +114,39 @@ export function TopBar({
                 {onSettings && item('Settings', SettingsIcon, onSettings)}
               </>
             )}
+            <div role="separator" className={s.menuRule} />
+            {simple && !docs && (
+              <>
+                {onOpenRefs && item('References', DocsIcon, onOpenRefs)}
+                {onOpenOverview && item('Overview', ReadIcon, onOpenOverview)}
+                {onOpenLogs && item('Logs', LogIcon, onOpenLogs)}
+              </>
+            )}
+            <button type="button" role="menuitemcheckbox" aria-checked={theme === 'dark'} className={s.brandItem} onClick={onToggleTheme}>
+              <MoonIcon aria-hidden /> Dark mode
+              <span aria-hidden className={`${s.switch} ${theme === 'dark' ? s.switchOn : ''}`} />
+            </button>
           </div>
         )}
       </div>
       {switcher && (
         <>
           <span className={s.sep} />
-          <ProjectSwitcher {...switcher} />
+          <ProjectSwitcher conn={conn} {...switcher} />
         </>
       )}
       <div className={s.flex} />
-      {onOpenRefs && (
+      {!simple && onOpenRefs && (
         <button type="button" className={s.btn} onClick={onOpenRefs} data-tour="project">
           References
         </button>
       )}
-      {onOpenOverview && (
+      {!simple && onOpenOverview && (
         <button type="button" className={s.btn} onClick={onOpenOverview}>
           Overview
         </button>
       )}
-      {onOpenLogs && (
+      {!simple && onOpenLogs && (
         <button type="button" className={s.btn} onClick={onOpenLogs}>
           Logs
         </button>
@@ -150,21 +157,6 @@ export function TopBar({
         </a>
       )}
       {manual && <ManualNotice reason={manual} />}
-      {live && (
-        <div className={s.live} title={live.title} style={{ color: live.ink }} data-testid="conn">
-          {conn === 'reconnecting' && <Spinner />}
-          {conn !== 'reconnecting' && <span className={s.dot} style={{ background: conn === 'live' ? 'var(--done)' : 'var(--block)' }} />}
-          {live.label}
-        </div>
-      )}
-      <button
-        type="button"
-        className={s.theme}
-        aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-        onClick={onToggleTheme}
-      >
-        {theme === 'dark' ? <SunIcon aria-hidden /> : <MoonIcon aria-hidden />}
-      </button>
     </header>
   );
 }

@@ -35,7 +35,8 @@ export const Live: Story = {
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     expect(c.getByText('SPEC-BOARD')).toBeTruthy();
-    expect(c.getByTestId('conn').textContent).toBe('Live');
+    expect(c.getByTestId('conn').title).toBe('Connected. Watching specs/ for changes.');
+    expect(c.getByTestId('conn').textContent).toBe('');
     expect(c.queryByText('Reconnect')).toBeNull();
   },
 };
@@ -44,7 +45,7 @@ export const Reconnecting: Story = {
   args: { conn: 'reconnecting' },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
-    expect(c.getByTestId('conn').textContent).toBe('Reconnecting…');
+    expect(c.getByTestId('conn').title).toBe('Not connected to the local server');
     expect(c.getByRole('status').textContent).toContain('Edits will save once the connection is back.');
   },
 };
@@ -53,7 +54,7 @@ export const Disconnected: Story = {
   args: { conn: 'disconnected' },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
-    expect(c.getByTestId('conn').textContent).toBe('Disconnected');
+    expect(c.getByTestId('conn').getAttribute('aria-label')).toBe('Disconnected');
     expect(c.getByRole('button', { name: 'Reconnect' })).toBeTruthy();
   },
 };
@@ -68,7 +69,7 @@ export const SwitcherOpen: Story = {
   },
 };
 
-/** On the docs page: logo menu, project and theme, with a link back to the board in place of References, Overview and Live. */
+/** On the docs page: logo menu (with Dark mode), project, with a link back to the board in place of References, Overview and the live dot. */
 export const DocsPage: StoryObj = {
   render: () => (
     <div style={{ minHeight: 200 }}>
