@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ClaudeStatus, RunSnapshot } from '../api/client';
 import { recipeSpec } from '../fixtures/recipeBox';
-import { cardRun, endedToast, runButtonState } from './runUi';
+import { cardRun, endedToast, manualReason, runButtonState } from './runUi';
 
 const run = (over: Partial<RunSnapshot> = {}): RunSnapshot => ({
   id: 'r1',
@@ -89,5 +89,24 @@ describe('endedToast', () => {
   it('a run that needs an answer is unchanged', () => {
     const end = { status: 'needs' as const, title: 'Claude has a question', text: 'There is 1 unanswered question on this spec.' };
     expect(endedToast(run({ status: 'needs', end }))).toEqual(['warn', 'Claude needs your answer on T-104', end.text]);
+  });
+});
+
+describe('manualReason', () => {
+  const cases: [string, ClaudeStatus | null, boolean | null, string | null][] = [
+    ['status not loaded yet', null, null, null],
+    ['status not loaded, approved known', null, true, null],
+    ['all good', OK, true, null],
+    ['not installed', NONE, true, 'not-installed'],
+    ['not installed beats not approved', NONE, false, 'not-installed'],
+    ['blocked beats logged out', { installed: true, loggedIn: false, version: null, blockedBy: '/p' }, true, 'blocked'],
+    ['blocked is how a not-installed claude reads when it sat in a project', { installed: false, loggedIn: false, version: null, blockedBy: '/p' }, true, 'blocked'],
+    ['maybeBlockedBy alone is not blocked', { installed: true, loggedIn: true, version: '2.0.0', maybeBlockedBy: '/p' }, true, null],
+    ['not logged in', { installed: true, loggedIn: false, version: '2.0.0' }, true, 'not-logged-in'],
+    ['not approved', OK, false, 'not-approved'],
+    ['approved unknown', OK, null, null],
+  ];
+  it.each(cases)('%s', (_n, claude, approved, want) => {
+    expect(manualReason(claude, approved)).toBe(want);
   });
 });

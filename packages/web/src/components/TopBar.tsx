@@ -3,6 +3,8 @@ import { DOCS_PATH } from '../lib/docsPages';
 import { BoardIcon, CaretIcon, DocsIcon, MoonIcon, SunIcon, TourIcon } from '../lib/icons';
 import type { Theme } from '../lib/theme';
 import { Spinner } from './ConnectionBanner';
+import { ManualNotice } from './ManualNotice';
+import type { ManualReason } from '../state/runUi';
 import { ProjectSwitcher, type ProjectSwitcherProps } from './ProjectSwitcher';
 import s from './TopBar.module.css';
 
@@ -33,10 +35,12 @@ export interface TopBarProps {
   onOpenOverview?: () => void;
   /** Replays the first-time tour (board only). */
   onTour?: () => void;
+  /** Why runs are off here; the board's manual-mode notice shows when set. */
+  manual?: ManualReason | null;
 }
 
 /** Sticky top bar (prototype lines 32-52), on the board and on the docs page. */
-export function TopBar({ switcher, brandOpen = false, onToggleBrand, page = 'board', conn, theme, onToggleTheme, onOpenRefs, onOpenOverview, onTour }: TopBarProps) {
+export function TopBar({ switcher, brandOpen = false, onToggleBrand, page = 'board', conn, theme, onToggleTheme, onOpenRefs, onOpenOverview, onTour, manual = null }: TopBarProps) {
   const docs = page === 'docs';
   const project = switcher?.current ?? null;
   const live = conn ? LIVE[conn] : null;
@@ -109,6 +113,7 @@ export function TopBar({ switcher, brandOpen = false, onToggleBrand, page = 'boa
           <BoardIcon aria-hidden /> Open the board
         </a>
       )}
+      {manual && <ManualNotice reason={manual} />}
       {live && (
         <div className={s.live} title={live.title} style={{ color: live.ink }} data-testid="conn">
           {conn === 'reconnecting' && <Spinner />}

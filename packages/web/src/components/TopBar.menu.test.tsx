@@ -67,3 +67,13 @@ describe('the top bar on the docs page', () => {
     expect(screen.getByRole('link', { name: 'Open the board' }).getAttribute('href')).toBe('/');
   });
 });
+
+describe('the manual mode notice', () => {
+  it('shows before the live dot only when runs are off', () => {
+    const { rerender } = render(<TopBar {...props()} />);
+    expect(screen.queryByRole('button', { name: 'Manual mode: background runs are off' })).toBeNull();
+    rerender(<TopBar {...props({ manual: 'not-installed' })} />);
+    const btn = screen.getByRole('button', { name: 'Manual mode: background runs are off' });
+    expect(btn.compareDocumentPosition(screen.getByTestId('conn')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});

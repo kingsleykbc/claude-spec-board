@@ -28,6 +28,21 @@ export function runButtonState(run: RunSnapshot | null, specId: string, claude: 
   return { runState: 'fallback', runningId: null, ...(note ? { runBlockedNote: note } : {}) };
 }
 
+export type ManualReason = 'not-installed' | 'not-logged-in' | 'blocked' | 'not-approved';
+
+/**
+ * Why the board can't run Claude here; null when it can, or when the status isn't known yet (nothing flashes while loading).
+ * A `claude` found only inside a project reads as not installed, so `blockedBy` is checked first. `maybeBlockedBy` alone isn't blocked.
+ */
+export function manualReason(claude: ClaudeStatus | null, approved: boolean | null): ManualReason | null {
+  if (!claude) return null;
+  if (claude.blockedBy) return 'blocked';
+  if (!claude.installed) return 'not-installed';
+  if (!claude.loggedIn) return 'not-logged-in';
+  if (approved === false) return 'not-approved';
+  return null;
+}
+
 /** What a run means for one spec: `running` and `writing` for its card, `runActive` for its subtask list. */
 export function cardRun(run: RunSnapshot | null, spec: Spec): { running: string | null; writing: boolean; runActive: boolean } {
   if (!isRunning(run) || run.specId !== spec.id) return { running: null, writing: false, runActive: false };

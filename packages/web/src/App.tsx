@@ -14,7 +14,7 @@ import { FileLinks } from './state/fileLinks';
 import { initialSimple, saveSimple, SimpleMode } from './state/simpleMode';
 import { useToasts, type PushToast } from './state/toasts';
 import { useProject } from './state/useProject';
-import { cardRun, isRefreshing, runButtonState, useRunActions, useRunToasts } from './state/runUi';
+import { cardRun, isRefreshing, manualReason, runButtonState, useRunActions, useRunToasts } from './state/runUi';
 import { useRun } from './state/useRun';
 import { Board } from './components/Board';
 import { AppSkeleton, BoardSkeleton } from './components/Skeleton';
@@ -277,6 +277,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
             toast('info', 'Run spec-board in a project folder', 'It will appear in this list.');
           },
         }}
+        manual={manualReason(run.claude, run.approved)}
         brandOpen={menu === 'brand'}
         onToggleBrand={() => setMenu((m) => (m === 'brand' ? null : 'brand'))}
         conn={conn}
