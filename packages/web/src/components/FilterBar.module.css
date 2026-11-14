@@ -44,5 +44,6 @@ button.opt { border: 0; background: transparent; color: var(--fg); text-align: l
 @media (max-width: 720px) {
   .bar { flex-wrap: nowrap; overflow-x: auto; padding: 12px 12px 10px; scrollbar-width: none; }
   .bar > * { flex: none; }
-  .pop, .popRight { position: fixed; top: auto; left: auto; right: auto; margin-top: 6px; max-width: calc(100vw - 24px); }
+  .pop { position: fixed; top: auto; left: auto; right: auto; margin-top: 6px; max-width: calc(100vw - 24px); }
+  .popRight { left: auto; right: 12px; }
 }

@@ -15,5 +15,5 @@
 /* Small screens: modals fill the screen. The box's width and height are inline styles, hence !important. */
 @media (max-width: 640px) {
   .scrim { padding: 0; }
-  .box { inset: 0; width: 100% !important; height: 100% !important; max-width: none; border-radius: 0; }
+  .box { width: 100% !important; height: 100% !important; max-width: none; border-radius: 0; }
 }

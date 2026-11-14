@@ -45,5 +45,4 @@
 @media (max-width: 720px) {
   .bar { padding: 0 12px; gap: 6px; }
   .swBtn { min-width: 0; }
-  .sw:has(.swBtn) { min-width: 0; }
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Conn } from '../api/live';
 import { DOCS_PATH } from '../lib/docsPages';
 import { BoardIcon, CaretIcon, DocsIcon, InfoIcon, LogIcon, MoonIcon, ReadIcon, RefreshIcon, SettingsIcon, TourIcon, WarnIcon } from '../lib/icons';
@@ -69,6 +69,9 @@ export function TopBar({
   /** References, Overview and Logs live in the logo menu (Simple mode, or a small screen). */
   const inMenu = narrow || simple;
   const [manualOpen, setManualOpen] = useState(false);
+  useEffect(() => {
+    if (!narrow) setManualOpen(false);
+  }, [narrow]);
   /** A menu item that closes the menu, then does its thing. */
   const item = (label: string, Icon: typeof TourIcon, act: () => void, dot = false) => (
     <button
