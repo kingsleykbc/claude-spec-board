@@ -11,3 +11,4 @@ export * from './write.js';
 export * from './config.js';
 export * from './you.js';
 export * from './milestones.js';
+export * from './tree.js';

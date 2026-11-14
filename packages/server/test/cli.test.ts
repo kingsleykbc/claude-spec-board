@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import net from 'node:net';
 import os from 'node:os';
@@ -178,4 +179,29 @@ describe('shutdown', () => {
     await vi.waitFor(() => expect(exit).toHaveBeenCalled());
     expect(close).toHaveBeenCalledTimes(1);
   });
+});
+
+describe('tree command', () => {
+  const cli = path.resolve(import.meta.dirname, '../src/cli.ts');
+  const run = (...args: string[]) =>
+    spawnSync(process.execPath, ['--import', 'tsx', cli, 'tree', ...args], { encoding: 'utf8', cwd: path.resolve(import.meta.dirname, '..') });
+
+  it('prints the tree, one spec, and exits 1 on unknown input', async () => {
+    const dir = await copySample('tree-sample');
+    const all = run(dir);
+    expect(all.stderr).toBe('');
+    expect(all.status).toBe(0);
+    expect(all.stdout).toMatch(/^Recipe Box · \d+\/\d+ done\n/);
+    expect(all.stdout).toContain('T-104 Meal planner calendar · doing');
+    const one = run('--spec', 'T-104', dir);
+    expect(one.status).toBe(0);
+    expect(one.stdout.startsWith('T-104 Meal planner calendar · doing\n')).toBe(true);
+    expect(one.stdout).not.toContain('T-101');
+    const bad = run('--spec', 'T-999', dir);
+    expect(bad.status).toBe(1);
+    expect(bad.stderr.trim()).toBe('Unknown spec: T-999');
+    const none = run(path.join(tmp, 'empty'));
+    expect(none.status).toBe(1);
+    expect(none.stderr.trim()).toMatch(/No \.specboard folder/);
+  }, 30000);
 });

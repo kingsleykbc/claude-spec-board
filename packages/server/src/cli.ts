@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { loadProject, renderTree } from '@specboard/core';
 import { allowCommand, initCommand, terminalIO } from './setup.js';
 import { start } from './start.js';
 
@@ -46,6 +47,24 @@ export function parseAllowArgs(argv: string[]): { rule: string; path: string } {
   return { rule: rest[0]!, path: rest[1] ? path.resolve(base, rest[1]) : base };
 }
 
+export function parseTreeArgs(argv: string[]): { path: string; spec?: string; milestone?: string } {
+  const base = process.env.INIT_CWD || process.cwd();
+  let dir = base;
+  let spec: string | undefined;
+  let milestone: string | undefined;
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i]!;
+    if (a === '--spec' || a === '--milestone') {
+      const v = argv[++i];
+      if (v === undefined) throw new Error(`Missing value for ${a}`);
+      if (a === '--spec') spec = v;
+      else milestone = v;
+    } else if (a.startsWith('--')) throw new Error(`Unknown option: ${a}`);
+    else dir = path.resolve(base, a);
+  }
+  return { path: dir, spec, milestone };
+}
+
 const shuttingDown = new WeakSet<object>();
 
 /** Close once, then exit 0; a failure or a close that hangs past 5 s exits 1. A repeat call is ignored. */
@@ -80,6 +99,13 @@ async function main(): Promise<void> {
   if (cmd === 'allow') {
     const a = parseAllowArgs(rest);
     await allowCommand({ rule: a.rule, root: a.path }, terminalIO());
+    return;
+  }
+  if (cmd === 'tree') {
+    const a = parseTreeArgs(rest);
+    const project = await loadProject(a.path);
+    if (project.config === null && project.specs.length === 0 && project.problems[0] === 'No .specboard folder') throw new Error(`No .specboard folder in ${a.path}`);
+    console.log(renderTree(project, { spec: a.spec, milestone: a.milestone }));
     return;
   }
   const { url, close } = await start(parseArgs(process.argv.slice(2)));
