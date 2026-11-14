@@ -208,3 +208,53 @@ A short "Spec or subtask?" part in the `specboard` rules, used by every skill th
 - Exact breakpoints and how the table looks, within the rules above.
 - The manual-mode icon and panel styling.
 - Wording of skills and dialogs.
+
+## Round 2 additions (Kingsley, 2026-11-14, during the build)
+
+### 11. Sync one card
+- Every card detail gets a **Sync** button (next to Run). It does the same as Sync with code, for that spec only: `/specboard:sync-specs <ID> [--board] [--dry-run | --apply]`.
+- Same proposal file and dialog. The proposal's front matter gains `scope: <ID>` (absent = whole project). The apply run checks the scope as well as `head`.
+- Run kinds `sync-plan` and `sync-apply` take an optional spec ID; with one, the run is shown in that card's run panel like a normal run.
+- Manual mode: the dialog gives `/specboard:sync-specs <ID>` to copy.
+
+### 12. Settings (`.specboard/settings.md`)
+- A new optional file, front matter only: `track_tokens: true` (default true when the file or key is missing). Room for more settings later.
+- Core parses it (`ProjectSettings { trackTokens: boolean; problems }`) and the project data carries it. The board writes it through a small API (`PUT /api/projects/:pid/settings` with `{ trackTokens }`), creating the file when missing.
+- The logo menu gets **Settings**, opening a small modal with the one switch: "Track tokens: record the tokens Claude uses for each subtask in its log."
+
+### 13. Tokens per subtask (replaces the server log entry in section 4)
+- A **plugin hook** does the counting, so it works in chats and background runs alike (background runs load the plugin through `--plugin-dir`). `plugin/hooks/hooks.json` registers a `PostToolUse` hook on `Write|Edit|MultiEdit` that runs `node "${CLAUDE_PLUGIN_ROOT}/bin/specboard.mjs" hook-tokens`.
+- The hook reads the event from stdin. If the edited file is `…/.specboard/specs/<spec>/logs/<n>-*.md` and the project's `track_tokens` is on, it reads the session transcript (`transcript_path`), sums `message.usage` (input + output + cache read + cache write) over assistant entries, counting each `message.id` once, and subtracts the total it recorded at the previous log write in this session (kept in `${CLAUDE_PLUGIN_DATA}/tokens/<session_id>.json`; the first log write of a session counts from the session start). It adds the difference to the log's front matter `tokens:` (integer, cumulative across sittings) and saves the new checkpoint. Any failure exits 0 silently, so a hook problem never blocks Claude.
+- The count is an honest approximation: tokens spent between one log write and the next go to the later subtask. The docs say so.
+- Core parses `tokens` on logs (`SubtaskLog.tokens: number | null`). The detail view shows it next to the commit ("48.2k tokens").
+- Projects set up with plain `specboard init` (no plugin) get no token counts; the docs say so.
+- The server still shows a background run's total in the run panel's last line (section 4), but no longer appends a log entry.
+
+### 14. Token totals
+- Table view: a **Tokens** column = sum of the spec's log `tokens` (blank when none). Hidden when tracking is off.
+- Overview: under the counts, "Tokens used: 1.2M" for the whole project (active + archived), hidden when tracking is off or the total is 0. The export adds `- Tokens used: …` under Counts when shown.
+
+### 15. Dates and times (check and fill gaps)
+- Today: specs have `created`/`updated` dates; every log entry has a `### YYYY-MM-DD HH:mm` heading. Projects have no date.
+- Add: `created:` (date) in config.md, written by `init`/setup; logs gain `done_at:` (local date-time `YYYY-MM-DD HH:mm`) written when Claude ticks a subtask. The rules require a time in every log entry heading (already) and say `updated` changes on every spec edit.
+- The board shows `done_at` in the subtask log header and the spec's created/updated dates in the detail view footer if not already shown.
+
+### 16. Logs after a sync
+- Sync never deletes or rewrites log entries and never changes `created`.
+- When sync unticks a subtask, archives a spec, or finds a log describes work that no longer exists, it adds `obsolete: "<YYYY-MM-DD>: <short reason>"` to that log's front matter and a dated entry "Marked obsolete by sync: <reason>".
+- The board shows a warning icon on obsolete logs; hovering or tapping shows "Obsolete since <date>: <reason>". Obsolete logs' tokens still count (they were spent).
+
+### 17. All logs
+- A **Logs** button in the header next to Overview opens a modal with every log entry of the project (active and archived specs), newest first, grouped by day ("Today", "Yesterday", then dates).
+- Each entry: time, spec ID and title, subtask number and title, the entry text, tokens if any, the obsolete icon. Clicking the spec opens its detail.
+- A search box filters by text, spec ID, spec title or subtask title (case-insensitive), live.
+- The Overview gets a "View all logs" link that opens it; the Logs modal has an "Open overview" link back.
+
+### 18. Header changes
+- **Simple mode:** References, Overview and Logs move into the logo dropdown (below its title), instead of the header.
+- The "Live" text goes. The connection shows as a dot next to the project name in the switcher (green connected, amber reconnecting, red disconnected, with the old text as its tooltip). In the switcher's list, each project gets a green dot when its folder is reachable and grey when not (the projects API gains `available: boolean`). *(Claude's call on what "live" means for other projects.)*
+- The dark-mode toggle moves into the logo dropdown, as "Dark mode" with a switch.
+- On small screens these merge with section 5's "More" menu: everything in the dropdown.
+
+### Obsidian (question, no change)
+Not built. The specs are already plain Markdown with YAML front matter, so `.specboard/` can be opened as an Obsidian vault today for its search and graph. A deeper integration (wikilinks for dependencies, an Obsidian plugin) would add a second way to edit the same files for little gain. Noted in future features as "Obsidian vault tips" only.
