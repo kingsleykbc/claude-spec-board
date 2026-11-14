@@ -55,7 +55,7 @@ describe('parseEvent', () => {
       { k: 'edit', text: 'Editing', code: 'out.txt' },
       { k: 'cmd', text: 'Running', code: 'git status' },
     ]);
-    expect(result).toEqual({ isError: false, resultText: 'done', terminalReason: 'completed', apiStatus: null, denials: [], sessionId: '<SESSION>' });
+    expect(result).toEqual({ isError: false, resultText: 'done', terminalReason: 'completed', apiStatus: null, denials: [], sessionId: '<SESSION>', usage: { input: 6, output: 707, cacheRead: 107841, cacheWrite: 3873 }, costUsd: 0.00220711 });
   });
 
   it('shows a path outside the root as is, and handles both slash styles', () => {
@@ -83,6 +83,15 @@ describe('parseEvent', () => {
     const { lines } = run('powershell-denied');
     expect(lines[0]).toMatchObject({ k: 'cmd', text: 'Running' });
     expect(lines[0]!.code).toMatch(/^git commit --allow-empty/);
+  });
+
+  it('reads token counts from the result, and null when it has none', () => {
+    const r = (o: object) => parseEvent(JSON.stringify({ type: 'result', is_error: false, result: 'x', ...o }))!.result!;
+    expect(r({ usage: { input_tokens: 5, output_tokens: 6, cache_read_input_tokens: 7, cache_creation_input_tokens: 8 }, total_cost_usd: 1.5 }))
+      .toMatchObject({ usage: { input: 5, output: 6, cacheRead: 7, cacheWrite: 8 }, costUsd: 1.5 });
+    expect(r({ usage: { input_tokens: 5 } }).usage).toEqual({ input: 5, output: 0, cacheRead: 0, cacheWrite: 0 });
+    expect(r({})).toMatchObject({ usage: null, costUsd: null });
+    expect(r({ usage: 'lots' }).usage).toBeNull();
   });
 
   it('maps an errored tool_result to an err line, and a successful one to nothing', () => {

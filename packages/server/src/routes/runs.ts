@@ -8,7 +8,7 @@ import { HttpError, onError, readJson } from '../http.js';
 import { RegistryUnreadableError, type ProjectEntry, type Registry } from '../registry.js';
 import type { ApprovedPermissions } from '../setup.js';
 
-const KINDS: readonly RunKind[] = ['run', 'write-up', 'fix-file', 'refresh-overview'];
+const KINDS: readonly RunKind[] = ['run', 'write-up', 'fix-file', 'refresh-overview', 'sync-plan', 'sync-apply'];
 const SPEC_ID = /^T-\d{3,}$/;
 
 export interface RunRouteDeps {
@@ -41,9 +41,10 @@ export function runRoutes(deps: RunRouteDeps): Hono {
     const kind = KINDS.find((k) => k === b.kind);
     if (kind === undefined) throw new HttpError(400, 'Missing or invalid "kind"');
     let specId: string | null = null;
+    const optionalId = kind === 'sync-plan' || kind === 'sync-apply';
     if (kind === 'refresh-overview') {
       if (b.specId !== undefined) throw new HttpError(400, 'refresh-overview takes no "specId"');
-    } else {
+    } else if (!(optionalId && (b.specId === undefined || b.specId === null))) {
       if (typeof b.specId !== 'string' || !SPEC_ID.test(b.specId)) throw new HttpError(400, 'Missing or invalid "specId"');
       specId = b.specId;
       if (!(await loadProject(entry.root)).specs.some((s) => s.id === specId)) throw new HttpError(404, `Spec ${specId} not found`);

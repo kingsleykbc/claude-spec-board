@@ -7,6 +7,7 @@ import { kitPluginDir } from '../kit.js';
 import type { ProjectEntry } from '../registry.js';
 import { InvalidApprovalError, type ApprovedPermissions, type Permissions } from '../setup.js';
 import { classifyEnd, type EndInfo, type RunKind, type RunStatus } from './classify.js';
+import { archiveIds, archiveProposed, deleteProposal, parseProposal, readProposalText } from '../syncProposal.js';
 import { LineSplitter, parseEvent, type ClaudeResult, type ParsedLine, type RunLine } from './events.js';
 import { killTree, resolveFromEnv } from './resolve.js';
 import { childEnv, claudeStatus, type ClaudeStatus, type ClaudeStatusCheck, type ProjectRoots } from './status.js';
@@ -66,11 +67,23 @@ const WRITE_TRIES = 3;
 
 const SPEC_ID = /^T-\d{3,}$/;
 
+/** A token count for people: 950, 48.2k, 1.3M. */
+export function formatTokens(n: number): string {
+  if (n < 1000) return String(Math.round(n));
+  const k = Math.round(n / 100) / 10;
+  if (k < 1000) return `${k.toFixed(1)}k`;
+  return `${(Math.round(n / 100000) / 10).toFixed(1)}M`;
+}
+
 /** The prompt for a run, built only from fixed strings and a validated spec ID. */
 export function runPrompt(kind: RunKind, specId: string | null): string {
   if (kind === 'refresh-overview') {
     if (specId !== null) throw new Error('A spec ID does not belong on this kind of run.');
     return '/specboard:refresh-overview';
+  }
+  if (kind === 'sync-plan' || kind === 'sync-apply') {
+    if (specId !== null && !SPEC_ID.test(specId)) throw new Error(`Invalid spec ID: ${specId}`);
+    return `/specboard:sync-specs ${specId === null ? '' : `${specId} `}--board ${kind === 'sync-plan' ? '--dry-run' : '--apply'}`;
   }
   if (specId === null || !SPEC_ID.test(specId)) throw new Error(`Invalid spec ID: ${String(specId)}`);
   switch (kind) {
@@ -161,9 +174,17 @@ const FINISHED_TEXT: Record<Exclude<RunKind, 'run'>, string> = {
   'write-up': 'Spec written up',
   'fix-file': 'File fixed',
   'refresh-overview': 'Overview refreshed',
+  'sync-plan': 'Sync proposal ready',
+  'sync-apply': 'Board synced with the code',
 };
 
+/** The last line of a run, with the token total on it when it is known. */
 function finalLine(kind: RunKind, end: EndInfo, before: Spec | null, after: Spec | null): ParsedLine {
+  const line = endLine(kind, end, before, after);
+  return end.tokens ? { ...line, text: `${line.text} · ${formatTokens(end.tokens.total)} tokens` } : line;
+}
+
+function endLine(kind: RunKind, end: EndInfo, before: Spec | null, after: Spec | null): ParsedLine {
   switch (end.status) {
     case 'finished': {
       if (kind !== 'run') return { k: 'done', text: FINISHED_TEXT[kind] };
@@ -186,6 +207,12 @@ function finalLine(kind: RunKind, end: EndInfo, before: Spec | null, after: Spec
       return { k: 'err', text: end.title ?? 'Claude Code exited unexpectedly' };
   }
 }
+
+const START_TEXT = {
+  'refresh-overview': 'Started refreshing the overview',
+  'sync-plan': 'Started checking the board against the code',
+  'sync-apply': 'Started syncing the board with the code',
+} as Record<RunKind, string>;
 
 export class RunManager {
   private readonly approved: ApprovedPermissions;
@@ -253,7 +280,7 @@ export class RunManager {
     run.deny = approved.deny;
     run.ticked = new Set(run.before?.subtasks.filter((t) => t.done).map((t) => t.n));
     this.last.set(entry.id, run);
-    this.addLine(run, { k: 'start', text: specId === null ? 'Started refreshing the overview' : `Started on ${specId} · ${run.before!.title}` }, false);
+    this.addLine(run, { k: 'start', text: specId !== null ? `Started on ${specId} · ${run.before!.title}` : START_TEXT[kind as 'refresh-overview'] }, false);
     run.announced = true;
     this.send(run, { type: 'run-started', run: copy(run.snap) });
 
@@ -416,7 +443,13 @@ export class RunManager {
           after,
           denyRules: run.deny,
         });
+      if (snap.kind === 'sync-plan' && end.status === 'finished' && (await readProposalText(entry.root)) === null) {
+        end = { status: 'error', title: 'Claude stopped before finishing', text: 'No sync proposal was written.' };
+      }
+      const u = run.result?.usage;
+      if (u) end.tokens = { total: u.input + u.output + u.cacheRead + u.cacheWrite, input: u.input, output: u.output, cacheRead: u.cacheRead, cacheWrite: u.cacheWrite };
       if (after && after.currentSubtask !== null) await clearCurrentSubtask(after.path, after.currentSubtask);
+      if (snap.kind === 'sync-apply' && ran) await this.settleProposal(run, end);
       this.addLine(run, finalLine(snap.kind, end, run.before, after));
     } catch (e) {
       end = { status: 'error', title: 'Claude Code exited unexpectedly', text: (e as Error).message };
@@ -429,6 +462,25 @@ export class RunManager {
     if (this.active.get(entry.id) === run) this.active.delete(entry.id);
     this.send(run, { type: 'run-ended', run: copy(snap) });
     run.markFinished();
+  }
+
+  /** After a sync apply: reads the proposal, deletes it, and on a finished run archives the specs it names. Never throws. */
+  private async settleProposal(run: Run, end: EndInfo): Promise<void> {
+    const root = run.entry.root;
+    let ids: string[] = [];
+    try {
+      const raw = await readProposalText(root);
+      if (raw !== null) ids = archiveIds(parseProposal(raw).bodyMd);
+    } catch {
+      // an unreadable proposal names nothing to archive
+    }
+    try {
+      await deleteProposal(root);
+    } catch {
+      // it stays; the next plan overwrites it
+    }
+    if (end.status !== 'finished') return;
+    for (const failure of await archiveProposed(root, ids)) this.addLine(run, { k: 'warn', text: failure });
   }
 
   private send(run: Run, e: RunEvent): void {

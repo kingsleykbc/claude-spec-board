@@ -13,7 +13,7 @@ const spec = (o: Partial<SpecDoc> & { open?: string[]; done?: boolean[] } = {}):
     ...rest,
   };
 };
-const res = (o: Partial<ClaudeResult> = {}): ClaudeResult => ({ isError: false, resultText: 'done', terminalReason: 'completed', apiStatus: null, denials: [], sessionId: 's', ...o });
+const res = (o: Partial<ClaudeResult> = {}): ClaudeResult => ({ isError: false, resultText: 'done', terminalReason: 'completed', apiStatus: null, denials: [], sessionId: 's', usage: null, costUsd: null, ...o });
 const bash = (command: string): Denial => ({ tool: 'Bash', input: { command } });
 const end = (o: Partial<ClassifyInput>) =>
   classifyEnd({ stopped: false, exitCode: 0, result: res(), stderrTail: '', kind: 'run', before: spec(), after: spec({ status: 'review' }), ...o });

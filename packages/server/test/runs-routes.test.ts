@@ -270,3 +270,22 @@ describe('malformed front matter on edit', () => {
     expect(await res.json()).toEqual({ error: 'No front matter' });
   });
 });
+
+describe('POST /runs for sync', () => {
+  it('starts a sync with or without a spec', async () => {
+    const runs = fakeRuns({ start: vi.fn(async () => snap({ kind: 'sync-plan', specId: null })) });
+    const app = appWith(runs);
+    expect((await post(app, `/api/projects/${entry.id}/runs`, { kind: 'sync-plan' })).status).toBe(202);
+    expect(runs.start).toHaveBeenLastCalledWith(entry, 'sync-plan', null);
+    expect((await post(app, `/api/projects/${entry.id}/runs`, { kind: 'sync-apply', specId: 'T-101' })).status).toBe(202);
+    expect(runs.start).toHaveBeenLastCalledWith(entry, 'sync-apply', 'T-101');
+  });
+
+  it('refuses a bad or unknown spec ID', async () => {
+    const runs = fakeRuns();
+    const app = appWith(runs);
+    for (const specId of ['T-1', 'x', 7]) expect((await post(app, `/api/projects/${entry.id}/runs`, { kind: 'sync-plan', specId })).status).toBe(400);
+    expect((await post(app, `/api/projects/${entry.id}/runs`, { kind: 'sync-plan', specId: 'T-999' })).status).toBe(404);
+    expect(runs.start).not.toHaveBeenCalled();
+  });
+});

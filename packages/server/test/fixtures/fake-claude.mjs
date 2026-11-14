@@ -58,6 +58,18 @@ const scenarios = {
     writeLog(1, 'first', 'aaa1111');
     result();
   },
+  // 10000 + 8000 + 30000 + 210 = 48210 tokens
+  tokens: () => result({ total_cost_usd: 0.5, usage: { input_tokens: 10000, output_tokens: 8000, cache_read_input_tokens: 30000, cache_creation_input_tokens: 210 } }),
+  'sync-plan'() {
+    const text = ["---", "created: \"2026-11-14 10:00\"", "head: \"abc1234\"", "changes: 1", "---", "", "## Summary", "One.", "", "## Operations", "1. Archive T-001 (done)", ""].join('\n');
+    fs.writeFileSync(path.join(".specboard", "sync-proposal.md"), text);
+    result();
+  },
+  // Marks the first spec done, so a proposal can archive it.
+  'mark-done'() {
+    editSpec((t) => t.replace(/^status: .*$/m, 'status: done'));
+    result();
+  },
   'denied-push': () => denied('git push origin HEAD'),
   'denied-npm': () => denied('npm install date-fns'),
   crash() {

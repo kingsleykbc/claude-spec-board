@@ -18,6 +18,9 @@ export interface ClaudeResult {
   apiStatus: number | null;
   denials: Denial[];
   sessionId: string | null;
+  /** Token counts of the whole run; null when the result carries none. */
+  usage: { input: number; output: number; cacheRead: number; cacheWrite: number } | null;
+  costUsd: number | null;
 }
 export type ParsedLine = Omit<RunLine, 'seq' | 'time'>;
 
@@ -97,6 +100,15 @@ function resultContentText(content: unknown): string {
   return '';
 }
 
+const count = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : 0);
+
+function parseUsage(v: unknown): ClaudeResult['usage'] {
+  if (!isObj(v)) return null;
+  const keys = ['input_tokens', 'output_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens'];
+  if (!keys.some((k) => typeof v[k] === 'number')) return null;
+  return { input: count(v.input_tokens), output: count(v.output_tokens), cacheRead: count(v.cache_read_input_tokens), cacheWrite: count(v.cache_creation_input_tokens) };
+}
+
 function parseResult(ev: Record<string, unknown>): ClaudeResult {
   const errors = Array.isArray(ev.errors) ? ev.errors.filter((e): e is string => typeof e === 'string') : [];
   const text = str(ev.result) ?? '';
@@ -113,6 +125,8 @@ function parseResult(ev: Record<string, unknown>): ClaudeResult {
     apiStatus: typeof ev.api_error_status === 'number' ? ev.api_error_status : null,
     denials,
     sessionId: str(ev.session_id),
+    usage: parseUsage(ev.usage),
+    costUsd: typeof ev.total_cost_usd === 'number' ? ev.total_cost_usd : null,
   };
 }
 

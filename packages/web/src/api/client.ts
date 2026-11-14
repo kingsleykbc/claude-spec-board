@@ -31,8 +31,13 @@ export interface ReferenceDoc {
 }
 export type MetaKey = 'status' | 'urgency' | 'categories' | 'title' | 'draft';
 
+/** The sync proposal file, `GET /sync-proposal`. Broken front matter gives `problems` and null fields; `bodyMd` is still there. */
+export type SyncProposal =
+  | { exists: false }
+  | { exists: true; head: string | null; changes: number | null; created: string | null; scope: string | null; bodyMd: string; problems: string[] };
+
 // Run wire types, duplicated from packages/server/src/claude/ (runs.ts, classify.ts, events.ts, status.ts).
-export type RunKind = 'run' | 'write-up' | 'fix-file' | 'refresh-overview';
+export type RunKind = 'run' | 'write-up' | 'fix-file' | 'refresh-overview' | 'sync-plan' | 'sync-apply';
 export type RunStatus = 'running' | 'finished' | 'stopped' | 'needs' | 'permission' | 'error';
 export type RunLineKind = 'start' | 'read' | 'edit' | 'cmd' | 'ok' | 'done' | 'stop' | 'warn' | 'err';
 /** A run's output line as the server sends it: `seq` counts from 1 within a run. */
@@ -57,6 +62,8 @@ export interface EndInfo {
   denied?: Denial[];
   /** The `(you)` step Claude stopped at. Set only on a `needs` end that waits on a person, not on an answer. */
   waiting?: string;
+  /** What the run used, when Claude reported it. `total` is the four counts added up. */
+  tokens?: { total: number; input: number; output: number; cacheRead: number; cacheWrite: number };
 }
 export interface RunSnapshot {
   id: string;
@@ -189,4 +196,8 @@ export const api = {
     request<{ run: RunSnapshot }>('POST', `${proj(pid)}/runs`, specId === undefined ? { kind } : { kind, specId }),
   stopRun: (pid: string, runId: string) => request<{ run: RunSnapshot | null }>('POST', `${proj(pid)}/runs/${enc(runId)}/stop`),
   dismissRun: (pid: string, runId: string) => request<void>('POST', `${proj(pid)}/runs/${enc(runId)}/dismiss`),
+
+  // Sync proposal
+  syncProposal: (pid: string) => request<SyncProposal>('GET', `${proj(pid)}/sync-proposal`),
+  discardSyncProposal: (pid: string) => request<void>('DELETE', `${proj(pid)}/sync-proposal`),
 };

@@ -49,7 +49,9 @@ function startedToast(run: RunSnapshot, title: string | undefined): ToastArgs | 
     case 'fix-file':
       return ['run', `Asked Claude to fix ${id}`, title];
     case 'refresh-overview':
-      return null; // the Overview modal shows it
+    case 'sync-plan':
+    case 'sync-apply':
+      return null; // the Overview modal and the sync dialog show these
   }
 }
 

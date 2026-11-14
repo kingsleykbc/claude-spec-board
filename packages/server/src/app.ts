@@ -11,6 +11,7 @@ import { guard } from './security.js';
 import { specRoutes } from './routes/specs.js';
 import { referenceRoutes } from './routes/references.js';
 import { runRoutes } from './routes/runs.js';
+import { syncRoutes } from './routes/sync.js';
 import { fileRoutes, type FileOpener } from './routes/files.js';
 import { claudeStatus, type ClaudeStatus } from './claude/status.js';
 import type { RunManager } from './claude/runs.js';
@@ -90,6 +91,7 @@ export function createApp(deps: AppDeps): Hono {
   app.route('/', specRoutes(deps.registry));
   app.route('/', referenceRoutes(deps.registry));
   app.route('/', fileRoutes(deps.registry, deps.openFile));
+  app.route('/', syncRoutes(deps.registry));
   app.route('/', runRoutes({ registry: deps.registry, runs: deps.runs, approved: deps.approved, status: deps.status ?? claudeStatus }));
 
   if (deps.webDist !== null) {

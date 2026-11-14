@@ -110,6 +110,17 @@ describe('realtime', () => {
     expect(c.msgs.find((m) => m.type === 'project-changed')).toEqual({ type: 'project-changed', pid });
   });
 
+  it('notifies when the sync proposal is created and when it is deleted', async () => {
+    const c = await subscribed();
+    const file = path.join(proj, '.specboard', 'sync-proposal.md');
+    await fs.writeFile(file, '---\nhead: x\n---\n');
+    expect(await until(() => c.changed() >= 1, 1500)).toBe(true);
+    await sleep(400);
+    const before = c.changed();
+    await fs.rm(file);
+    expect(await until(() => c.changed() > before, 1500)).toBe(true);
+  });
+
   it('notifies only subscribers of the edited project', async () => {
     const proj2 = path.join(tmp, 'second');
     await fs.cp(SAMPLE, proj2, { recursive: true });

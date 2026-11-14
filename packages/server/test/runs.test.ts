@@ -8,6 +8,7 @@ import { kitPluginDir } from '../src/kit.js';
 import { projectId, type ProjectEntry } from '../src/registry.js';
 import {
   buildRunArgs,
+  formatTokens,
   clearCurrentSubtask,
   ClaudeUnavailableError,
   NotApprovedError,
@@ -231,7 +232,7 @@ describe('a run that succeeds', () => {
     expect(run.lines.slice(-3).map((l) => [l.k, l.text, l.code])).toEqual([
       ['done', 'Subtask 1 done: First · committed', 'aaa1111'],
       ['done', 'Subtask 2 done: Second · committed', 'bbb2222'],
-      ['done', 'All subtasks done · committed', 'bbb2222'],
+      ['done', 'All subtasks done · committed · 112.4k tokens', 'bbb2222'],
     ]);
     // Only the per-subtask lines are marked, not the closing `done` line or anything else.
     expect(run.lines.flatMap((l) => (l.subtask === undefined ? [] : [[l.subtask, l.text]]))).toEqual([
@@ -785,5 +786,119 @@ describe('claudeStatus after a negative answer', () => {
     const started = await m.start(entry, 'run', 'T-001');
     await ended(started.id);
     expect(status).toHaveBeenCalledWith({ recheckIfDown: true });
+  });
+});
+
+describe('formatTokens', () => {
+  it('shortens counts for people', () => {
+    expect(formatTokens(950)).toBe('950');
+    expect(formatTokens(48210)).toBe('48.2k');
+    expect(formatTokens(1300000)).toBe('1.3M');
+    expect(formatTokens(999990)).toBe('1.0M');
+  });
+});
+
+describe('token totals', () => {
+  it('puts the total on the final line and in the end, and writes no log', async () => {
+    const entry = await makeProject();
+    const logs = path.join(path.dirname(specFile(entry)), 'logs');
+    await fs.mkdir(logs);
+    const log = path.join(logs, '1-first.md');
+    const text = '---\nsubtask: 1\ncommit: abc1234\nfiles: [a.txt]\n---\n\n### 2026-11-09 10:00\nDid it.\n';
+    await fs.writeFile(log, text);
+    const { m } = manager('tokens');
+    const run = await ended((await m.start(entry, 'write-up', 'T-001')).id);
+    expect(run.end).toMatchObject({ status: 'finished', tokens: { total: 48210, input: 10000, output: 8000, cacheRead: 30000, cacheWrite: 210 } });
+    expect(run.lines.at(-1)!.text).toBe('Spec written up · 48.2k tokens');
+    expect(await fs.readFile(log, 'utf8')).toBe(text);
+    expect(await fs.readdir(logs)).toEqual(['1-first.md']);
+  });
+
+  it('a result without usage shows no total', async () => {
+    const entry = await makeProject();
+    const { m } = manager('plain');
+    const run = await ended((await m.start(entry, 'write-up', 'T-001')).id);
+    expect(run.end!.tokens).toBeUndefined();
+    expect(run.lines.at(-1)!.text).toBe('Spec written up');
+  });
+});
+
+describe('sync runs', () => {
+  const proposal = (root: string) => path.join(root, '.specboard', 'sync-proposal.md');
+  const BODY = '---\ncreated: "2026-11-14 10:00"\nhead: "abc"\nchanges: 1\n---\n\n## Operations\n1. Tick T-001 subtask 1\n2. Archive T-001 (gone)\n';
+
+  it('builds the prompts, with an optional spec ID', () => {
+    expect(runPrompt('sync-plan', null)).toBe('/specboard:sync-specs --board --dry-run');
+    expect(runPrompt('sync-apply', null)).toBe('/specboard:sync-specs --board --apply');
+    expect(runPrompt('sync-plan', 'T-001')).toBe('/specboard:sync-specs T-001 --board --dry-run');
+    expect(runPrompt('sync-apply', 'T-001')).toBe('/specboard:sync-specs T-001 --board --apply');
+    for (const id of ['T-1', 'T-001 && rm', 'x', '']) expect(() => runPrompt('sync-plan', id)).toThrow(/spec ID/i);
+  });
+
+  it('a plan that writes the proposal is finished: Sync proposal ready', async () => {
+    const entry = await makeProject();
+    const { m, spawned } = manager('sync-plan');
+    const started = await m.start(entry, 'sync-plan', null);
+    expect(started.lines[0]!.text).toBe('Started checking the board against the code');
+    const run = await ended(started.id);
+    expect(spawned[0]).toContain('/specboard:sync-specs --board --dry-run');
+    expect(run.status).toBe('finished');
+    expect(run.lines.at(-1)).toMatchObject({ k: 'done', text: 'Sync proposal ready' });
+    await expect(fs.access(proposal(entry.root))).resolves.toBeUndefined(); // the board keeps it for review
+  });
+
+  it('a plan that finishes without a proposal is an error', async () => {
+    const entry = await makeProject();
+    const { m } = manager('plain');
+    const run = await ended((await m.start(entry, 'sync-plan', null)).id);
+    expect(run.end).toEqual({ status: 'error', title: 'Claude stopped before finishing', text: 'No sync proposal was written.' });
+    expect(run.lines.at(-1)).toMatchObject({ k: 'err', text: 'Claude stopped before finishing' });
+  });
+
+  it('with a spec ID the run belongs to that spec', async () => {
+    const entry = await makeProject();
+    const { m, spawned } = manager('sync-plan');
+    const started = await m.start(entry, 'sync-plan', 'T-001');
+    expect(started.specId).toBe('T-001');
+    expect(started.lines[0]!.text).toBe('Started on T-001 · Demo');
+    await ended(started.id);
+    expect(spawned[0]).toContain('/specboard:sync-specs T-001 --board --dry-run');
+    await expect(m.start(entry, 'sync-plan', 'T-404')).rejects.toThrow(/not found/);
+  });
+
+  it('an apply that finishes archives the specs the proposal names and deletes it', async () => {
+    const entry = await makeProject();
+    await fs.writeFile(proposal(entry.root), BODY);
+    const { m } = manager('mark-done');
+    const run = await ended((await m.start(entry, 'sync-apply', null)).id);
+    expect(run.lines.at(-1)).toMatchObject({ k: 'done', text: 'Board synced with the code' });
+    await expect(fs.access(proposal(entry.root))).rejects.toThrow();
+    const p = await loadProject(entry.root);
+    expect(p.specs).toEqual([]);
+    expect(p.archived.map((s) => s.id)).toEqual(['T-001']);
+    expect(run.lines.some((l) => l.k === 'warn')).toBe(false);
+  });
+
+  it('an archive that fails is a warn line, and the run still finishes', async () => {
+    const entry = await makeProject();
+    await fs.writeFile(proposal(entry.root), BODY.replace('2. Archive T-001 (gone)', '2. Archive T-001 (gone)\n3. Archive T-404\n4. Archive T-001'));
+    const { m } = manager('plain'); // T-001 is not done, so it cannot be archived
+    const run = await ended((await m.start(entry, 'sync-apply', null)).id);
+    expect(run.status).toBe('finished');
+    const warns = run.lines.filter((l) => l.k === 'warn');
+    expect(warns).toEqual([expect.objectContaining({ text: 'Could not archive T-001: Only done specs can be archived' })]);
+    expect(run.lines.at(-1)!.k).toBe('done');
+    expect((await loadProject(entry.root)).specs.map((s) => s.id)).toEqual(['T-001']);
+    await expect(fs.access(proposal(entry.root))).rejects.toThrow();
+  });
+
+  it('an apply that does not finish deletes the proposal and archives nothing', async () => {
+    const entry = await makeProject();
+    await fs.writeFile(proposal(entry.root), BODY);
+    const { m } = manager('crash');
+    const run = await ended((await m.start(entry, 'sync-apply', null)).id);
+    expect(run.status).toBe('error');
+    await expect(fs.access(proposal(entry.root))).rejects.toThrow();
+    expect((await loadProject(entry.root)).specs.map((s) => s.id)).toEqual(['T-001']);
   });
 });

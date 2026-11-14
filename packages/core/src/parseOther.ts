@@ -21,7 +21,7 @@ export interface ProjectSettings { trackTokens: boolean; problems: string[] }
 export interface Overview { updated: string | null; summaryMd: string }
 
 /** Parse YAML into a mapping. Never throws; returns null data plus problems when unusable. */
-function parseMapping(yaml: string | null): { data: Record<string, unknown> | null; problems: string[]; doc?: Document } {
+export function parseMapping(yaml: string | null): { data: Record<string, unknown> | null; problems: string[]; doc?: Document } {
   if (yaml === null) return { data: null, problems: ['Missing front matter'] };
   const doc = parseDocument(yaml);
   if (doc.errors.length > 0) return { data: null, problems: [`Invalid front matter: ${doc.errors[0]!.message}`] };
