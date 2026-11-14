@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { EndInfo, RunKind, RunLine, RunStatus } from '../../api/client';
 import { allowHint } from '../../lib/prePublish';
 import { CheckIcon, DotIcon } from '../../lib/icons';
+import { usePluginMode } from '../../lib/mode';
 import { LINE } from '../../lib/vm';
 import { FileLink } from '../../state/fileLinks';
 import { Spinner } from '../ConnectionBanner';
@@ -122,7 +123,10 @@ export function RunPanel({ kind = 'run', status, lines, end: server, projectRoot
   const base = running ? null : waiting ? WAITING : END[status];
   const fallback = base && status === 'finished' ? (FINISHED[kind] ?? base) : base;
   // `fix` is absent when the action is blocked by policy: then there is nothing to copy, and the text says why.
-  const fix = status === 'permission' ? server?.fix : undefined;
+  // A plugin user has `specboard` only inside Claude Code, so the terminal-only `specboard allow` is not offered to them.
+  const plugin = usePluginMode();
+  const rule = status === 'permission' ? server?.fix : undefined;
+  const fix = plugin ? undefined : rule;
   const end = base && {
     ...base,
     title: server?.title ?? fallback!.title,
@@ -206,6 +210,7 @@ export function RunPanel({ kind = 'run', status, lines, end: server, projectRoot
               <span className={s.lineText} style={{ fontWeight: ln.k === 'done' || ln.k === 'start' ? 600 : 400 }}>
                 {ln.text}{' '}
                 {ln.code && (FILE_LINE.has(ln.k) && LOOKS_LIKE_FILE.test(ln.code) ? <code className={s.lineCode}><FileLink path={ln.code} /></code> : <code className={s.lineCode}>{ln.code}</code>)}
+                {ln.after && <> {ln.after}</>}
               </span>
               <span className={s.lineTime}>{ln.time}</span>
             </div>
@@ -228,9 +233,10 @@ export function RunPanel({ kind = 'run', status, lines, end: server, projectRoot
             <>
               <code className={s.fix}>{fix}</code>
               <span className={s.fixNote}>{FIX_NOTE}</span>
-              <span className={s.fixNote}>{allowHint(projectRoot)}</span>
+              <span className={s.fixNote}>{allowHint(projectRoot, false)}</span>
             </>
           )}
+          {rule && plugin && <span className={s.fixNote}>{allowHint(projectRoot, true)}</span>}
           {end.action &&
             (end.action.kind === 'copy' ? (
               <>

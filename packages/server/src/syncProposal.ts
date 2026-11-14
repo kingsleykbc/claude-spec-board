@@ -47,6 +47,12 @@ export function parseProposal(raw: string): SyncProposal {
   };
 }
 
+/** True when the apply skill marked the proposal `applied: true`, its last step after applying every operation. */
+export function proposalApplied(raw: string): boolean {
+  const { data } = parseMapping(splitFrontMatter(raw).yaml);
+  return data?.applied === true || data?.applied === 'true';
+}
+
 const ARCHIVE_LINE = /^\s*\d+\.\s+Archive\s+(T-\d+)\b/gm;
 
 /** The spec IDs named on `Archive <ID>` operation lines, in order, once each. */

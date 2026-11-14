@@ -182,7 +182,7 @@ describe('start', () => {
     closers.push(s.close);
     expect(s.url).toBe(`http://127.0.0.1:${port}`);
     const res = await fetch(`${s.url}/api/health`);
-    expect(await res.json()).toEqual({ ok: true, app: 'specboard' });
+    expect(await res.json()).toEqual({ ok: true, app: 'specboard', plugin: false });
     const projects = (await (await fetch(`${s.url}/api/projects`)).json()) as Array<{ root: string }>;
     expect(projects.map((p) => p.root)).toEqual([path.resolve(proj)]);
   });

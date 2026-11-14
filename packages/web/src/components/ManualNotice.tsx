@@ -18,7 +18,7 @@ export function ManualPanel({ reason, onClose }: { reason: ManualReason; onClose
     <>
       <div data-testid="manual-scrim" className={s.scrim} onClick={onClose} />
       <div className={s.panel}>
-        <div className={s.title}>Non-agentic mode</div>
+        <div className={s.title}>Manual mode (non-agentic)</div>
         <p className={s.text}>The board can't run Claude for you here, so use the Copy command buttons and paste them into a Claude chat.</p>
         <p className={s.reason}>{REASON[reason]}</p>
         <a className={s.link} href="/docs/running-specs#turn-on-background-runs" target="_blank" rel="noopener">

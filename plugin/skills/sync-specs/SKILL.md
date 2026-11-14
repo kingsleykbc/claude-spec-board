@@ -68,10 +68,10 @@ Leave out `scope:` for a whole-project sync. Quote `created` and `head` as shown
 ## --board --apply
 
 1. Read `.specboard/sync-proposal.md`. If it is missing, say "There is no sync proposal to apply." and stop.
-2. Run `git log -1 --format=%h`. If it differs from `head`, change nothing and stop with: "The code changed since the proposal. Run Sync again."
-3. If the proposal's `scope` differs from the ID you were given (one present and not the other, or two different IDs), change nothing and stop with: "This proposal is for a different scope. Run Sync again."
+2. Run `git log -1 --format=%h`. If it differs from `head`, change nothing (not even the proposal) and stop with: "The code changed since the proposal. Run Sync again."
+3. If the proposal's `scope` differs from the ID you were given (one present and not the other, or two different IDs), change nothing (not even the proposal) and stop with: "This proposal is for a different scope. Run Sync again."
 4. Apply exactly the listed operations, in order, with small Edit calls (Write for a new draft or log). Do nothing else. Set `updated` to today on every spec you change. A new draft has front matter and a short `## Spec`, like any draft. For an `Archive <ID>` line, change only that spec's logs as above: the board archives the spec.
-5. Leave the proposal file: the board archives the listed specs and deletes the file when the run ends.
+5. Last, only once every operation is applied: add the line `applied: true` to the proposal's front matter with one Edit. The board archives the listed specs and reports the sync done only when it finds that line; it deletes the file when the run ends. Change nothing else in the proposal.
 6. Finish with a short list of what changed.
 
 ## In a chat

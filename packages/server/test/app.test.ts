@@ -29,7 +29,7 @@ describe('read endpoints', () => {
   it('health', async () => {
     const res = await app.request('/api/health', { headers: HOST });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, app: 'specboard' });
+    expect(await res.json()).toEqual({ ok: true, app: 'specboard', plugin: false });
   });
 
   it('lists projects with progress counting archived as done', async () => {

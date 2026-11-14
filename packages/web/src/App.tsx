@@ -7,6 +7,7 @@ import { ESC, useEscape } from './lib/escape';
 import { interceptPop } from './lib/popGuard';
 import { PlusIcon } from './lib/icons';
 import { runHold } from './lib/vm';
+import { loadMode } from './lib/mode';
 import { startTour, tourSeen } from './lib/tour';
 import { currentMilestone } from '@specboard/core/milestones';
 import { categoryOptions, effectiveMilestone, milestoneOptions, NO_FILTERS, waitItems, type Filters, type WaitItem } from './state/filters';
@@ -118,6 +119,7 @@ export function App() {
       .catch((e: Error) => setError(e.message));
   }, []);
   useEffect(loadProjects, [loadProjects]);
+  useEffect(() => void loadMode(), []); // plugin or repo: picks the wording of setup hints
 
   const pid = projects ? (projects.find((p) => p.id === url.project)?.id ?? projects[0]?.id ?? null) : null;
 

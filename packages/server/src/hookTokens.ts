@@ -52,6 +52,27 @@ export function addTokens(text: string, delta: number): string | null {
   return `---${nl}${lines.join(nl)}${m[3]}---` + text.slice(m[0].length);
 }
 
+/** The project root of a subtask log file (`<root>/.specboard/specs/<spec>/logs/<n>-*.md`), with forward slashes; null for any other file. */
+export function logFileRoot(abs: string): string | null {
+  return LOG_PATH.exec(abs.replace(/\\/g, '/'))?.[1] ?? null;
+}
+
+/** Whether the project's `track_tokens` is on (it is when settings.md or the key is missing). */
+export async function trackTokensOn(root: string): Promise<boolean> {
+  const settings = await readIfExists(path.join(root, '.specboard', 'settings.md'));
+  return settings === null || parseSettings(settings).trackTokens;
+}
+
+/** Adds `delta` to a log file's `tokens:`. False when the file is missing or has no front matter. */
+export async function addTokensToLog(abs: string, delta: number): Promise<boolean> {
+  const log = await readIfExists(abs);
+  if (log === null) return false;
+  const next = addTokens(log, delta);
+  if (next === null) return false;
+  await fs.writeFile(abs, next);
+  return true;
+}
+
 async function readIfExists(file: string): Promise<string | null> {
   try {
     return await fs.readFile(file, 'utf8');
@@ -73,12 +94,8 @@ export async function runTokenHook(input: TokenHookInput, opts: { dataDir: strin
     const target = input.tool_input?.file_path;
     if (typeof target !== 'string' || !input.transcript_path || !input.session_id) return null;
     const abs = path.resolve(input.cwd ?? process.cwd(), target);
-    const m = LOG_PATH.exec(abs.replace(/\\/g, '/'));
-    if (!m) return null;
-    const root = m[1]!;
-
-    const settings = await readIfExists(path.join(root, '.specboard', 'settings.md'));
-    if (settings !== null && !parseSettings(settings).trackTokens) return null;
+    const root = logFileRoot(abs);
+    if (root === null || !(await trackTokensOn(root))) return null;
 
     const transcript = await readIfExists(input.transcript_path);
     if (transcript === null) return null;
@@ -101,11 +118,7 @@ export async function runTokenHook(input: TokenHookInput, opts: { dataDir: strin
       await saveCheckpoint(checkpoint, total);
       return { wrote: 0 };
     }
-    const log = await readIfExists(abs);
-    if (log === null) return null;
-    const next = addTokens(log, delta);
-    if (next === null) return null;
-    await fs.writeFile(abs, next);
+    if (!(await addTokensToLog(abs, delta))) return null;
     await saveCheckpoint(checkpoint, total);
     return { wrote: delta };
   } catch {

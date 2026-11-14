@@ -271,4 +271,13 @@ describe('settings and created', () => {
     await writeSettings(root, { trackTokens: true });
     expect(await fs.readFile(file, 'utf8')).toBe('---\nfoo: bar\ntrack_tokens: true\n---\nBody\n');
   });
+  it('writeSettings keeps the text of a file with an opening --- and no closing one', async () => {
+    const root = await tmp();
+    await initProject(root, 'p');
+    const file = path.join(root, '.specboard', 'settings.md');
+    await fs.writeFile(file, '---\nfoo: bar\nMy notes\n');
+    await writeSettings(root, { trackTokens: false });
+    expect(await fs.readFile(file, 'utf8')).toBe('---\ntrack_tokens: false\n---\n---\nfoo: bar\nMy notes\n');
+    expect((await loadProject(root)).settings.trackTokens).toBe(false);
+  });
 });

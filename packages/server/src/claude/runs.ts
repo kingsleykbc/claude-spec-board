@@ -7,7 +7,8 @@ import { kitPluginDir } from '../kit.js';
 import type { ProjectEntry } from '../registry.js';
 import { InvalidApprovalError, type ApprovedPermissions, type Permissions } from '../setup.js';
 import { classifyEnd, type EndInfo, type RunKind, type RunStatus } from './classify.js';
-import { archiveIds, archiveProposed, deleteProposal, parseProposal, readProposalText } from '../syncProposal.js';
+import { archiveIds, archiveProposed, deleteProposal, parseProposal, proposalApplied, readProposalText } from '../syncProposal.js';
+import { LogTokenTally } from './logTokens.js';
 import { LineSplitter, parseEvent, type ClaudeResult, type ParsedLine, type RunLine } from './events.js';
 import { killTree, resolveFromEnv } from './resolve.js';
 import { childEnv, claudeStatus, type ClaudeStatus, type ClaudeStatusCheck, type ProjectRoots } from './status.js';
@@ -119,6 +120,7 @@ interface Run {
   ticked: Set<number>;
   child: ChildProcess | null;
   splitter: LineSplitter;
+  tally: LogTokenTally;
   result: ClaudeResult | null;
   stderrTail: string;
   spawnError: Error | null;
@@ -178,10 +180,12 @@ const FINISHED_TEXT: Record<Exclude<RunKind, 'run'>, string> = {
   'sync-apply': 'Board synced with the code',
 };
 
-/** The last line of a run, with the token total on it when it is known. */
+/** The last line of a run, with the token total at its end when it is known (after the code, when there is one). */
 function finalLine(kind: RunKind, end: EndInfo, before: Spec | null, after: Spec | null): ParsedLine {
   const line = endLine(kind, end, before, after);
-  return end.tokens ? { ...line, text: `${line.text} · ${formatTokens(end.tokens.total)} tokens` } : line;
+  if (!end.tokens) return line;
+  const total = `· ${formatTokens(end.tokens.total)} tokens`;
+  return line.code ? { ...line, after: total } : { ...line, text: `${line.text} ${total}` };
 }
 
 function endLine(kind: RunKind, end: EndInfo, before: Spec | null, after: Spec | null): ParsedLine {
@@ -264,6 +268,8 @@ export class RunManager {
       if (!status.loggedIn) throw new ClaudeUnavailableError('logged-out');
       run.before = await loadSpec(entry.root, specId);
       if (specId !== null && !run.before) throw new Error(`Spec ${specId} was not found.`);
+      // A proposal left from before must not pass for this plan's: the run's end checks that one was written.
+      if (kind === 'sync-plan' && !run.stopped && !run.finishing) await deleteProposal(entry.root);
       launch = run.stopped || run.finishing ? null : this.command(buildRunArgs(prompt, approved, kitPluginDir()), exclude);
     } catch (e) {
       if (this.active.get(entry.id) === run) this.active.delete(entry.id);
@@ -329,7 +335,7 @@ export class RunManager {
     const finished = new Promise<void>((resolve) => (markFinished = resolve));
     return {
       snap: { id: randomUUID(), pid: entry.id, kind, specId, status: 'running', lines: [], end: null, startedAt: new Date().toISOString(), dismissed: false },
-      entry, seq: 0, deny: [], before: null, ticked: new Set(), child: null, splitter: new LineSplitter(), result: null, stderrTail: '',
+      entry, seq: 0, deny: [], before: null, ticked: new Set(), child: null, splitter: new LineSplitter(), tally: new LogTokenTally(entry.root), result: null, stderrTail: '',
       spawnError: null, exitCode: null, exited: false, stopped: false, announced: false, finishing: false, timers: [], finished, markFinished,
     };
   }
@@ -386,6 +392,7 @@ export class RunManager {
     const parsed = parseEvent(line, run.entry.root);
     if (!parsed) return;
     if (parsed.result) run.result = parsed.result;
+    if (parsed.assistant) run.tally.push(parsed.assistant);
     for (const l of parsed.lines) this.addLine(run, l);
   }
 
@@ -449,7 +456,8 @@ export class RunManager {
       const u = run.result?.usage;
       if (u) end.tokens = { total: u.input + u.output + u.cacheRead + u.cacheWrite, input: u.input, output: u.output, cacheRead: u.cacheRead, cacheWrite: u.cacheWrite };
       if (after && after.currentSubtask !== null) await clearCurrentSubtask(after.path, after.currentSubtask);
-      if (snap.kind === 'sync-apply' && ran) await this.settleProposal(run, end);
+      if (ran) await run.tally.save();
+      if (snap.kind === 'sync-apply' && ran) end = await this.settleProposal(run, end);
       this.addLine(run, finalLine(snap.kind, end, run.before, after));
     } catch (e) {
       end = { status: 'error', title: 'Claude Code exited unexpectedly', text: (e as Error).message };
@@ -464,13 +472,21 @@ export class RunManager {
     run.markFinished();
   }
 
-  /** After a sync apply: reads the proposal, deletes it, and on a finished run archives the specs it names. Never throws. */
-  private async settleProposal(run: Run, end: EndInfo): Promise<void> {
+  /**
+   * After a sync apply: reads the proposal and deletes it. The skill marks it `applied: true` as its last step; only then
+   * does a finished run archive the specs it names. A finished run without the mark stopped on purpose (the code or the
+   * scope changed), so it ends as an error with what Claude said. Never throws.
+   */
+  private async settleProposal(run: Run, end: EndInfo): Promise<EndInfo> {
     const root = run.entry.root;
     let ids: string[] = [];
+    let applied = false;
     try {
       const raw = await readProposalText(root);
-      if (raw !== null) ids = archiveIds(parseProposal(raw).bodyMd);
+      if (raw !== null) {
+        ids = archiveIds(parseProposal(raw).bodyMd);
+        applied = proposalApplied(raw);
+      }
     } catch {
       // an unreadable proposal names nothing to archive
     }
@@ -479,8 +495,13 @@ export class RunManager {
     } catch {
       // it stays; the next plan overwrites it
     }
-    if (end.status !== 'finished') return;
+    if (end.status !== 'finished') return end;
+    if (!applied) {
+      const said = run.result?.resultText.trim();
+      return { ...end, status: 'error', title: 'Sync stopped', text: said || 'Claude did not apply the proposal.' };
+    }
     for (const failure of await archiveProposed(root, ids)) this.addLine(run, { k: 'warn', text: failure });
+    return end;
   }
 
   private send(run: Run, e: RunEvent): void {

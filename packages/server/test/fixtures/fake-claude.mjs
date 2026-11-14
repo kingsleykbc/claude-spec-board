@@ -17,6 +17,10 @@ const writeLog = (n, slug, commit) => {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, `${n}-${slug}.md`), `---\nsubtask: ${n}\ncommit: ${commit}\nfiles: [a.txt]\n---\n\n### 2026-11-09 10:00\nDid it.\n`);
 };
+const markApplied = () => {
+  const file = path.join('.specboard', 'sync-proposal.md');
+  fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace(/^---\r?\n/, '---\napplied: true\n'));
+};
 const emit = (o) => process.stdout.write(JSON.stringify(o) + '\n');
 const result = (extra = {}) => emit({ type: 'result', subtype: 'success', is_error: false, result: 'done', terminal_reason: 'completed', session_id: 's', permission_denials: [], ...extra });
 const denied = (command) => result({ permission_denials: [{ tool_name: 'Bash', tool_use_id: 't', tool_input: { command } }] });
@@ -65,12 +69,44 @@ const scenarios = {
     fs.writeFileSync(path.join(".specboard", "sync-proposal.md"), text);
     result();
   },
-  // Marks the first spec done, so a proposal can archive it.
-  'mark-done'() {
-    editSpec((t) => t.replace(/^status: .*$/m, 'status: done'));
+  // The apply skill's last step: mark the proposal applied.
+  applied() {
+    markApplied();
     result();
   },
+  'sync-applied'() {
+    editSpec((t) => t.replace(/^status: .*$/m, 'status: done'));
+    markApplied();
+    result();
+  },
+  // The apply skill stops on purpose: the code changed since the proposal. Nothing applied, no mark.
+  'sync-head-changed': () => result({ result: 'The code changed since the proposal. Run Sync again.' }),
+  // Two log writes with usage in between; message m2 comes twice and counts once. 100 + 200 go to log 1, 50 to log 2.
+  'log-tokens'() {
+    writeLog(1, 'first', 'aaa1111');
+    writeLog(2, 'second', 'bbb2222');
+    const logs = path.join(path.dirname(specFile()), 'logs');
+    const usage = (n) => ({ input_tokens: n, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 });
+    const turn = (id, n, blocks) => emit({ type: 'assistant', message: { id, usage: usage(n), content: blocks } });
+    const tool = (name, input) => ({ type: 'tool_use', name, input });
+    turn('m1', 100, [tool('Read', { file_path: 'a.txt' })]);
+    turn('m2', 200, [tool('Write', { file_path: path.resolve(logs, '1-first.md'), content: 'x' })]);
+    turn('m2', 200, [tool('Edit', { file_path: 'a.txt', old_string: 'a', new_string: 'b' })]);
+    turn('m3', 50, [tool('MultiEdit', { file_path: path.join(logs, '2-second.md'), edits: [] })]);
+    turn('m4', 1000, [{ type: 'text', text: 'Done.' }]);
+    result();
+  },
+  'denied-optional'() {
+    result({ permission_denials: [
+      { tool_name: 'Bash', tool_use_id: 't1', tool_input: { command: 'gh pr view --json url' } },
+      { tool_name: 'Bash', tool_use_id: 't2', tool_input: { command: 'specboard tree' } },
+    ] });
+  },
   'denied-push': () => denied('git push origin HEAD'),
+  'denied-push-tokens': () => result({
+    permission_denials: [{ tool_name: 'Bash', tool_use_id: 't', tool_input: { command: 'git push origin HEAD' } }],
+    usage: { input_tokens: 10000, output_tokens: 8000, cache_read_input_tokens: 30000, cache_creation_input_tokens: 210 },
+  }),
   'denied-npm': () => denied('npm install date-fns'),
   crash() {
     emit({ type: 'system', subtype: 'init' });

@@ -185,7 +185,8 @@ export async function writeSettings(root: string, s: { trackTokens: boolean }): 
     const close = text !== null && open ? /^---[ \t]*(?:\r?\n|$)/m.exec(text.slice(open[0].length)) : null;
     let next: string;
     if (text === null || !open || !close) {
-      next = `---\n${line}\n---\n${text !== null && !open ? text : ''}`;
+      // No front matter, or an opening `---` that never closes: put fresh front matter first and keep every word.
+      next = `---\n${line}\n---\n${text ?? ''}`;
     } else {
       const start = open[0].length;
       const end = start + close.index;

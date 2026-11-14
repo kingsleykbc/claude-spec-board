@@ -6,7 +6,7 @@ import { createInterface } from 'node:readline/promises';
 import { initProject } from '@specboard/core';
 import { matchesDeny, NEVER_PREFIX, normProg } from './claude/classify.js';
 import { assertNoLinks, installSkills, kitPluginDir } from './kit.js';
-import { boardCommand, initHint } from './prePublish.js';
+import { initHint, nextLine } from './prePublish.js';
 import { projectId, Registry } from './registry.js';
 import { isWithin, realPathLoose } from './safePath.js';
 
@@ -394,7 +394,7 @@ export async function initCommand(
   await mergeClaudeSettings(root, { allow, deny }); // validates the project's settings before anything is approved
   await store.set(id, root, { allow, deny });
   io.log('Approved. Runs use only this list.');
-  io.log(`Next, from the Spec Board repo, open the board: ${boardCommand(root)}`);
+  io.log(nextLine(root));
   return { approved: true, id };
 }
 

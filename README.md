@@ -18,7 +18,7 @@ Following Claude's plans and progress in a terminal, or in raw Markdown, is hard
 
 ## Install as a plugin
 
-You need git and [Claude Code](https://code.claude.com/docs). In a Claude Code chat:
+You need git, [Claude Code](https://code.claude.com/docs) and Node.js 22 or later (the plugin runs its board and token counter with it). In a Claude Code chat:
 
 ```
 /plugin marketplace add kingsleykbc/claude-spec-board
@@ -43,7 +43,7 @@ The card appears on the board. Answer its required questions there, press **Copy
 
 ## Or from a terminal
 
-You need Node.js 22, git and Claude Code. Spec Board isn't published to npm, so run these from a copy of this repo, with the path of your own project, which should be a git repo:
+You need Node.js 22 or later, git and Claude Code. Spec Board isn't published to npm, so run these from a copy of this repo, with the path of your own project, which should be a git repo:
 
 ```
 npm install

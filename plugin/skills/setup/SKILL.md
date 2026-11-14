@@ -14,7 +14,7 @@ Any input is the project folder. Ask one question at a time and wait for each an
 
 ## Steps
 
-1. **Where.** Use the folder given, or ask which project folder to set up, suggesting the current one. If it already has `.specboard/config.md`, say so, offer `/specboard:structure` (the board as a tree), `/specboard:import-specs <path>` or `/specboard:sync-specs` instead, and stop.
+1. **Where.** Use the folder given, or ask which project folder to set up, suggesting the current one. If it already has `.specboard/config.md`, say so. When the person wants to turn on background runs or update their allowed commands (the board tells them to run setup again for this), run `specboard init --yes --no-skills --runs no "<folder>"` to print the lists (it changes nothing that is there), do step 8, and stop. Otherwise offer `/specboard:structure` (the board as a tree), `/specboard:import-specs <path>` or `/specboard:sync-specs` instead, and stop.
 2. **Look first.** Search the folder (Glob, Grep) for existing plans: Spec Kit (`specs/*/spec.md`, `tasks.md`), OpenSpec (`openspec/`), and roadmap or plan documents (README roadmaps, `docs/plans`, `*plan*.md`, `TODO.md`). Say what you found in a few lines.
 3. **Choose.** If you found plans, ask: import them, or start from scratch. If you found none, say so and go on from scratch.
 4. **Small or large.** Ask whether the project needs milestones (groups of specs that ship together). Suggest yes when the plans already have phases or hold more than about 12 pieces of work; otherwise suggest no.

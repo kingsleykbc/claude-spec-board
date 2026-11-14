@@ -4,7 +4,7 @@
 
 - git
 - [Claude Code](https://code.claude.com/docs), logged in
-- Node.js 22, only if you use the terminal route below. The plugin brings its own ready-built copy of the board.
+- Node.js 22 or later (the plugin runs its board and token counter with it). The plugin brings its own ready-built copy of the board, so you don't need to build anything.
 - VS Code is optional. With its `code` command on your PATH, clicking a file path on the board opens the file there. Otherwise the click copies the full path.
 
 ## Install the plugin

@@ -164,6 +164,7 @@ describe('kit content', () => {
     expect(text).toContain('specboard tree');
     expect(text).toMatch(/plan mode/i);
     expect(text).toMatch(/`tokens:`.*Never write it yourself/);
+    expect(text).toContain('Read the log again before editing it a second time, and never remove `tokens:`');
   });
 
   it('setup is triggered by plain requests, runs init from the plugin and finishes by starting the board', async () => {
@@ -183,6 +184,7 @@ describe('kit content', () => {
     for (const s of ['sync-proposal.md', 'head', 'scope', 'git log -1 --format=%h', 'Run Sync again', 'obsolete:', 'Ticked by sync', 'changes: 0', '--dry-run', '--apply']) expect(sync, s).toContain(s);
     expect(sync).not.toContain('rev-parse'); // not on the background runs' allow list
     expect(sync).toMatch(/^\d+\. Archive T-\d+ /m); // the board archives specs named on these lines
+    expect(sync).toContain("Last, only once every operation is applied: add the line `applied: true` to the proposal's front matter"); // the board's sign of success
   });
 
   it('skills that write several specs use milestones and show a tree first; next prefers the current milestone', async () => {
@@ -277,14 +279,15 @@ describe('plugin', () => {
 describe('installSkills', () => {
   const skillFile = (name: string) => path.join(tmp, '.claude', 'skills', name, 'SKILL.md');
 
-  it('creates every skill on the first run and reports unchanged on the second', async () => {
-    const kit = await kitSkills();
+  it('creates every skill but the plugin-only setup on the first run and reports unchanged on the second', async () => {
+    const kit = (await kitSkills()).filter((s) => s.name !== 'setup');
     const first = await installSkills(tmp);
     expect(first.map((r) => r.action)).toEqual(kit.map(() => 'created'));
     expect(first.map((r) => r.name)).toEqual(kit.map((s) => s.name));
     for (const { name, text } of kit) expect(await fs.readFile(skillFile(name), 'utf8')).toBe(text);
     const second = await installSkills(tmp);
     expect(second.every((r) => r.action === 'unchanged')).toBe(true);
+    await expect(fs.access(skillFile('setup'))).rejects.toThrow(); // it runs the plugin's own specboard: plugin only
   });
 
   it('skips a file the user edited unless force is set, then updates it', async () => {

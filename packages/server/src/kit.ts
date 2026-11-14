@@ -50,13 +50,16 @@ export async function assertNoLinks(realRoot: string, parts: string[], what = 'i
   }
 }
 
+/** Skills that only make sense inside the plugin (setup runs the plugin's own `specboard`), so `init` never copies them. */
+export const PLUGIN_ONLY_SKILLS = new Set(['setup']);
+
 /**
- * Copy the kit into `<root>/.claude/skills/<name>/SKILL.md`. A file equal to the current kit text is
- * `unchanged`, a missing one `created`, and a different one `skipped-modified` unless `force`, then `updated`.
+ * Copy the kit, less the plugin-only skills, into `<root>/.claude/skills/<name>/SKILL.md`. A file equal to the current
+ * kit text is `unchanged`, a missing one `created`, and a different one `skipped-modified` unless `force`, then `updated`.
  */
 export async function installSkills(root: string, opts: { force?: boolean } = {}): Promise<InstallResult[]> {
   const realRoot = await fs.realpath(root);
-  const kit = await kitSkills();
+  const kit = (await kitSkills()).filter((s) => !PLUGIN_ONLY_SKILLS.has(s.name));
   for (const { name } of kit) await assertNoLinks(realRoot, ['.claude', 'skills', name, 'SKILL.md']); // check everything before writing anything
   const results: InstallResult[] = [];
   for (const { name, text } of kit) {

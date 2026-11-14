@@ -20,13 +20,13 @@ describe('ManualNotice', () => {
   it('is a closed button until clicked', () => {
     render(<ManualNotice reason="not-approved" />);
     expect(screen.getByRole('button', { name: 'Manual mode: background runs are off' }).textContent).toContain('Manual');
-    expect(screen.queryByText('Non-agentic mode')).toBeNull();
+    expect(screen.queryByText('Manual mode (non-agentic)')).toBeNull();
   });
 
   it.each(Object.entries(LINES))('opens and shows the %s line and the docs link', (reason, line) => {
     render(<ManualNotice reason={reason as keyof typeof LINES} />);
     fireEvent.click(screen.getByRole('button', { name: 'Manual mode: background runs are off' }));
-    expect(screen.getByText('Non-agentic mode')).toBeTruthy();
+    expect(screen.getByText('Manual mode (non-agentic)')).toBeTruthy();
     expect(screen.getByText("The board can't run Claude for you here, so use the Copy command buttons and paste them into a Claude chat.")).toBeTruthy();
     expect(screen.getByText(line)).toBeTruthy();
     const link = screen.getByRole('link', { name: 'How to turn on background runs' });
@@ -39,10 +39,10 @@ describe('ManualNotice', () => {
     const btn = screen.getByRole('button', { name: 'Manual mode: background runs are off' });
     fireEvent.click(btn);
     fireEvent.keyDown(document, { key: 'Escape' });
-    expect(screen.queryByText('Non-agentic mode')).toBeNull();
+    expect(screen.queryByText('Manual mode (non-agentic)')).toBeNull();
     fireEvent.click(btn);
     fireEvent.click(screen.getByTestId('manual-scrim'));
-    expect(screen.queryByText('Non-agentic mode')).toBeNull();
+    expect(screen.queryByText('Manual mode (non-agentic)')).toBeNull();
   });
 
   it('toggles closed on a second click', () => {
@@ -50,6 +50,6 @@ describe('ManualNotice', () => {
     const btn = screen.getByRole('button', { name: 'Manual mode: background runs are off' });
     fireEvent.click(btn);
     fireEvent.click(btn);
-    expect(screen.queryByText('Non-agentic mode')).toBeNull();
+    expect(screen.queryByText('Manual mode (non-agentic)')).toBeNull();
   });
 });

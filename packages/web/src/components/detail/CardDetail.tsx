@@ -19,6 +19,12 @@ import { SpecSection } from './SpecSection';
 import { Subtasks } from './Subtasks';
 import s from './detail.module.css';
 
+/** The detail footer: 'Created <date> · Updated <date>', leaving out what the spec lacks; null when it has neither. */
+export function datesLine(created: string | null, updated: string | null): string | null {
+  const parts = [created && `Created ${created}`, updated && `Updated ${updated}`].filter(Boolean);
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
+
 export type DetailClient = Pick<typeof api, 'setMeta' | 'setBody' | 'specDraftCopy' | 'setAnswers' | 'setSubtask'>;
 
 export interface CardDetailProps {
@@ -283,6 +289,7 @@ function SpecDetail({
   const allCategories = [...new Set(all.flatMap((x) => x.categories))];
   const problem = spec.problems[0];
 
+  const dates = datesLine(spec.created, spec.updated);
   return (
     <Modal
       label={spec.title}
@@ -359,6 +366,7 @@ function SpecDetail({
                 {...(changed ? { changed } : {})}
                 runActive={runActive}
               />
+              {dates !== null && <p className={s.dates}>{dates}</p>}
             </div>
             {reasons.length > 0 && <BlockedBanner reasons={reasons} />}
           </div>

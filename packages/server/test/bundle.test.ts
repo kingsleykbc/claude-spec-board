@@ -71,7 +71,7 @@ describe('plugin bundle', () => {
       child!.on('exit', () => reject(new Error(`exited early: ${out}`)));
     });
     const health = await (await fetch(new URL('/api/health', url))).json();
-    expect(health).toMatchObject({ app: 'specboard' });
+    expect(health).toMatchObject({ app: 'specboard', plugin: true });
     const page = await fetch(url);
     expect(page.headers.get('content-type')).toContain('text/html');
     expect(await page.text()).toContain('<html');

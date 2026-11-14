@@ -1,7 +1,7 @@
 ---
 subtask: 1
 commit: 9d3e7b1
-pr: https://github.com/kingsleykbc/claude-spec-board/pull/1
+pr: https://github.com/example/recipe-box/pull/12
 tokens: 48210
 done_at: "2026-11-07 15:12"
 files:

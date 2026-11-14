@@ -229,10 +229,10 @@ describe('a run that succeeds', () => {
     const seqs = run.lines.map((l) => l.seq);
     expect(seqs).toEqual(seqs.map((_, i) => i + 1));
     expect(run.lines.some((l) => l.k === 'read' && l.code === 'notes.txt')).toBe(true); // relative to the project root
-    expect(run.lines.slice(-3).map((l) => [l.k, l.text, l.code])).toEqual([
-      ['done', 'Subtask 1 done: First · committed', 'aaa1111'],
-      ['done', 'Subtask 2 done: Second · committed', 'bbb2222'],
-      ['done', 'All subtasks done · committed · 112.4k tokens', 'bbb2222'],
+    expect(run.lines.slice(-3).map((l) => [l.k, l.text, l.code, l.after])).toEqual([
+      ['done', 'Subtask 1 done: First · committed', 'aaa1111', undefined],
+      ['done', 'Subtask 2 done: Second · committed', 'bbb2222', undefined],
+      ['done', 'All subtasks done · committed', 'bbb2222', '· 112.4k tokens'], // the total comes after the commit
     ]);
     // Only the per-subtask lines are marked, not the closing `done` line or anything else.
     expect(run.lines.flatMap((l) => (l.subtask === undefined ? [] : [[l.subtask, l.text]]))).toEqual([
@@ -616,6 +616,14 @@ describe('how a run ends', () => {
     expect(fixable.end!.fix).toBe('specboard allow "Bash(npm install:*)"');
   });
 
+  it('refusals of optional commands (gh pr view, specboard tree) do not end a run as permission', async () => {
+    const entry = await makeProject();
+    const { m } = manager('denied-optional');
+    const run = await ended((await m.start(entry, 'write-up', 'T-001')).id);
+    expect(run.status).toBe('finished');
+    expect(run.end!.denied).toBeUndefined();
+  });
+
   it('a new open question ends in needs', async () => {
     const entry = await makeProject();
     const { m } = manager('question');
@@ -814,6 +822,34 @@ describe('token totals', () => {
     expect(await fs.readdir(logs)).toEqual(['1-first.md']);
   });
 
+  it('counts tokens per subtask log from the stream: each message once, the tokens before a log write go to that log', async () => {
+    const entry = await makeProject();
+    const { m } = manager('log-tokens');
+    await ended((await m.start(entry, 'run', 'T-001')).id);
+    const logs = path.join(path.dirname(specFile(entry)), 'logs');
+    expect(await fs.readFile(path.join(logs, '1-first.md'), 'utf8')).toMatch(/^---\nsubtask: 1\ncommit: aaa1111\nfiles: \[a.txt\]\ntokens: 300\n---\n/);
+    expect(await fs.readFile(path.join(logs, '2-second.md'), 'utf8')).toMatch(/\ntokens: 50\n---\n/);
+    const spec = await loadSpec(entry);
+    expect([spec.logs[1]?.tokens, spec.logs[2]?.tokens]).toEqual([300, 50]);
+  });
+
+  it('writes no per-log counts when the project has track_tokens off', async () => {
+    const entry = await makeProject();
+    await fs.writeFile(path.join(entry.root, '.specboard', 'settings.md'), '---\ntrack_tokens: false\n---\n');
+    const { m } = manager('log-tokens');
+    await ended((await m.start(entry, 'run', 'T-001')).id);
+    const logs = path.join(path.dirname(specFile(entry)), 'logs');
+    for (const f of await fs.readdir(logs)) expect(await fs.readFile(path.join(logs, f), 'utf8')).not.toMatch(/tokens:/);
+  });
+
+  it('puts the total after the command on a permission end line', async () => {
+    const entry = await makeProject();
+    const { m } = manager('denied-push-tokens');
+    const run = await ended((await m.start(entry, 'run', 'T-001')).id);
+    expect(run.status).toBe('permission');
+    expect(run.lines.at(-1)).toMatchObject({ k: 'err', text: 'Not allowed:', code: 'git push origin HEAD', after: '· 48.2k tokens' });
+  });
+
   it('a result without usage shows no total', async () => {
     const entry = await makeProject();
     const { m } = manager('plain');
@@ -869,7 +905,7 @@ describe('sync runs', () => {
   it('an apply that finishes archives the specs the proposal names and deletes it', async () => {
     const entry = await makeProject();
     await fs.writeFile(proposal(entry.root), BODY);
-    const { m } = manager('mark-done');
+    const { m } = manager('sync-applied');
     const run = await ended((await m.start(entry, 'sync-apply', null)).id);
     expect(run.lines.at(-1)).toMatchObject({ k: 'done', text: 'Board synced with the code' });
     await expect(fs.access(proposal(entry.root))).rejects.toThrow();
@@ -882,7 +918,7 @@ describe('sync runs', () => {
   it('an archive that fails is a warn line, and the run still finishes', async () => {
     const entry = await makeProject();
     await fs.writeFile(proposal(entry.root), BODY.replace('2. Archive T-001 (gone)', '2. Archive T-001 (gone)\n3. Archive T-404\n4. Archive T-001'));
-    const { m } = manager('plain'); // T-001 is not done, so it cannot be archived
+    const { m } = manager('applied'); // T-001 is not done, so it cannot be archived
     const run = await ended((await m.start(entry, 'sync-apply', null)).id);
     expect(run.status).toBe('finished');
     const warns = run.lines.filter((l) => l.k === 'warn');
@@ -900,5 +936,30 @@ describe('sync runs', () => {
     expect(run.status).toBe('error');
     await expect(fs.access(proposal(entry.root))).rejects.toThrow();
     expect((await loadProject(entry.root)).specs.map((s) => s.id)).toEqual(['T-001']);
+  });
+
+  it('an apply the skill refuses (the code changed) archives nothing, deletes the proposal and ends as Sync stopped', async () => {
+    const entry = await makeProject();
+    await fs.writeFile(specFile(entry), SPEC.replace('status: todo', 'status: done')); // archivable, so only the missing mark stops it
+    await fs.writeFile(proposal(entry.root), BODY);
+    const { m } = manager('sync-head-changed');
+    const run = await ended((await m.start(entry, 'sync-apply', null)).id);
+    expect(run.status).toBe('error');
+    expect(run.end).toMatchObject({ status: 'error', title: 'Sync stopped', text: 'The code changed since the proposal. Run Sync again.' });
+    expect(run.lines.at(-1)).toMatchObject({ k: 'err', text: 'Sync stopped' });
+    expect(run.lines.some((l) => l.text === 'Board synced with the code')).toBe(false);
+    await expect(fs.access(proposal(entry.root))).rejects.toThrow();
+    const p = await loadProject(entry.root);
+    expect(p.specs.map((s) => s.id)).toEqual(['T-001']);
+    expect(p.archived).toEqual([]);
+  });
+
+  it('a plan deletes an old proposal before it starts, so one it never wrote is not taken as fresh', async () => {
+    const entry = await makeProject();
+    await fs.writeFile(proposal(entry.root), BODY);
+    const { m } = manager('plain');
+    const run = await ended((await m.start(entry, 'sync-plan', null)).id);
+    expect(run.end).toMatchObject({ status: 'error', text: 'No sync proposal was written.' });
+    await expect(fs.access(proposal(entry.root))).rejects.toThrow();
   });
 });

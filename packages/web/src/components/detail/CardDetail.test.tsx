@@ -6,7 +6,7 @@ import { recipeArchived, recipeSpec, recipeSpecs, fileProblemSpec } from '../../
 import { createSpecActions } from '../../state/actions';
 import { createMutator } from '../../state/mutate';
 import { interceptPop } from '../../lib/popGuard';
-import { CardDetail, type DetailClient } from './CardDetail';
+import { CardDetail, datesLine, type DetailClient } from './CardDetail';
 
 const ROOT = 'examples/recipe-box';
 
@@ -76,6 +76,20 @@ describe('CardDetail', () => {
     expect(within(dlg).getByText('.specboard/specs/T-104-meal-planner-calendar/spec.md')).toBeTruthy();
     expect(within(dlg).getByRole('heading', { level: 1, name: 'Meal planner calendar' })).toBeTruthy();
     expect(within(dlg).getByText('SPEC')).toBeTruthy();
+  });
+
+  it('ends with a dates footer, leaving out a missing date and showing nothing without both', () => {
+    const spec = recipeSpec('T-104');
+    const { rerenderWith } = setup('T-104');
+    expect(screen.getByText('Created 2026-11-01 · Updated 2026-11-08')).toBeTruthy();
+    rerenderWith([{ ...spec, created: null }]);
+    expect(screen.getByText('Updated 2026-11-08')).toBeTruthy();
+    rerenderWith([{ ...spec, updated: null }]);
+    expect(screen.getByText('Created 2026-11-01')).toBeTruthy();
+    rerenderWith([{ ...spec, created: null, updated: null }]);
+    expect(screen.queryByText(/Created|Updated/)).toBeNull();
+    expect(datesLine(null, null)).toBeNull();
+    expect(datesLine('2026-11-01', '2026-11-08')).toBe('Created 2026-11-01 · Updated 2026-11-08');
   });
 
   it('shows "This spec was removed or archived" with a Close button when the spec is gone', () => {

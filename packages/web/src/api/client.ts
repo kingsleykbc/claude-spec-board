@@ -49,6 +49,8 @@ export interface RunLine {
   time: string;
   /** The subtask number, only on the line saying that subtask got done. */
   subtask?: number;
+  /** Shown after `code`, e.g. the token total on a last line that names a command. */
+  after?: string;
 }
 export interface Denial {
   tool: string;
@@ -154,7 +156,7 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
 
 export const api = {
   // Reads
-  health: () => request<{ ok: boolean; app: string }>('GET', '/api/health'),
+  health: () => request<{ ok: boolean; app: string; plugin?: boolean }>('GET', '/api/health'),
   projects: () => request<ProjectSummary[]>('GET', '/api/projects'),
   project: (pid: string) => request<ProjectData>('GET', proj(pid)),
 

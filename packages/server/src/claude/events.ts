@@ -9,6 +9,8 @@ export interface RunLine {
   time: string;
   /** The subtask number, only on the line saying that subtask got done. */
   subtask?: number;
+  /** Shown after `code`, e.g. the token total on a last line that names a command. */
+  after?: string;
 }
 export interface Denial { tool: string; input: unknown }
 export interface ClaudeResult {
@@ -23,6 +25,9 @@ export interface ClaudeResult {
   costUsd: number | null;
 }
 export type ParsedLine = Omit<RunLine, 'seq' | 'time'>;
+/** What one assistant event spent and which files it asked to write. `id` is the message ID (null when missing). */
+export interface AssistantTurn { id: string | null; tokens: number; writes: string[] }
+const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit']);
 
 /** Splits a byte stream into lines. Holds back partial lines and partial UTF-8 sequences. */
 export class LineSplitter {
@@ -130,8 +135,8 @@ function parseResult(ev: Record<string, unknown>): ClaudeResult {
   };
 }
 
-/** Turns one stream-json line into run lines and, for the final event, a result. null = not JSON or nothing to show. */
-export function parseEvent(line: string, root?: string): { lines: ParsedLine[]; result?: ClaudeResult } | null {
+/** Turns one stream-json line into run lines, an assistant turn and, for the final event, a result. null = not JSON or nothing in it. */
+export function parseEvent(line: string, root?: string): { lines: ParsedLine[]; result?: ClaudeResult; assistant?: AssistantTurn } | null {
   let ev: unknown;
   try { ev = JSON.parse(line); } catch { return null; }
   if (!isObj(ev)) return null;
@@ -143,11 +148,17 @@ export function parseEvent(line: string, root?: string): { lines: ParsedLine[]; 
   const lines: ParsedLine[] = [];
 
   if (ev.type === 'assistant') {
+    const writes: string[] = [];
     for (const b of message.content) {
       if (!isObj(b) || b.type !== 'tool_use' || typeof b.name !== 'string') continue;
       const l = toolLine(b.name, b.input, root);
       if (l) lines.push(l);
+      const file = isObj(b.input) ? str(b.input.file_path) : null;
+      if (WRITE_TOOLS.has(b.name) && file !== null) writes.push(file);
     }
+    const u = parseUsage(message.usage);
+    const tokens = u ? u.input + u.output + u.cacheRead + u.cacheWrite : 0;
+    return { lines, assistant: { id: str(message.id), tokens, writes } };
   } else if (ev.type === 'user') {
     for (const b of message.content) {
       if (!isObj(b) || b.type !== 'tool_result' || b.is_error !== true) continue;

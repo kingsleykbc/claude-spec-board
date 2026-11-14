@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import type { EndInfo, RunKind } from '../../api/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { LINE } from '../../lib/vm';
+import { resetMode, setPluginMode } from '../../lib/mode';
 import { RunPanel, RUN_LINES, type RunStatus } from './RunPanel';
 
 /** The markup of a run-log line kind's icon. */
@@ -26,6 +27,7 @@ const clip = (writeText: (t: string) => Promise<void>) =>
 
 afterEach(() => {
   cleanup();
+  resetMode();
   vi.useRealTimers();
 });
 
@@ -101,6 +103,22 @@ describe('RunPanel', () => {
       fireEvent.click(card.getByRole('button', { name: 'Copy rule' }));
     });
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(RULE);
+  });
+
+  it('in the plugin, offers no terminal-only specboard allow: it asks Claude to run setup or init instead', () => {
+    setPluginMode(true);
+    render(<RunPanel status="permission" lines={[]} end={permission} projectRoot="C:\my projects\app" onDismiss={vi.fn()} onAction={vi.fn()} />);
+    const card = within(screen.getByTestId('run-end'));
+    expect(card.getByText('Ask Claude to run /specboard:setup again to update the allowed commands, or ask Claude to run `specboard init --yes --no-skills --runs yes "C:\\my projects\\app"`.')).toBeTruthy();
+    expect(card.queryByText(/specboard allow/)).toBeNull();
+    expect(card.queryByText(/Spec Board repo/)).toBeNull();
+    expect(card.queryByRole('button', { name: 'Copy rule' })).toBeNull();
+  });
+
+  it('shows a line\'s after text behind its code', () => {
+    render(<RunPanel status="permission" lines={[{ seq: 1, k: 'err', text: 'Not allowed:', code: 'git push', after: '· 12.3k tokens', time: '10:00' }]} end={permission} onDismiss={vi.fn()} onAction={vi.fn()} />);
+    const line = screen.getByText('git push').parentElement!;
+    expect(line.textContent).toBe('Not allowed: git push · 12.3k tokens');
   });
 
   it('without a project root the note names the path in words', () => {

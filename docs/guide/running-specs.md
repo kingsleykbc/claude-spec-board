@@ -58,9 +58,9 @@ Press **Logs** in the header (or in the logo menu in Simple mode) to see every l
 
 The board can show roughly how many tokens Claude used for each subtask, in the log and in the **Tokens** column of the table view. The Overview shows the total for the whole project, archived specs included.
 
-- **The plugin counts them.** A hook in the plugin runs when Claude writes a subtask log, and adds up what the session used since the previous log. It works the same in a chat and in a background run. A project set up with plain `init`, without the plugin, gets no counts.
+- **Who counts them.** In a chat, a hook in the plugin runs when Claude writes a subtask log, and adds up what the session used since the previous log. A background run has hooks turned off, so the board counts it instead: it adds up the tokens in the run's output the same way and writes them into each log when the run ends. A chat in a project set up with plain `init`, without the plugin, gets no counts.
 - **They are approximate.** The tokens spent between one log and the next go to the later subtask, so a subtask that comes after a long discussion looks more expensive than it was. Treat the numbers as a guide, not a bill.
-- **Claude never writes them.** Claude in a chat can't see its own usage, so the plugin does the counting. An obsolete log keeps its tokens, because they were spent.
+- **Claude never writes them.** Claude can't see its own usage, so the plugin (in a chat) or the board (in the background) does the counting. An obsolete log keeps its tokens, because they were spent.
 - **You can turn it off.** Choose **Settings** in the logo menu and switch off **Track tokens**. The column and the total then disappear too.
 
 A background run also shows its total on the last line of its run panel, which ends with "· 48.2k tokens".
@@ -71,8 +71,8 @@ Over time the board can drift from the code: work gets done without a tick, or a
 
 - **Whole project:** choose **Sync with code** in the logo menu. **One spec:** press **Sync** in the card, beside **Run**. In a chat, type `/specboard:sync-specs` or `/specboard:sync-specs T-104`.
 - **What it looks at:** the specs, their logs, the code and the git history. It proposes ticks (with the commit that shows the work), status moves, new draft specs for work that has no card, and specs to archive. It unticks only with clear evidence the work was removed. It never moves a spec to Done, and it never deletes a spec or a log.
-- **You see it first.** From the board, Claude writes a proposal and changes nothing else. A dialog shows a warning, the list of changes and the tree. Choose **Confirm** to apply exactly that proposal, or **Cancel** to throw it away. If the code changed between the two steps, the apply stops and asks you to sync again.
-- **Specs to archive** are archived by the board once you confirm. In a chat, sync names them and you archive them on the board.
+- **You see it first.** From the board, Claude writes a proposal and changes nothing else. A dialog shows a warning, the list of changes and the tree. Choose **Confirm** to apply exactly that proposal, or **Cancel** to throw it away. If the code changed between the two steps, the apply stops, the run panel says **Sync stopped**, nothing is archived and the proposal is thrown away: sync again.
+- **Specs to archive** are archived by the board once you confirm and Claude has applied every change. In a chat, sync names them and you archive them on the board.
 - **Old logs stay.** When sync unticks a subtask or archives a spec, it marks the matching logs obsolete instead of deleting them.
 - **If the browser closes** before you confirm, a **Sync proposal waiting** item in the logo menu brings the dialog back for a whole-project sync. For one spec, a **Sync proposal waiting** button beside **Sync** in that card does the same.
 - **In manual mode** the dialog shows the command to copy: `/specboard:sync-specs`, or with a spec ID.
@@ -80,7 +80,7 @@ Over time the board can drift from the code: work gets done without a tick, or a
 ## When Claude stops
 
 - **It needs a decision.** Claude adds a required question and stops. Answer it on the card, then start the spec again and it carries on.
-- **An action was refused in the background.** The card shows what was refused and the rule that would allow it, if it's safe to offer. Run the `allow` command it gives you in a terminal, then run again. If only the pull request lookup was refused, Claude skips the link and carries on.
+- **An action was refused in the background.** The card shows what was refused and the rule that would allow it, if it's safe to offer. From a copy of the repo, run the `allow` command it gives you in a terminal, then run again. With the plugin there is no `specboard` in your terminal, so ask Claude to run `/specboard:setup` again to update the allowed commands, or to run `specboard init --yes --no-skills --runs yes "<project folder>"`. Refusals of the pull request lookup (`gh pr view`, `glab mr view`) and of `specboard tree` don't stop a run: Claude skips the link or the tree and carries on.
 - **It's waiting on you.** The spec has a `(you)` step before more work, such as adding a file or a key. The run panel says **Waiting on you** and names the step. Do it, tick it on the card, then run again. This is a pause, not an error.
 - **It finished.** The card moves to Review. Only you can move a card to Done.
 

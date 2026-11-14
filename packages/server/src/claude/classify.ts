@@ -244,8 +244,17 @@ function withRefusals(info: EndInfo, denials: Denial[]): EndInfo {
   return { ...info, denied: denials.map(forWire), text: info.text ? `${info.text} ${line}` : line };
 }
 
+/** Commands the skills try only when they can (a PR link, the tree view): a refusal of one changes nothing. */
+const OPTIONAL_COMMAND = /^(?:gh\s+pr\s+view|glab\s+mr\s+view|specboard\s+tree)(?:\s|$)/;
+
+function optionalRefusal(d: Denial): boolean {
+  const command = (d.input as { command?: unknown } | null)?.command;
+  return SHELL_TOOLS.has(d.tool) && typeof command === 'string' && OPTIONAL_COMMAND.test(command.trim());
+}
+
 export function classifyEnd(input: ClassifyInput): EndInfo {
-  const { stopped, exitCode, result, stderrTail, kind, before, after } = input;
+  const { stopped, exitCode, stderrTail, kind, before, after } = input;
+  const result = input.result && { ...input.result, denials: input.result.denials.filter((d) => !optionalRefusal(d)) };
   if (stopped) return { status: 'stopped' };
 
   if (result?.isError) {

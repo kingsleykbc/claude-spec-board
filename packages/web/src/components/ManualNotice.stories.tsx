@@ -11,7 +11,7 @@ type Story = StoryObj<typeof meta>;
 const opens = (line: string): Story['play'] => async ({ canvasElement }) => {
   const c = within(canvasElement);
   await userEvent.click(c.getByRole('button', { name: 'Manual mode: background runs are off' }));
-  expect(c.getByText('Non-agentic mode')).toBeTruthy();
+  expect(c.getByText('Manual mode (non-agentic)')).toBeTruthy();
   expect(c.getByText(line)).toBeTruthy();
   expect(c.getByRole('link', { name: 'How to turn on background runs' }).getAttribute('href')).toBe('/docs/running-specs#turn-on-background-runs');
 };

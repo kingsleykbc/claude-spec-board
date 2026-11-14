@@ -5,6 +5,9 @@ import path from 'node:path';
 declare const __SPECBOARD_BUNDLE__: boolean | undefined;
 const BUNDLED = typeof __SPECBOARD_BUNDLE__ !== 'undefined' && __SPECBOARD_BUNDLE__;
 
+/** True when this is the plugin's bundle, false when run from the Spec Board repo. */
+export const isBundled = (): boolean => BUNDLED;
+
 /** Source: this file is `<repo>/packages/server/src`. Bundle: the bundle sits in `<plugin>/bin`. */
 const HERE = import.meta.dirname;
 

@@ -182,7 +182,7 @@ Built the time-slot grid. Slots come from the barber's opening hours. Tests adde
 - `done_at: YYYY-MM-DD HH:mm` (local time) is written when the subtask is ticked.
 - `obsolete: "<YYYY-MM-DD>: <reason>"` marks a log whose work no longer exists. Only sync sets it (see /sync-specs).
 - Each entry is headed `### YYYY-MM-DD HH:mm`, followed by free text on what changed and any notes. Add a new entry to an existing log instead of replacing it. Never delete or rewrite an entry.
-- `tokens:` is filled in automatically by the Spec Board plugin. Never write it yourself.
+- `tokens:` is filled in automatically by Spec Board. Never write it yourself. The Spec Board plugin adds `tokens:` to a log right after you write it: Read the log again before editing it a second time, and never remove `tokens:`.
 
 ## Blocked
 

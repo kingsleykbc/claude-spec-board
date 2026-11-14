@@ -204,10 +204,10 @@ describe('small screens', () => {
     mockMedia(true);
     render(<TopBar {...props({ brandOpen: true, onToggleBrand: vi.fn(), manual: 'not-installed' })} />);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Manual mode' }));
-    expect(screen.getByText('Non-agentic mode')).toBeTruthy();
+    expect(screen.getByText('Manual mode (non-agentic)')).toBeTruthy();
     expect(screen.getByText("Claude Code isn't installed on this computer.")).toBeTruthy();
     fireEvent.click(screen.getByTestId('manual-scrim'));
-    expect(screen.queryByText('Non-agentic mode')).toBeNull();
+    expect(screen.queryByText('Manual mode (non-agentic)')).toBeNull();
   });
 
   it('narrow: the switcher keeps its dot but drops the progress text', () => {

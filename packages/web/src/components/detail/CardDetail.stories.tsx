@@ -43,6 +43,7 @@ export const ReadMode: Story = {
     expect(within(dlg).getByText('.specboard/specs/T-104-meal-planner-calendar/spec.md')).toBeTruthy();
     expect(within(dlg).getByRole('button', { name: 'Edit' })).toBeTruthy();
     expect(within(dlg).queryByText('Blocked.')).toBeNull();
+    expect(within(dlg).getByText('Created 2026-11-01 · Updated 2026-11-08')).toBeTruthy();
   },
 };
 

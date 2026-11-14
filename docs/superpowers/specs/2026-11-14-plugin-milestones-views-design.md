@@ -223,11 +223,12 @@ A short "Spec or subtask?" part in the `specboard` rules, used by every skill th
 - The logo menu gets **Settings**, opening a small modal with the one switch: "Track tokens: record the tokens Claude uses for each subtask in its log."
 
 ### 13. Tokens per subtask (replaces the server log entry in section 4)
-- A **plugin hook** does the counting, so it works in chats and background runs alike (background runs load the plugin through `--plugin-dir`). `plugin/hooks/hooks.json` registers a `PostToolUse` hook on `Write|Edit|MultiEdit` that runs `node "${CLAUDE_PLUGIN_ROOT}/bin/specboard.mjs" hook-tokens`.
+- **Chats are counted by the plugin hook; background runs are counted by the board.** Background runs keep `disableAllHooks: true` (run isolation), so the hook never fires there. Instead the server counts from the run's stream: it sums assistant `message.usage` (input + output + cache read + cache write, each `message.id` once), and whenever a `Write`/`Edit`/`MultiEdit` tool call targets `.specboard/specs/<dir>/logs/<n>-*.md`, the tokens since the previous such write go to that log. At the run's end it adds each amount to the log's `tokens:` with the hook's own `addTokens`, only if the project's `track_tokens` is on. *(Fix after the final review.)*
+- In chats, `plugin/hooks/hooks.json` registers a `PostToolUse` hook on `Write|Edit|MultiEdit` that runs `node "${CLAUDE_PLUGIN_ROOT}/bin/specboard.mjs" hook-tokens`.
 - The hook reads the event from stdin. If the edited file is `…/.specboard/specs/<spec>/logs/<n>-*.md` and the project's `track_tokens` is on, it reads the session transcript (`transcript_path`), sums `message.usage` (input + output + cache read + cache write) over assistant entries, counting each `message.id` once, and subtracts the total it recorded at the previous log write in this session (kept in `${CLAUDE_PLUGIN_DATA}/tokens/<session_id>.json`; the first log write of a session counts from the session start). It adds the difference to the log's front matter `tokens:` (integer, cumulative across sittings) and saves the new checkpoint. Any failure exits 0 silently, so a hook problem never blocks Claude.
 - The count is an honest approximation: tokens spent between one log write and the next go to the later subtask. The docs say so.
 - Core parses `tokens` on logs (`SubtaskLog.tokens: number | null`). The detail view shows it next to the commit ("48.2k tokens").
-- Projects set up with plain `specboard init` (no plugin) get no token counts; the docs say so.
+- Chats in projects set up with plain `specboard init` (no plugin) get no token counts; the docs say so. Their background runs are still counted by the board.
 - The server still shows a background run's total in the run panel's last line (section 4), but no longer appends a log entry.
 
 ### 14. Token totals

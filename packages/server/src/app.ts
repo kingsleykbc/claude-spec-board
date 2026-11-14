@@ -8,6 +8,7 @@ import { Hub } from './hub.js';
 import { PathError, safeProjectPath } from './safePath.js';
 import { watchProject } from './watch.js';
 import { guard } from './security.js';
+import { isBundled } from './paths.js';
 import { specRoutes } from './routes/specs.js';
 import { referenceRoutes } from './routes/references.js';
 import { runRoutes } from './routes/runs.js';
@@ -63,7 +64,7 @@ export function createApp(deps: AppDeps): Hono {
   const app = new Hono();
   app.use('*', guard(deps.port));
 
-  app.get('/api/health', (c) => c.json({ ok: true, app: 'specboard' }));
+  app.get('/api/health', (c) => c.json({ ok: true, app: 'specboard', plugin: isBundled() }));
 
   app.get('/api/projects', async (c) => {
     const entries = await deps.registry.list();
