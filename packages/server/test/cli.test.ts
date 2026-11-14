@@ -129,6 +129,30 @@ describe('detach', () => {
     expect(JSON.stringify(registry)).toContain(path.basename(proj));
   });
 
+  it('refuses without spawning when another program holds the port', async () => {
+    const proj = await copySample('c');
+    const blocker = net.createServer((sock) => sock.destroy());
+    await new Promise<void>((r) => blocker.listen(0, '127.0.0.1', r));
+    blockers.push(blocker);
+    const port = (blocker.address() as net.AddressInfo).port;
+    const spawned = vi.fn();
+    await expect(runDetached({ path: proj, port, open: false }, [proj], { spawn: spawned })).rejects.toThrow(`Port ${port} is in use by another program`);
+    expect(spawned).not.toHaveBeenCalled();
+  });
+
+  it('rejects --port 0 before anything else', async () => {
+    await expect(runDetached({ path: path.join(tmp, 'nope'), port: 0, open: false }, [], { spawn: vi.fn() })).rejects.toThrow('fixed port');
+  });
+
+  it('stops waiting when the child has exited', async () => {
+    const proj = await copySample('d');
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const t0 = Date.now();
+    expect(await runDetached({ path: proj, port: await freePort(), open: false }, [proj], { spawn: () => ({ exited: () => true }), timeoutMs: 5000 })).toBe(1);
+    expect(Date.now() - t0).toBeLessThan(2000);
+    err.mockRestore();
+  });
+
   it('returns 1 when the child never answers', async () => {
     const proj = await copySample('b');
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});

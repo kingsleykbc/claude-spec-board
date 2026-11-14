@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import net from 'node:net';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadProject, renderTree } from '@specboard/core';
@@ -92,13 +93,25 @@ export function pluginVersion(): string {
 }
 
 /** Start the child that keeps serving after this process exits. */
-function spawnDetached(argv: string[]): void {
+function spawnDetached(argv: string[]): { exited(): boolean } {
   const child = spawn(process.execPath, [...process.execArgv, process.argv[1]!, ...detachArgs(argv)], {
     detached: true,
     stdio: 'ignore',
     windowsHide: true,
   });
+  let exited = false;
+  child.once('exit', () => { exited = true; });
   child.unref();
+  return { exited: () => exited };
+}
+
+/** True when nothing is listening on `port` (a probe bind on the board's host). */
+async function portIsFree(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const s = net.createServer();
+    s.once('error', () => resolve(false));
+    s.listen(port, '127.0.0.1', () => s.close(() => resolve(true)));
+  });
 }
 
 /**
@@ -108,26 +121,28 @@ function spawnDetached(argv: string[]): void {
 export async function runDetached(
   a: Pick<StartOptions, 'path' | 'port' | 'open'>,
   argv: string[],
-  deps: { spawn?: (argv: string[]) => void; timeoutMs?: number } = {},
+  deps: { spawn?: (argv: string[]) => { exited(): boolean } | void; timeoutMs?: number } = {},
 ): Promise<number> {
   if (a.port !== 0 && (await isSpecBoard(a.port))) {
     const s = await start(a); // registers the project and opens the board; nothing new is served
     console.log(`Spec Board running at ${s.url}`);
     return 0;
   }
+  if (a.port === 0) throw new Error('--detach needs a fixed port; leave out --port 0.');
   const root = path.resolve(a.path);
   if (!fs.existsSync(path.join(root, '.specboard', 'config.md'))) throw new Error(`No .specboard folder in ${root}. ${initHint(root)}`);
-  if (a.port === 0) throw new Error('--detach needs a fixed port; leave out --port 0.');
-  (deps.spawn ?? spawnDetached)(argv);
+  if (!(await portIsFree(a.port))) throw new Error(`Port ${a.port} is in use by another program. Pick another with --port.`);
+  const child = (deps.spawn ?? spawnDetached)(argv);
   const deadline = Date.now() + (deps.timeoutMs ?? 10_000);
   while (Date.now() < deadline) {
+    if (child?.exited()) break;
     if (await isSpecBoard(a.port)) {
       console.log(`Spec Board running at http://127.0.0.1:${a.port}`);
       return 0;
     }
     await new Promise((r) => setTimeout(r, 200));
   }
-  console.error(`Spec Board did not start within ${(deps.timeoutMs ?? 10_000) / 1000} s. Run it in the foreground to see why: specboard "${root}"`);
+  console.error(`Spec Board did not start on port ${a.port} within ${(deps.timeoutMs ?? 10_000) / 1000} s. Run it in the foreground to see why: specboard "${root}"`);
   return 1;
 }
 
