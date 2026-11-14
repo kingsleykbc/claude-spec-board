@@ -128,22 +128,22 @@ describe('FilterBar', () => {
   it('category menu toggles a category', () => {
     const p = filterBar({ menu: 'cat' });
     fireEvent.click(screen.getByRole('checkbox', { name: /Backend/ }));
-    expect(p.onChange).toHaveBeenCalledWith({ cats: ['Backend'], urg: [], blocked: false });
+    expect(p.onChange).toHaveBeenCalledWith({ cats: ['Backend'], urg: [], blocked: false, milestone: null });
   });
 
   it('urgency menu lists Urgent to Low', () => {
     const p = filterBar({ menu: 'urg' });
     expect(screen.getAllByRole('checkbox').map((c) => c.parentElement!.textContent)).toEqual(['Urgent', 'High', 'Normal', 'Low']);
     fireEvent.click(screen.getByRole('checkbox', { name: /Urgent/ }));
-    expect(p.onChange).toHaveBeenCalledWith({ cats: [], urg: ['urgent'], blocked: false });
+    expect(p.onChange).toHaveBeenCalledWith({ cats: [], urg: ['urgent'], blocked: false, milestone: null });
   });
 
   it('active filters show as chips with counts, removable, plus Clear', () => {
-    const p = filterBar({ filters: { cats: ['Backend'], urg: ['normal'], blocked: true } });
+    const p = filterBar({ filters: { cats: ['Backend'], urg: ['normal'], blocked: true, milestone: null } });
     expect(screen.getByRole('button', { name: /^Category/ }).textContent).toBe('Category1');
     expect(screen.getAllByRole('button', { name: 'Remove filter' })).toHaveLength(3);
     fireEvent.click(screen.getAllByRole('button', { name: 'Remove filter' })[0]!);
-    expect(p.onChange).toHaveBeenCalledWith({ cats: [], urg: ['normal'], blocked: true });
+    expect(p.onChange).toHaveBeenCalledWith({ cats: [], urg: ['normal'], blocked: true, milestone: null });
     fireEvent.click(screen.getByText('Clear'));
     expect(p.onChange).toHaveBeenLastCalledWith(NO_FILTERS);
     expect(screen.getByRole('switch', { name: 'Blocked only' }).getAttribute('aria-checked')).toBe('true');

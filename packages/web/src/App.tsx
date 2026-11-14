@@ -8,15 +8,18 @@ import { interceptPop } from './lib/popGuard';
 import { PlusIcon } from './lib/icons';
 import { runHold } from './lib/vm';
 import { startTour, tourSeen } from './lib/tour';
-import { categoryOptions, NO_FILTERS, waitItems, type Filters, type WaitItem } from './state/filters';
+import { currentMilestone } from '@specboard/core/milestones';
+import { categoryOptions, filterSpecs, milestoneOptions, NO_FILTERS, waitItems, type Filters, type WaitItem } from './state/filters';
 import { createMutator } from './state/mutate';
 import { FileLinks } from './state/fileLinks';
 import { initialSimple, saveSimple, SimpleMode } from './state/simpleMode';
+import { initialView, saveView, type View } from './state/viewMode';
 import { useToasts, type PushToast } from './state/toasts';
 import { useProject } from './state/useProject';
 import { cardRun, isRefreshing, manualReason, runButtonState, useRunActions, useRunToasts } from './state/runUi';
 import { useRun } from './state/useRun';
 import { Board } from './components/Board';
+import { TableView } from './components/TableView';
 import { AppSkeleton, BoardSkeleton } from './components/Skeleton';
 import { AddSpecModal } from './components/AddSpecModal';
 import { CardDetail } from './components/detail/CardDetail';
@@ -179,6 +182,11 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
   const [seenQuestions, setSeenQuestions] = useState<ReadonlySet<string>>(() => new Set());
   const unseenQuestions = useMemo(() => new Set([...newQuestions].filter((k) => !seenQuestions.has(k))), [newQuestions, seenQuestions]);
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const [view, setView] = useState<View>(initialView);
+  const pickView = (v: View) => {
+    saveView(v);
+    setView(v);
+  };
   const [menu, setMenu] = useState<'brand' | 'switcher' | Exclude<FilterMenu, null> | null>(null);
   /** Optimistic status while a move is in flight, so the card does not snap back before the refresh. */
   const [pending, setPending] = useState<Record<string, Status>>({});
@@ -207,6 +215,17 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
     [project, pending],
   );
   const archived = project?.archived ?? [];
+  const milestones = project?.config?.milestones ?? [];
+  // The milestone filter starts at the current milestone once per project load (archived counted as done);
+  // after that it is the person's choice until the project changes (ProjectView is keyed by project).
+  const [milestoneSet, setMilestoneSet] = useState(false);
+  if (project && !milestoneSet) {
+    setMilestoneSet(true);
+    if (milestones.length > 0) {
+      const all = [...project.specs, ...project.archived.map((x) => ({ ...x, status: 'done' as const }))];
+      setFilters((f) => ({ ...f, milestone: currentMilestone(all, milestones) }));
+    }
+  }
   useRunToasts(run, specs, toast);
   const { startRun, stopRun, dismissRun } = useRunActions(run, toast, project?.root);
   const name = project?.config?.name || data?.entry.name || summary?.name || pid;
@@ -307,15 +326,29 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
             categories={categoryOptions(specs, archived)}
             waits={waitItems(specs)}
             onWait={onWait}
-            menu={menu === 'cat' || menu === 'urg' || menu === 'waits' ? menu : null}
+            menu={menu === 'cat' || menu === 'urg' || menu === 'waits' || menu === 'milestone' ? menu : null}
             onMenu={(m) => setMenu(m)}
             simple={simple}
             onSimple={onSimple}
+            view={view}
+            onView={pickView}
+            milestones={milestoneOptions(specs, archived, milestones)}
           />
+          {view === 'table' ? (
+            <TableView
+              specs={filterSpecs(specs, { ...filters, milestone: null })}
+              archived={filterSpecs(archived, { ...filters, milestone: null })}
+              milestones={milestones}
+              simple={simple}
+              trackTokens={project.settings.trackTokens}
+              onOpen={openSpec}
+            />
+          ) : (
           <Board
             specs={specs}
             archived={archived}
             filters={filters}
+            milestones={milestones}
             run={run.run}
             canDrag={!down}
             changed={changed}
@@ -326,6 +359,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
             onWriteUp={(s) => void startRun('write-up', s.id)}
             onAdd={openAdd}
           />
+          )}
           <button type="button" className={boardCss.fab} onClick={openAdd} data-tour="add">
             <PlusIcon aria-hidden className={boardCss.fabPlus} />
             Add new spec

@@ -1,10 +1,12 @@
+import type { KeyboardEvent } from 'react';
 import type { Urgency } from '@specboard/core';
 import { CaretIcon, CloseIcon, MoreIcon } from '../lib/icons';
 import { catColor, urgVm } from '../lib/vm';
-import { filterChips, NO_FILTERS, toggle, type Filters, type WaitItem } from '../state/filters';
+import { filterChips, NO_FILTERS, toggle, type Filters, type MilestoneOption, type WaitItem } from '../state/filters';
+import type { View } from '../state/viewMode';
 import s from './FilterBar.module.css';
 
-export type FilterMenu = 'cat' | 'urg' | 'waits' | null;
+export type FilterMenu = 'cat' | 'urg' | 'waits' | 'milestone' | null;
 const URG_ORDER: Urgency[] = ['urgent', 'high', 'normal', 'low'];
 
 export interface FilterBarProps {
@@ -19,6 +21,45 @@ export interface FilterBarProps {
   /** Simple mode: the waiting items move behind a ⋯ menu. */
   simple?: boolean;
   onSimple?: (on: boolean) => void;
+  /** Board or Table; the switch shows when `onView` is given. */
+  view?: View;
+  onView?: (v: View) => void;
+  /** The milestone dropdown's options (empty or missing: no dropdown). Shown in the Board view only. */
+  milestones?: MilestoneOption[];
+}
+
+const VIEWS: { v: View; label: string }[] = [
+  { v: 'board', label: 'Board' },
+  { v: 'table', label: 'Table' },
+];
+
+/** The Board | Table segmented control: a radio group, arrow keys move the choice. */
+function ViewSwitch({ view, onView }: { view: View; onView: (v: View) => void }) {
+  const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+    e.preventDefault();
+    const next = view === 'board' ? 'table' : 'board';
+    onView(next);
+    e.currentTarget.querySelector<HTMLElement>(`[data-view="${next}"]`)?.focus();
+  };
+  return (
+    <div role="radiogroup" aria-label="View" data-tour="view" className={s.seg} onKeyDown={onKey}>
+      {VIEWS.map(({ v, label }) => (
+        <button
+          key={v}
+          type="button"
+          role="radio"
+          aria-checked={view === v}
+          tabIndex={view === v ? 0 : -1}
+          data-view={v}
+          className={s.segBtn}
+          onClick={() => onView(v)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function Switch({ on, label, title, onToggle }: { on: boolean; label: string; title?: string; onToggle: () => void }) {
@@ -33,10 +74,47 @@ function Switch({ on, label, title, onToggle }: { on: boolean; label: string; ti
 }
 
 /** Category / Urgency / Blocked only, active chips, and the "waiting" items (prototype lines 62-87; pinned behaviours 3 and 4). */
-export function FilterBar({ filters: f, onChange, categories, waits, onWait, menu, onMenu, simple = false, onSimple }: FilterBarProps) {
+export function FilterBar({ filters: f, onChange, categories, waits, onWait, menu, onMenu, simple = false, onSimple, view = 'board', onView, milestones = [] }: FilterBarProps) {
   const chips = filterChips(f);
+  const msLabel = f.milestone === null ? 'All milestones' : (milestones.find((o) => o.value === f.milestone)?.label ?? f.milestone);
+  const pickMilestone = (m: string | null) => {
+    onMenu(null);
+    onChange({ ...f, milestone: m });
+  };
   return (
     <div className={s.bar} data-tour="filters">
+      {onView && <ViewSwitch view={view} onView={onView} />}
+      {milestones.length > 0 && view === 'board' && (
+        <div className={s.wrap}>
+          <button
+            type="button"
+            className={s.btn}
+            aria-label={`Milestone: ${msLabel}`}
+            aria-haspopup="menu"
+            aria-expanded={menu === 'milestone'}
+            onClick={() => onMenu(menu === 'milestone' ? null : 'milestone')}
+          >
+            {msLabel}
+            <CaretIcon aria-hidden className={s.caret} />
+          </button>
+          {menu === 'milestone' && (
+            <div role="menu" aria-label="Milestone" className={s.pop} style={{ minWidth: 210 }}>
+              {milestones.map((o) => (
+                <button key={o.value} type="button" role="menuitemradio" aria-checked={f.milestone === o.value} className={s.opt} onClick={() => pickMilestone(o.value)}>
+                  {o.label}
+                  <span className={s.optN}>
+                    {o.done}/{o.total}
+                  </span>
+                </button>
+              ))}
+              <span className={s.menuSep} />
+              <button type="button" role="menuitemradio" aria-checked={f.milestone === null} className={s.opt} onClick={() => pickMilestone(null)}>
+                All milestones
+              </button>
+            </div>
+          )}
+        </div>
+      )}
       <div className={s.wrap}>
         <button type="button" className={s.btn} aria-expanded={menu === 'cat'} onClick={() => onMenu(menu === 'cat' ? null : 'cat')}>
           Category{f.cats.length > 0 && <span className={s.n}>{f.cats.length}</span>}
@@ -100,7 +178,7 @@ export function FilterBar({ filters: f, onChange, categories, waits, onWait, men
               </button>
             </span>
           ))}
-          <button type="button" className={s.clear} onClick={() => onChange(NO_FILTERS)}>
+          <button type="button" className={s.clear} onClick={() => onChange({ ...NO_FILTERS, milestone: f.milestone })}>
             Clear
           </button>
         </>

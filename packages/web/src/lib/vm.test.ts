@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Spec } from '@specboard/core';
-import { recipeSpec } from '../fixtures/recipeBox';
+import { recipeSpec, recipeSpecs } from '../fixtures/recipeBox';
 import { ReviewIcon, TodoIcon } from './icons';
-import { catColor, firstParagraph, fmtLogTime, relPath, relTime, runHold, statusMeta, truncate, urgVm } from './vm';
+import { catColor, firstParagraph, fmtLogTime, relPath, relTime, runHold, statusMeta, tokensUsed, truncate, urgVm, waitingOnYou } from './vm';
 
 // The prototype's hue(), copied as-is, to pin catColor to it.
 const hue = (n: string) => {
@@ -107,5 +107,21 @@ describe('runHold', () => {
     expect(runHold(spec({ dependsOn: ['T-104'] }), all)).toBe('Blocked. Depends on itself');
     expect(runHold(spec({ dependsOn: ['T-120'] }), [{ ...dep, status: 'done' }])).toBeNull();
     expect(runHold(spec({ dependsOn: ['T-120'] }), [{ ...dep, archived: true }])).toBeNull();
+  });
+});
+
+describe('tokensUsed', () => {
+  it('sums the log tokens, null when none are counted', () => {
+    const base = recipeSpecs[0]!;
+    const log = { subtask: 1, commit: null, files: [], pr: null, doneAt: null, obsolete: null, entries: [], problems: [] };
+    expect(tokensUsed(base)).toBeNull();
+    expect(tokensUsed({ ...base, logs: { 1: { ...log, tokens: null } } })).toBeNull();
+    expect(tokensUsed({ ...base, logs: { 1: { ...log, tokens: 1200 }, 2: { ...log, tokens: null }, 3: { ...log, tokens: 48000 } } })).toBe(49200);
+  });
+});
+
+describe('waitingOnYou (the card’s "Waiting on your review")', () => {
+  it('is true only for a spec in Review', () => {
+    expect(recipeSpecs.filter(waitingOnYou).map((x) => x.id)).toEqual(['T-103']);
   });
 });

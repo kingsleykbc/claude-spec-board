@@ -31,3 +31,11 @@
 .more { position: relative; justify-content: center; width: 34px; padding: 0; font-size: 16px; }
 .moreDot { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 99px; background: var(--review); }
 .popRight { left: auto; right: 0; min-width: 200px; }
+/* Board | Table switch and the milestone dropdown. */
+.seg { display: flex; gap: 2px; height: 30px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.segBtn { padding: 0 10px; border: 0; border-radius: 6px; background: transparent; font-size: 13px; color: var(--fg3); cursor: pointer; }
+.segBtn:hover { color: var(--fg); }
+.segBtn[aria-checked='true'] { background: var(--card); color: var(--fg); font-weight: 500; box-shadow: 0 1px 2px oklch(0 0 0 / .12); }
+button.opt { border: 0; background: transparent; color: var(--fg); text-align: left; white-space: nowrap; }
+.opt[aria-checked='true'] { font-weight: 600; }
+.menuSep { height: 1px; margin: 4px 2px; background: var(--line); }

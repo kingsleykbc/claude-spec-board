@@ -1,23 +1,61 @@
 import type { Question, Spec, Urgency } from '@specboard/core';
+import { groupByMilestone, milestoneOf } from '@specboard/core/milestones';
 import { URG } from '../lib/vm';
 
 // Board filters, sort and "waiting" items (pinned behaviours 1, 3, 4), copied from the prototype's renderVals.
+
+/** The milestone filter's value for specs with no (or an unknown) milestone. */
+export const NO_MILESTONE = '\u0000none';
 
 export interface Filters {
   cats: string[];
   urg: Urgency[];
   blocked: boolean;
+  /** The board shows only this milestone (a listed name or `NO_MILESTONE`); null = all. The table ignores it. */
+  milestone: string | null;
 }
-export const NO_FILTERS: Filters = { cats: [], urg: [], blocked: false };
+export const NO_FILTERS: Filters = { cats: [], urg: [], blocked: false, milestone: null };
 
-/** Category and Urgency combine with AND across groups and OR within a group; Blocked only is a switch. */
-export function filterSpecs(specs: Spec[], f: Filters): Spec[] {
+/**
+ * Category and Urgency combine with AND across groups and OR within a group; Blocked only is a switch.
+ * The milestone applies only when the project's milestone list is given.
+ */
+export function filterSpecs(specs: Spec[], f: Filters, milestones: string[] = []): Spec[] {
+  const ms = milestones.length > 0 && f.milestone !== null ? f.milestone : undefined;
   return specs.filter(
     (s) =>
       (f.cats.length === 0 || s.categories.some((c) => f.cats.includes(c))) &&
       (f.urg.length === 0 || f.urg.includes(s.urgency)) &&
-      (!f.blocked || s.blocked),
+      (!f.blocked || s.blocked) &&
+      (ms === undefined || (milestoneOf(s, milestones) ?? NO_MILESTONE) === ms),
   );
+}
+
+export interface MilestoneOption {
+  /** A listed milestone name, or `NO_MILESTONE`. */
+  value: string;
+  label: string;
+  done: number;
+  total: number;
+}
+
+/** Done/total over specs, archived ones counted as done (like the project progress). */
+export function doneTotal(live: Spec[], archived: Spec[]): { done: number; total: number } {
+  return { done: live.filter((s) => s.status === 'done').length + archived.length, total: live.length + archived.length };
+}
+
+/** Each listed milestone with done/total (archived counted done), then "No milestone" when any spec has none. */
+export function milestoneOptions(live: Spec[], archived: Spec[], milestones: string[]): MilestoneOption[] {
+  if (milestones.length === 0) return [];
+  const arch = new Set(archived);
+  return groupByMilestone([...live, ...archived], milestones).map((g) => ({
+    value: g.name ?? NO_MILESTONE,
+    label: g.name ?? 'No milestone',
+    ...doneTotal(
+      g.specs.filter((s) => !arch.has(s)),
+      g.specs.filter((s) => arch.has(s)),
+    ),
+  }));
 }
 
 /** Urgency (urgent, high, normal, low), then numeric ID. */

@@ -1,0 +1,30 @@
+/* Table view (design sections 7-8): one table per milestone section, archived last. */
+.scroll { overflow-x: auto; padding: 0 20px 100px; }
+.none { padding: 24px 20px; color: var(--fg3); }
+.section { margin-bottom: 14px; }
+.heading { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+.headBtn { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px; border: 0; border-radius: 6px; background: transparent; color: var(--fg); font: inherit; cursor: pointer; }
+.headBtn:hover { background: var(--panel); }
+.caret { font-size: 13px; color: var(--fg3); }
+.table { width: 100%; min-width: 720px; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: 10px; font-size: 13px; }
+.table th { text-align: left; font-size: 11.5px; font-weight: 600; color: var(--fg3); padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.table td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.row:hover { background: var(--raise); }
+.expandCell { width: 28px; padding-right: 0 !important; }
+.expand { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--fg3); cursor: pointer; font-size: 14px; }
+.expand:hover { background: var(--line); color: var(--fg); }
+.id { font-family: var(--mono); font-size: 12px; color: var(--fg3); white-space: nowrap; }
+.titleCell { min-width: 220px; }
+.title { padding: 0; border: 0; background: transparent; color: var(--fg); font: inherit; font-weight: 500; text-align: left; cursor: pointer; }
+.title:hover { color: var(--accent-ink); text-decoration: underline; }
+.you { display: inline-block; margin-left: 8px; padding: 0 6px; border-radius: 99px; background: var(--review-soft); color: var(--review-ink); font-size: 11px; font-weight: 600; line-height: 18px; vertical-align: 1px; }
+.num { font-family: var(--mono); font-size: 12px; color: var(--fg2); white-space: nowrap; }
+.cats { display: flex; flex-wrap: wrap; gap: 4px; }
+.subRow td { background: var(--panel); }
+.subs { margin: 0; padding: 2px 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.sub { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--fg2); }
+.subN { font-family: var(--mono); font-size: 11.5px; color: var(--fg3); min-width: 20px; }
+.tick { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border: 1.5px solid var(--line2); border-radius: 4px; font-size: 10px; }
+.tick[data-done='true'] { border-color: var(--done); background: var(--done); color: var(--card); }
+.muted { color: var(--fg3); font-size: 12.5px; }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

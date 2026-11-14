@@ -2,11 +2,28 @@ import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, within } from 'storybook/test';
 import { FilterBar, type FilterMenu } from './FilterBar';
-import { categoryOptions, NO_FILTERS, waitItems, type Filters } from '../state/filters';
+import { categoryOptions, NO_FILTERS, waitItems, type Filters, type MilestoneOption } from '../state/filters';
+import type { View } from '../state/viewMode';
 import { recipeArchived, recipeSpecs } from '../fixtures/recipeBox';
 
-function Bar({ initial = NO_FILTERS, menu: initialMenu = null, simple: initialSimple = false }: { initial?: Filters; menu?: FilterMenu; simple?: boolean }) {
+const MILESTONES: MilestoneOption[] = [
+  { value: 'Basics', label: 'Basics', done: 3, total: 4 },
+  { value: 'Planner', label: 'Planner', done: 0, total: 2 },
+];
+
+function Bar({
+  initial = NO_FILTERS,
+  menu: initialMenu = null,
+  simple: initialSimple = false,
+  milestones,
+}: {
+  initial?: Filters;
+  menu?: FilterMenu;
+  simple?: boolean;
+  milestones?: MilestoneOption[];
+}) {
   const [filters, setFilters] = useState(initial);
+  const [view, setView] = useState<View>('board');
   const [simple, setSimple] = useState(initialSimple);
   const [menu, setMenu] = useState<FilterMenu>(initialMenu);
   return (
@@ -23,6 +40,9 @@ function Bar({ initial = NO_FILTERS, menu: initialMenu = null, simple: initialSi
         onMenu={setMenu}
         simple={simple}
         onSimple={setSimple}
+        view={view}
+        onView={setView}
+        milestones={milestones}
       />
     </div>
   );
@@ -45,7 +65,7 @@ export const NoFilters: Story = {
 };
 
 export const ActiveChips: Story = {
-  args: { initial: { cats: ['Backend'], urg: ['urgent', 'normal'], blocked: true } },
+  args: { initial: { cats: ['Backend'], urg: ['urgent', 'normal'], blocked: true, milestone: null } },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     expect(c.getAllByRole('button', { name: 'Remove filter' })).toHaveLength(4);
@@ -71,5 +91,19 @@ export const SimpleMode: Story = {
     expect(c.getByRole('menuitem', { name: '1 to review' })).toBeTruthy();
     await userEvent.click(c.getByRole('switch', { name: 'Simple mode' }));
     expect(c.getByText('1 to review')).toBeTruthy();
+  },
+};
+
+/** Board | Table switch and the milestone dropdown (Board view only). */
+export const ViewAndMilestone: Story = {
+  args: { milestones: MILESTONES, initial: { ...NO_FILTERS, milestone: 'Basics' } },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    await userEvent.click(c.getByRole('button', { name: 'Milestone: Basics' }));
+    await userEvent.click(c.getByRole('menuitemradio', { name: 'All milestones' }));
+    expect(c.getByRole('button', { name: 'Milestone: All milestones' })).toBeTruthy();
+    await userEvent.click(c.getByRole('radio', { name: 'Table' }));
+    expect(c.getByRole('radio', { name: 'Table' }).getAttribute('aria-checked')).toBe('true');
+    expect(c.queryByRole('button', { name: /^Milestone:/ })).toBeNull();
   },
 };

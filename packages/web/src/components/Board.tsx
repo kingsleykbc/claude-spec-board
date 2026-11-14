@@ -33,6 +33,8 @@ export interface BoardProps {
   /** Archived specs (unfiltered). */
   archived: Spec[];
   filters?: Filters;
+  /** The project's milestone list, so `filters.milestone` applies (the board shows one milestone). */
+  milestones?: string[];
   /** The project's run: its spec's card shows that Claude is working on it. */
   run?: RunSnapshot | null;
   /** False while disconnected: no dragging. */
@@ -108,7 +110,7 @@ const noop = () => undefined;
 
 /** The four columns with drag and drop (prototype lines 89-115 and 718-731). */
 export function Board(props: BoardProps) {
-  const { specs, archived, filters = NO_FILTERS, canDrag, changed } = props;
+  const { specs, archived, filters = NO_FILTERS, milestones = [], canDrag, changed } = props;
   const [showArchived, setShowArchived] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<Status | null>(null);
@@ -121,8 +123,8 @@ export function Board(props: BoardProps) {
   const all = useMemo(() => [...specs, ...archived], [specs, archived]);
   const active = activeId ? specs.find((x) => x.id === activeId) ?? null : null;
 
-  const visible = filterSpecs(specs, filters);
-  const visibleArchived = showArchived ? filterSpecs(archived, filters) : [];
+  const visible = filterSpecs(specs, filters, milestones);
+  const visibleArchived = showArchived ? filterSpecs(archived, filters, milestones) : [];
 
   const reset = () => {
     setActiveId(null);

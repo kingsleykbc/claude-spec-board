@@ -53,7 +53,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     target: 'filters',
     title: 'Filters and Simple mode',
-    text: 'Narrow the board by category, urgency or blocked cards. <b>Simple mode</b> hides the extra detail when you just want to follow the work.',
+    text: 'Switch between Board and Table views. Narrow the specs by category, urgency or blocked cards. <b>Simple mode</b> hides the extra detail when you just want to follow the work.',
     side: 'bottom',
   },
   {

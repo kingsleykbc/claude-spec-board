@@ -27,6 +27,11 @@ describe('tour', () => {
     expect(steps.map((x) => x.popover?.title)).toEqual(TOUR_STEPS.map((x) => x.title));
   });
 
+  it('the filters step mentions the Board | Table switch, without adding a step', () => {
+    expect(TOUR_STEPS).toHaveLength(7);
+    expect(TOUR_STEPS.find((x) => x.target === 'filters')!.text).toContain('Switch between Board and Table');
+  });
+
   it('leaves out steps whose part is not on screen (no cards yet)', () => {
     document.body.innerHTML = '<main data-tour="columns"></main><button data-tour="add"></button>';
     const titles = tourSteps().map((x) => x.popover?.title);
