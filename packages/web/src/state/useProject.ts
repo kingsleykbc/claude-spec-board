@@ -86,6 +86,8 @@ export interface UseProject {
   error: Error | null;
   /** Drop the socket and connect again now (the banner's Reconnect); re-fetches once live. */
   reconnect(): void;
+  /** How many snapshots were loaded from the server (not `applyWrite`), for things to fetch again after a reload. */
+  loads: number;
 }
 
 const EMPTY = new Set<string>();
@@ -93,6 +95,7 @@ const EMPTY = new Set<string>();
 /** Load a project and keep it current through `/ws` change events. */
 export function useProject(pid: string): UseProject {
   const [data, setData] = useState<ProjectData | null>(null);
+  const [loads, setLoads] = useState(0);
   const [conn, setConn] = useState<Conn>('live');
   const [changed, setChanged] = useState<Set<string>>(EMPTY);
   const [newQuestions, setNewQuestions] = useState<Set<string>>(EMPTY);
@@ -145,6 +148,7 @@ export function useProject(pid: string): UseProject {
     pendingLive.current = false;
     dataRef.current = next;
     setData(next);
+    setLoads((n) => n + 1);
     setError(null);
     if (highlight && prev && prev.entry.id === next.entry.id) {
       const diff = diffProjects(prev.project, next.project);
@@ -221,5 +225,5 @@ export function useProject(pid: string): UseProject {
     setAttempt((a) => a + 1);
   }, []);
 
-  return { data, conn, live, changed, newQuestions, refresh, applyWrite, error, reconnect };
+  return { data, conn, live, changed, newQuestions, refresh, applyWrite, error, reconnect, loads };
 }

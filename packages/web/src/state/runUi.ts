@@ -21,8 +21,18 @@ function blockedNote({ blockedBy, maybeBlockedBy }: { blockedBy?: string; maybeB
   return null;
 }
 
-export function runButtonState(run: RunSnapshot | null, specId: string, claude: ClaudeStatus | null): { runState: RunState; runningId: string | null; runBlockedNote?: string } {
-  if (isRunning(run)) return { runState: run.specId === specId ? 'running' : 'disabled', runningId: run.specId };
+const isSync = (kind: RunKind | undefined) => kind === 'sync-plan' || kind === 'sync-apply';
+
+export function runButtonState(
+  run: RunSnapshot | null,
+  specId: string,
+  claude: ClaudeStatus | null,
+): { runState: RunState; runningId: string | null; runBlockedNote?: string; runBusyNote?: string } {
+  if (isRunning(run)) {
+    const state = { runState: run.specId === specId ? ('running' as const) : ('disabled' as const), runningId: run.specId };
+    // A project-level sync has no spec to name.
+    return run.specId === null && isSync(run.kind) ? { ...state, runBusyNote: 'Claude is syncing the board with the code' } : state;
+  }
   if (claude?.installed !== false) return { runState: 'ready', runningId: null };
   const note = blockedNote(claude);
   return { runState: 'fallback', runningId: null, ...(note ? { runBlockedNote: note } : {}) };
@@ -85,7 +95,7 @@ function syncEndedToast(run: RunSnapshot): ToastArgs {
 }
 
 export function endedToast(run: RunSnapshot): ToastArgs {
-  if (run.kind === 'sync-plan' || run.kind === 'sync-apply') return syncEndedToast(run);
+  if (isSync(run.kind)) return syncEndedToast(run);
   const id = run.specId;
   const end = run.end;
   if (run.kind === 'refresh-overview') {
@@ -150,7 +160,7 @@ function refusalToast(r: Extract<StartResult, { ok: false }>, specId: string | u
       return note ? ['err', 'Claude Code isn’t available', note] : ['err', 'Claude Code isn’t installed', 'Install Claude Code, then run again.'];
     }
     case 'busy':
-      return ['err', `Claude is already working on ${r.run?.specId ?? (r.run?.kind === 'sync-plan' || r.run?.kind === 'sync-apply' ? 'a sync' : 'the overview')}`];
+      return ['err', `Claude is already working on ${r.run?.specId ?? (isSync(r.run?.kind) ? 'a sync' : 'the overview')}`];
     case 'error':
       return ['err', specId ? `Couldn’t reach Claude for ${specId}` : 'Couldn’t reach Claude', r.message];
   }

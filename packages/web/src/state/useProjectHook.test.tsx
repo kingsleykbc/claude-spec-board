@@ -142,6 +142,16 @@ describe('useProject applyWrite', () => {
     expect(result.current.newQuestions.size).toBe(0);
   });
 
+  it('`loads` counts loaded snapshots, not local writes', async () => {
+    const { result } = await loaded();
+    expect(result.current.loads).toBe(1);
+    act(() => result.current.applyWrite(spec('T-1', 'b')));
+    expect(result.current.loads).toBe(1);
+    act(() => onChange());
+    await act(async () => fetches[1]!.resolve(v2));
+    expect(result.current.loads).toBe(2);
+  });
+
   it('leaves other specs and unknown ids alone', async () => {
     const t2 = spec('T-2', 'x');
     const start = data([spec('T-1', 'a'), t2]);

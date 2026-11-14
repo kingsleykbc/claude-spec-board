@@ -22,6 +22,7 @@ export interface DetailHeaderProps {
   runningId?: string | null;
   runHold?: string | null;
   runBlockedNote?: string | undefined;
+  runBusyNote?: string | undefined;
   onRun: () => void;
   onStop: () => void;
   /** Sync this spec with the code; off while any run is active, like Run. */
@@ -55,7 +56,7 @@ export function DetailHeader(p: DetailHeaderProps) {
       <div className={s.row}>
         <span className={s.id}>{p.id}</span>
         <FileLink path={p.path} className={s.path} />
-        <RunButton id={p.id} state={p.runState} runningId={p.runningId ?? null} hold={p.runHold ?? null} blockedNote={p.runBlockedNote} onRun={p.onRun} onStop={p.onStop} />
+        <RunButton id={p.id} state={p.runState} runningId={p.runningId ?? null} hold={p.runHold ?? null} blockedNote={p.runBlockedNote} busyNote={p.runBusyNote} onRun={p.onRun} onStop={p.onStop} />
         {p.syncWaiting && p.onSyncWaiting && (
           <button type="button" className={s.syncWaiting} onClick={p.onSyncWaiting}>
             Sync proposal waiting

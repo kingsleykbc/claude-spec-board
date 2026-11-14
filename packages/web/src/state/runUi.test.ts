@@ -92,6 +92,19 @@ describe('endedToast', () => {
   });
 });
 
+describe('runButtonState during a sync', () => {
+  it('a project-level sync says Claude is syncing the board', () => {
+    expect(runButtonState(run({ kind: 'sync-plan', specId: null }), 'T-104', null)).toEqual({
+      runState: 'disabled',
+      runningId: null,
+      runBusyNote: 'Claude is syncing the board with the code',
+    });
+  });
+  it('a card-level sync on another spec names that spec, as before', () => {
+    expect(runButtonState(run({ kind: 'sync-apply', specId: 'T-105' }), 'T-104', null)).toEqual({ runState: 'disabled', runningId: 'T-105' });
+  });
+});
+
 describe('endedToast for sync runs', () => {
   const sync = (kind: 'sync-plan' | 'sync-apply', specId: string | null, status: RunSnapshot['status'], end: RunSnapshot['end'] = null) =>
     endedToast(run({ kind, specId, status, end }));

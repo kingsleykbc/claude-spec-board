@@ -45,6 +45,8 @@ export interface CardDetailProps {
   runningId?: string | null;
   /** In the fallback: what a registered project has to do with it. */
   runBlockedNote?: string | undefined;
+  /** The disabled Run note when the active run has no spec to name (a project-level sync). */
+  runBusyNote?: string | undefined;
   /** A run is working on this spec (the subtask "In progress" pill). */
   runActive?: boolean;
   onRun?: () => void;
@@ -111,6 +113,7 @@ function SpecDetail({
   runState = 'ready',
   runningId = null,
   runBlockedNote,
+  runBusyNote,
   runActive = false,
   onRun = () => undefined,
   onStop = () => undefined,
@@ -299,6 +302,7 @@ function SpecDetail({
           runState={runState}
           runningId={runningId}
           runBlockedNote={runBlockedNote}
+          runBusyNote={runBusyNote}
           runHold={runHold(spec, all)}
           onRun={onRun}
           onStop={onStop}

@@ -14,6 +14,8 @@ export interface RunButtonProps {
   hold?: string | null;
   /** In the fallback: what a registered project has to do with it, since "not found" would mislead. */
   blockedNote?: string | undefined;
+  /** The disabled note when the active run has no spec to name and isn't the overview (a project-level sync). */
+  busyNote?: string | undefined;
   onRun: () => void;
   onStop: () => void;
 }
@@ -30,7 +32,7 @@ export const BACKGROUND_TITLE = 'Starts a separate Claude with its output on thi
  * equal weight: copy the run command for a Claude chat (the board can't type into one), or run it in the background.
  * docs/guide/running-specs.md says when to use which.
  */
-export function RunButton({ id, state, runningId, hold, blockedNote, onRun, onStop }: RunButtonProps) {
+export function RunButton({ id, state, runningId, hold, blockedNote, busyNote, onRun, onStop }: RunButtonProps) {
   const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const alive = useRef(true);
@@ -105,7 +107,7 @@ export function RunButton({ id, state, runningId, hold, blockedNote, onRun, onSt
   );
 
   // Another run is going, or the spec can't start: neither way should begin.
-  const off = state === 'disabled' ? `Claude is already working on ${runningId ?? 'the overview'}` : state === 'ready' ? hold : null;
+  const off = state === 'disabled' ? (busyNote ?? `Claude is already working on ${runningId ?? 'the overview'}`) : state === 'ready' ? hold : null;
   if (off) {
     return (
       <>

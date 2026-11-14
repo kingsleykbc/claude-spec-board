@@ -130,6 +130,43 @@ describe('Sync with code from the logo menu', () => {
     expect(screen.queryByRole('dialog', { name: /Sync/ })).toBeNull();
   });
 
+  it('the watcher reload after a plan cannot strand the confirm view (its fetch lands after the plan’s own)', async () => {
+    vi.mocked(api.startRun).mockResolvedValue({ run: run() });
+    await mount();
+    openMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Sync with code' }));
+    await flush();
+    const pending: ((p: SyncProposal) => void)[] = [];
+    vi.mocked(api.syncProposal).mockImplementation(() => new Promise<SyncProposal>((r) => pending.push(r)));
+    send({ type: 'run-ended', run: run({ status: 'finished', end: { status: 'finished' } }) }); // fetch B
+    await act(async () => live.onChange!(false)); // project reload
+    await flush(); // its proposal fetch A
+    expect(pending.length).toBe(2);
+    await act(async () => pending[0]!(waiting())); // B first
+    await flush();
+    await act(async () => pending[1]!(waiting())); // then A
+    await flush();
+    expect(within(syncDialog()).getByText('This will change 3 specs.')).toBeTruthy();
+  });
+
+  it('a finished plan whose proposal can’t be loaded says so', async () => {
+    vi.mocked(api.startRun).mockResolvedValue({ run: run() });
+    await mount();
+    openMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Sync with code' }));
+    await flush();
+    vi.mocked(api.syncProposal).mockRejectedValue(new ApiError(500, 'boom'));
+    send({ type: 'run-ended', run: run({ status: 'finished', end: { status: 'finished' } }) });
+    await flush();
+    expect(screen.getByText('Couldn’t load the sync proposal')).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: /Sync/ })).toBeNull();
+  });
+
+  it('while a project-level sync runs, a card’s Run note says Claude is syncing the board', async () => {
+    await mount('/?project=p1&spec=T-104', {}, run());
+    expect(screen.getAllByText('Claude is syncing the board with the code').length).toBeGreaterThan(0);
+  });
+
   it('Confirm starts sync-apply, shows progress and closes on finish without deleting the proposal itself', async () => {
     vi.mocked(api.syncProposal).mockResolvedValue(waiting());
     vi.mocked(api.startRun).mockResolvedValue({ run: run({ id: 'r2', kind: 'sync-apply' }) });

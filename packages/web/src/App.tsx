@@ -178,7 +178,7 @@ interface ProjectViewProps {
 
 /** One project's board. Keyed by project ID, so filters and menus reset on a switch (pinned behaviour 4). */
 function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onToggleTheme, simple, onSimple, reloadProjects }: ProjectViewProps) {
-  const { data, conn, live, changed, newQuestions, refresh, applyWrite, error, reconnect } = useProject(pid);
+  const { data, conn, live, changed, newQuestions, refresh, applyWrite, error, reconnect, loads } = useProject(pid);
   const run = useRun(pid, live);
   /** New-question badges cleared by saving answers (useProject keeps the session's full set). */
   const [seenQuestions, setSeenQuestions] = useState<ReadonlySet<string>>(() => new Set());
@@ -232,7 +232,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
   useRunToasts(run, specs, toast);
   const { startRun, stopRun, dismissRun } = useRunActions(run, toast, project?.root);
   const manual = manualReason(run.claude, run.approved);
-  const sync = useSync({ pid, stamp: data, run: run.run, manual: manual !== null, startRun, stopRun: () => void stopRun(), toast });
+  const sync = useSync({ pid, stamp: loads, run: run.run, manual: manual !== null, startRun, stopRun: () => void stopRun(), toast });
   const name = project?.config?.name || data?.entry.name || summary?.name || pid;
   const progress = project
     ? { done: archived.length + project.specs.filter((x) => x.status === 'done').length, total: project.specs.length + archived.length }
@@ -436,7 +436,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
             />
           )}
           {sync.dialog && <SyncDialog {...sync.dialog} toast={toast} />}
-          {modal === 'refs' &&<ReferencesModal pid={pid} toast={toast} down={down} stamp={project} onClose={closeModal} />}
+          {modal === 'refs' && <ReferencesModal pid={pid} toast={toast} down={down} stamp={project} onClose={closeModal} />}
           {modal === 'add' && data && (
             <AddSpecModal
               pid={pid}

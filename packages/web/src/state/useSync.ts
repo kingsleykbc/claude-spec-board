@@ -18,7 +18,7 @@ interface Open {
 
 export interface UseSyncArgs {
   pid: string;
-  /** Changes whenever the project reloads (a file watcher event included), so the proposal is fetched again. */
+  /** Changes whenever the project is reloaded from the server (a file watcher event included), not on local writes, so the proposal is fetched again. */
   stamp: unknown;
   run: RunSnapshot | null;
   /** Runs aren't available here: the dialog gives the command instead. */
@@ -81,8 +81,14 @@ export function useSync({ pid, stamp, run, manual, startRun, stopRun, toast }: U
       setOpen(null);
       return;
     }
-    void fetchProposal().then((p) => setOpen((o) => (o?.phase === 'plan' ? (p ? { ...o, phase: 'confirm' } : null) : o)));
-    // Only the run ending matters here, once.
+    void fetchProposal().then((p) => {
+      if (p === undefined) toast('err', 'Couldn’t load the sync proposal');
+      // This fetch was made after the run ended, so its answer is current even if a reload's fetch started after it
+      // and is still out: store it, or the confirm view would open with no proposal and close again.
+      else if (p) setProposal(p);
+      setOpen((o) => (o?.phase === 'plan' ? (p ? { ...o, phase: 'confirm' } : null) : o));
+    });
+    // Deliberately keyed on the run ending alone, so it is handled once. (No hooks lint in this repo to silence.)
   }, [endedId]);
 
   // The proposal went away (discarded elsewhere, applied): nothing left to confirm.
