@@ -11,3 +11,9 @@
 .dBtn { height: 34px; padding: 0 14px; border: 1px solid var(--line2); border-radius: 8px; background: var(--card); color: var(--fg); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .dBtn[data-kind='primary'] { border-color: transparent; background: var(--accent); color: var(--accent-fg); }
 .dBtn[data-kind='danger'] { border-color: transparent; background: var(--block); color: var(--card); }
+
+/* Small screens: modals fill the screen. The box's width and height are inline styles, hence !important. */
+@media (max-width: 640px) {
+  .scrim { padding: 0; }
+  .box { inset: 0; width: 100% !important; height: 100% !important; max-width: none; border-radius: 0; }
+}

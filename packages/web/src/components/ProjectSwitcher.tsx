@@ -1,4 +1,5 @@
 import type { Conn } from '../api/live';
+import { useNarrow } from '../lib/useNarrow';
 import { CaretIcon, CheckIcon } from '../lib/icons';
 import { Spinner } from './ConnectionBanner';
 import s from './TopBar.module.css';
@@ -40,6 +41,7 @@ export interface ProjectSwitcherProps {
 
 /** Project name button and its menu (prototype lines 39-47). */
 export function ProjectSwitcher({ conn, name, progress, projects, current, open, onToggle, onPick, onOpenFolder }: ProjectSwitcherProps) {
+  const narrow = useNarrow();
   return (
     <div className={s.sw}>
       <button type="button" className={s.swBtn} aria-haspopup="true" aria-expanded={open} onClick={onToggle}>
@@ -49,7 +51,7 @@ export function ProjectSwitcher({ conn, name, progress, projects, current, open,
           </span>
         )}
         {name}
-        <span className={s.swProg}>{progressText(progress)}</span>
+        {!narrow && <span className={s.swProg}>{progressText(progress)}</span>}
         <CaretIcon aria-hidden className={s.caret} />
       </button>
       {open && (

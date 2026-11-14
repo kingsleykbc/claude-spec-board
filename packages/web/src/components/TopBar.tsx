@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import type { Conn } from '../api/live';
 import { DOCS_PATH } from '../lib/docsPages';
-import { BoardIcon, CaretIcon, DocsIcon, LogIcon, MoonIcon, ReadIcon, RefreshIcon, SettingsIcon, TourIcon, WarnIcon } from '../lib/icons';
+import { BoardIcon, CaretIcon, DocsIcon, InfoIcon, LogIcon, MoonIcon, ReadIcon, RefreshIcon, SettingsIcon, TourIcon, WarnIcon } from '../lib/icons';
 import type { Theme } from '../lib/theme';
-import { ManualNotice } from './ManualNotice';
+import { useNarrow } from '../lib/useNarrow';
+import { ManualNotice, ManualPanel } from './ManualNotice';
 import type { ManualReason } from '../state/runUi';
 import { ProjectSwitcher, type ProjectSwitcherProps } from './ProjectSwitcher';
 import s from './TopBar.module.css';
@@ -63,6 +65,10 @@ export function TopBar({
   onSettings,
 }: TopBarProps) {
   const docs = page === 'docs';
+  const narrow = useNarrow();
+  /** References, Overview and Logs live in the logo menu (Simple mode, or a small screen). */
+  const inMenu = narrow || simple;
+  const [manualOpen, setManualOpen] = useState(false);
   /** A menu item that closes the menu, then does its thing. */
   const item = (label: string, Icon: typeof TourIcon, act: () => void, dot = false) => (
     <button
@@ -115,11 +121,12 @@ export function TopBar({
               </>
             )}
             <div role="separator" className={s.menuRule} />
-            {simple && !docs && (
+            {inMenu && !docs && (
               <>
                 {onOpenRefs && item('References', DocsIcon, onOpenRefs)}
                 {onOpenOverview && item('Overview', ReadIcon, onOpenOverview)}
                 {onOpenLogs && item('Logs', LogIcon, onOpenLogs)}
+                {narrow && manual && item('Manual mode', InfoIcon, () => setManualOpen(true))}
               </>
             )}
             <button type="button" role="menuitemcheckbox" aria-checked={theme === 'dark'} className={s.brandItem} onClick={onToggleTheme}>
@@ -136,17 +143,17 @@ export function TopBar({
         </>
       )}
       <div className={s.flex} />
-      {!simple && onOpenRefs && (
+      {!inMenu && onOpenRefs && (
         <button type="button" className={s.btn} onClick={onOpenRefs} data-tour="project">
           References
         </button>
       )}
-      {!simple && onOpenOverview && (
+      {!inMenu && onOpenOverview && (
         <button type="button" className={s.btn} onClick={onOpenOverview}>
           Overview
         </button>
       )}
-      {!simple && onOpenLogs && (
+      {!inMenu && onOpenLogs && (
         <button type="button" className={s.btn} onClick={onOpenLogs}>
           Logs
         </button>
@@ -156,7 +163,12 @@ export function TopBar({
           <BoardIcon aria-hidden /> Open the board
         </a>
       )}
-      {manual && <ManualNotice reason={manual} />}
+      {manual && !narrow && <ManualNotice reason={manual} />}
+      {manual && narrow && manualOpen && (
+        <div className={s.manualWrap}>
+          <ManualPanel reason={manual} onClose={() => setManualOpen(false)} />
+        </div>
+      )}
     </header>
   );
 }

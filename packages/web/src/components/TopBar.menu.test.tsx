@@ -163,3 +163,63 @@ describe('the header in Simple mode', () => {
     ]);
   });
 });
+
+describe('small screens', () => {
+  const mockMedia = (narrow: boolean) =>
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((q: string) => ({ matches: q.includes('max-width: 720px') ? narrow : false, media: q, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
+    );
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('wide: References and Overview are header buttons, and the menu does not repeat them', () => {
+    mockMedia(false);
+    render(<TopBar {...props({ brandOpen: true, manual: 'not-approved', onOpenLogs: vi.fn() })} />);
+    expect(screen.getByRole('button', { name: 'References' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Overview' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Manual mode/ })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'References' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Manual mode' })).toBeNull();
+  });
+
+  it('narrow: References, Overview, Logs and Manual mode move into the logo menu, and still work', () => {
+    mockMedia(true);
+    const onOpenRefs = vi.fn();
+    const onOpenOverview = vi.fn();
+    const onOpenLogs = vi.fn();
+    const onToggleBrand = vi.fn();
+    render(<TopBar {...props({ brandOpen: true, onToggleBrand, onOpenRefs, onOpenOverview, onOpenLogs, manual: 'not-approved' })} />);
+    expect(screen.queryByRole('button', { name: 'References' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Manual mode/ })).toBeNull();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'References' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Overview' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Logs' }));
+    expect(onOpenRefs).toHaveBeenCalled();
+    expect(onOpenOverview).toHaveBeenCalled();
+    expect(onOpenLogs).toHaveBeenCalled();
+    expect(onToggleBrand).toHaveBeenCalledTimes(3);
+  });
+
+  it('narrow: "Manual mode" opens the same explanation', () => {
+    mockMedia(true);
+    render(<TopBar {...props({ brandOpen: true, onToggleBrand: vi.fn(), manual: 'not-installed' })} />);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Manual mode' }));
+    expect(screen.getByText('Non-agentic mode')).toBeTruthy();
+    expect(screen.getByText("Claude Code isn't installed on this computer.")).toBeTruthy();
+    fireEvent.click(screen.getByTestId('manual-scrim'));
+    expect(screen.queryByText('Non-agentic mode')).toBeNull();
+  });
+
+  it('narrow: the switcher keeps its dot but drops the progress text', () => {
+    mockMedia(true);
+    render(<TopBar {...props({ switcher: { ...props().switcher!, progress: { done: 2, total: 5 } } })} />);
+    expect(screen.getByTestId('conn')).toBeTruthy();
+    expect(screen.queryByText(/2.*5/)).toBeNull();
+  });
+
+  it('with no matchMedia at all it behaves as wide', () => {
+    vi.stubGlobal('matchMedia', undefined);
+    render(<TopBar {...props()} />);
+    expect(screen.getByRole('button', { name: 'References' })).toBeTruthy();
+  });
+});

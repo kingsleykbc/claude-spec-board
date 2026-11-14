@@ -374,7 +374,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
             onAdd={openAdd}
           />
           )}
-          <button type="button" className={boardCss.fab} onClick={openAdd} data-tour="add">
+          <button type="button" className={boardCss.fab} aria-label="Add new spec" onClick={openAdd} data-tour="add">
             <PlusIcon aria-hidden className={boardCss.fabPlus} />
             Add new spec
           </button>
