@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { composeStories } from '@storybook/react-vite';
 import * as stories from './responsive-menu.stories';
 
-const { Wide, Narrow, ItemOpensModal, ItemOpensModalNarrow, Links, LinksNarrow } = composeStories(stories);
+const { Wide, Narrow, ItemOpensModal, ItemOpensModalNarrow, Links, LinksNarrow, KeepOpen, KeepOpenNarrow } = composeStories(stories);
 
 afterEach(cleanup);
 
@@ -141,5 +141,27 @@ describe('ResponsiveMenu', () => {
     window.removeEventListener('click', stay);
     expect(onSelect).toHaveBeenCalledOnce();
     await waitFor(() => expect(screen.queryByRole('menuitem', { name: 'Documentation' })).toBeNull());
+  });
+
+  it('wide: the dropdown is named by the menu title', async () => {
+    const user = userEvent.setup();
+    render(<Wide />);
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    expect(await screen.findByRole('menu', { name: 'Board menu' })).toBeTruthy();
+  });
+
+  it.each([
+    ['wide', KeepOpen],
+    ['narrow', KeepOpenNarrow],
+  ])('%s: a keepOpen item can be ticked again and again without the menu closing', async (_, Story) => {
+    const user = userEvent.setup();
+    render(<Story />);
+    await user.click(screen.getByRole('button', { name: 'Fruit' }));
+    const menu = await screen.findByRole('menu', { name: 'Fruit' });
+    await user.click(within(menu).getByRole('menuitemcheckbox', { name: 'Apple' }));
+    await user.click(within(menu).getByRole('menuitemcheckbox', { name: 'Pear' }));
+    await tick(50);
+    expect(screen.getByRole('menu', { name: 'Fruit' })).toBe(menu);
+    expect(within(menu).getAllByRole('menuitemcheckbox').map((x) => x.getAttribute('aria-checked'))).toEqual(['true', 'true']);
   });
 });

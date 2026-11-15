@@ -3,11 +3,9 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import type { ReactNode } from 'react';
 import { allRecipeSpecs, recipeArchived, recipeSpec, recipeSpecs } from '../fixtures/recipeBox';
 import { firstParagraph } from '../lib/vm';
-import { NO_FILTERS, waitItems } from '../state/filters';
 import { createMutator } from '../state/mutate';
 import { initialSimple, saveSimple, SIMPLE_KEY, SimpleMode } from '../state/simpleMode';
 import { CardDetail } from './detail/CardDetail';
-import { FilterBar, type FilterBarProps } from './FilterBar';
 import { SpecCard } from './SpecCard';
 
 afterEach(() => {
@@ -109,52 +107,6 @@ describe('Simple mode: cards', () => {
     const { onWriteUp } = card('T-107', true);
     fireEvent.click(screen.getByRole('button', { name: 'Have Claude write this up' }));
     expect(onWriteUp).toHaveBeenCalled();
-  });
-});
-
-describe('Simple mode: the filter bar', () => {
-  function bar(over: Partial<FilterBarProps> = {}) {
-    const p: FilterBarProps = {
-      filters: NO_FILTERS,
-      onChange: vi.fn(),
-      categories: [],
-      waits: waitItems(recipeSpecs),
-      onWait: vi.fn(),
-      menu: null,
-      onMenu: vi.fn(),
-      simple: false,
-      ...over,
-    };
-    const r = render(<FilterBar {...p} />);
-    return { p, ...r };
-  }
-
-  it('has no Simple mode switch of its own (it is in the top bar)', () => {
-    bar();
-    expect(screen.getAllByRole('switch').map((x) => x.textContent)).toEqual(['Blocked only']);
-  });
-
-  it('full mode lists the waiting items; Simple mode puts them behind ⋯', () => {
-    const { rerender, p } = bar();
-    expect(screen.getByText('1 to review')).toBeTruthy();
-    rerender(<FilterBar {...p} simple />);
-    expect(screen.queryByText('1 to review')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Waiting on you' }));
-    expect(p.onMenu).toHaveBeenCalledWith('waits');
-  });
-
-  it('the ⋯ menu lists them; picking one closes the menu and acts', () => {
-    const { p } = bar({ simple: true, menu: 'waits' });
-    const items = screen.getAllByRole('menuitem');
-    expect(items.map((x) => x.textContent)).toEqual(p.waits.map((w) => w.text));
-    fireEvent.click(items[0]!);
-    expect(p.onMenu).toHaveBeenCalledWith(null);
-    expect(p.onWait).toHaveBeenCalledWith(p.waits[0]);
-  });
-
-  it('nothing waiting: no ⋯ at all', () => {
-    bar({ simple: true, waits: [] });
-    expect(screen.queryByRole('button', { name: 'Waiting on you' })).toBeNull();
   });
 });
 

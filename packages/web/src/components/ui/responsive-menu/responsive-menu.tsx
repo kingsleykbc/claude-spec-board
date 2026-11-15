@@ -86,7 +86,15 @@ export function ResponsiveMenu({ trigger, title, children, align = 'start', cont
             a Modal that an item has just opened. Outside clicks and Esc still close it. */}
         <DropdownMenu open={open} onOpenChange={onOpenChange} modal={false}>
           <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-          <DropdownMenuContent align={align} collisionPadding={8} onCloseAutoFocus={onCloseAutoFocus} className={contentClassName}>
+          <DropdownMenuContent
+            align={align}
+            collisionPadding={8}
+            onCloseAutoFocus={onCloseAutoFocus}
+            className={contentClassName}
+            // Named by the title, like the drawer (Radix would name it after the trigger).
+            aria-label={title}
+            aria-labelledby={undefined}
+          >
             {children}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -125,6 +133,8 @@ export interface ResponsiveMenuItemProps {
   newTab?: boolean;
   /** A link item is the page you are on (`aria-current=page`). */
   current?: boolean;
+  /** Picking it leaves the menu open (e.g. ticking several filters in a row). */
+  keepOpen?: boolean;
 }
 
 // Drawer rows: the dropdown item's look, a little taller for fingers.
@@ -133,11 +143,12 @@ const row =
 const indicatorBox = 'pointer-events-none absolute left-2.5 flex size-3.5 items-center justify-center';
 
 /** One choice. `checked` makes it a checkable item (a tick when true); `href` makes it a link. */
-export function ResponsiveMenuItem({ onSelect, children, checked, disabled, href, newTab, current }: ResponsiveMenuItemProps) {
+export function ResponsiveMenuItem({ onSelect, children, checked, disabled, href, newTab, current, keepOpen }: ResponsiveMenuItemProps) {
   const { narrow, pick } = useContext(Mode);
   const checkable = checked !== undefined;
-  const choose = () => {
-    pick();
+  const choose = (e?: Event) => {
+    if (keepOpen) e?.preventDefault();
+    else pick();
     onSelect?.();
   };
   // An anchor still follows its href after the menu has removed it (the HTML spec lets an `a` navigate when disconnected).
@@ -165,7 +176,7 @@ export function ResponsiveMenuItem({ onSelect, children, checked, disabled, href
   }
   if (link) {
     return (
-      <a role="menuitem" {...link} className={cn(row, 'no-underline hover:text-fg')} onClick={choose}>
+      <a role="menuitem" {...link} className={cn(row, 'no-underline hover:text-fg')} onClick={() => choose()}>
         {children}
       </a>
     );
@@ -177,7 +188,7 @@ export function ResponsiveMenuItem({ onSelect, children, checked, disabled, href
       aria-checked={checkable ? checked : undefined}
       disabled={disabled}
       className={cn(row, checkable && 'pl-8')}
-      onClick={choose}
+      onClick={() => choose()}
     >
       {checkable && checked ? (
         <span className={indicatorBox}>

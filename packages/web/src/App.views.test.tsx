@@ -57,7 +57,7 @@ const open = async (pid: string) => {
 const cards = () =>
   [...document.querySelectorAll('[data-tour="columns"] [role="button"][aria-label]')].map((x) => x.getAttribute('aria-label')!.split(' ')[0]).sort();
 const rows = () => screen.queryAllByTestId('spec-id').map((x) => x.textContent!).sort();
-const view = (name: 'Board' | 'Table') => within(screen.getByRole('radiogroup', { name: 'View' })).getByRole('radio', { name });
+const view = (name: 'Board' | 'Table') => within(screen.getByRole('radiogroup', { name: 'View' })).getByRole('radio', { name: `${name} view` });
 
 describe('Board | Table switch', () => {
   it('toggles between the board and the table and is kept for the next visit', async () => {
@@ -96,7 +96,8 @@ describe('milestone dropdown', () => {
     await open('p1');
     const btn = screen.getByRole('button', { name: 'Milestone: Basics' });
     expect(cards()).toEqual(['T-101', 'T-102', 'T-103']);
-    fireEvent.click(btn);
+    // A Radix menu opens on pointer-down or Enter, not a bare click event.
+    fireEvent.keyDown(btn, { key: 'Enter' });
     const menu = screen.getByRole('menu', { name: 'Milestone' });
     expect(within(menu).getAllByRole('menuitemradio').map((x) => x.textContent)).toEqual([
       'Basics3/4',
@@ -108,7 +109,7 @@ describe('milestone dropdown', () => {
     fireEvent.click(within(menu).getByRole('menuitemradio', { name: /^Planner/ }));
     expect(screen.queryByRole('menu', { name: 'Milestone' })).toBeNull();
     expect(cards()).toEqual(['T-104', 'T-105']);
-    fireEvent.click(screen.getByRole('button', { name: 'Milestone: Planner' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Milestone: Planner' }), { key: 'Enter' });
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'All milestones' }));
     expect(screen.getByRole('button', { name: 'Milestone: All milestones' })).toBeTruthy();
     expect(cards()).toHaveLength(recipeSpecs.length);

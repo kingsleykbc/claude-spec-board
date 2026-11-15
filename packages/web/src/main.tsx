@@ -12,6 +12,12 @@ applyThemeChoice(savedThemeChoice());
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <TooltipProvider>{isDocsPath(location.pathname) ? <DocsPage pathname={location.pathname} search={location.search} /> : <App />}</TooltipProvider>
+    {isDocsPath(location.pathname) ? (
+      <TooltipProvider>
+        <DocsPage pathname={location.pathname} search={location.search} />
+      </TooltipProvider>
+    ) : (
+      <App />
+    )}
   </StrictMode>,
 );

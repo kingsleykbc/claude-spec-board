@@ -166,3 +166,36 @@ export const LinksNarrow: StoryObj<typeof WithLinks> = {
   args: { onSelect: fn() },
   decorators: [narrow],
 };
+
+/** Checkable items that leave the menu open, for ticking several in a row (the filter menus). */
+function KeepOpenExample() {
+  const [picked, setPicked] = useState<string[]>([]);
+  const flip = (x: string) => setPicked((p) => (p.includes(x) ? p.filter((y) => y !== x) : [...p, x]));
+  return (
+    <div className="p-6">
+      <ResponsiveMenu
+        title="Fruit"
+        trigger={
+          <button type="button" className={triggerClass}>
+            Fruit
+          </button>
+        }
+      >
+        {['Apple', 'Pear'].map((x) => (
+          <ResponsiveMenuItem key={x} keepOpen checked={picked.includes(x)} onSelect={() => flip(x)}>
+            {x}
+          </ResponsiveMenuItem>
+        ))}
+      </ResponsiveMenu>
+    </div>
+  );
+}
+
+export const KeepOpen: StoryObj<typeof KeepOpenExample> = {
+  render: () => <KeepOpenExample />,
+};
+
+export const KeepOpenNarrow: StoryObj<typeof KeepOpenExample> = {
+  render: () => <KeepOpenExample />,
+  decorators: [narrow],
+};

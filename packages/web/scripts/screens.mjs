@@ -64,7 +64,7 @@ const SCREENS = {
     await page.waitForTimeout(300);
   },
   async table(page) {
-    await page.getByRole('radio', { name: 'Table' }).click();
+    await page.getByRole('radio', { name: 'Table view' }).click();
     await page.getByRole('table').first().waitFor();
   },
   async 'card-T-104'(page) {

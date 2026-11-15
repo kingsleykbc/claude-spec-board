@@ -3,7 +3,6 @@ import type { Spec, Status } from '@specboard/core';
 import { api, type ProjectSummary } from './api/client';
 import { useThemeChoice, type ThemeChoice } from './lib/theme';
 import { createSpecActions, OFFLINE_TOAST } from './state/actions';
-import { ESC, useEscape } from './lib/escape';
 import { interceptPop } from './lib/popGuard';
 import { PlusIcon } from './lib/icons';
 import { runHold } from './lib/vm';
@@ -28,7 +27,8 @@ import { AddSpecModal } from './components/AddSpecModal';
 import { CardDetail } from './components/detail/CardDetail';
 import { RunPanel } from './components/detail/RunPanel';
 import { ConnectionBanner } from '@/components/connection-banner/connection-banner';
-import { FilterBar, type FilterMenu } from './components/FilterBar';
+import { FilterBar } from './components/filter-bar/filter-bar';
+import { TooltipProvider } from './components/ui/tooltip/tooltip';
 import { LogsModal } from './components/LogsModal';
 import { OverviewModal } from './components/OverviewModal';
 import { ReferencesModal } from './components/ReferencesModal';
@@ -150,11 +150,14 @@ export function App() {
     body = error || projects ? <div style={muted}>{error ?? 'No projects yet. Run spec-board in a project folder.'}</div> : <AppSkeleton />;
   }
 
+  // Its own TooltipProvider (main.tsx gives DocsPage one), so icon-only controls' tooltips work wherever App is rendered.
   return (
-    <div style={shell}>
-      {body}
-      <Toasts toasts={toasts} onDismiss={dismiss} />
-    </div>
+    <TooltipProvider>
+      <div style={shell}>
+        {body}
+        <Toasts toasts={toasts} onDismiss={dismiss} />
+      </div>
+    </TooltipProvider>
   );
 }
 
@@ -186,7 +189,6 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
     saveView(v);
     setView(v);
   };
-  const [menu, setMenu] = useState<Exclude<FilterMenu, null> | null>(null);
   /** Optimistic status while a move is in flight, so the card does not snap back before the refresh. */
   const [pending, setPending] = useState<Record<string, Status>>({});
   const wantReconnectToast = useRef(false);
@@ -205,9 +207,6 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
       toast('ok', 'Reconnected', 'The board is up to date with your files.');
     }
   }, [conn, toast]);
-
-  // Esc closes open menus (pinned behaviour 14), below dialogs and inputs in the Esc stack.
-  useEscape(menu !== null, () => setMenu(null), ESC.menu);
 
   const summary = projects.find((p) => p.id === pid);
   const project = data?.project ?? null;
@@ -279,7 +278,6 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
 
   return (
     <>
-      {menu && <div data-testid="menu-scrim" onClick={() => setMenu(null)} style={{ position: 'fixed', inset: 0, zIndex: 25 }} />}
       <TopBar
         switcher={{
           name,
@@ -329,8 +327,6 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
             categories={categoryOptions(specs, archived)}
             waits={waitItems(specs)}
             onWait={onWait}
-            menu={menu === 'cat' || menu === 'urg' || menu === 'waits' || menu === 'milestone' ? menu : null}
-            onMenu={(m) => setMenu(m)}
             simple={simple}
             view={view}
             onView={pickView}
