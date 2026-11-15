@@ -239,6 +239,7 @@ Kingsley named these:
 | `/reorganize [instructions]` | Splits, merges, reorders and re-links specs board-wide, with the same safety rules as `/update-spec`. |
 | `/update-spec` | Changes an existing spec as instructed, e.g. bigger corrections Kingsley hands to Claude. |
 | `/refresh-overview` | Rewrites `overview.md` from the current state of all specs. |
+| `/specboard:refresh-questions <id>` | After the spec text was edited on the board, removes open questions and unstarted subtasks that no longer make sense, adds only the ones the new text needs, and clears `needs_refresh` (added 2026-11-15). The board starts it on its own when runs are approved and Claude is connected. |
 | `/refresh-logs` | Brings the subtask logs up to date from what was actually done (e.g. git history), for when logs were missed. |
 | `/correct-specs` | Finds specs that no longer match the code (e.g. after manual edits) and fixes them. |
 | `/specboard:setup` | Sets up a project from a chat: looks for existing plans, imports them or starts fresh, asks small or large, previews the structure as a tree, then opens the board (added 2026-11-14). |
