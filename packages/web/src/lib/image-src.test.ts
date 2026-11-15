@@ -25,6 +25,18 @@ describe('imageSrc', () => {
     expect(imageSrc('p', './a.png', 'docs')).toEqual({ kind: 'img', url: '/api/projects/p/image?path=docs%2Fa.png' });
   });
 
+  it('drops a ?query or #fragment from a relative path', () => {
+    expect(imageSrc('p', 'images/a.png?v=2', 'd').url).toBe('/api/projects/p/image?path=d%2Fimages%2Fa.png');
+    expect(imageSrc('p', 'images/a.png#top', 'd').url).toBe('/api/projects/p/image?path=d%2Fimages%2Fa.png');
+    expect(imageSrc('p', 'images/a.png?v=2#x', 'd').url).toBe('/api/projects/p/image?path=d%2Fimages%2Fa.png');
+    expect(imageSrc('p', 'https://x/y.png?v=2')).toEqual({ kind: 'img', url: 'https://x/y.png?v=2' });
+  });
+
+  it('stays a link when a relative src has a backslash', () => {
+    const src = ['images', 'a.png'].join(String.fromCharCode(92));
+    expect(imageSrc('p', src, 'd')).toEqual({ kind: 'link', url: src });
+  });
+
   it('stays a link when the path leaves the project', () => {
     expect(imageSrc('p', '../../../x.png', 'docs')).toEqual({ kind: 'link', url: '../../../x.png' });
   });

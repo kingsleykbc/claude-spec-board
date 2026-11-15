@@ -284,6 +284,27 @@ describe('body save flags needs_refresh', () => {
     expect(await fs.readFile(specFile('T-105'), 'utf8')).not.toContain('needs_refresh');
   });
 
+  it('saving an identical body on a todo spec writes nothing and does not flag it', async () => {
+    const file = specFile('T-105');
+    const before = await fs.readFile(file, 'utf8');
+    const s = await get('T-105');
+    const res = await send('PATCH', '/specs/T-105/body', { hash: s.hash, bodyHash: s.bodyHash, md: s.bodyMd });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { spec: Spec };
+    expect(body.spec.needsRefresh).toBeNull();
+    expect(await fs.readFile(file, 'utf8')).toBe(before);
+  });
+
+  it('two body saves in a row both succeed, the second using the hash the first returned', async () => {
+    const s = await get('T-105');
+    const r1 = await send('PATCH', '/specs/T-105/body', { hash: s.hash, bodyHash: s.bodyHash, md: s.bodyMd + '\nOne.\n' });
+    expect(r1.status).toBe(200);
+    const b1 = (await r1.json()) as { hash: string; spec: Spec };
+    const r2 = await send('PATCH', '/specs/T-105/body', { hash: b1.hash, bodyHash: b1.spec.bodyHash, md: b1.spec.bodyMd + '\nTwo.\n' });
+    expect(r2.status).toBe(200);
+    expect(await fs.readFile(specFile('T-105'), 'utf8')).toContain('Two.');
+  });
+
   it('a body conflict writes nothing', async () => {
     const file = specFile('T-105');
     const s = await get('T-105');

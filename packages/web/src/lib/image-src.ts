@@ -1,5 +1,6 @@
 export type ImageSrc = { kind: 'img'; url: string } | { kind: 'link'; url: string };
 
+const BACKSLASH = String.fromCharCode(92);
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 
 /** Joins and normalises like posix paths; null when the result leaves the root. */
@@ -23,10 +24,10 @@ function joinInside(baseDir: string, rel: string): string | null {
 export function imageSrc(pid: string, src: string, baseDir?: string): ImageSrc {
   const link: ImageSrc = { kind: 'link', url: src };
   if (/^https?:\/\//i.test(src)) return { kind: 'img', url: src };
-  if (src === '' || baseDir === undefined || SCHEME.test(src) || src.startsWith('/') || src.startsWith('//')) return link;
+  if (src === '' || baseDir === undefined || SCHEME.test(src) || src.startsWith('/') || src.includes(BACKSLASH)) return link;
   let decoded: string;
   try {
-    decoded = decodeURIComponent(src);
+    decoded = decodeURIComponent(src.replace(/[?#].*$/s, ''));
   } catch {
     return link;
   }

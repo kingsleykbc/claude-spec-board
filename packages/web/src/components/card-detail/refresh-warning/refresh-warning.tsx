@@ -5,6 +5,8 @@ import { CheckIcon, CopyIcon, WarnIcon } from '@/lib/icons';
 export interface RefreshWarningProps {
   /** The spec whose questions and subtasks may be stale. */
   id: string;
+  /** The trigger's accessible name; the popover names itself the same way. */
+  label?: string;
 }
 
 const COPIED_MS = 2600;
@@ -16,7 +18,7 @@ export const refreshCommand = (id: string) => `/specboard:refresh-questions ${id
  * The warning at the right end of the Open questions and Subtasks headings after a spec edit that no refresh run
  * picked up (`needs_refresh` in the file). It explains itself and copies the command to run in Claude.
  */
-export function RefreshWarning({ id }: RefreshWarningProps) {
+export function RefreshWarning({ id, label = 'Questions may be out of date' }: RefreshWarningProps) {
   const command = refreshCommand(id);
   const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -45,7 +47,7 @@ export function RefreshWarning({ id }: RefreshWarningProps) {
   };
 
   return (
-    <InfoPopover label="Questions may be out of date" trigger={<WarnIcon aria-hidden className="block size-4 text-review-ink" />}>
+    <InfoPopover label={label} trigger={<WarnIcon aria-hidden className="block size-4 text-review-ink" />}>
       <span>
         These may be out of date after the last spec edit. Run{' '}
         <code className="rounded-[4px] border border-line bg-code px-[5px] font-mono text-[11.5px] break-all">{command}</code> in Claude.

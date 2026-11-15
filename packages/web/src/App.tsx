@@ -432,6 +432,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
           {modal === 'overview' && (
             <OverviewModal
               project={{ ...project, specs }}
+              pid={pid}
               name={name}
               toast={toast}
               refreshing={isRefreshing(run.run)}

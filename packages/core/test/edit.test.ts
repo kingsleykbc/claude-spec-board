@@ -280,6 +280,16 @@ describe('setNeedsRefresh', () => {
     expect(setNeedsRefresh(fixture, null)).toBe(fixture);
   });
 
+  it('removes only that line when needs_refresh is the last front-matter line', () => {
+    const t = '---\nid: T-9\ntitle: X\nneeds_refresh: 2026-11-15\n---\n\nBody\n';
+    expect(setNeedsRefresh(t, null)).toBe('---\nid: T-9\ntitle: X\n---\n\nBody\n');
+  });
+
+  it('removes a quoted or trailing-space needs_refresh line and nothing else', () => {
+    expect(setNeedsRefresh('---\nid: T-9\nneeds_refresh: "2026-11-15"\n---\n\nB\n', null)).toBe('---\nid: T-9\n---\n\nB\n');
+    expect(setNeedsRefresh('---\nid: T-9\nneeds_refresh: 2026-11-15   \ntitle: X\n---\n\nB\n', null)).toBe('---\nid: T-9\ntitle: X\n---\n\nB\n');
+  });
+
   it('rejects a malformed date', () => {
     expect(() => setNeedsRefresh(fixture, 'yesterday')).toThrow();
   });

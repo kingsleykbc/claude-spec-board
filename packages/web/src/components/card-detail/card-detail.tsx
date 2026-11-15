@@ -222,6 +222,11 @@ function SpecDetail({
     if (down) return offline();
     const text = editText;
     const { bodyHash } = editBase.current;
+    // Nothing changed: nothing to write, no flag, no paid refresh. Just leave edit mode.
+    if (text === editBase.current.md) {
+      setEditText(null);
+      return;
+    }
     setSaving(true);
     let saved: Spec | undefined;
     try {
@@ -316,7 +321,9 @@ function SpecDetail({
   const dates = datesLine(spec.created, spec.updated);
   // Review and Done specs are frozen: no refresh prompt there.
   const frozen = spec.status === 'review' || spec.status === 'done';
-  const warning = spec.needsRefresh && !refreshing && !frozen ? <RefreshWarning id={id} /> : undefined;
+  const stale = spec.needsRefresh && !refreshing && !frozen;
+  const warning = stale ? <RefreshWarning id={id} /> : undefined;
+  const subtasksWarning = stale ? <RefreshWarning id={id} label="Subtasks may be out of date" /> : undefined;
   return (
     <Modal
       label={spec.title}
@@ -406,7 +413,7 @@ function SpecDetail({
                 down={down}
                 {...(changed ? { changed } : {})}
                 runActive={runActive}
-                warning={warning}
+                warning={subtasksWarning}
               />
               {dates !== null && <p className="m-0 text-[12px] text-fg3">{dates}</p>}
             </div>

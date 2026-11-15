@@ -318,7 +318,7 @@ describe('CardDetail', () => {
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
     expect(onClose).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    startEdit('changed text');
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await screen.findByRole('alertdialog');
     esc();
@@ -326,7 +326,8 @@ describe('CardDetail', () => {
     expect(screen.getByRole('textbox', { name: 'Spec markdown' })).toBeTruthy();
     expect(onClose).not.toHaveBeenCalled();
 
-    // No changes: the first Esc closes the editor, the second the modal.
+    // Back to the saved text: nothing unsaved, so the first Esc closes the editor, the second the modal.
+    fireEvent.change(screen.getByRole('textbox', { name: 'Spec markdown' }), { target: { value: recipeSpec('T-105').bodyMd } });
     esc();
     expect(screen.queryByRole('textbox', { name: 'Spec markdown' })).toBeNull();
     expect(onClose).not.toHaveBeenCalled();
@@ -713,7 +714,7 @@ describe('questions refresh after a spec edit', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(toast).toHaveBeenCalledWith('ok', 'Spec saved', undefined, expect.anything()));
   };
-  const warnings = () => screen.queryAllByRole('button', { name: 'Questions may be out of date' });
+  const warnings = () => [...screen.queryAllByRole('button', { name: 'Questions may be out of date' }), ...screen.queryAllByRole('button', { name: 'Subtasks may be out of date' })];
 
   it('connected and approved: saving a To-do spec the server flagged starts a refresh-questions run for it', async () => {
     const startRun = vi.fn(async () => undefined);
@@ -755,6 +756,7 @@ describe('questions refresh after a spec edit', () => {
       const [q, s] = warnings();
       expect(warnings()).toHaveLength(2);
       expect(within(screen.getByRole('region', { name: 'Open questions' })).getByRole('button', { name: 'Questions may be out of date' })).toBe(q);
+      expect(s!.getAttribute('aria-label') ?? s!.textContent).toContain('Subtasks may be out of date');
       expect(s!.closest('section')?.textContent).toContain('SUBTASKS');
       fireEvent.pointerEnter(q!);
       expect(screen.getByRole('dialog', { name: 'Questions may be out of date' }).textContent).toContain(
@@ -768,6 +770,18 @@ describe('questions refresh after a spec edit', () => {
   it('no warning while a refresh run for this spec is going', () => {
     setup('T-105', {}, [...recipeSpecs.filter((x) => x.id !== 'T-105'), flagged('T-105')], { refreshing: true });
     expect(warnings()).toHaveLength(0);
+  });
+
+  it('saving unchanged text sends nothing, starts no run and leaves edit mode', async () => {
+    const startRun = vi.fn(async () => undefined);
+    const own = vi.fn();
+    const { toast } = setup('T-105', { setBody: own }, undefined, { canAutoRun: true, startRun });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Spec markdown' })).toBeNull());
+    expect(own).not.toHaveBeenCalled();
+    expect(startRun).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
   });
 
   it('a Review spec never starts a run, even if a save came back flagged (Review Focus 3)', async () => {

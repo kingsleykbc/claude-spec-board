@@ -23,7 +23,7 @@ The approved list is kept in `~/.specboard/`, outside the repo. [Safety](safety.
 
 ## When Claude isn't connected
 
-When background runs can't happen for a project, because Claude Code isn't installed, isn't logged in, is blocked by a setting, or the project hasn't been approved for runs, the board shows a small "not connected" icon in the header. Click or tap it to see **Claude isn't connected to the board**, the reason, and a link to this page.
+When background runs can't happen for a project, because Claude Code isn't installed, isn't logged in, is blocked by a setting, or the project hasn't been approved for runs, the board shows a small "not connected" icon in the header. Hover it (or focus it with the keyboard, or tap it on a phone) to see **Claude isn't connected to the board**, the reason, and a link to this page.
 
 The board still works fully as a view of your files. It just can't start Claude, so use the **Copy command** buttons and paste the command into a Claude chat in the project folder.
 
@@ -51,8 +51,9 @@ Each finished subtask has a log. Besides what was done, the card shows:
 - **When it was done**, as a date and time in your local time.
 - **Tokens**, described next.
 
+- **A warning icon** if a sync found that the work in that log no longer exists. Hover it (or focus it with the keyboard, or tap it on a phone) to see the date and reason.
+
 In the Logs window, press **More info** on a log to see its files, commit, pull request and tokens.
-- **A warning icon** if a sync found that the work in that log no longer exists. Click or tap it to see the date and reason.
 
 Press **Logs** at the right end of the header to see every log in the project, newest first, with a search box for text, spec IDs and titles. Each log is a row: the time on the left, the spec, subtask and text on the right. Times up to 30 days old read as "time ago" ("3 hours ago"), older ones as a date and time; hover a time to see it exactly.
 
@@ -90,4 +91,4 @@ A blocked spec or a draft can't be started from the card. If you start one from 
 
 ## The other Claude buttons on the board
 
-These run in the background: **Have Claude write this up** on a draft, **Refresh** in the overview, **Ask Claude to fix** on a file with a formatting problem, and **Sync with code**. To do them in your chat, type `/specboard:create-spec T-001`, `/specboard:refresh-overview`, `/specboard:update-spec T-001 fix the formatting` or `/specboard:sync-specs`.
+These run in the background: **Have Claude write this up** on a draft, **Refresh** in the overview, **Ask Claude to fix** on a file with a formatting problem, **Sync with code**, and the automatic question refresh after you edit a spec (only when background runs are approved). To do them in your chat, type `/specboard:create-spec T-001`, `/specboard:refresh-overview`, `/specboard:update-spec T-001 fix the formatting` or `/specboard:sync-specs`. The question refresh is `/specboard:refresh-questions T-001`.

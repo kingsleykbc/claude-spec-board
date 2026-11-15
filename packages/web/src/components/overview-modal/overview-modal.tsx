@@ -14,6 +14,8 @@ import { Hint } from '@/components/ui/hint/hint';
 
 export interface OverviewModalProps {
   project: Project;
+  /** The project's id, for images in the summary. */
+  pid?: string;
   /** The project's display name (config name, or the registry's). */
   name: string;
   toast: PushToast;
@@ -47,7 +49,7 @@ function download(filename: string, text: string): void {
 }
 
 /** Project overview (pinned behaviour 17; prototype lines 295-319 and 748-751). */
-export function OverviewModal({ project, name, toast, refreshing = false, onRefresh, onOpenLogs, onClose, now, returnFocus }: OverviewModalProps) {
+export function OverviewModal({ project, pid, name, toast, refreshing = false, onRefresh, onOpenLogs, onClose, now, returnFocus }: OverviewModalProps) {
   const c = overviewCounts(project);
   const [tasksOpen, setTasksOpen] = useState(false);
   const tasksId = useId();
@@ -139,7 +141,7 @@ export function OverviewModal({ project, name, toast, refreshing = false, onRefr
             </div>
           ) : summary ? (
             <div className="max-w-[64ch]">
-              <Markdown md={summary} />
+              <Markdown md={summary} {...(pid !== undefined ? { pid, baseDir: '.specboard' } : {})} />
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2.5 rounded-[10px] border border-dashed border-line2 p-[22px] text-center">

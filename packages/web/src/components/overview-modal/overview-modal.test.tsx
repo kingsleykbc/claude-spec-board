@@ -40,6 +40,11 @@ describe('OverviewModal', () => {
     expect(within(dlg).getByText('Search & filters').tagName).toBe('STRONG');
   });
 
+  it('relative images in the summary load through the image route from .specboard', () => {
+    setup({ pid: 'p1', project: { ...recipeProject, overview: { updated: '2026-11-08T09:30', summaryMd: '![shot](images/a.png)' } } });
+    expect(screen.getByRole('img', { name: 'shot' }).getAttribute('src')).toBe('/api/projects/p1/image?path=.specboard%2Fimages%2Fa.png');
+  });
+
   it('with no summary shows the empty state', () => {
     setup({ project: { ...recipeProject, overview: null } });
     expect(screen.getByText('No summary yet. Ask Claude to refresh the overview.')).toBeTruthy();

@@ -130,6 +130,8 @@ export function specRoutes(registry: Registry): Hono {
         const next = replaceSpecBody(text, md);
         // An open, non-draft spec's questions may now be stale: flag it in the same write.
         const { meta } = parseSpecMeta(splitFrontMatter(next).yaml);
+        // An unchanged body flags nothing (and starts no paid refresh).
+        if (next === text) return text;
         return needsRefreshFor(meta) ? setNeedsRefresh(next, today()) : next;
       },
       hash,

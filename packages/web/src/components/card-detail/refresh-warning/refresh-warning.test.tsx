@@ -23,6 +23,12 @@ describe('RefreshWarning', () => {
     expect(pop.querySelector('code')?.textContent).toBe('/specboard:refresh-questions T-104');
   });
 
+  it('the Subtasks heading labels its trigger "Subtasks may be out of date"', () => {
+    render(<Default label="Subtasks may be out of date" />);
+    expect(screen.getByRole('button', { name: 'Subtasks may be out of date' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Questions may be out of date' })).toBeNull();
+  });
+
   it('a tap opens it, and Copy command puts the command on the clipboard', async () => {
     const user = userEvent.setup();
     const writeText = vi.fn(async () => undefined);
