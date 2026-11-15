@@ -27,7 +27,7 @@ export function NotConnected({ reason }: { reason: ManualReason | null }) {
       <div className="flex flex-col gap-2">
         <p className="m-0">The board can't run Claude for you here, so use the Copy command buttons and paste them into a Claude chat.</p>
         <p className="m-0 font-medium text-fg">{REASON[reason]}</p>
-        <a className="font-medium text-accent-ink" href="/docs/running-specs#turn-on-background-runs" target="_blank" rel="noopener">
+        <a className="font-medium text-accent-ink underline" href="/docs/running-specs#turn-on-background-runs" target="_blank" rel="noopener">
           How to turn on background runs
         </a>
       </div>

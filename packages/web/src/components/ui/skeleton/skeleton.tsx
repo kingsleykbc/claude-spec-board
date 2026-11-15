@@ -2,13 +2,17 @@ import type { CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
 
 // Skeleton loaders: grey shapes where the content will be, shown while it loads.
-// The shimmer (`sb-skel` in styles/base.css) stops for people who ask for less motion.
+// The shimmer (`animate-sb-skel`, keyframes in styles/app.css) stops for people who ask for less motion.
 
 /** One grey block. Its size comes from the caller, so it is set inline. */
 export function Skel({ w, h = 10, r, className, style }: { w: number | string; h?: number; r?: number; className?: string; style?: CSSProperties }) {
   return (
     <span
-      className={cn('sb-skel', className)}
+      data-slot="skeleton"
+      className={cn(
+        'block animate-sb-skel rounded-[6px] bg-[linear-gradient(90deg,var(--panel)_0%,var(--line)_50%,var(--panel)_100%)] bg-size-[200%_100%] motion-reduce:animate-none',
+        className,
+      )}
       aria-hidden
       style={{ width: w, height: h, ...(r !== undefined ? { borderRadius: r } : {}), ...style }}
     />

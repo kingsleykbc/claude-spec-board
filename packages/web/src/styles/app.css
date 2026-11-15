@@ -3,12 +3,15 @@
  * 1. Tailwind (theme, preflight in the base layer, utilities).
  * 2. tokens.css (copied from the design, never edited) in the base layer, after preflight, so its element
  *    rules (links, buttons, focus ring) win over preflight but every utility still wins over them.
- * 3. base.css: our own base rules, including the fixes that keep preflight from changing the look.
- * CSS modules are unlayered, so they beat all of the above until they are migrated.
+ * Everything else is utilities in the components. The only other global CSS is lib/tour.css (driver.js).
  */
 @import 'tailwindcss';
 @import './tokens.css' layer(base);
-@import './base.css';
+
+@layer base {
+  /* react-icons draw a 1em <svg>: keep it from shrinking in flex rows and sit it on the text's middle when inline. */
+  svg[aria-hidden='true'] { flex: none; vertical-align: -0.125em; }
+}
 
 /* The theme switch sets data-theme on <html>; `dark:` follows it instead of prefers-color-scheme. */
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
@@ -43,6 +46,8 @@
   --color-block-ink: var(--block-ink);
   --color-scrim: var(--scrim);
   --color-code: var(--code);
+  /* Placeholder text: the browser's own grey, as the board always showed it (Tailwind's reset would use half the text colour). */
+  --color-placeholder: #757575;
 
   --font-sans: var(--sans);
   --font-mono: var(--mono);
@@ -53,4 +58,13 @@
   --animate-sb-pulse: sbPulse 1.6s ease-in-out infinite;
   --animate-sb-spin: sbSpin 0.8s linear infinite;
   --animate-sb-in: sbIn 0.25s ease-out;
+}
+
+/* Skeleton loaders: a slow sweep across the block (see ui/skeleton). */
+@theme {
+  --animate-sb-skel: sbSkel 1.4s ease-in-out infinite;
+  @keyframes sbSkel {
+    from { background-position: 100% 0; }
+    to { background-position: -100% 0; }
+  }
 }

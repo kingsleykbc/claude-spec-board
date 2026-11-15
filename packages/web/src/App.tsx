@@ -70,8 +70,9 @@ function cardElement(id: string): HTMLElement | null {
 
 type Navigate = (next: UrlState, replace?: boolean) => void;
 
-const shell = { minHeight: '100vh', background: 'var(--bg)', color: 'var(--fg)', fontFamily: 'var(--sans)', fontSize: 14 } as const;
-const muted = { padding: '24px 20px', color: 'var(--fg3)' } as const;
+// The app's base type: tokens' font and colours, 14px, and the browser's normal line height (Tailwind's reset sets 1.5).
+const shell = 'min-h-screen bg-bg font-sans text-[14px] leading-[normal] text-fg';
+const muted = 'px-5 py-6 text-fg3';
 
 export function App() {
   const { toasts, push, dismiss } = useToasts();
@@ -146,13 +147,13 @@ export function App() {
       />
     );
   } else {
-    body = error || projects ? <div style={muted}>{error ?? 'No projects yet. Run spec-board in a project folder.'}</div> : <AppSkeleton />;
+    body = error || projects ? <div className={muted}>{error ?? 'No projects yet. Run spec-board in a project folder.'}</div> : <AppSkeleton />;
   }
 
   // Its own TooltipProvider (main.tsx gives DocsPage one), so icon-only controls' tooltips work wherever App is rendered.
   return (
     <TooltipProvider>
-      <div style={shell}>
+      <div className={shell}>
         {body}
         <Toasts toasts={toasts} onDismiss={dismiss} />
       </div>
@@ -461,7 +462,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
         </FileLinks>
         </SimpleMode>
       ) : (
-        error ? <div style={muted}>{error.message}</div> : <BoardSkeleton />
+        error ? <div className={muted}>{error.message}</div> : <BoardSkeleton />
       )}
     </>
   );

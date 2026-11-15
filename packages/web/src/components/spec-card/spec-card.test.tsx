@@ -3,6 +3,8 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import userEvent from '@testing-library/user-event';
 import { composeStories } from '@storybook/react-vite';
 import * as stories from './spec-card.stories';
+import { recipeSpec } from '@/fixtures/recipeBox';
+import { firstParagraph } from '@/lib/vm';
 
 const {
   DefaultDone,
@@ -237,5 +239,71 @@ describe('SpecCard', () => {
     ({ card } = setup(BeingDragged));
     expect(card.getAttribute('data-lifted')).toBe('true');
     expect(card.className).toMatch(/rotate-\[-1\.8deg\]/);
+  });
+});
+
+describe('SpecCard in Simple mode', () => {
+  it('full mode still shows everything (T-105)', () => {
+    const { light } = setup(BlockedQuestions);
+    expect(light.getByText('Blocked')).toBeTruthy();
+    expect(light.getByText(firstParagraph(recipeSpec('T-105').bodyMd))).toBeTruthy();
+    expect(screen.getByTestId('theme-light').querySelector('[data-urgency]')).not.toBeNull();
+    expect(light.getByText('Backend')).toBeTruthy();
+    expect(light.getByText(/needs/)).toBeTruthy();
+    expect(light.getByRole('button', { name: 'View' })).toBeTruthy();
+    expect(light.queryByRole('button', { name: 'More about T-105' })).toBeNull();
+  });
+
+  it('shows the ID, title, the start of the description and progress; the rest is behind ⋯, with a dot for a blocked spec', async () => {
+    const { light, onOpen } = setup(SimpleBlocked);
+    expect(light.getByText('Shopping list export')).toBeTruthy();
+    expect(light.queryByText('Blocked')).toBeNull();
+    expect(light.getByText(firstParagraph(recipeSpec('T-105').bodyMd))).toBeTruthy();
+    expect(screen.getByTestId('theme-light').querySelector('[data-urgency]')).toBeNull();
+    expect(light.queryByText('Backend')).toBeNull();
+    expect(light.queryByText(/needs/)).toBeNull();
+    expect(light.queryByRole('button', { name: 'View' })).toBeNull();
+    expect(light.getByTestId('card-attention')).toBeTruthy();
+
+    await userEvent.click(light.getByRole('button', { name: 'More about T-105' }));
+    expect(onOpen).not.toHaveBeenCalled();
+    const d = within(screen.getByTestId('card-details'));
+    expect(d.getByText('Blocked')).toBeTruthy();
+    expect(d.getByText('3 open questions · Waiting on T-104 (doing)')).toBeTruthy();
+    expect(d.getByText('Urgency')).toBeTruthy();
+    expect(d.getByText('Normal')).toBeTruthy();
+    expect(d.getByText('Backend')).toBeTruthy();
+    expect(d.getByText('Needs')).toBeTruthy();
+    expect(d.getByText('T-104')).toBeTruthy();
+  });
+
+  it('no dot when nothing needs a look; a review card says so in the menu', async () => {
+    const { light } = setup(SimpleBlocked, { id: 'T-103' });
+    expect(light.queryByTestId('card-attention')).toBeNull();
+    expect(light.queryByText('Waiting on your review')).toBeNull();
+    await userEvent.click(light.getByRole('button', { name: 'More about T-103' }));
+    expect(within(screen.getByTestId('card-details')).getByText('Waiting on your review')).toBeTruthy();
+  });
+
+  it('a file problem moves into the menu too', async () => {
+    const { light } = setup(SimpleBlocked, { id: 'T-109' });
+    expect(light.queryByText(/File problem/)).toBeNull();
+    expect(light.getByTestId('card-attention')).toBeTruthy();
+    await userEvent.click(light.getByRole('button', { name: 'More about T-109' }));
+    expect(within(screen.getByTestId('card-details')).getByText('File problem')).toBeTruthy();
+  });
+
+  it('a done card keeps Archive in the same menu', async () => {
+    const { light, onArchive } = setup(SimpleBlocked, { id: 'T-102' });
+    await userEvent.click(light.getByRole('button', { name: 'More about T-102' }));
+    expect(screen.getByTestId('card-details')).toBeTruthy();
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Archive' }));
+    expect(onArchive).toHaveBeenCalled();
+  });
+
+  it('a draft keeps "Have Claude write this up"', () => {
+    const { light, onWriteUp } = setup(SimpleBlocked, { id: 'T-107' });
+    fireEvent.click(light.getByRole('button', { name: 'Have Claude write this up' }));
+    expect(onWriteUp).toHaveBeenCalled();
   });
 });

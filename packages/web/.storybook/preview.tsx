@@ -31,7 +31,8 @@ const preview: Preview = {
       }, [theme]);
       return (
         <TooltipProvider>
-          <div style={{ background: 'var(--bg)', color: 'var(--fg)', fontFamily: 'var(--sans)', minHeight: '100vh' }}>
+          {/* The app shell's base type (App.tsx), so a story looks as it does on the board. */}
+          <div className="min-h-screen bg-bg font-sans leading-[normal] text-fg">
             <Story />
           </div>
         </TooltipProvider>

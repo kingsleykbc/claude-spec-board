@@ -632,3 +632,48 @@ describe('CardDetail', () => {
     });
   });
 });
+
+describe('CardDetail in Simple mode', () => {
+  it('full mode shows urgency, categories and the Dependencies section, and no ⋯', () => {
+    render(<ReadMode specId="T-105" />);
+    expect(screen.getByRole('radiogroup', { name: 'Urgency' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Dependencies' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'More details' })).toBeNull();
+  });
+
+  it('Simple mode moves urgency, categories and dependencies into ⋯ More details', () => {
+    const onOpenSpec = vi.fn();
+    render(<Simple onOpenSpec={onOpenSpec} />);
+    expect(screen.queryByRole('radiogroup', { name: 'Urgency' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Dependencies' })).toBeNull();
+    expect(screen.queryByText('Backend')).toBeNull();
+    // The rest of the detail is unchanged.
+    expect(screen.getByRole('heading', { level: 1, name: 'Shopping list export' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Copy run command/ })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'More details' }));
+    const menu = within(screen.getByRole('dialog', { name: 'More details' }));
+    expect(menu.getByRole('radiogroup', { name: 'Urgency' })).toBeTruthy();
+    expect(menu.getByText('Backend')).toBeTruthy();
+    expect(menu.getByText('Depends on')).toBeTruthy();
+    fireEvent.click(menu.getByRole('button', { name: /T-104/ }));
+    expect(onOpenSpec).toHaveBeenCalledWith('T-104');
+  });
+
+  it('Esc closes the ⋯ menu before the detail', () => {
+    const onClose = vi.fn();
+    render(<Simple onClose={onClose} />);
+    fireEvent.click(screen.getByRole('button', { name: 'More details' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'More details' })).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('the blocked reason about a dependency opens the ⋯ menu', () => {
+    render(<Simple />);
+    fireEvent.click(screen.getByRole('button', { name: /Waiting on T-104/ }));
+    expect(screen.getByRole('dialog', { name: 'More details' })).toBeTruthy();
+  });
+});

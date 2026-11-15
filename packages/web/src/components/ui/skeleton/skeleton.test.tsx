@@ -14,14 +14,14 @@ describe('Skeleton loaders', () => {
     expect(s.textContent).toBe('Loading the board…');
     const cols = screen.getAllByTestId('skeleton-column');
     expect(cols).toHaveLength(4);
-    expect(cols.map((c) => c.querySelectorAll('.sb-skel').length > 2)).toEqual([true, true, true, true]);
+    expect(cols.map((c) => c.querySelectorAll('[data-slot="skeleton"]').length > 2)).toEqual([true, true, true, true]);
     // Grey blocks only: hidden from screen readers.
-    expect([...s.querySelectorAll('.sb-skel')].every((x) => x.getAttribute('aria-hidden') === 'true')).toBe(true);
+    expect([...s.querySelectorAll('[data-slot="skeleton"]')].every((x) => x.getAttribute('aria-hidden') === 'true')).toBe(true);
   });
 
   it('the app skeleton adds the top bar outline', () => {
     const { container } = render(<App />);
-    expect(container.querySelectorAll('[aria-hidden="true"] .sb-skel').length).toBeGreaterThan(3);
+    expect(container.querySelectorAll('[aria-hidden="true"] [data-slot="skeleton"]').length).toBeGreaterThan(3);
     expect(screen.getByRole('status').textContent).toBe('Loading the board…');
   });
 

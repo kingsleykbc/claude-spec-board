@@ -58,6 +58,7 @@
 - [x] overview-modal · [x] references-modal · [x] settings-modal · [x] logs-modal · [x] sync-dialog · [x] add-spec-modal · [x] conflict-dialog · [x] docs-page
 - [x] `modals.module.css`, `settings.module.css`, `logs.module.css`, `detail/*.module.css` deleted
 - [x] `find src -name '*.module.css'` prints nothing
+- [x] `base.css` preflight bridge removed (Task 10); global CSS is only `tokens.css`, `app.css` and `lib/tour.css`
 
 ---
 
@@ -333,10 +334,10 @@ Logo menu (a `ResponsiveMenu`), in order:
 
 **Files:** `App*.test.tsx`, `lib/tour.css` (keep as global third-party CSS), and any file still importing a `.module.css` or with static inline styles. Also `src/stories/Swatches.stories.tsx`, which should show the Tailwind token classes.
 
-- [ ] Step 1: Run `find packages/web/src -name '*.module.css'`, which must print nothing. Then grep `style={{` and convert any remaining static ones; runtime-computed values may stay.
-- [ ] Step 2: App-level tests stay as integration tests, fixed for the new structure. Move them to `src/app/` only if that's cleaner; otherwise leave them next to `App.tsx`.
-- [ ] Step 3: Check every component folder has a `.stories.tsx` and a `.test.tsx`. Add any that are missing, with at least a render-and-assert-key-content test.
-- [ ] Step 4: Run all suites (core, server, web, stories) and tsc. Expected: green. Commit `web: remove css modules and inline styles`.
+- [x] Step 1: Run `find packages/web/src -name '*.module.css'`, which must print nothing. Then grep `style={{` and convert any remaining static ones; runtime-computed values may stay.
+- [x] Step 2: App-level tests stay as integration tests, fixed for the new structure. Move them to `src/app/` only if that's cleaner; otherwise leave them next to `App.tsx`.
+- [x] Step 3: Check every component folder has a `.stories.tsx` and a `.test.tsx`. Add any that are missing, with at least a render-and-assert-key-content test.
+- [x] Step 4: Run all suites (core, server, web, stories) and tsc. Expected: green. Commit `web: remove css modules and inline styles`.
 
 ### Task 11: Docs, README, visual check, plugin bundle
 

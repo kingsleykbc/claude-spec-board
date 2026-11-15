@@ -65,7 +65,7 @@ export function LogsModal({ project, onOpenSpec, onOpenOverview, onClose, now }:
       <div className="px-7 pt-2 pb-3">
         <input
           type="search"
-          className="h-[34px] w-full rounded-lg border border-line2 bg-card px-3 py-0 text-[13.5px] text-fg"
+          className="h-[34px] w-full rounded-lg border border-line2 bg-card px-3 py-0 text-[13.5px] text-fg placeholder:text-placeholder"
           placeholder="Search logs"
           aria-label="Search logs"
           value={q}

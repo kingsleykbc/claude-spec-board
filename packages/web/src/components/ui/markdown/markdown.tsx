@@ -19,11 +19,11 @@ function textOf(node: ReactNode): string {
 }
 
 // The board's Markdown typography (was Markdown.module.css). The parts are rendered by react-markdown, so they are
-// styled from the root. Lists say their own markers, since the reset removes them: disc, then circle, then square,
-// as browsers nest them.
+// styled from the root. Lists say their own markers and links their underline, since the reset removes them: disc,
+// then circle, then square, as browsers nest them.
 const root = [
   'flex flex-col gap-2.5 text-[15px] leading-[1.65] text-fg text-pretty data-[size=sm]:text-[14px]',
-  '[&_p]:m-0 [&_strong]:font-semibold',
+  '[&_p]:m-0 [&_strong]:font-semibold [&_a]:underline',
   '[&_h2]:mx-0 [&_h2]:mt-1 [&_h2]:mb-0 [&_h2]:text-[20px] [&_h2]:leading-[1.3] [&_h2]:font-semibold [&_h2]:tracking-[-0.01em]',
   '[&_h3]:mx-0 [&_h3]:mt-2.5 [&_h3]:mb-[-2px] [&_h3]:text-[11.5px] [&_h3]:font-semibold [&_h3]:tracking-[0.09em] [&_h3]:text-fg2 [&_h3]:uppercase',
   '[&_h4]:mx-0 [&_h4]:mt-1.5 [&_h4]:mb-[-4px] [&_h4]:text-[14px] [&_h4]:leading-[inherit] [&_h4]:font-semibold',
