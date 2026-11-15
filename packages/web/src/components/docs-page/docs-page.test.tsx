@@ -36,7 +36,8 @@ describe('docs routes', () => {
 });
 
 describe('the documentation files', () => {
-  const links = (md: string) => [...md.matchAll(/\]\(([^)\s]+)\)/g)].map((m) => m[1]!).filter((h) => !/^[a-z]+:/i.test(h));
+  // Code spans show example syntax (an image link in the guide), so they are not links to check.
+  const links = (md: string) => [...md.replace(/`[^`]*`/g, '').matchAll(/\]\(([^)\s]+)\)/g)].map((m) => m[1]!).filter((h) => !/^[a-z]+:/i.test(h));
 
   it.each(DOCS_PAGES.map((p) => [p.title, p.md] as const))('%s has content and every link leads to a page', (_title, md) => {
     expect(md.startsWith('# ')).toBe(true);

@@ -11,6 +11,7 @@ import { Markdown } from '@/components/ui/markdown/markdown';
 import { Modal } from '@/components/ui/modal/modal';
 import { DocSkeleton } from '@/components/ui/skeleton/skeleton';
 import { useDiscardGuard } from '@/lib/use-discard-guard';
+import { dirOf } from '@/lib/image-src';
 import { Hint } from '@/components/ui/hint/hint';
 
 export type RefsClient = Pick<
@@ -433,7 +434,7 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
             onChange={(e) => setEdit({ path: edit.path, text: e.target.value })}
           />
           <div className="overflow-auto px-[22px] py-[18px]">
-            <Markdown md={edit.text} size="sm" />
+            <Markdown md={edit.text} size="sm" pid={pid} baseDir={dirOf(edit.path)} />
           </div>
         </div>
       ) : (
@@ -447,7 +448,7 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
                 <p className="my-[1em] text-[14px] text-block-ink">File not found</p>
               ) : (
                 <div className="max-w-[70ch]">
-                  <Markdown md={active.md} />
+                  <Markdown md={active.md} pid={pid} baseDir={dirOf(active.path)} />
                 </div>
               )}
             </>

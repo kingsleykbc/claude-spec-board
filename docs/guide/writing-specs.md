@@ -191,6 +191,10 @@ track_tokens: true
 
 Blocked isn't a status. A spec is blocked when a required question is unanswered, or when a spec in `depends_on` isn't finished or doesn't exist. The card says which.
 
+## Images
+
+Put a spec's images in its `images/` subfolder and link them relatively, e.g. `![Login screen](images/login.png)`. The board shows them in the spec, and in a reference document when the path is relative to that document (`../img/a.png` works too). PNG, JPG, GIF, WebP, SVG and AVIF files are shown, and only from inside the project.
+
 ## Editing by hand
 
 Change any of these files in your editor and the board updates. If a file has a formatting mistake, the card says so instead of failing, and offers **Ask Claude to fix**.

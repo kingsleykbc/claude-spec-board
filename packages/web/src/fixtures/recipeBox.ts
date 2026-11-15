@@ -491,7 +491,7 @@ export const recipeSpecs: Spec[] = [
       "total": 5
     },
     "logs": {},
-    "bodyMd": "Combine the ingredients from every meal in the planned week into one shopping list, then export it so it can be printed or sent to a phone.\n\n## Features\n\n- Collects ingredients from all planned meals in the chosen range\n- Merges duplicates, so **2 x 200 g flour** becomes **400 g flour**\n- Groups items by aisle: produce, dairy, pantry, other\n- Exports in the format chosen below\n\n## Done when\n\n- A planned week turns into one shopping list with duplicate ingredients merged.\n- The list is grouped by aisle and can be exported in the chosen format.\n\n## Depends on\n\nNeeds saved meals from T-104 (the `planned_meals` table).",
+    "bodyMd": "Combine the ingredients from every meal in the planned week into one shopping list, then export it so it can be printed or sent to a phone.\n\n## Features\n\n- Collects ingredients from all planned meals in the chosen range\n- Merges duplicates, so **2 x 200 g flour** becomes **400 g flour**\n- Groups items by aisle: produce, dairy, pantry, other\n- Exports in the format chosen below\n\n![Sketch of the grouped shopping list](images/list-layout.svg)\n\n## Done when\n\n- A planned week turns into one shopping list with duplicate ingredients merged.\n- The list is grouped by aisle and can be exported in the chosen format.\n\n## Depends on\n\nNeeds saved meals from T-104 (the `planned_meals` table).",
     "bodyHash": "741b290576ab251518e56f6c31d65408eec97aecb0faed8ae1a05ee2d1c593b9",
     "dependents": [],
     "blocked": true,

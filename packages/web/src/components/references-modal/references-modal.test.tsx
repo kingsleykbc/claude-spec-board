@@ -61,6 +61,12 @@ describe('ReferencesModal', () => {
     expect(screen.getByTestId('ref-path').textContent).toBe('CLAUDE.md');
   });
 
+  it('shows a reference image from its own folder, going up with ../', async () => {
+    setup({ references: vi.fn(async () => [doc('docs/sub/x.md', ['# X', '![Shot](../img/a%20b.png)'].join('\n\n'))]) });
+    await screen.findByText('X');
+    expect(screen.getByRole('img', { name: 'Shot' }).getAttribute('src')).toBe('/api/projects/p1/image?path=docs%2Fimg%2Fa%20b.png');
+  });
+
   it('a missing file shows its tab with "File not found"', async () => {
     setup();
     await screen.findByText('House rules.');

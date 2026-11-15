@@ -25,6 +25,8 @@ Combine the ingredients from every meal in the planned week into one shopping li
 - Groups items by aisle: produce, dairy, pantry, other
 - Exports in the format chosen below
 
+![Sketch of the grouped shopping list](images/list-layout.svg)
+
 ## Done when
 
 - A planned week turns into one shopping list with duplicate ingredients merged.

@@ -1,6 +1,7 @@
 import { isValidElement, type ReactNode } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { imageSrc } from '@/lib/image-src';
 
 /** A heading's text as a page anchor, the way GitHub makes them: "Turn on background runs" becomes turn-on-background-runs. */
 export function headingId(text: string): string {
@@ -39,7 +40,7 @@ const root = [
 const BLANK = { target: '_blank', rel: 'noopener noreferrer' } as const;
 
 // Heading levels shift down by one, as in the prototype (# renders as h2), so the page keeps a single h1.
-// Raw HTML is never enabled (no rehype-raw), and images are shown as links so nothing loads on its own.
+// Raw HTML is never enabled (no rehype-raw). An image shows only when it is a web image or inside the project; otherwise it is a link.
 const components: Components = {
   h1: ({ node: _n, ...p }) => <h2 {...p} />,
   h2: ({ node: _n, ...p }) => <h3 id={headingId(textOf(p.children))} {...p} />,
@@ -49,23 +50,43 @@ const components: Components = {
       {children}
     </a>
   ),
-  img: ({ node: _n, src, alt }) => {
-    const url = typeof src === 'string' ? src : '';
-    return (
-      <a href={url} {...BLANK}>
-        🖼 {alt || url}
-      </a>
-    );
-  },
 };
 
 /** Renders Markdown in the board's typography (prototype Markdown.dc.html), with GitHub-flavoured extras. */
-export function Markdown({ md, size = 'md', mapLink }: { md: string; size?: 'sm' | 'md'; mapLink?: (href: string) => string | null }) {
+export function Markdown({
+  md,
+  size = 'md',
+  mapLink,
+  pid,
+  baseDir,
+}: {
+  md: string;
+  size?: 'sm' | 'md';
+  mapLink?: (href: string) => string | null;
+  /** The project, for images inside it. */
+  pid?: string;
+  /** Project-relative folder that relative image paths start from. Without it they stay links. */
+  baseDir?: string;
+}) {
   const empty = md.trim() === '';
+  const withImages: Components = {
+    ...components,
+    img: ({ node: _n, src, alt }) => {
+      const url = typeof src === 'string' ? src : '';
+      const r = imageSrc(pid ?? '', url, pid === undefined ? undefined : baseDir);
+      return r.kind === 'img' ? (
+        <img src={r.url} alt={alt ?? ''} loading="lazy" className="max-w-full rounded-lg border border-line" />
+      ) : (
+        <a href={r.url} {...BLANK}>
+          🖼 {alt || r.url}
+        </a>
+      );
+    },
+  };
   const parts: Components = !mapLink
-    ? components
+    ? withImages
     : {
-        ...components,
+        ...withImages,
         a: ({ node: _n, href, children }) => {
           // A mapped link stays in this tab; anything else opens a new one, as usual.
           const mapped = href ? mapLink(href) : null;

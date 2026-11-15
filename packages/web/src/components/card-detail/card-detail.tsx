@@ -16,6 +16,7 @@ import { FileProblem } from './file-problem/file-problem';
 import type { RunState } from './run-button/run-button';
 import { Questions } from './questions/questions';
 import { SpecSection } from './spec-section/spec-section';
+import { specImageDir } from '@/lib/image-src';
 import { Subtasks } from './subtasks/subtasks';
 
 /** The detail footer: 'Created <date> · Updated <date>', leaving out what the spec lacks; null when it has neither. */
@@ -344,6 +345,8 @@ function SpecDetail({
               {problem !== undefined && <FileProblem message={problem} path={path} onFix={onFixFile} />}
               <SpecSection
                 md={spec.bodyMd}
+                pid={pid}
+                baseDir={specImageDir(spec.dir)}
                 text={editText}
                 saving={saving}
                 onEdit={startEdit}

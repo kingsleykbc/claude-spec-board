@@ -20,12 +20,12 @@ const SAMPLE = [
   '',
 ].join('\n');
 
-function Sheet({ md, size }: { md: string; size?: 'sm' | 'md' }) {
+function Sheet({ md, size, pid, baseDir }: { md: string; size?: 'sm' | 'md'; pid?: string; baseDir?: string }) {
   return (
     <div className="flex flex-wrap">
       {(['light', 'dark'] as const).map((t) => (
         <div key={t} data-theme={t} className="w-[520px] bg-bg p-6 font-sans text-fg">
-          <Markdown md={md} size={size} />
+          <Markdown md={md} size={size} pid={pid} baseDir={baseDir} />
         </div>
       ))}
     </div>
@@ -100,5 +100,20 @@ export const Elements: Story = {
     expect(getComputedStyle(pre[2]!).listStyleType).toBe('square');
     expect(getComputedStyle(canvasElement.querySelector('ol')!).listStyleType).toBe('decimal');
     expect(getComputedStyle(canvasElement.querySelector('td')!).paddingLeft).toBe('9px');
+  },
+};
+
+/** An image beside the spec: with a project and folder it loads through the server; without them it stays a link. */
+export const Images: Story = {
+  args: {
+    md: ['![Sketch of the list](images/list-layout.svg)', '![Elsewhere](../../../../x.png)'].join(String.fromCharCode(10, 10)),
+    pid: 'p1',
+    baseDir: '.specboard/specs/T-105-shopping-list-export',
+  },
+  play: async ({ canvasElement }) => {
+    const imgs = canvasElement.querySelectorAll('img');
+    expect(imgs.length).toBe(2);
+    expect(imgs[0]!.getAttribute('src')).toBe('/api/projects/p1/image?path=.specboard%2Fspecs%2FT-105-shopping-list-export%2Fimages%2Flist-layout.svg');
+    expect(within(canvasElement).getAllByText('🖼 Elsewhere')).toHaveLength(2);
   },
 };

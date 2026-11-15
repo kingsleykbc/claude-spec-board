@@ -16,6 +16,7 @@ Spec Board is a kanban board over plain Markdown files in `.specboard/`. People 
   settings.md                   # optional, front matter only: track_tokens (true or false); the person sets it on the board
   specs/<ID>-<slug>/spec.md
   specs/<ID>-<slug>/logs/<n>-<slug>.md
+  specs/<ID>-<slug>/images/<name>.png   # pictures the spec shows (png, jpg, gif, webp, svg, avif)
   archive/<ID>-<slug>/...       # archived specs, same layout
   sync-proposal.md              # only between the two steps of a board sync (see /sync-specs)
   imported/<source-name>/...    # old plan files moved here by setup; the board ignores them
@@ -23,6 +24,7 @@ Spec Board is a kanban board over plain Markdown files in `.specboard/`. People 
 
 - `<ID>` is `T-` plus at least three digits (`T-001`). The next free ID is one more than the highest number in `.specboard/specs/` and `.specboard/archive/` (use Glob to list them).
 - `<slug>` is the title in lowercase ASCII `[a-z0-9-]`, at most 40 characters. If nothing is left, use `spec`.
+- Put a spec's images in its `images/` subfolder and link them relatively in the Markdown, e.g. `![Login screen](images/login.png)`. The board shows them in the spec.
 - Writing a file with the Write tool creates its folders, so you never need to create a folder yourself.
 
 ## spec.md

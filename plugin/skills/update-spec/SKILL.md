@@ -21,6 +21,7 @@ The first word is the spec ID. The rest are the instructions.
    - Subtasks stay numbered 1, 2, 3 in order. A subtask that is already ticked, or that has a log, keeps its number and title unless the instructions say otherwise. Add new subtasks at the end or renumber only unticked ones.
    - Existing questions keep their numbers. New ones get the next free number with an empty `  > answer:` line.
    - If a change makes a ticked subtask's work wrong, add a new unticked subtask for the fix instead of unticking history, unless told otherwise.
+   - Images go in the spec's `images/` subfolder, linked relatively, e.g. `![Login screen](images/login.png)`.
 4. Set `updated` to today. Do not change `status` (never set `done`).
 5. If the instructions are unclear or conflict with the spec, add an open question instead of guessing.
 6. Finish with a short list of what you changed.

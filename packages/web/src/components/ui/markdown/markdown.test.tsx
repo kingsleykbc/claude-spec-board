@@ -52,13 +52,35 @@ describe('Markdown', () => {
     for (const a of container.querySelectorAll('a')) expect(a.getAttribute('href') ?? '').not.toMatch(/^javascript:/i);
   });
 
-  it('renders images as links instead of loading them', () => {
+  it('shows a web image as an image', () => {
     const { container } = render(<Plain md="![logo](https://example.com/x.png)" />);
+    const img = container.querySelector('img')!;
+    expect(img.getAttribute('src')).toBe('https://example.com/x.png');
+    expect(img.getAttribute('alt')).toBe('logo');
+    expect(img.getAttribute('loading')).toBe('lazy');
+    expect(img.className).toContain('max-w-full');
+  });
+
+  it('shows a relative image through the server when it has a folder to resolve from', () => {
+    const { container } = render(<Plain md="![Login screen](images/my%20shot.png)" pid="p1" baseDir=".specboard/specs/T-001-x" />);
+    expect(container.querySelector('img')!.getAttribute('src')).toBe('/api/projects/p1/image?path=.specboard%2Fspecs%2FT-001-x%2Fimages%2Fmy%20shot.png');
+    expect(container.querySelector('a')).toBeNull();
+  });
+
+  it('keeps a relative image as a link without a folder or project', () => {
+    const { container } = render(<Plain md="![logo](images/a.png)" pid="p1" />);
     expect(container.querySelector('img')).toBeNull();
     const a = screen.getByRole('link');
-    expect(a.getAttribute('href')).toBe('https://example.com/x.png');
+    expect(a.getAttribute('href')).toBe('images/a.png');
     expect(a.getAttribute('target')).toBe('_blank');
     expect(a.getAttribute('rel')).toBe('noopener noreferrer');
     expect(a.textContent).toBe('🖼 logo');
+  });
+
+  it('keeps data: and escaping images as links', () => {
+    const md = ['![a](data:image/png;base64,AA)', '![b](../../x.png)'].join(String.fromCharCode(10, 10));
+    const { container } = render(<Plain md={md} pid="p1" baseDir="docs" />);
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelectorAll('a')).toHaveLength(2);
   });
 });

@@ -16,6 +16,16 @@ describe('SpecSection', () => {
     expect(onEdit).toHaveBeenCalled();
   });
 
+  it('shows an image relative to the spec folder, in view and in the preview', () => {
+    const body = '![Login screen](images/login.png)';
+    const { unmount } = render(<View md={body} pid="p1" baseDir=".specboard/specs/T-001-x" />);
+    const want = '/api/projects/p1/image?path=.specboard%2Fspecs%2FT-001-x%2Fimages%2Flogin.png';
+    expect(screen.getByRole('img', { name: 'Login screen' }).getAttribute('src')).toBe(want);
+    unmount();
+    render(<Editing md="old" text={body} pid="p1" baseDir=".specboard/specs/T-001-x" />);
+    expect(screen.getByRole('img', { name: 'Login screen' }).getAttribute('src')).toBe(want);
+  });
+
   it('edit mode shows the textarea and a live preview', () => {
     const h = { onChange: vi.fn(), onCancel: vi.fn(), onSave: vi.fn() };
     render(<Editing md="old" text={'# Title\n\nsome *em*'} {...h} />);

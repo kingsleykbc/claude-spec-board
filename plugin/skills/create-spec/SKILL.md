@@ -21,6 +21,7 @@ Input: $ARGUMENTS
    - `## Spec`: what it is and why, in plain words. The first sentence explains the whole spec.
    - `## Features`: a bullet list of what the user will be able to do.
    - `## Done when`: 2 to 5 observable checks.
+   - Pictures: put the spec's images in its `images/` subfolder and link them relatively, e.g. `![Login screen](images/login.png)`.
    - `## Open questions`: every decision you would otherwise have to guess, as questions with the right type, each followed by `  > answer:`. Ask rather than assume. Mark each one required or optional and add a recommendation. Use the answers from the chat instead of asking them again. An empty section is fine only if nothing is unclear.
    - `## Subtasks`: small steps in the order they should be built, numbered from 1, each doable and testable on its own. Order: `(you)` steps needed before the work, Claude's work, the `closing_steps` from `.specboard/config.md`, then `(you)` checks the person does afterwards, as the rules describe. All unticked.
 5. Set the front matter: `status: todo`, `milestone` (when the project has milestones: the current milestone unless the person said otherwise; keep an existing one), `urgency` (low, normal, high or urgent, judged from the idea), `categories`, `depends_on` (IDs of specs that must finish first), `draft: false`, `current_subtask: null`, `created` and `updated` to today (keep `created` if it already exists).
