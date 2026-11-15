@@ -11,7 +11,7 @@ import { startTour, tourSeen } from './lib/tour';
 import { currentMilestone } from '@specboard/core/milestones';
 import { categoryOptions, effectiveMilestone, milestoneOptions, NO_FILTERS, waitItems, type Filters, type WaitItem } from './state/filters';
 import { createMutator } from './state/mutate';
-import { FileLinks } from './state/fileLinks';
+import { FileLinks, FileLinksHost } from './state/fileLinks';
 import { initialSimple, saveSimple, SimpleMode } from './state/simpleMode';
 import { initialView, saveView, type View } from './state/viewMode';
 import { useToasts, type PushToast } from './state/toasts';
@@ -153,10 +153,12 @@ export function App() {
   // Its own TooltipProvider (main.tsx gives DocsPage one), so icon-only controls' tooltips work wherever App is rendered.
   return (
     <TooltipProvider>
-      <div className={shell}>
-        {body}
-        <Toasts toasts={toasts} onDismiss={dismiss} />
-      </div>
+      <FileLinksHost>
+        <div className={shell}>
+          {body}
+          <Toasts toasts={toasts} onDismiss={dismiss} />
+        </div>
+      </FileLinksHost>
     </TooltipProvider>
   );
 }

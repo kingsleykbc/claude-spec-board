@@ -58,7 +58,7 @@ export const EditMode: Story = {
     await userEvent.type(ta, 'Live **preview**');
     expect(c.getByText('preview').tagName).toBe('STRONG');
     await userEvent.click(c.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(args.toast).toHaveBeenCalledWith('ok', 'Spec saved', '.specboard/specs/T-104-meal-planner-calendar/spec.md'));
+    await waitFor(() => expect(args.toast).toHaveBeenCalledWith('ok', 'Spec saved', undefined, { path: '.specboard/specs/T-104-meal-planner-calendar/spec.md' }));
   },
 };
 

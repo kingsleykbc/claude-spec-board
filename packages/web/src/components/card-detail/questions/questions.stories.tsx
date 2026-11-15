@@ -71,7 +71,7 @@ export const Saved: Story = {
     await userEvent.click(c.getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(c.getByRole('button', { name: 'Saved' })).toBeTruthy());
     expect(c.getByText('Claude will pick these up on its next run')).toBeTruthy();
-    expect(args.toast).toHaveBeenCalledWith('ok', 'Answers saved', 'Written to .specboard/specs/T-105-shopping-list-export/spec.md');
+    expect(args.toast).toHaveBeenCalledWith('ok', 'Answers saved', 'Written to', { path: '.specboard/specs/T-105-shopping-list-export/spec.md' });
     expect(args.client!.setAnswers).toHaveBeenCalledWith('p1', 'T-105', t105.hash, { Q3: 'CSV' });
   },
 };

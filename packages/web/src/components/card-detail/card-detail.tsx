@@ -225,7 +225,7 @@ function SpecDetail({
     await refresh();
     setSaving(false);
     setEditText(null);
-    toast('ok', 'Spec saved', path);
+    toast('ok', 'Spec saved', undefined, { path });
   };
 
   const reloadKeepCopy = async () => {

@@ -2,6 +2,9 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, within } from 'storybook/test';
 import { Toasts } from './toasts';
 import type { Toast } from '@/state/toasts';
+import { FileLinks } from '@/state/fileLinks';
+
+const openFileMock = fn(async () => ({ opened: true, path: '/proj/.specboard/specs/T-104/spec.md' }));
 
 // The prototype's sheet toasts (line 818), plus run/info/warn so every kind shows.
 const ALL: Toast[] = [
@@ -35,4 +38,17 @@ export const Two: Story = {
       { id: 2, kind: 'err', text: 'Couldn’t move T-105' },
     ],
   },
+};
+
+/** A save toast whose file path opens the file (the mock stands in for the open-file call). */
+export const WithPath: Story = {
+  args: { toasts: [{ id: 1, kind: 'ok', text: 'Spec saved', path: '.specboard/specs/T-104/spec.md' }] },
+  parameters: { openFileMock },
+  decorators: [
+    (Story) => (
+      <FileLinks pid="p1" root="/proj" toast={fn()} client={{ openFile: openFileMock }}>
+        <Story />
+      </FileLinks>
+    ),
+  ],
 };

@@ -121,7 +121,7 @@ export function Questions({
       onSeen?.(cleared);
     }
     setSv('saved');
-    toast('ok', 'Answers saved', `Written to ${path}`);
+    toast('ok', 'Answers saved', 'Written to', { path });
     if (timer.current !== null) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       timer.current = null;

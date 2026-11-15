@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { api } from '../api/client';
 import type { PushToast } from './toasts';
 import { Hint } from '@/components/ui/hint/hint';
@@ -22,7 +22,23 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-const Open = createContext<((rel: string) => void) | null>(null);
+type OpenFile = (rel: string) => void;
+const Open = createContext<OpenFile | null>(null);
+const Register = createContext<((open: OpenFile | null) => void) | null>(null);
+
+/**
+ * Sits above everything that renders paths, the toast stack included, and hands them whichever
+ * `FileLinks` is mounted below (the open project's). Paths are plain text until one mounts.
+ */
+export function FileLinksHost({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState<OpenFile | null>(null);
+  const register = useCallback((o: OpenFile | null) => setOpen(() => o), []);
+  return (
+    <Register.Provider value={register}>
+      <Open.Provider value={open}>{children}</Open.Provider>
+    </Register.Provider>
+  );
+}
 
 export interface FileLinksProps {
   pid: string;
@@ -53,6 +69,11 @@ export function FileLinks({ pid, root, toast, client = api, children }: FileLink
     },
     [client, pid, root, toast],
   );
+  const register = useContext(Register);
+  useEffect(() => {
+    register?.(open);
+    return () => register?.(null);
+  }, [register, open]);
   return <Open.Provider value={open}>{children}</Open.Provider>;
 }
 

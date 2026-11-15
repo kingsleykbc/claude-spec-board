@@ -1,4 +1,5 @@
 import { TOAST, type Toast } from '@/state/toasts';
+import { FileLink } from '@/state/fileLinks';
 import { CloseIcon } from '@/lib/icons';
 
 export interface ToastsProps {
@@ -24,7 +25,13 @@ export function Toasts({ toasts, onDismiss }: ToastsProps) {
             </span>
             <div className="flex min-w-0 flex-1 flex-col gap-0.5 pt-px">
               <span className="text-[13.5px] font-semibold">{t.text}</span>
-              {t.sub ? <span className="text-[12.5px] leading-[1.45] text-fg2">{t.sub}</span> : null}
+              {t.sub || t.path ? (
+                <span className="text-[12.5px] leading-[1.45] break-words text-fg2">
+                  {t.sub}
+                  {t.sub && t.path ? ' ' : null}
+                  {t.path ? <FileLink path={t.path} className="break-all" /> : null}
+                </span>
+              ) : null}
             </div>
             <button
               type="button"

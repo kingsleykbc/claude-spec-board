@@ -33,4 +33,13 @@ describe('SpecSection', () => {
     render(<Editing saving />);
     expect((screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true);
   });
+
+  it('puts Cancel and Save under the editor, with the note staying in the header', () => {
+    render(<Editing />);
+    const box = screen.getByRole('textbox', { name: 'Spec markdown' });
+    const follows = (el: HTMLElement) => Boolean(box.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(follows(screen.getByRole('button', { name: 'Cancel' }))).toBe(true);
+    expect(follows(screen.getByRole('button', { name: 'Save' }))).toBe(true);
+    expect(follows(screen.getByText('Markdown · preview on the right'))).toBe(false);
+  });
 });

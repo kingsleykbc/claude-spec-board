@@ -9,8 +9,10 @@ export interface Toast {
   kind: ToastKind;
   text: string;
   sub?: string;
+  /** A project-relative file path, shown as a clickable link after `sub`. */
+  path?: string;
 }
-export type PushToast = (kind: ToastKind, text: string, sub?: string) => void;
+export type PushToast = (kind: ToastKind, text: string, sub?: string, opts?: { path?: string }) => void;
 
 export const TOAST_MS = 4500;
 export const MAX_TOASTS = 4;
@@ -37,9 +39,10 @@ export function useToasts(): { toasts: Toast[]; push: PushToast; dismiss: (id: n
   }, []);
 
   const push = useCallback<PushToast>(
-    (kind, text, sub) => {
+    (kind, text, sub, opts) => {
       const id = nextId.current++;
-      setToasts((ts) => [...ts.slice(-(MAX_TOASTS - 1)), sub === undefined ? { id, kind, text } : { id, kind, text, sub }]);
+      const toast: Toast = { id, kind, text, ...(sub === undefined ? {} : { sub }), ...(opts?.path === undefined ? {} : { path: opts.path }) };
+      setToasts((ts) => [...ts.slice(-(MAX_TOASTS - 1)), toast]);
       timers.current.set(
         id,
         setTimeout(() => dismiss(id), TOAST_MS),

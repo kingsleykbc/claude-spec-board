@@ -208,7 +208,7 @@ describe('CardDetail', () => {
     expect(ta.value).toBe(recipeSpec('T-104').bodyMd);
     fireEvent.change(ta, { target: { value: 'New **text**' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(toast).toHaveBeenCalledWith('ok', 'Spec saved', '.specboard/specs/T-104-meal-planner-calendar/spec.md'));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith('ok', 'Spec saved', undefined, { path: '.specboard/specs/T-104-meal-planner-calendar/spec.md' }));
     expect(client.setBody).toHaveBeenCalledWith('p1', 'T-104', recipeSpec('T-104').hash, recipeSpec('T-104').bodyHash, 'New **text**');
     expect(screen.queryByRole('textbox', { name: 'Spec markdown' })).toBeNull();
   });
@@ -496,7 +496,7 @@ describe('CardDetail', () => {
       startEdit('mine');
       update({ ...start, status: 'review', hash: 'hNew' });
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-      await waitFor(() => expect(toast).toHaveBeenCalledWith('ok', 'Spec saved', expect.any(String)));
+      await waitFor(() => expect(toast).toHaveBeenCalledWith('ok', 'Spec saved', undefined, { path: expect.any(String) }));
       expect(setBody).toHaveBeenCalledWith('p1', 'T-104', 'hNew', start.bodyHash, 'mine');
       expect(screen.queryByRole('alertdialog')).toBeNull();
     });

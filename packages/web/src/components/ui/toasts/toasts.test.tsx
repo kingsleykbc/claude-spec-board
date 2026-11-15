@@ -5,7 +5,7 @@ import { composeStories } from '@storybook/react-vite';
 import * as stories from './toasts.stories';
 import { TOAST } from '@/state/toasts';
 
-const { AllKinds, Two } = composeStories(stories);
+const { AllKinds, Two, WithPath } = composeStories(stories);
 
 afterEach(cleanup);
 
@@ -26,5 +26,11 @@ describe('Toasts', () => {
     expect(icons).toHaveLength(5);
     expect(new Set(icons).size).toBe(5);
     expect(screen.getAllByRole('button', { name: 'Dismiss' })).toHaveLength(5);
+  });
+
+  it('shows a toast path as a button that opens the file', () => {
+    render(<WithPath />);
+    fireEvent.click(screen.getByRole('button', { name: '.specboard/specs/T-104/spec.md' }));
+    expect(WithPath.parameters.openFileMock).toHaveBeenCalledWith('p1', '.specboard/specs/T-104/spec.md');
   });
 });

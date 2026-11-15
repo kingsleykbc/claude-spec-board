@@ -120,7 +120,7 @@ describe('Questions', () => {
     expect(['Q1', 'Q2', 'Q3'].map(state)).toEqual(['Unsaved', 'Unsaved', 'Unsaved']);
     fireEvent.click(save());
     expect(save().textContent).toBe('Saving…');
-    await waitFor(() => expect(toast).toHaveBeenCalledWith('ok', 'Answers saved', `Written to ${PATH}`));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith('ok', 'Answers saved', 'Written to', { path: PATH }));
     expect(client.setAnswers).toHaveBeenCalledTimes(1);
     expect(client.setAnswers).toHaveBeenCalledWith('p1', 'T-105', sp.hash, answers);
     expect(['Q1', 'Q2', 'Q3'].map(state)).toEqual(['Answered', 'Answered', 'Answered']);
