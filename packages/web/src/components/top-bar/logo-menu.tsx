@@ -77,7 +77,7 @@ export function LogoMenu({
           data-tour="brand"
           className="flex h-8 flex-none cursor-pointer items-center gap-[9px] rounded-lg border-0 bg-transparent py-0 pr-2 pl-1 text-inherit hover:bg-panel"
         >
-          <img src={logoUrl} alt="" width={20} height={20} className="block size-5" />
+          <img src={logoUrl} alt="" width={26} height={26} className="block size-[26px]" />
           <span className="text-[13.5px] font-bold whitespace-nowrap">Spec Board</span>
           <CaretIcon aria-hidden className="text-[13px] text-fg3" />
         </button>

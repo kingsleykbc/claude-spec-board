@@ -1,5 +1,4 @@
-import { LuKanban, LuTable2 } from 'react-icons/lu';
-import { CaretIcon, CloseIcon, MoreIcon } from '@/lib/icons';
+import { BoardIcon, CaretIcon, CloseIcon, MoreIcon, TableIcon } from '@/lib/icons';
 import { useNarrow } from '@/lib/useNarrow';
 import { cn } from '@/lib/utils';
 import { filterChips, NO_FILTERS, toggle, type Filters, type MilestoneOption, type WaitItem } from '@/state/filters';
@@ -29,8 +28,8 @@ export interface FilterBarProps {
 }
 
 const VIEWS = [
-  { v: 'board', label: 'Board view', Icon: LuKanban },
-  { v: 'table', label: 'Table view', Icon: LuTable2 },
+  { v: 'board', label: 'Board view', Icon: BoardIcon },
+  { v: 'table', label: 'Table view', Icon: TableIcon },
 ] as const;
 
 /** Board | Table as icon-only toggles with tooltips: a radio group, arrow keys move between them. */

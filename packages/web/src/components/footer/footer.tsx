@@ -11,7 +11,7 @@ const link = 'inline-flex items-center gap-[5px] text-fg2 no-underline hover:tex
  */
 export function Footer() {
   return (
-    <footer className="flex flex-wrap items-center justify-center gap-2.5 border-t border-line px-[200px] pt-[18px] pb-[26px] text-[12.5px] text-fg3 [@media(max-width:640px)]:px-5 [@media(max-width:640px)]:pb-[84px]">
+    <footer className="flex flex-wrap items-center justify-center gap-2.5 border-t border-line px-[200px] pt-3 pb-4 text-[12.5px] text-fg3 [@media(max-width:640px)]:px-5 [@media(max-width:640px)]:pb-[84px]">
       <span>
         Spec Board, made by{' '}
         <a className={link} href="https://github.com/kingsleykbc" target="_blank" rel="noopener noreferrer">

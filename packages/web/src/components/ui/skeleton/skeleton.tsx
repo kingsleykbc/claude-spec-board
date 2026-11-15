@@ -52,7 +52,7 @@ const COLUMNS: { label: number; cards: [string, number][] }[] = [
 const board =
   'relative grid grid-cols-4 items-stretch gap-3 px-5 pt-0 pb-[100px] [@media(max-width:1100px)]:flex [@media(max-width:1100px)]:snap-x [@media(max-width:1100px)]:snap-mandatory [@media(max-width:1100px)]:overflow-x-auto';
 const column =
-  'flex min-h-[calc(100vh-170px)] flex-col gap-2 rounded-xl p-2 outline-offset-[-1.5px] transition-[background] duration-150 ease-[ease] [@media(max-width:1100px)]:max-h-[calc(100vh-170px)] [@media(max-width:1100px)]:flex-[0_0_300px] [@media(max-width:1100px)]:snap-start [@media(max-width:1100px)]:overflow-y-auto';
+  'flex min-h-[calc(100vh-154px)] flex-col gap-2 rounded-xl p-2 outline-offset-[-1.5px] transition-[background] duration-150 ease-[ease] [@media(max-width:1100px)]:max-h-[calc(100vh-154px)] [@media(max-width:1100px)]:flex-[0_0_300px] [@media(max-width:1100px)]:snap-start [@media(max-width:1100px)]:overflow-y-auto';
 
 /** The filter bar and four columns of cards. */
 export function BoardSkeleton() {

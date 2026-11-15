@@ -19,6 +19,14 @@ describe('Footer', () => {
     }
   });
 
+  it('is slim: pt-3 pb-4, with the phone pb-[84px] kept', () => {
+    render(<Default />);
+    const c = screen.getByRole('contentinfo').className;
+    expect(c.split(' ')).toContain('pt-3');
+    expect(c.split(' ')).toContain('pb-4');
+    expect(c).toContain('pb-[84px]');
+  });
+
   it('centres its content', () => {
     render(<Default />);
     expect(screen.getByRole('contentinfo').className).toMatch(/\bjustify-center\b/);

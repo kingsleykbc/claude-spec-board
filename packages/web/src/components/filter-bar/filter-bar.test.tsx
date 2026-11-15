@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { composeStories } from '@storybook/react-vite';
 import * as stories from './filter-bar.stories';
+import { BoardIcon, TableIcon } from '@/lib/icons';
 import { NO_FILTERS, waitItems } from '@/state/filters';
 import { recipeSpecs } from '@/fixtures/recipeBox';
 
@@ -81,6 +82,20 @@ describe('FilterBar', () => {
 });
 
 describe('FilterBar: Board | Table switch', () => {
+  it('uses the grid icon for Board and the table icon for Table, from lib/icons', () => {
+    render(<ViewAndMilestone />);
+    const group = screen.getByRole('radiogroup', { name: 'View' });
+    const html = (name: string) => within(group).getByRole('radio', { name }).querySelector('svg')!.innerHTML;
+    const board = html('Board view');
+    const table = html('Table view');
+    cleanup();
+    const { container: a } = render(<BoardIcon />);
+    expect(a.querySelector('svg')!.innerHTML).toBe(board);
+    cleanup();
+    const { container: b } = render(<TableIcon />);
+    expect(b.querySelector('svg')!.innerHTML).toBe(table);
+  });
+
   it('is an icon-only radio group named View; items are "Board view" and "Table view" and switch the view', async () => {
     const user = userEvent.setup();
     render(<ViewAndMilestone />);

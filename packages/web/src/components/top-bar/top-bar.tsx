@@ -52,7 +52,7 @@ const btn =
 
 /**
  * Sticky top bar (prototype lines 32-52), on the board and on the docs page. Left to right: the logo menu,
- * the project switcher, then Simple mode, the not-connected icon, References, Overview and Logs (always last).
+ * the project switcher, then the not-connected icon, References, Overview, Simple mode and Logs (always last).
  */
 export function TopBar({
   switcher,
@@ -105,17 +105,6 @@ export function TopBar({
         </>
       )}
       <div className="flex-1" />
-      {!docs && !narrow && onSimple && (
-        <label
-          htmlFor={simpleId}
-          data-tour="simple"
-          title="Show less on the board. Urgency, categories, dependencies and statuses move into the ⋯ menus."
-          className="flex cursor-pointer items-center gap-2 text-[13px] font-medium text-fg2 select-none"
-        >
-          <Switch id={simpleId} checked={simple} onCheckedChange={onSimple} />
-          Simple mode
-        </label>
-      )}
       {!docs && <NotConnected reason={manual} />}
       {!docs && !inMenu && onOpenRefs && (
         <button type="button" className={btn} onClick={onOpenRefs} data-tour="project">
@@ -126,6 +115,17 @@ export function TopBar({
         <button type="button" className={btn} onClick={onOpenOverview}>
           <OverviewIcon aria-hidden />Overview
         </button>
+      )}
+      {!docs && !narrow && onSimple && (
+        <label
+          htmlFor={simpleId}
+          data-tour="simple"
+          title="Show less on the board. Urgency, categories, dependencies and statuses move into the ⋯ menus."
+          className="flex cursor-pointer items-center gap-2 text-[13px] font-medium text-fg2 select-none"
+        >
+          <Switch id={simpleId} checked={simple} onCheckedChange={onSimple} />
+          Simple mode
+        </label>
       )}
       {!docs &&
         onOpenLogs &&

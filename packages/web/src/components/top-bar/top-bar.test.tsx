@@ -20,6 +20,28 @@ async function openLogoMenu(user: ReturnType<typeof userEvent.setup>) {
   return screen.findByRole('menu');
 }
 
+describe('the header', () => {
+  it('orders the right side: not-connected, References, Overview, Simple mode, Logs', () => {
+    render(<NotConnected />);
+    const header = screen.getByRole('banner');
+    const els = [
+      within(header).getByRole('button', { name: "Claude isn't connected to the board" }),
+      within(header).getByRole('button', { name: 'References' }),
+      within(header).getByRole('button', { name: 'Overview' }),
+      within(header).getByRole('switch', { name: 'Simple mode' }),
+      within(header).getByRole('button', { name: 'Logs' }),
+    ];
+    for (let i = 0; i < els.length - 1; i++) expect(els[i]!.compareDocumentPosition(els[i + 1]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('shows the logo at 26px', () => {
+    render(<Live />);
+    const img = screen.getByRole('button', { name: 'Spec Board' }).querySelector('img')!;
+    expect(img.getAttribute('width')).toBe('26');
+    expect(img.getAttribute('height')).toBe('26');
+  });
+});
+
 describe('the menu under the logo', () => {
   it('shows the new logo beside "Spec Board", and stays closed until asked', async () => {
     const user = userEvent.setup();
