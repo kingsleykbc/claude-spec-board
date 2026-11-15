@@ -16,7 +16,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** An indicator that explains itself on click or tap. */
+/** An indicator that explains itself on hover or keyboard focus, and on click or tap. */
 export const Default: Story = {};
 
 /** No title: the content alone. */
