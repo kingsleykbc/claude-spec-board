@@ -58,8 +58,8 @@ export function Column({ status, specs, placeholderAt, over, archivedCount = 0, 
       data-over={over || undefined}
       className={cn(
         // Wide: a grid cell as tall as the window allows. Up to 1100px: a 300px slide in the sideways scroll.
-        'flex min-h-[calc(100vh-154px)] flex-col gap-2 rounded-xl p-2 outline-[1.5px] -outline-offset-[1.5px] transition-[background] duration-150',
-        'max-[1100px]:max-h-[calc(100vh-154px)] max-[1100px]:flex-[0_0_300px] max-[1100px]:snap-start max-[1100px]:overflow-y-auto',
+        'flex min-h-[calc(100vh-167px)] flex-col gap-2 rounded-xl p-2 outline-[1.5px] -outline-offset-[1.5px] transition-[background] duration-150',
+        'max-[1100px]:max-h-[calc(100vh-167px)] max-[1100px]:flex-[0_0_300px] max-[1100px]:snap-start max-[1100px]:overflow-y-auto',
         over ? 'bg-accent-soft outline-dashed outline-accent' : cn('outline-solid outline-transparent', status === 'review' ? 'bg-review-soft' : 'bg-panel'),
       )}
     >
