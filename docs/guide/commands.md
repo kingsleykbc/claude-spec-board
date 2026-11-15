@@ -45,9 +45,10 @@ There is also `specboard hook-tokens`. The plugin runs it by itself after Claude
 | Sync the whole board with the code | **Sync with code** in the logo menu |
 | Sync one spec with the code | **Sync** in the card, beside **Run** |
 | Turn token tracking on or off | **Settings** in the logo menu |
-| Switch between dark and light | **Dark mode** in the logo menu |
-| See every log, with search | **Logs** in the header (or the logo menu in Simple mode) |
+| Choose light, dark or system theme | **Theme** in the logo menu |
+| See every log, with search | **Logs**, at the right end of the header |
+| Turn Simple mode on or off | **Simple mode** in the header (the logo menu on a small screen) |
 | Switch project | The project menu |
-| Switch between board and table | **Board \| Table** in the filter bar |
+| Switch between board and table | The board and table icons in the filter bar |
 | Add a spec | **Add new spec**, bottom right |
 | Move a card | Drag it, or use its status menu |

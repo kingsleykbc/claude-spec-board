@@ -35,7 +35,7 @@ You can also just say "set up spec board here". Claude goes through these steps,
 5. **Preview.** It shows the specs it would make as a tree, and waits for your OK or changes. Nothing is written before that.
 6. **Set up.** It creates `.specboard/` and writes the specs as drafts.
 7. **Old plan files.** After an import it asks whether to keep them or move them to `.specboard/imported/`. It never deletes them.
-8. **Background runs.** It shows the actions a background run may use, and asks whether to turn runs on. If you say no, the board works in [manual mode](running-specs.md#manual-mode).
+8. **Background runs.** It shows the actions a background run may use, and asks whether to turn runs on. If you say no, the board still works, and gives you commands to copy instead (see [When Claude isn't connected](running-specs.md#when-claude-isnt-connected)).
 9. **Finish.** It summarises what it did and opens the board in your browser.
 
 If Claude is in plan mode, it puts the tree in the plan and writes nothing until you approve it.
@@ -48,25 +48,27 @@ Setup opens it for you. To open it again, ask Claude to "open the board" in your
 
 ### Board and table
 
-The **Board | Table** switch in the filter bar shows the same specs two ways. The board has four columns. The table has one row per spec, with its status, progress and tokens, and each row opens to show its subtasks. Filters apply to both. For a project with milestones, the board has a milestone menu that starts on the current milestone; the table shows every milestone in its own section.
+The board and table icons at the left of the filter bar show the same specs two ways. The board has four columns. The table has one row per spec, with its status, progress and tokens, and each row opens to show its subtasks. Filters apply to both. For a project with milestones, the board has a milestone picker, shown like the project name with its done and total counts ("Basics · 2/3"), that starts on the current milestone; the table shows every milestone in its own section, with the columns lined up across them. The **Show archived** count follows the filters you've set, and the switch hides when nothing archived matches.
 
 ### Simple mode
 
-Turn on **Simple mode** in the bar above the board for a quieter view. Each card shows only its ID, title, the start of its description, subtask progress and what Claude is doing right now. Everything else is one click away:
+Turn on **Simple mode** in the header (in the logo menu on a small screen) for a quieter view. Each card shows only its ID, title, the start of its description, subtask progress and what Claude is doing right now. Everything else is one click away:
 
 - **On a card:** press **⋯** to see whether it's blocked or has a file problem, whether it's waiting on your review, and its urgency, categories and dependencies. A red dot on **⋯** means the card is blocked or its file has a problem.
 - **Above the board:** the "to review", "questions for you" and "blocked" counts move behind **⋯** on the right. A dot on it means something is waiting on you.
 - **In a card's detail:** urgency, categories and dependencies move behind **⋯** next to the status. You can still change them there.
-- **In the header:** References, Overview and Logs move into the logo menu.
+- **In the header:** References and Overview move into the logo menu. Logs stays at the right end of the header.
 
 The board remembers your choice in this browser, for every project.
 
 ### The header and the logo menu
 
 - A small dot next to the project name shows the connection: green is connected, amber is reconnecting, red is disconnected. In the project list, a green dot means that project's folder can be reached and grey means it can't.
-- **Overview** shows a summary, the counts, the total tokens used and a table of every spec. **Logs** shows every subtask log in the project, newest first, with a search box. **References** lists the documents the project points Claude at.
-- The menu under the logo holds **Documentation**, **Take the tour**, **Sync with code** (and **Sync proposal waiting** when one is waiting) and **Settings**. In Simple mode, and on small screens, it also holds References, Overview and Logs, and on small screens the **Manual** notice. The **Dark mode** switch is last.
-- On a small screen the board scrolls sideways one column at a time, the card detail fills the screen, and the header's extra buttons join the logo menu.
+- **References**, **Overview** and **Logs** each have an icon. **Overview** shows a summary, the counts, the total tokens used and a table of every spec. **Logs** shows every subtask log in the project, newest first, with a search box. **References** lists the documents the project points Claude at. Logs is always the last button on the right.
+- If Claude can't run in the background for this project, a small "not connected" icon sits in the header. Click or tap it to see **Claude isn't connected to the board** and why ([more](running-specs.md#when-claude-isnt-connected)).
+- The menu under the logo holds **Documentation**, **Take the tour**, **Sync with code** (and **Sync proposal waiting** when one is waiting) and **Settings**. In Simple mode, and on small screens, it also holds References and Overview, and on small screens the **Simple mode** switch. **Theme** is last: **Light**, **Dark** or **System** (the default, which follows your computer's setting).
+- Buttons that show only an icon name themselves when you hover or focus them. Icons that carry information, such as a warning on a log or a waiting marker, open a small popup when you click or tap them.
+- On a small screen the board scrolls sideways one column at a time, the card detail fills the screen, and the header's extra buttons join the logo menu. Category, urgency and **Blocked only** move into a **Filters** button above the board (its badge counts the active ones), and menus open as panels from the bottom of the screen.
 
 ## Use it from Claude
 

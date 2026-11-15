@@ -1,5 +1,7 @@
 # Design Brief: Spec Board
 
+> **Historical.** This is the original design brief. The board has changed since: see [documentation.md](documentation.md) for the current design, and [the UI refactor design](superpowers/specs/2026-11-14-ui-refactor-design.md) for the 2026-11 Tailwind and shadcn rewrite (theme submenu, "not connected" icon, mobile drawers and more).
+
 > **For the designer.** This brief comes with a rough hand-drawn sketch of four screens. Use the sketch for **layout and structure**. Use this brief for **every feature, state and detail**. Please turn it into a polished, consistent UI design covering all screens and states listed below.
 
 ---

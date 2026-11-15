@@ -25,7 +25,7 @@ Any input is the project folder. Ask one question at a time and wait for each an
    - Leave README.md and any file that holds more than the plan where it is, and say so.
    - For each other file or folder git tracks, run `git mv "<path>" .specboard/imported/<source-name>/`.
    - Copy files git does not track with Read and Write, and tell the person which originals they can delete. Never delete them yourself.
-8. **Background runs.** Show the allow and deny lists that `specboard init` printed and ask whether the board may run Claude in the background with them. Yes: run `specboard init --yes --no-skills --runs yes "<folder>"`, which writes those rules. No: change nothing; the board works in manual mode, and the person runs commands in the chat.
+8. **Background runs.** Show the allow and deny lists that `specboard init` printed and ask whether the board may run Claude in the background with them. Yes: run `specboard init --yes --no-skills --runs yes "<folder>"`, which writes those rules. No: change nothing; the board shows that Claude isn't connected to it, and the person runs commands in the chat.
 9. **Finish.** Summarise in the chat: files made, specs created (IDs, with milestones if any), what was moved and where, and whether background runs are on. Then run `specboard --detach "<folder>"` so the board opens in the browser, and say that it did.
 
 If `specboard` is not found, say that the Spec Board plugin must be on (`/plugin install specboard@spec-board`) and stop.

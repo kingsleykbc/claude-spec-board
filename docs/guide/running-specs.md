@@ -14,18 +14,18 @@ There are two ways to have Claude work on a spec, and the card shows both as equ
 
 ## Turn on background runs
 
-Background runs need two things: Claude Code installed and logged in, and your approval of the actions a run may use. Until both are true, the board is in manual mode (next section).
+Background runs need two things: Claude Code installed and logged in, and your approval of the actions a run may use. Until both are true, Claude isn't connected to the board (next section).
 
 - **With the plugin:** run `/specboard:setup`. When it asks about background runs, it shows the actions and writes them once you say yes. In a project that already has `.specboard/`, ask Claude to turn runs on. It runs `specboard init --yes --no-skills --runs yes "<project folder>"` for you (`--no-skills` keeps `init` from copying commands that the plugin already has).
 - **From a terminal, without the plugin:** run `npm run specboard -- init "<project folder>"` from a copy of the repo. It shows the list of actions and asks you to approve it.
 
 The approved list is kept in `~/.specboard/`, outside the repo. [Safety](safety.md) explains what it lets a run do.
 
-## Manual mode
+## When Claude isn't connected
 
-When background runs can't happen for a project, because Claude Code isn't installed, isn't logged in, is blocked by a setting, or the project hasn't been approved for runs, the board shows a small **Manual** label with an info icon in the header. Click it to see the reason and a link to this page.
+When background runs can't happen for a project, because Claude Code isn't installed, isn't logged in, is blocked by a setting, or the project hasn't been approved for runs, the board shows a small "not connected" icon in the header. Click or tap it to see **Claude isn't connected to the board**, the reason, and a link to this page.
 
-In manual mode the board still works fully as a view of your files. It just can't start Claude, so use the **Copy command** buttons and paste the command into a Claude chat in the project folder.
+The board still works fully as a view of your files. It just can't start Claude, so use the **Copy command** buttons and paste the command into a Claude chat in the project folder.
 
 ## Why the chat is the usual choice
 
@@ -52,7 +52,7 @@ Each finished subtask has a log. Besides what was done, the card shows:
 - **Tokens**, described next.
 - **A warning icon** if a sync found that the work in that log no longer exists. Hover or tap it to see the date and reason.
 
-Press **Logs** in the header (or in the logo menu in Simple mode) to see every log in the project, newest first, with a search box for text, spec IDs and titles.
+Press **Logs** at the right end of the header to see every log in the project, newest first, with a search box for text, spec IDs and titles. Each log is a row: the time on the left, the spec, subtask and text on the right. Times up to 30 days old read as "time ago" ("3 hours ago"), older ones as a date and time; hover a time to see it exactly.
 
 ## Tokens
 
@@ -75,7 +75,7 @@ Over time the board can drift from the code: work gets done without a tick, or a
 - **Specs to archive** are archived by the board once you confirm and Claude has applied every change. In a chat, sync names them and you archive them on the board.
 - **Old logs stay.** When sync unticks a subtask or archives a spec, it marks the matching logs obsolete instead of deleting them.
 - **If the browser closes** before you confirm, a **Sync proposal waiting** item in the logo menu brings the dialog back for a whole-project sync. For one spec, a **Sync proposal waiting** button beside **Sync** in that card does the same.
-- **In manual mode** the dialog shows the command to copy: `/specboard:sync-specs`, or with a spec ID.
+- **When Claude isn't connected** the dialog shows the command to copy: `/specboard:sync-specs`, or with a spec ID.
 
 ## When Claude stops
 
