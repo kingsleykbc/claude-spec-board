@@ -32,7 +32,7 @@ const preview: Preview = {
       return (
         <TooltipProvider>
           {/* The app shell's base type (App.tsx), so a story looks as it does on the board. */}
-          <div className="min-h-screen bg-bg font-sans leading-[normal] text-fg">
+          <div className="min-h-screen bg-bg font-sans text-fg">
             <Story />
           </div>
         </TooltipProvider>

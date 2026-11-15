@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 /* shadcn/ui dropdown-menu, restyled with the board's tokens (card surface, panel highlight, line borders). */
 
 const content =
-  'z-50 min-w-[8rem] max-h-(--radix-dropdown-menu-content-available-height) origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-xl border border-line bg-card p-1.5 font-sans leading-[normal] text-fg shadow-lg';
+  'z-50 min-w-[8rem] max-h-(--radix-dropdown-menu-content-available-height) origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-xl border border-line bg-card p-1.5 font-sans text-fg shadow-lg';
 const item =
   "relative flex cursor-pointer items-center gap-2 rounded-[7px] px-2.5 py-2 text-[13px] outline-none select-none data-[highlighted]:bg-panel data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[inset]:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
 
@@ -125,7 +125,7 @@ function DropdownMenuSubContent({ className, ...props }: ComponentProps<typeof D
       <DropdownMenuPrimitive.SubContent
         data-slot="dropdown-menu-sub-content"
         className={cn(
-          'z-50 min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-hidden rounded-xl border border-line bg-card p-1.5 font-sans leading-[normal] text-fg shadow-lg',
+          'z-50 min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-hidden rounded-xl border border-line bg-card p-1.5 font-sans text-fg shadow-lg',
           className,
         )}
         {...props}

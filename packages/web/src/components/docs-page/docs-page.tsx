@@ -53,7 +53,7 @@ export function DocsPage({ pathname, search = '', loadProjects = api.projects, g
   const kept = current ? `?project=${encodeURIComponent(current.id)}` : '';
 
   return (
-    <div className="min-h-screen bg-bg font-sans text-[14px] leading-[normal] text-fg">
+    <div className="min-h-screen bg-bg font-sans text-[14px] text-fg">
       <TopBar
         page="docs"
         {...(current && projects

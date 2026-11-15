@@ -18,6 +18,7 @@ const BACKGROUNDS: [string, string][] = [
   ['bg-accent', 'Accent'],
   ['bg-accent-hover', 'Accent hover'],
   ['bg-accent-soft', 'Accent soft'],
+  ['bg-accent-fg', 'On accent'],
   ['bg-doing', 'Doing'],
   ['bg-doing-soft', 'Doing soft'],
   ['bg-review', 'Review'],

@@ -18,7 +18,7 @@ function textOf(node: ReactNode): string {
   return '';
 }
 
-// The board's Markdown typography (was Markdown.module.css). The parts are rendered by react-markdown, so they are
+// The board's Markdown typography. The parts are rendered by react-markdown, so they are
 // styled from the root. Lists say their own markers and links their underline, since the reset removes them: disc,
 // then circle, then square, as browsers nest them.
 const root = [

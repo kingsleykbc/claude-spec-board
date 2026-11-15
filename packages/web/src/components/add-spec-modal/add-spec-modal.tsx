@@ -98,7 +98,7 @@ export function AddSpecModal({ pid, nextId, client = api, toast, down = false, r
           </label>
           <input
             id="ns-title"
-            className="h-10 rounded-[9px] border border-line2 bg-card px-3 py-0 text-[15px] text-fg placeholder:text-placeholder"
+            className="h-10 rounded-[9px] border border-line2 bg-card px-3 py-0 text-[15px] text-fg"
             autoFocus
             placeholder="e.g. Nutrition info per serving"
             value={title}
@@ -111,7 +111,7 @@ export function AddSpecModal({ pid, nextId, client = api, toast, down = false, r
           </label>
           <textarea
             id="ns-desc"
-            className="resize-y rounded-[9px] border border-line2 bg-card px-3 py-2.5 text-[14px] leading-[1.55] text-fg placeholder:text-placeholder"
+            className="resize-y rounded-[9px] border border-line2 bg-card px-3 py-2.5 text-[14px] leading-[1.55] text-fg"
             rows={6}
             placeholder="Describe the idea in plain words. What should it do, and for whom?"
             value={desc}

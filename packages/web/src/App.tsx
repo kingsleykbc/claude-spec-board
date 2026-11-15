@@ -70,8 +70,8 @@ function cardElement(id: string): HTMLElement | null {
 
 type Navigate = (next: UrlState, replace?: boolean) => void;
 
-// The app's base type: tokens' font and colours, 14px, and the browser's normal line height (Tailwind's reset sets 1.5).
-const shell = 'min-h-screen bg-bg font-sans text-[14px] leading-[normal] text-fg';
+// The app's base type: tokens' font and colours, 14px (line height comes from app.css).
+const shell = 'min-h-screen bg-bg font-sans text-[14px] text-fg';
 const muted = 'px-5 py-6 text-fg3';
 
 export function App() {

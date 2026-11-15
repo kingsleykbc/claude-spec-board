@@ -220,7 +220,7 @@ export function Questions({
                           aria-labelledby={labelId}
                           type="number"
                           min={1}
-                          className="h-8 w-[84px] rounded-lg border border-line2 bg-card px-2.5 py-0 text-[13.5px] text-fg placeholder:text-placeholder"
+                          className="h-8 w-[84px] rounded-lg border border-line2 bg-card px-2.5 py-0 text-[13.5px] text-fg"
                           value={v ?? ''}
                           placeholder="0"
                           onChange={(e) => set(q.id, e.target.value)}
@@ -232,7 +232,7 @@ export function Questions({
                         id={inputId}
                         aria-labelledby={labelId}
                         rows={2}
-                        className="w-full max-w-[520px] resize-y rounded-lg border border-line2 bg-card px-2.5 py-2 text-[13.5px] leading-[1.5] text-fg placeholder:text-placeholder"
+                        className="w-full max-w-[520px] resize-y rounded-lg border border-line2 bg-card px-2.5 py-2 text-[13.5px] leading-[1.5] text-fg"
                         value={v ?? ''}
                         placeholder="Type your answer…"
                         onChange={(e) => set(q.id, e.target.value)}

@@ -20,7 +20,7 @@ function PopoverContent({ className, align = 'center', sideOffset = 4, ...props 
         align={align}
         sideOffset={sideOffset}
         className={cn(
-          'z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-xl border border-line bg-card p-4 font-sans leading-[normal] text-fg shadow-lg outline-none',
+          'z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-xl border border-line bg-card p-4 font-sans text-fg shadow-lg outline-none',
           className,
         )}
         {...props}

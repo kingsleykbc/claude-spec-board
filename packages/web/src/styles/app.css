@@ -9,6 +9,10 @@
 @import './tokens.css' layer(base);
 
 @layer base {
+  /* The board's text sits on the browser's normal line height (preflight would make it 1.5). */
+  html { line-height: normal; }
+  /* Placeholders in the muted text token, in both themes. */
+  ::placeholder { color: var(--fg3); opacity: 1; }
   /* react-icons draw a 1em <svg>: keep it from shrinking in flex rows and sit it on the text's middle when inline. */
   svg[aria-hidden='true'] { flex: none; vertical-align: -0.125em; }
 }
@@ -46,8 +50,6 @@
   --color-block-ink: var(--block-ink);
   --color-scrim: var(--scrim);
   --color-code: var(--code);
-  /* Placeholder text: the browser's own grey, as the board always showed it (Tailwind's reset would use half the text colour). */
-  --color-placeholder: #757575;
 
   --font-sans: var(--sans);
   --font-mono: var(--mono);

@@ -69,7 +69,7 @@ export function CategoryEditor({ categories, all, onAdd, onRemove }: CategoryEdi
       {adding ? (
         <div className="relative">
           <input
-            className="h-[26px] w-[150px] rounded-full border border-accent bg-card px-2.5 py-0 text-[12.5px] text-fg outline-none placeholder:text-placeholder"
+            className="h-[26px] w-[150px] rounded-full border border-accent bg-card px-2.5 py-0 text-[12.5px] text-fg outline-none"
             value={input}
             placeholder="Category…"
             aria-label="Category"

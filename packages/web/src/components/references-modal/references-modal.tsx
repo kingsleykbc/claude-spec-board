@@ -324,7 +324,7 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
                   </label>
                   <input
                     id="rf-link"
-                    className="h-[34px] rounded-lg border border-line2 bg-card px-2.5 py-0 font-mono text-[12.5px] text-fg placeholder:text-placeholder"
+                    className="h-[34px] rounded-lg border border-line2 bg-card px-2.5 py-0 font-mono text-[12.5px] text-fg"
                     autoFocus
                     placeholder="docs/ARCHITECTURE.md"
                     value={input}
@@ -358,7 +358,7 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
                   <label className="text-[12px] font-semibold text-fg2" htmlFor="rf-new">
                     Document name
                   </label>
-                  <input id="rf-new" className="h-[34px] rounded-lg border border-line2 bg-card px-2.5 py-0 font-mono text-[12.5px] text-fg placeholder:text-placeholder" autoFocus placeholder="DEPLOY.md" value={input} onChange={(e) => setInput(e.target.value)} />
+                  <input id="rf-new" className="h-[34px] rounded-lg border border-line2 bg-card px-2.5 py-0 font-mono text-[12.5px] text-fg" autoFocus placeholder="DEPLOY.md" value={input} onChange={(e) => setInput(e.target.value)} />
                   {validDocName(input) ? (
                     <span className="text-[12px] text-fg3">Saved as docs/{newDocName(input)}</span>
                   ) : (

@@ -60,7 +60,7 @@ export function ConfirmDialog({ title, body, path, actions, onDismiss }: Confirm
           aria-modal="true"
           aria-label={title}
           tabIndex={-1}
-          className="flex w-[min(460px,100%)] flex-col gap-2.5 rounded-[14px] border border-line bg-card px-6 pt-[22px] pb-5 font-sans leading-[normal] text-fg shadow-lg outline-none"
+          className="flex w-[min(460px,100%)] flex-col gap-2.5 rounded-[14px] border border-line bg-card px-6 pt-[22px] pb-5 font-sans text-fg shadow-lg outline-none"
           onKeyDown={onKeyDown}
           onOpenAutoFocus={prevent}
           onCloseAutoFocus={prevent}
