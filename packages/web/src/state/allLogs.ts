@@ -10,6 +10,10 @@ export interface LogItem {
   text: string;
   /** The log's tokens, on the log's newest entry only. */
   tokens: number | null;
+  /** The log's files, PR and commit, on the log's newest entry only (empty or null elsewhere). */
+  files: string[];
+  pr: string | null;
+  commit: string | null;
   obsolete: SubtaskLog['obsolete'];
   archived: boolean;
 }
@@ -40,6 +44,9 @@ export function allLogEntries(project: Pick<Project, 'specs' | 'archived'>): Log
             subtaskTitle: title,
             text: e.text,
             tokens: i === newest ? (log.tokens ?? null) : null,
+            files: i === newest ? (log.files ?? []) : [],
+            pr: i === newest ? (log.pr ?? null) : null,
+            commit: i === newest ? (log.commit ?? null) : null,
             obsolete: log.obsolete ?? null,
             archived: sp.archived,
           },

@@ -58,3 +58,14 @@ describe('projectTokens', () => {
     expect(projectTokens(P)).toBe(1500);
   });
 });
+
+describe('allLogEntries meta', () => {
+  it('puts files, pr and commit on the newest entry only', () => {
+    const p = project([
+      spec('T-9', 'Meta', { 1: log({ commit: 'abc123', pr: 'https://x/pr/1', files: ['a.ts', 'b.ts'], entries: [{ at: '2026-11-01 10:00', text: 'old' }, { at: '2026-11-02 10:00', text: 'new' }] }) }),
+    ]);
+    const rows = allLogEntries(p);
+    expect(rows[0]).toMatchObject({ text: 'new', files: ['a.ts', 'b.ts'], pr: 'https://x/pr/1', commit: 'abc123' });
+    expect(rows[1]).toMatchObject({ text: 'old', files: [], pr: null, commit: null });
+  });
+});

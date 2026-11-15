@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import type { Project } from '@specboard/core';
 import { formatLogTime } from '@/lib/format-log-time';
-import { formatTokens } from '@/lib/formatTokens';
 import { CloseIcon, WarnIcon } from '@/lib/icons';
 import { allLogEntries, filterLogs, type LogItem } from '@/state/allLogs';
+import { LogMeta } from '@/components/log-meta/log-meta';
 import { Hint } from '@/components/ui/hint/hint';
 import { InfoPopover } from '@/components/ui/info-popover/info-popover';
 import { Markdown } from '@/components/ui/markdown/markdown';
@@ -93,6 +93,9 @@ export function LogsModal({ project, onOpenSpec, onOpenOverview, onClose, now, r
 
 function LogRow({ item: it, now, onOpenSpec }: { item: LogItem; now: Date; onOpenSpec: (id: string) => void }) {
   const t = formatLogTime(it.at, now);
+  const [open, setOpen] = useState(false);
+  const metaId = useId();
+  const hasMeta = it.files.length > 0 || Boolean(it.pr) || Boolean(it.commit) || it.tokens !== null;
   return (
     <div role="row" className="col-span-2 grid grid-cols-subgrid">
       <div role="cell" className="leading-5">
@@ -117,7 +120,6 @@ function LogRow({ item: it, now, onOpenSpec }: { item: LogItem; now: Date; onOpe
         </button>
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12.5px] text-fg2">
           <span>{`Subtask ${it.subtask} · ${it.subtaskTitle}`}</span>
-          {it.tokens !== null && <span className="text-fg3">{formatTokens(it.tokens)} tokens</span>}
           {it.obsolete && (
             // Carries information, so a popover (it opens on touch too) rather than a tooltip.
             <InfoPopover
@@ -136,6 +138,24 @@ function LogRow({ item: it, now, onOpenSpec }: { item: LogItem; now: Date; onOpe
         <div className="text-[13.5px] leading-[1.55]">
           <Markdown md={it.text} />
         </div>
+        {hasMeta && (
+          <>
+            <button
+              type="button"
+              className="cursor-pointer self-start border-0 bg-transparent p-0 text-[12.5px] font-semibold text-accent hover:underline"
+              aria-expanded={open}
+              aria-controls={metaId}
+              onClick={() => setOpen((o) => !o)}
+            >
+              More info
+            </button>
+            {open && (
+              <div id={metaId} className="rounded-lg border border-line bg-bg px-3 py-2.5">
+                <LogMeta files={it.files} commit={it.commit} pr={it.pr} tokens={it.tokens} />
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

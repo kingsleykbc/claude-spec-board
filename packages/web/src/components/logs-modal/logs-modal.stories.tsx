@@ -54,8 +54,47 @@ export const WithTokensAndObsolete: Story = {
   },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
+    await userEvent.click(await c.findByRole('button', { name: 'More info' }));
     expect(await c.findByText('48.2k tokens')).toBeTruthy();
     expect(c.getAllByRole('button', { name: 'Obsolete' }).length).toBeGreaterThan(0);
+  },
+};
+
+/** The newest row of a log with files, a commit, a PR and tokens has a collapsed More info. */
+export const MoreInfo: Story = {
+  args: {
+    project: {
+      ...recipeProject,
+      archived: [],
+      specs: [
+        {
+          ...recipeProject.specs[0]!,
+          logs: {
+            1: {
+              subtask: 1,
+              commit: '4f2a91c',
+              files: ['src/pages/Planner.tsx'],
+              pr: 'https://github.com/o/r/pull/7',
+              doneAt: null,
+              tokens: 48200,
+              obsolete: null,
+              problems: [],
+              entries: [
+                { at: '2026-11-08 09:00', text: 'First pass.' },
+                { at: '2026-11-14 10:00', text: 'Second pass.' },
+              ],
+            },
+          },
+        },
+      ],
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    const btn = await c.findByRole('button', { name: 'More info' });
+    expect(btn.getAttribute('aria-expanded')).toBe('false');
+    await userEvent.click(btn);
+    expect(c.getByText('src/pages/Planner.tsx')).toBeTruthy();
   },
 };
 

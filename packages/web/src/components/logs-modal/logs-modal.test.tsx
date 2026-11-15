@@ -6,7 +6,7 @@ import { recipeProject } from '@/fixtures/recipeBox';
 import { allLogEntries } from '@/state/allLogs';
 import * as stories from './logs-modal.stories';
 
-const { Grid, WithTokensAndObsolete, Empty } = composeStories(stories);
+const { Grid, WithTokensAndObsolete, MoreInfo, Empty } = composeStories(stories);
 
 afterEach(cleanup);
 
@@ -79,9 +79,36 @@ describe('LogsModal', () => {
     expect(Grid.args.onOpenOverview).toHaveBeenCalled();
   });
 
-  it('shows tokens once per log, and the obsolete icon opens a popover with the reason', async () => {
+  it('More info is collapsed by default, then shows files, the PR link and tokens', async () => {
+    const user = userEvent.setup();
+    render(<MoreInfo />);
+    const btns = screen.getAllByRole('button', { name: 'More info' });
+    expect(btns).toHaveLength(1);
+    expect(btns[0]!.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByText('src/pages/Planner.tsx')).toBeNull();
+    expect(screen.queryByText('48.2k tokens')).toBeNull();
+    await user.click(btns[0]!);
+    expect(btns[0]!.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText('src/pages/Planner.tsx')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'PR' }).getAttribute('href')).toBe('https://github.com/o/r/pull/7');
+    expect(screen.getByText('48.2k tokens')).toBeTruthy();
+    await user.click(btns[0]!);
+    expect(screen.queryByText('src/pages/Planner.tsx')).toBeNull();
+  });
+
+  it('rows without meta have no More info button', () => {
+    const proj = JSON.parse(JSON.stringify(recipeProject));
+    proj.archived = [];
+    proj.specs = [{ ...proj.specs[0], logs: { 1: { subtask: 1, commit: null, files: [], pr: null, doneAt: null, tokens: null, obsolete: null, problems: [], entries: [{ at: '2026-11-10 10:00', text: 'plain' }] } } }];
+    render(<Grid project={proj} />);
+    expect(screen.queryByRole('button', { name: 'More info' })).toBeNull();
+  });
+
+  it('shows tokens once per log (under More info), and the obsolete icon opens a popover with the reason', async () => {
     const user = userEvent.setup();
     render(<WithTokensAndObsolete />);
+    expect(screen.queryByText('48.2k tokens')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'More info' }));
     expect(screen.getAllByText('48.2k tokens')).toHaveLength(1);
     const icons = screen.getAllByRole('button', { name: 'Obsolete' });
     expect(icons).toHaveLength(2);
