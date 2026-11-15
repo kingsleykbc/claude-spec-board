@@ -20,6 +20,7 @@ interface Opts {
   after?: Spec;
   newQuestions?: Set<string>;
   down?: boolean;
+  readOnly?: boolean;
 }
 
 function setup(first: Spec, opts: Opts = {}) {
@@ -42,6 +43,7 @@ function setup(first: Spec, opts: Opts = {}) {
       refresh={refresh}
       toast={toast}
       down={opts.down ?? false}
+      readOnly={opts.readOnly ?? false}
       newQuestions={opts.newQuestions ?? new Set()}
       onSeen={onSeen}
     />
@@ -81,8 +83,11 @@ describe('Questions', () => {
     expect(row('Q1').getAttribute('data-attention')).toBe('true');
   });
 
-  it('a text question renders a textarea with its answer', () => {
+  it('a saved text answer reads as text, and Edit shows the textarea with it', () => {
     setup(recipeSpec('T-106'));
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(within(row('Q1')).getByText('Google and GitHub')).toBeTruthy();
+    fireEvent.click(within(row('Q1')).getByRole('button', { name: 'Edit' }));
     const ta = screen.getByRole('textbox', { name: 'Which OAuth providers should come later?' }) as HTMLTextAreaElement;
     expect(ta.value).toBe('Google and GitHub');
     expect(state('Q1')).toBe('Answered');
@@ -134,6 +139,7 @@ describe('Questions', () => {
   it('clearing an answer sends an empty string; unchanged answers are not sent', async () => {
     const sp = recipeSpec('T-106');
     const { client } = setup(sp);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '' } });
     expect(state('Q1')).toBe('Unsaved');
     fireEvent.click(save());
@@ -250,5 +256,61 @@ describe('optional questions elsewhere on the board', () => {
   it('aren’t a reason on the blocked banner', () => {
     expect(blockTexts(allOptional, [allOptional])).toEqual([]);
     expect(blockTexts(spec, [spec]).find((b) => b.key === 'q')?.text).toBe('Awaiting answers on: Must decide?');
+  });
+});
+
+describe('answered questions as text', () => {
+  const two = (): Spec => answered(recipeSpec('T-105'), { Q1: 'Yes', Q3: 'CSV' });
+
+  it('an answered question shows plain text and Edit, no inputs; Edit shows the options', () => {
+    setup(two());
+    expect(within(row('Q1')).getByText('Yes')).toBeTruthy();
+    expect(within(row('Q1')).queryByRole('radio')).toBeNull();
+    expect(within(row('Q3')).getByText('CSV')).toBeTruthy();
+    expect(within(row('Q3')).queryByRole('radio')).toBeNull();
+    fireEvent.click(within(row('Q3')).getByRole('button', { name: 'Edit' }));
+    expect(within(row('Q3')).getAllByRole('radio')).toHaveLength(3);
+    expect((within(row('Q3')).getByRole('radio', { name: 'CSV' }) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('an unanswered question shows its input', () => {
+    setup(two());
+    expect(screen.getByRole('spinbutton')).toBeTruthy();
+    expect(within(row('Q2')).queryByRole('button', { name: 'Edit' })).toBeNull();
+  });
+
+  it('Cancel restores the saved answer and leaves another question’s draft alone', () => {
+    setup(two());
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '4' } });
+    fireEvent.click(within(row('Q3')).getByRole('button', { name: 'Edit' }));
+    fireEvent.click(within(row('Q3')).getByRole('radio', { name: 'PDF' }));
+    expect(state('Q3')).toBe('Unsaved');
+    fireEvent.click(within(row('Q3')).getByRole('button', { name: 'Cancel' }));
+    expect(within(row('Q3')).getByText('CSV')).toBeTruthy();
+    expect(within(row('Q3')).queryByRole('radio')).toBeNull();
+    expect(state('Q3')).toBe('Answered');
+    expect((screen.getByRole('spinbutton') as HTMLInputElement).value).toBe('4');
+    expect(state('Q2')).toBe('Unsaved');
+  });
+
+  it('after a save the edited question is text again', async () => {
+    const sp = two();
+    setup(sp, { after: answered(sp, { Q3: 'PDF' }) });
+    fireEvent.click(within(row('Q3')).getByRole('button', { name: 'Edit' }));
+    fireEvent.click(within(row('Q3')).getByRole('radio', { name: 'PDF' }));
+    fireEvent.click(save());
+    await waitFor(() => expect(within(row('Q3')).queryByRole('radio')).toBeNull());
+    expect(within(row('Q3')).getByText('PDF')).toBeTruthy();
+    expect(within(row('Q3')).getByRole('button', { name: 'Edit' })).toBeTruthy();
+  });
+
+  it('readOnly has no Edit, no inputs, no Save, and says No answer for an unanswered one', () => {
+    setup(two(), { readOnly: true });
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByRole('radio')).toBeNull();
+    expect(screen.queryByRole('spinbutton')).toBeNull();
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(within(row('Q1')).getByText('Yes')).toBeTruthy();
+    expect(within(row('Q2')).getByText('No answer')).toBeTruthy();
   });
 });

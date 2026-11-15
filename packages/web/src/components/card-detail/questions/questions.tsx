@@ -30,6 +30,8 @@ export interface QuestionsProps {
   sectionRef?: Ref<HTMLElement>;
   /** Accent border (the blocked banner's scroll target). */
   highlight?: boolean;
+  /** Review and Done specs: answers read as text and can't be edited. */
+  readOnly?: boolean;
 }
 
 export const SAVED_MS = 1800;
@@ -58,10 +60,13 @@ export function Questions({
   onDirtyChange,
   sectionRef,
   highlight = false,
+  readOnly = false,
 }: QuestionsProps) {
   const id = spec.id;
   /** Unsaved values by question ID. */
   const [draft, setDraft] = useState<Record<string, string>>({});
+  /** Answered questions the user pressed Edit on. */
+  const [editing, setEditing] = useState<ReadonlySet<string>>(NONE);
   const [sv, setSv] = useState<SaveState>('idle');
   /** New badges cleared by a save here (the parent may not drop them from `newQuestions`). */
   const [seen, setSeen] = useState<ReadonlySet<string>>(NONE);
@@ -87,6 +92,12 @@ export function Questions({
   const isNew = (q: Question) => newQuestions.has(newKey(q)) && !seen.has(newKey(q));
 
   const set = (qid: string, v: string) => setDraft((d) => ({ ...d, [qid]: v }));
+
+  const startEdit = (qid: string) => setEditing((e) => new Set([...e, qid]));
+  const cancelEdit = (qid: string) => {
+    setEditing((e) => new Set([...e].filter((x) => x !== qid)));
+    setDraft((d) => Object.fromEntries(Object.entries(d).filter(([k]) => k !== qid)));
+  };
 
   const save = async () => {
     if (sv !== 'idle' || !dirty) return;
@@ -115,6 +126,8 @@ export function Questions({
       for (const [qid, v] of Object.entries(answers)) if (rest[qid] === v) delete rest[qid];
       return rest;
     });
+    // Saved questions go back to reading as text.
+    setEditing((e) => new Set([...e].filter((qid) => !(qid in answers))));
     const cleared = spec.questions.filter(isNew).map(newKey);
     if (cleared.length > 0) {
       setSeen((x) => new Set([...x, ...cleared]));
@@ -152,8 +165,8 @@ export function Questions({
     >
       <div className={sectionHead}>
         <span className={sectionLabel}>OPEN QUESTIONS</span>
-        {open > 0 && <span className={cn(pill, 'bg-review-soft text-review-ink')}>{`${open} waiting on you`}</span>}
-        {optional > 0 && <span className={cn(pill, 'bg-panel text-fg2')}>{`${optional} optional`}</span>}
+        {!readOnly && open > 0 && <span className={cn(pill, 'bg-review-soft text-review-ink')}>{`${open} waiting on you`}</span>}
+        {!readOnly && optional > 0 && <span className={cn(pill, 'bg-panel text-fg2')}>{`${optional} optional`}</span>}
       </div>
       {spec.questions.length === 0 ? (
         <div className="px-4 py-[18px] text-[13.5px] text-fg3">No open questions. Claude has what it needs.</div>
@@ -170,6 +183,9 @@ export function Questions({
               const stateText = changed ? 'Unsaved' : answered ? 'Answered' : waiting ? 'Needs answer' : 'Can skip';
               const StateIcon = changed ? DotIcon : answered ? CheckIcon : null;
               const stateInk = changed ? 'text-accent-ink' : answered ? 'text-done-ink' : waiting ? 'text-review-ink' : 'text-fg3';
+              const viewing = answered && (readOnly || !editing.has(q.id));
+              const noInput = viewing || readOnly;
+              const smallBtn = 'h-7 cursor-pointer rounded-lg border border-line2 bg-card px-2.5 text-[12.5px] font-semibold text-fg2';
               const opts = q.type === 'yesno' ? ['Yes', 'No'] : q.type === 'choice' ? q.options : [];
               return (
                 <div
@@ -190,7 +206,20 @@ export function Questions({
                       </span>
                       {isNew(q) && <span className={cn(tag, 'bg-accent-soft text-accent-ink')}>New</span>}
                     </label>
-                    {(q.type === 'yesno' || q.type === 'choice') && (
+                    {viewing && (
+                      <div className="flex items-center gap-3">
+                        <span data-answer="" className="text-[13.5px] leading-[1.5] whitespace-pre-wrap text-fg">
+                          {q.answer}
+                        </span>
+                        {!readOnly && (
+                          <button type="button" className={smallBtn} onClick={() => startEdit(q.id)}>
+                            Edit
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {readOnly && !answered && <span className="text-[13.5px] text-fg3">No answer</span>}
+                    {!noInput && (q.type === 'yesno' || q.type === 'choice') && (
                       <div role="radiogroup" aria-labelledby={labelId} className={cn('flex gap-2', q.type === 'choice' && 'flex-wrap')}>
                         {opts.map((o) => (
                           <label
@@ -213,7 +242,7 @@ export function Questions({
                         ))}
                       </div>
                     )}
-                    {q.type === 'number' && (
+                    {!noInput && q.type === 'number' && (
                       <div>
                         <input
                           id={inputId}
@@ -227,7 +256,7 @@ export function Questions({
                         />
                       </div>
                     )}
-                    {q.type === 'text' && (
+                    {!noInput && q.type === 'text' && (
                       <textarea
                         id={inputId}
                         aria-labelledby={labelId}
@@ -238,6 +267,13 @@ export function Questions({
                         onChange={(e) => set(q.id, e.target.value)}
                       />
                     )}
+                    {!noInput && answered && (
+                      <div>
+                        <button type="button" className={smallBtn} onClick={() => cancelEdit(q.id)}>
+                          Cancel
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <span data-state="" className={cn('inline-flex items-center gap-[5px] pt-0.5 text-[12px] font-semibold whitespace-nowrap', stateInk)}>
                     {StateIcon && <StateIcon aria-hidden />}
@@ -247,6 +283,7 @@ export function Questions({
               );
             })}
           </div>
+          {!readOnly && (
           <div className="flex items-center justify-end gap-3 px-4 py-3">
             <span className="text-[12.5px] text-fg3">{hint}</span>
             <button type="button" className={cn('inline-flex h-8 items-center gap-1.5 rounded-lg border-0 px-3.5 py-0 text-[13px] font-semibold', btn)} disabled={sv !== 'idle' || !dirty} onClick={() => void save()}>
@@ -254,6 +291,7 @@ export function Questions({
               {label}
             </button>
           </div>
+          )}
         </>
       )}
     </section>

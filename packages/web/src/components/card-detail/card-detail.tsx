@@ -366,6 +366,7 @@ function SpecDetail({
                 {...(newQuestions ? { newQuestions } : {})}
                 {...(onQuestionsSeen ? { onSeen: onQuestionsSeen } : {})}
                 onDirtyChange={setAnswersDirty}
+                readOnly={spec.status === 'review' || spec.status === 'done'}
                 sectionRef={sectionRefs.questions}
                 highlight={hl === 'questions'}
               />

@@ -81,7 +81,23 @@ export const TextAnswer: Story = {
   args: { spec: recipeSpec('T-106'), path: '.specboard/specs/T-106-user-accounts/spec.md' },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
+    expect(c.queryByRole('textbox')).toBeNull();
+    expect(c.getByText('Google and GitHub')).toBeTruthy();
+    await userEvent.click(c.getByRole('button', { name: 'Edit' }));
     expect((c.getByRole('textbox') as HTMLTextAreaElement).value).toBe('Google and GitHub');
+    await userEvent.click(c.getByRole('button', { name: 'Cancel' }));
+    expect(c.queryByRole('textbox')).toBeNull();
+  },
+};
+
+export const ReadOnly: Story = {
+  args: { spec: mixed, readOnly: true },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    expect(c.getByText('Yes')).toBeTruthy();
+    expect(c.getAllByText('No answer')).toHaveLength(2);
+    expect(c.queryByRole('button')).toBeNull();
+    expect(c.queryByRole('radio')).toBeNull();
   },
 };
 
