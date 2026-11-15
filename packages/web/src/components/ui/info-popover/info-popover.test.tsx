@@ -6,7 +6,6 @@ import * as stories from './info-popover.stories';
 
 const { Default, Untitled } = composeStories(stories);
 
-
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
@@ -56,12 +55,16 @@ describe('InfoPopover', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('hover-capable: a click after the hover pins it open, and a second click closes it', () => {
+  it('hover-capable: a click after the hover pins it open (leaving does not close it), and a second click closes it', () => {
     stubHover(true);
     render(<Default />);
     const trigger = screen.getByRole('button', { name: 'Why is this card obsolete?' });
     fireEvent.pointerEnter(trigger);
     fireEvent.click(trigger);
+    expect(screen.queryByRole('dialog')).not.toBeNull();
+    vi.useFakeTimers();
+    fireEvent.pointerLeave(trigger);
+    act(() => void vi.advanceTimersByTime(500));
     expect(screen.queryByRole('dialog')).not.toBeNull();
     fireEvent.click(trigger);
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -76,6 +79,30 @@ describe('InfoPopover', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await new Promise((r) => setTimeout(r, 50));
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('after a focus-open, Enter moves focus into the popover', async () => {
+    const user = userEvent.setup();
+    render(<Default />);
+    const trigger = screen.getByRole('button', { name: 'Why is this card obsolete?' });
+    act(() => trigger.focus());
+    const pop = await screen.findByRole('dialog');
+    await user.keyboard('{Enter}');
+    expect(pop.contains(document.activeElement)).toBe(true);
+    expect(screen.queryByRole('dialog')).not.toBeNull();
+  });
+
+  it('a focus-opened popover closes when focus leaves the trigger elsewhere', async () => {
+    render(
+      <>
+        <Default />
+        <button>other</button>
+      </>,
+    );
+    act(() => screen.getByRole('button', { name: 'Why is this card obsolete?' }).focus());
+    await screen.findByRole('dialog');
+    act(() => screen.getByRole('button', { name: 'other' }).focus());
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
   it('moving from the trigger into the content within 150ms keeps it open', () => {

@@ -41,6 +41,12 @@ export function InfoPopover({ trigger, title, children, label }: InfoPopoverProp
   const pressing = useRef(false);
   /** Closing returns focus to the trigger; that focus must not open the popover again. */
   const returning = useRef(false);
+  /** A click or Enter pinned it open: hover leave no longer closes it. */
+  const pinned = useRef(false);
+  /** Opened by keyboard focus: it closes again when focus leaves the trigger for somewhere other than the content. */
+  const focusOpened = useRef(false);
+  const returnTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const cancelClose = () => {
     clearTimeout(timer.current);
@@ -48,13 +54,24 @@ export function InfoPopover({ trigger, title, children, label }: InfoPopoverProp
   };
   const scheduleClose = () => {
     cancelClose();
-    timer.current = setTimeout(() => setOpen(false), CLOSE_DELAY_MS);
+    if (pinned.current) return;
+    timer.current = setTimeout(() => {
+      focusOpened.current = false;
+      setOpen(false);
+    }, CLOSE_DELAY_MS);
   };
-  useEffect(() => cancelClose, []);
+  useEffect(
+    () => () => {
+      cancelClose();
+      clearTimeout(returnTimer.current);
+    },
+    [],
+  );
 
   const openPassive = () => {
     cancelClose();
     passive.current = true;
+    pinned.current = false;
     setOpen(true);
   };
 
@@ -64,6 +81,7 @@ export function InfoPopover({ trigger, title, children, label }: InfoPopoverProp
       onOpenChange={(next) => {
         cancelClose();
         if (next) passive.current = false;
+        else pinned.current = focusOpened.current = false;
         setOpen(next);
       }}
     >
@@ -79,24 +97,38 @@ export function InfoPopover({ trigger, title, children, label }: InfoPopoverProp
         onPointerDown={() => {
           pressing.current = true;
         }}
-        onBlur={() => {
+        onBlur={(e) => {
           pressing.current = false;
+          const into = e.relatedTarget instanceof Node && contentRef.current?.contains(e.relatedTarget);
+          if (focusOpened.current && passive.current && !into) {
+            focusOpened.current = false;
+            setOpen(false);
+          }
         }}
         onFocus={(e) => {
-          if (!pressing.current && !returning.current && focusVisible(e.currentTarget)) openPassive();
+          if (!pressing.current && !returning.current && focusVisible(e.currentTarget)) {
+            openPassive();
+            focusOpened.current = true;
+          }
         }}
         onClick={(e) => {
           pressing.current = false;
-          // A click on a popover that hover or focus just opened pins it open (a second click then closes it).
-          if (open && passive.current && canHover()) {
+          // A click or Enter on a popover that hover or focus opened pins it open until Esc, a click outside or a
+          // second click, and moves focus into it so its link can be reached.
+          if (open && passive.current) {
             passive.current = false;
+            pinned.current = true;
+            focusOpened.current = false;
+            cancelClose();
             e.preventDefault();
+            contentRef.current?.focus();
           }
         }}
       >
         {trigger}
       </PopoverTrigger>
       <PopoverContent
+        ref={contentRef}
         aria-label={title ?? label}
         className="w-auto max-w-[min(320px,calc(100vw-32px))] px-3.5 py-3"
         onPointerEnter={cancelClose}
@@ -105,7 +137,7 @@ export function InfoPopover({ trigger, title, children, label }: InfoPopoverProp
         onCloseAutoFocus={(e) => {
           if (passive.current) return e.preventDefault();
           returning.current = true;
-          setTimeout(() => (returning.current = false), 0);
+          returnTimer.current = setTimeout(() => (returning.current = false), 0);
         }}
       >
         {title ? <div className="mb-1 text-[13.5px] font-semibold">{title}</div> : null}
