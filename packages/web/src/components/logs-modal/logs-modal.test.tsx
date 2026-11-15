@@ -30,11 +30,25 @@ describe('LogsModal', () => {
     expect(newest.at).toBe('2026-11-10 09:05');
     expect(time!.textContent).toBe('4 days ago');
     const trigger = within(time!).getByText('4 days ago');
+    // The accessible name starts with what is shown, then the exact time.
+    expect(trigger.getAttribute('aria-label')).toBe('4 days ago, 2026-11-10 09:05');
+    expect(trigger.getAttribute('datetime')).toBe('2026-11-10T09:05');
     act(() => trigger.focus());
     expect((await screen.findByRole('tooltip')).textContent).toBe('2026-11-10 09:05');
     expect(within(content!).getByRole('button', { name: `${newest.specId} · ${newest.specTitle}` })).toBeTruthy();
     expect(within(content!).getByText(`Subtask ${newest.subtask} · ${newest.subtaskTitle}`)).toBeTruthy();
     expect(within(content!).getByText(newest.text)).toBeTruthy();
+  });
+
+  it('a time that cannot be read is shown raw, without a datetime attribute', () => {
+    const proj = JSON.parse(JSON.stringify(recipeProject));
+    proj.archived = [];
+    proj.specs = [{ ...proj.specs[0], logs: { 1: { subtask: 1, commit: null, files: [], pr: null, doneAt: null, tokens: null, obsolete: null, problems: [], entries: [{ at: '2026-13-45 10:00', text: 'odd' }] } } }];
+    render(<Grid project={proj} />);
+    const time = screen.getByText('2026-13-45 10:00');
+    expect(time.tagName).toBe('TIME');
+    expect(time.hasAttribute('datetime')).toBe(false);
+    expect(time.getAttribute('aria-label')).toBe('2026-13-45 10:00');
   });
 
   it('search filters, and shows the empty state', () => {

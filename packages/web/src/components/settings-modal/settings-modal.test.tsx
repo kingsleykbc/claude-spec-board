@@ -36,20 +36,27 @@ describe('SettingsModal', () => {
     expect(p.toast).not.toHaveBeenCalled();
   });
 
-  it('is disabled while the save is pending, so a second click cannot race it', async () => {
+  it('is aria-disabled while the save is pending, so a second click cannot race it; focus stays on the switch', async () => {
     let resolve!: (v: Saved) => void;
     const p = setup(
       true,
       vi.fn(() => new Promise<Saved>((r) => (resolve = r))),
     );
     const sw = screen.getByRole('switch', { name: 'Track tokens' });
+    act(() => sw.focus());
     fireEvent.click(sw);
-    await waitFor(() => expect(sw).toHaveProperty('disabled', true));
     fireEvent.click(sw);
     expect(p.setSettings).toHaveBeenCalledTimes(1);
-    await act(async () => resolve({ settings: { trackTokens: false, problems: [] } }));
-    await waitFor(() => expect(sw).toHaveProperty('disabled', false));
+    await waitFor(() => expect(sw.getAttribute('aria-disabled')).toBe('true'));
+    expect(sw).toHaveProperty('disabled', false);
+    expect(document.activeElement).toBe(sw);
+    fireEvent.click(sw);
+    expect(p.setSettings).toHaveBeenCalledTimes(1);
     expect(sw.getAttribute('aria-checked')).toBe('false');
+    await act(async () => resolve({ settings: { trackTokens: false, problems: [] } }));
+    await waitFor(() => expect(sw.hasAttribute('aria-disabled')).toBe(false));
+    expect(sw.getAttribute('aria-checked')).toBe('false');
+    expect(document.activeElement).toBe(sw);
   });
 
   it('reverts and toasts an error when saving fails', async () => {
@@ -58,7 +65,7 @@ describe('SettingsModal', () => {
     fireEvent.click(sw);
     expect(sw.getAttribute('aria-checked')).toBe('true');
     await waitFor(() => expect(sw.getAttribute('aria-checked')).toBe('false'));
-    expect(sw).toHaveProperty('disabled', false);
+    expect(sw.hasAttribute('aria-disabled')).toBe(false);
     expect(p.toast).toHaveBeenCalledWith('err', 'Could not save the setting', 'disk full');
   });
 });

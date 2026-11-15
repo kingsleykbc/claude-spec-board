@@ -32,6 +32,17 @@ describe('formatLogTime', () => {
     expect(formatLogTime('2026-11-07T09:05:59', now).exact).toBe('2026-11-07 09:05');
   });
 
+  it('gives a machine-readable dateTime only when the time parsed', () => {
+    expect(formatLogTime('2026-11-14 11:59', now).dateTime).toBe('2026-11-14T11:59');
+    expect(formatLogTime('2026-11-14T11:59:30.250', now)).toMatchObject({ label: 'just now', exact: '2026-11-14 11:59' });
+    expect(formatLogTime('garbage', now).dateTime).toBeUndefined();
+  });
+
+  it('impossible dates and trailing junk are shown raw', () => {
+    for (const raw of ['2026-13-45 10:00', '2026-02-30', '2026-11-14 24:00', '2026-11-14 10:61', '2026-11-14 10:00 junk', '2026-11-14 10:00Z'])
+      expect(formatLogTime(raw, now)).toEqual({ label: raw, exact: raw });
+  });
+
   it('an unparseable time is shown raw', () => {
     expect(formatLogTime('garbage', now)).toEqual({ label: 'garbage', exact: 'garbage' });
     expect(formatLogTime('', now)).toEqual({ label: '', exact: '' });

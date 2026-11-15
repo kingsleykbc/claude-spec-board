@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { composeStories } from '@storybook/react-vite';
 import type { Spec } from '@specboard/core';
 import { recipeArchived, recipeSpecs } from '@/fixtures/recipeBox';
@@ -50,6 +51,23 @@ describe('TableView', () => {
     expect(pill.querySelector('[title]')).toBeNull();
     expect(pill.hasAttribute('title')).toBe(false);
     expect(within(screen.getByTestId('row-T-101')).queryByText('you')).toBeNull();
+  });
+
+  it('each "you" pill explains itself: exactly one spec waits on review, and T-105 has 3 questions', async () => {
+    const user = userEvent.setup();
+    table();
+    const pills = screen.getAllByRole('button', { name: /^Why is T-\d+ waiting on you\?$/ });
+    const reasons: Record<string, string> = {};
+    for (const pill of pills) {
+      await user.click(pill);
+      const pop = await screen.findByRole('dialog', { name: 'Waiting on you' });
+      reasons[/T-\d+/.exec(pill.getAttribute('aria-label')!)![0]] = pop.textContent ?? '';
+      await user.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Waiting on you' })).toBeNull());
+    }
+    expect(Object.values(reasons).filter((r) => r.includes('Waiting on your review'))).toHaveLength(1);
+    expect(reasons['T-103']).toContain('Waiting on your review');
+    expect(reasons['T-105']).toContain('3 questions for you');
   });
 
   it('Simple mode hides the urgency and categories columns', () => {

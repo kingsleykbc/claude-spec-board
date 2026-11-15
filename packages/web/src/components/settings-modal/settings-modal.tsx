@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { api } from '@/api/client';
 import { CloseIcon } from '@/lib/icons';
 import type { PushToast } from '@/state/toasts';
@@ -24,8 +24,14 @@ export function SettingsModal({ pid, trackTokens, client = api, toast, onClose, 
   const helpId = useId();
   useEffect(() => setOn(trackTokens), [trackTokens]);
 
-  // The switch is disabled while a save is in flight, so a quick second click can't race the first.
+  /** Set synchronously, so a second click before the re-render does nothing. */
+  const inFlight = useRef(false);
+
+  // While a save is in flight the switch is aria-disabled and ignores clicks, so a quick second click can't
+  // race the first. Not the native `disabled`: that would drop keyboard focus off the switch.
   const toggle = async (next: boolean) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setOn(next);
     setSaving(true);
     try {
@@ -35,6 +41,7 @@ export function SettingsModal({ pid, trackTokens, client = api, toast, onClose, 
       setOn(!next);
       toast('err', 'Could not save the setting', e instanceof Error ? e.message : String(e));
     } finally {
+      inFlight.current = false;
       setSaving(false);
     }
   };
@@ -66,7 +73,8 @@ export function SettingsModal({ pid, trackTokens, client = api, toast, onClose, 
           aria-label="Track tokens"
           aria-describedby={helpId}
           checked={on}
-          disabled={saving}
+          aria-disabled={saving || undefined}
+          className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
           onCheckedChange={(next) => void toggle(next)}
         />
       </div>

@@ -25,6 +25,18 @@ export function LogsModal({ project, onOpenSpec, onOpenOverview, onClose, now }:
   const [q, setQ] = useState('');
   const all = useMemo(() => allLogEntries(project), [project]);
   const items = useMemo(() => filterLogs(all, q), [all, q]);
+  // Stable row keys: spec, subtask and time, plus a counter for the rare entries that share all three.
+  const keys = useMemo(() => {
+    const seen = new Map<string, number>();
+    const out = new Map<LogItem, string>();
+    for (const it of all) {
+      const base = `${it.specId}:${it.subtask}:${it.at}`;
+      const n = seen.get(base) ?? 0;
+      seen.set(base, n + 1);
+      out.set(it, n ? `${base}#${n}` : base);
+    }
+    return out;
+  }, [all]);
   const at = now ?? new Date();
   const query = q.trim();
   return (
@@ -67,8 +79,8 @@ export function LogsModal({ project, onOpenSpec, onOpenOverview, onClose, now }:
           <p className="my-7 text-center text-[14px] text-fg2">No logs match “{query}”.</p>
         ) : (
           <div role="table" aria-label="Log entries" className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 pt-1">
-            {items.map((it, i) => (
-              <LogRow key={i} item={it} now={at} onOpenSpec={onOpenSpec} />
+            {items.map((it) => (
+              <LogRow key={keys.get(it)} item={it} now={at} onOpenSpec={onOpenSpec} />
             ))}
           </div>
         )}
@@ -82,8 +94,13 @@ function LogRow({ item: it, now, onOpenSpec }: { item: LogItem; now: Date; onOpe
   return (
     <div role="row" className="col-span-2 grid grid-cols-subgrid">
       <div role="cell" className="leading-5">
+        {/* The name starts with the visible label; the tooltip adds the exact time. */}
         <Hint label={t.exact}>
-          <time tabIndex={0} dateTime={t.exact.replace(' ', 'T')} className="rounded font-mono text-[12px] whitespace-nowrap text-fg3">
+          <time
+            tabIndex={0}
+            aria-label={t.label === t.exact ? t.exact : `${t.label}, ${t.exact}`}
+            {...(t.dateTime ? { dateTime: t.dateTime } : {})}
+            className="rounded font-mono text-[12px] whitespace-nowrap text-fg3">
             {t.label}
           </time>
         </Hint>
