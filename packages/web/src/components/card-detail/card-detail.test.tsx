@@ -11,7 +11,7 @@ import { interceptPop } from '@/lib/popGuard';
 import { datesLine, type DetailClient } from './card-detail';
 import * as stories from './card-detail.stories';
 
-const { ReadMode, ObsoleteLog } = composeStories(stories);
+const { ReadMode, ObsoleteLog, Simple } = composeStories(stories);
 
 const ROOT = 'examples/recipe-box';
 
@@ -595,6 +595,23 @@ describe('CardDetail', () => {
       await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Obsolete' })).toBeNull());
       expect(onClose).not.toHaveBeenCalled();
       expect(screen.getByRole('dialog', { name: 'Recipe list page' })).toBeTruthy();
+      await user.keyboard('{Escape}');
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('Simple mode: Esc closes the ⋯ popover without opening its tooltip, so the next Esc closes the dialog', async () => {
+      const user = userEvent.setup();
+      const onClose = vi.fn();
+      render(<Simple onClose={onClose} />);
+      await user.click(screen.getByRole('button', { name: 'More details' }));
+      await screen.findByRole('dialog', { name: 'More details' });
+      await user.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'More details' })).toBeNull());
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'More details' }));
+      // Give a tooltip time to open (300 ms delay); none should.
+      await new Promise((r) => setTimeout(r, 400));
+      expect(screen.queryByRole('tooltip')).toBeNull();
+      expect(onClose).not.toHaveBeenCalled();
       await user.keyboard('{Escape}');
       expect(onClose).toHaveBeenCalledTimes(1);
     });

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import type { Status, Urgency } from '@specboard/core';
 import { CloseIcon, MoreIcon, RefreshIcon } from '@/lib/icons';
 import { ESC, runEscape, useEscape } from '@/lib/escape';
@@ -58,6 +58,8 @@ export function DetailHeader(p: DetailHeaderProps) {
   const urgency = <UrgencyControl value={p.urgency} onPick={p.onUrgency} />;
   const cats = <CategoryEditor categories={p.categories} all={p.allCategories} onAdd={p.onAddCategory} onRemove={p.onRemoveCategory} />;
   const open = Boolean(p.simple && p.detailsOpen);
+  /** Set while the closing ⋯ popover hands focus back to its trigger. */
+  const returning = useRef(false);
   // The ⋯ popover is a layer of the board's Esc stack: a category input open inside it closes first.
   useEscape(open, () => p.onDetails?.(false), ESC.menu);
   /** A run is active (here or on another spec): Sync waits, like Run. */
@@ -105,6 +107,13 @@ export function DetailHeader(p: DetailHeaderProps) {
                   type="button"
                   className="flex size-[34px] flex-none cursor-pointer items-center justify-center rounded-lg border border-line bg-card p-0 text-[17px] text-fg2 hover:border-line2 hover:text-fg aria-expanded:border-line2 aria-expanded:text-fg"
                   aria-label="More details"
+                  onFocus={(e) => {
+                    // Focus coming back from the closing popover: keep its tooltip shut (the Tooltip trigger skips a
+                    // prevented focus), or the next Esc would only close the tooltip instead of the detail.
+                    if (!returning.current) return;
+                    returning.current = false;
+                    e.preventDefault();
+                  }}
                 >
                   <MoreIcon aria-hidden />
                 </button>
@@ -115,6 +124,13 @@ export function DetailHeader(p: DetailHeaderProps) {
               align="end"
               sideOffset={6}
               collisionPadding={8}
+              onCloseAutoFocus={() => {
+                // Radix moves focus to the trigger right after this, in the same task; the flag only covers that move.
+                returning.current = true;
+                queueMicrotask(() => {
+                  returning.current = false;
+                });
+              }}
               className="flex max-h-[min(70vh,560px)] w-[min(420px,calc(100vw-48px))] flex-col items-start gap-2 overflow-auto px-4 pt-3.5 pb-4"
               onEscapeKeyDown={(e) => {
                 // The board's Esc stack decides: an open category input first, then this popover.

@@ -220,7 +220,7 @@ export function Questions({
                           aria-labelledby={labelId}
                           type="number"
                           min={1}
-                          className="h-8 w-[84px] rounded-lg border border-line2 bg-card px-2.5 py-0 font-mono text-[13.5px] text-fg"
+                          className="h-8 w-[84px] rounded-lg border border-line2 bg-card px-2.5 py-0 text-[13.5px] text-fg"
                           value={v ?? ''}
                           placeholder="0"
                           onChange={(e) => set(q.id, e.target.value)}

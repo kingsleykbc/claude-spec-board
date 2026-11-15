@@ -29,6 +29,17 @@ describe('StatusMenu', () => {
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
   });
 
+  it('a click outside closes it without picking anything', async () => {
+    const user = userEvent.setup();
+    const onPick = vi.fn();
+    render(<Default status="todo" onPick={onPick} />);
+    await user.click(screen.getByRole('button', { name: 'To-do' }));
+    await screen.findByRole('menu', { name: 'Status' });
+    await user.click(document.body);
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
   it('keyboard: Enter opens it, arrows move, Enter picks', async () => {
     const user = userEvent.setup();
     const onPick = vi.fn();

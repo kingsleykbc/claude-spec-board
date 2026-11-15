@@ -80,7 +80,8 @@ export function FileLink({ path, className, children }: FileLinkProps) {
       <button
         type="button"
         className={cn('cursor-pointer border-0 bg-transparent p-0 text-left text-inherit hover:text-accent-ink hover:underline', className)}
-        aria-label={typeof text === 'string' ? text : path}
+        // A plain path keeps its own text as its name (Hint would otherwise name it with the tooltip).
+        {...(typeof text === 'string' ? { 'aria-label': text } : {})}
         onClick={() => open(path)}
       >
         {text}
