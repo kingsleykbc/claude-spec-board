@@ -717,20 +717,30 @@ describe('questions refresh after a spec edit', () => {
 
   it('connected and approved: saving a To-do spec the server flagged starts a refresh-questions run for it', async () => {
     const startRun = vi.fn(async () => undefined);
-    const { toast } = setup('T-105', { setBody }, undefined, { canAutoRun: true, startRun });
+    const { toast, refresh } = setup('T-105', { setBody }, undefined, { canAutoRun: true, startRun });
     await save(toast);
     expect(startRun).toHaveBeenCalledTimes(1);
     expect(startRun).toHaveBeenCalledWith('refresh-questions', 'T-105');
+    // Started before the board re-fetches, so the warning never flashes for a round trip.
+    expect(startRun.mock.invocationCallOrder[0]).toBeLessThan(refresh.mock.invocationCallOrder.at(-1)!);
   });
 
-  it('a start refusal is quiet: no error toast, and the flag stays', async () => {
-    const startRun = vi.fn(async () => {
-      throw new Error('busy');
-    });
-    const { toast } = setup('T-105', { setBody }, undefined, { canAutoRun: true, startRun });
+  it('a start refusal (as run.start resolves it) is quiet: no error toast, and the flag stays with its warning', async () => {
+    const startRun = vi.fn(async () => ({ ok: false as const, reason: 'busy' as const, message: 'Claude is busy' }));
+    const { toast, update } = setup('T-105', { setBody }, undefined, { canAutoRun: true, startRun });
     await save(toast);
-    await waitFor(() => expect(startRun).toHaveBeenCalled());
+    update(flagged('T-105'));
+    expect(startRun).toHaveBeenCalledTimes(1);
     expect(toast).not.toHaveBeenCalledWith('err', expect.anything(), expect.anything());
+    expect(warnings()).toHaveLength(2);
+  });
+
+  it('a Review or Done spec never shows the warning, even when its file is flagged', () => {
+    for (const sid of ['T-103', 'T-101']) {
+      setup(sid, {}, [...recipeSpecs.filter((x) => x.id !== sid), flagged(sid)]);
+      expect(warnings(), sid).toHaveLength(0);
+      cleanup();
+    }
   });
 
   it('not connected: no run starts, and both headings warn; hovering shows the copy', async () => {

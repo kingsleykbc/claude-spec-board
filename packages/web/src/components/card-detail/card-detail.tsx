@@ -238,15 +238,16 @@ function SpecDetail({
       else toast('err', `Couldn’t save ${id}`, message(e));
       return;
     }
+    // The server flagged the questions and subtasks for a refresh: start it now, once per save and before the
+    // re-fetch, so the warning doesn't flash. A refusal (busy, not set up, logged out) is quiet; the flag stays and
+    // the warning shows. Review and Done specs and drafts never run.
+    if (saved?.needsRefresh && canAutoRun && startRun && (saved.status === 'todo' || saved.status === 'doing') && !saved.draft) {
+      startRun('refresh-questions', id).catch(() => undefined);
+    }
     await refresh();
     setSaving(false);
     setEditText(null);
     toast('ok', 'Spec saved', undefined, { path });
-    // The server flagged the questions and subtasks for a refresh: run it now when Claude can. A refusal (busy, not
-    // set up, logged out) is quiet; the flag stays and the warning shows. Review and Done specs and drafts never run.
-    if (saved?.needsRefresh && canAutoRun && startRun && (saved.status === 'todo' || saved.status === 'doing') && !saved.draft) {
-      startRun('refresh-questions', id).catch(() => undefined);
-    }
   };
 
   const reloadKeepCopy = async () => {
@@ -313,7 +314,9 @@ function SpecDetail({
   const problem = spec.problems[0];
 
   const dates = datesLine(spec.created, spec.updated);
-  const warning = spec.needsRefresh && !refreshing ? <RefreshWarning id={id} /> : undefined;
+  // Review and Done specs are frozen: no refresh prompt there.
+  const frozen = spec.status === 'review' || spec.status === 'done';
+  const warning = spec.needsRefresh && !refreshing && !frozen ? <RefreshWarning id={id} /> : undefined;
   return (
     <Modal
       label={spec.title}
