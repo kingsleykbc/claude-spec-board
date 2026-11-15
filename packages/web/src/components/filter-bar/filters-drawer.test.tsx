@@ -59,8 +59,16 @@ describe('FiltersDrawer', () => {
     await user.click(within(sheet).getByRole('switch', { name: 'Blocked only' }));
     expect(onChange).toHaveBeenLastCalledWith({ cats: [], urg: ['urgent'], blocked: true, milestone: 'Basics' });
     expect(badge()!.textContent).toBe('2');
-    await user.click(within(sheet).getByRole('button', { name: 'Clear filters' }));
+    const clear = within(sheet).getByRole('button', { name: 'Clear filters' });
+    expect(clear.getAttribute('aria-disabled')).toBe('false');
+    await user.click(clear);
     expect(onChange).toHaveBeenLastCalledWith({ ...NO_FILTERS, milestone: 'Basics' });
     expect(badge()).toBeNull();
+    // Nothing left to clear: it says so but keeps focus, and a second press does nothing.
+    expect(clear.getAttribute('aria-disabled')).toBe('true');
+    expect(document.activeElement).toBe(clear);
+    const calls = onChange.mock.calls.length;
+    await user.click(clear);
+    expect(onChange).toHaveBeenCalledTimes(calls);
   });
 });

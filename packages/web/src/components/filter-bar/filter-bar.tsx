@@ -47,12 +47,14 @@ function ViewSwitch({ view, onView }: { view: View; onView: (v: View) => void })
       className="h-[30px]"
     >
       {VIEWS.map(({ v, label, Icon }) => (
-        // The tooltip trigger sets its own data-state on the item, so the chosen look keys off aria-checked.
-        <Hint key={v} label={label}>
-          <ToggleGroupItem value={v} aria-label={label} className="w-[30px] text-fg3 aria-checked:bg-card aria-checked:text-fg aria-checked:shadow-sm">
-            <Icon aria-hidden="true" className="size-[15px]" />
-          </ToggleGroupItem>
-        </Hint>
+        // The toggle is the outer asChild and Hint the inner wrapper, so the toggle's data-state wins (see Hint).
+        <ToggleGroupItem key={v} value={v} asChild className="w-[30px] text-fg3">
+          <Hint label={label}>
+            <button type="button" aria-label={label}>
+              <Icon aria-hidden="true" className="size-[15px]" />
+            </button>
+          </Hint>
+        </ToggleGroupItem>
       ))}
     </ToggleGroup>
   );

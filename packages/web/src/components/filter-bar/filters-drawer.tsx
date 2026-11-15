@@ -78,9 +78,12 @@ export function FiltersDrawer({ filters: f, onChange, categories }: FiltersDrawe
         <div className="flex items-center justify-between gap-2 border-t border-line px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
           <button
             type="button"
-            disabled={n === 0}
-            className="cursor-pointer rounded-md border-0 bg-transparent px-1 py-1.5 font-[inherit] text-[14px] font-medium text-accent-ink disabled:cursor-default disabled:text-fg3"
-            onClick={() => onChange({ ...NO_FILTERS, milestone: f.milestone })}
+            // aria-disabled, not disabled: a disabled button would drop focus right after clearing.
+            aria-disabled={n === 0}
+            className="cursor-pointer rounded-md border-0 bg-transparent px-1 py-1.5 font-[inherit] text-[14px] font-medium text-accent-ink aria-disabled:cursor-default aria-disabled:text-fg3"
+            onClick={() => {
+              if (n > 0) onChange({ ...NO_FILTERS, milestone: f.milestone });
+            }}
           >
             Clear filters
           </button>

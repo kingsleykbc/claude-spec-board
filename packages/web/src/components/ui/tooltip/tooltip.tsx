@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 
 /*
  * shadcn/ui tooltip, restyled with the board's tokens (inverted: fg surface, bg text).
- * One TooltipProvider wraps the app (main.tsx) and every story (Storybook preview), so a Tooltip
+ * A TooltipProvider wraps the board (App), the docs page (main.tsx) and every story (Storybook preview), so a Tooltip
  * does not bring its own provider; shared delay means moving between buttons shows labels at once.
  */
 

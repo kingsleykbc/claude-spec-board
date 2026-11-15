@@ -93,6 +93,9 @@ describe('FilterBar: Board | Table switch', () => {
       expect(item.querySelector('svg')).toBeTruthy();
     }
     expect(board.getAttribute('aria-checked')).toBe('true');
+    // The toggle's data-state survives the tooltip wrapper (Hint is the inner wrapper).
+    expect(board.dataset.state).toBe('on');
+    expect(table.dataset.state).toBe('off');
     await user.click(table);
     expect(table.getAttribute('aria-checked')).toBe('true');
     expect(board.getAttribute('aria-checked')).toBe('false');

@@ -34,7 +34,7 @@ function Bar({
     onChange(f);
   };
   return (
-    <div style={{ minHeight: 280 }}>
+    <div className="min-h-[280px]">
       <FilterBar
         filters={filters}
         onChange={change}

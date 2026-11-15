@@ -13,6 +13,12 @@ export interface HintProps extends Omit<ComponentProps<typeof TooltipTrigger>, '
  * A tooltip for an icon-only control: it shows on hover and keyboard focus, and names the control.
  * Other props and the ref go on to the control, so a Hint can itself be the `asChild` trigger of a
  * menu or popover (e.g. ResponsiveMenu's `trigger={<Hint label="…"><button /></Hint>}`).
+ *
+ * Nesting rule: the tooltip trigger gives the control its own `data-state` (closed / delayed-open), and the
+ * props it receives are spread after it. So a stateful Radix control (a toggle, a switch, a menu trigger whose
+ * look depends on `data-[state=…]`) must be the OUTER `asChild` and Hint the inner wrapper:
+ * `<ToggleGroupItem value="x" asChild><Hint label="…"><button /></Hint></ToggleGroupItem>`. The other way
+ * round, Hint's `data-state` replaces the control's.
  */
 export function Hint({ label, children, side, ...rest }: HintProps) {
   const props = children.props as { 'aria-label'?: string };

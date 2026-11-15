@@ -45,7 +45,7 @@ export interface ResponsiveMenuProps {
  * A menu that fits the screen: a dropdown on wide screens, a bottom drawer titled `title` on narrow
  * ones (`useNarrow()`, 720px and under). Build it from ResponsiveMenuItem, ResponsiveMenuRadioGroup
  * and ResponsiveMenuRadioItem, ResponsiveMenuSeparator, ResponsiveMenuLabel and ResponsiveMenuSub;
- * picking an item closes the menu or the drawer.
+ * picking an item closes the menu or the drawer, unless the item is keepOpen.
  *
  * Focus on close goes back to the trigger, unless the picked item moved it somewhere else (an item
  * that opens a modal): then it stays there.
