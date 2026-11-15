@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, type ProjectSummary } from '../api/client';
 import { DOCS_PAGES, docsLink, docsPath, pageForPath } from '../lib/docsPages';
-import { ESC, useEscape } from '../lib/escape';
 import { useThemeChoice } from '../lib/theme';
 import { Markdown } from '@/components/ui/markdown/markdown';
 import { boardHref, TopBar } from '@/components/top-bar/top-bar';
@@ -28,9 +27,7 @@ function keep(href: string, search: string): string {
 export function DocsPage({ pathname, search = '', loadProjects = api.projects, go = (href) => location.assign(href) }: DocsPageProps) {
   const page = pageForPath(pathname);
   const [themeChoice, setThemeChoice] = useThemeChoice();
-  const [menu, setMenu] = useState<'switcher' | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
-  useEscape(menu !== null, () => setMenu(null), ESC.menu);
 
   useEffect(() => {
     let alive = true;
@@ -58,7 +55,6 @@ export function DocsPage({ pathname, search = '', loadProjects = api.projects, g
 
   return (
     <div className={s.shell}>
-      {menu && <div data-testid="menu-scrim" className={s.scrim} onClick={() => setMenu(null)} />}
       <TopBar
         page="docs"
         {...(current && projects
@@ -68,14 +64,8 @@ export function DocsPage({ pathname, search = '', loadProjects = api.projects, g
                 progress: current.progress,
                 projects,
                 current: current.id,
-                open: menu === 'switcher',
-                onToggle: () => setMenu((m) => (m === 'switcher' ? null : 'switcher')),
-                onPick: (id: string) => {
-                  setMenu(null);
-                  go(boardHref(id));
-                },
+                onPick: (id: string) => go(boardHref(id)),
                 onOpenFolder: () => {
-                  setMenu(null);
                   go(keep(docsPath('getting-started'), kept));
                 },
               },

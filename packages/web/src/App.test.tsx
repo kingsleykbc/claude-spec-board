@@ -102,7 +102,7 @@ describe('App', () => {
     await board();
     fireEvent.click(screen.getByRole('switch', { name: 'Blocked only' }));
     expect(screen.getByRole('switch', { name: 'Blocked only' }).getAttribute('aria-checked')).toBe('true');
-    fireEvent.click(screen.getByRole('button', { name: /Recipe Box/ }));
+    fireEvent.keyDown(screen.getByRole('button', { name: /Recipe Box/ }), { key: 'Enter' });
     const menu = screen.getByRole('menu');
     fireEvent.click(within(menu).getByRole('menuitemradio', { name: /Empty/ }));
     await screen.findByText('No specs yet', { selector: 'div' });
@@ -208,7 +208,7 @@ describe('App', () => {
   it('"Open another project folder…" shows the info toast', async () => {
     render(<App />);
     await board();
-    fireEvent.click(screen.getByRole('button', { name: /Recipe Box/ }));
+    fireEvent.keyDown(screen.getByRole('button', { name: /Recipe Box/ }), { key: 'Enter' });
     fireEvent.click(screen.getByRole('menuitem', { name: 'Open another project folder…' }));
     expect(screen.getByText('Run spec-board in a project folder')).toBeTruthy();
     expect(screen.getByText('It will appear in this list.')).toBeTruthy();
@@ -263,7 +263,7 @@ it('?spec= opens the card detail; Esc closes it, clears ?spec= and returns focus
   it('an open menu closes on Esc before the board does anything else', async () => {
     render(<App />);
     await board();
-    fireEvent.click(screen.getByRole('button', { name: /Recipe Box/ }));
+    fireEvent.keyDown(screen.getByRole('button', { name: /Recipe Box/ }), { key: 'Enter' });
     expect(screen.getByRole('menu')).toBeTruthy();
     fireEvent.keyDown(document.body, { key: 'Escape' });
     expect(screen.queryByRole('menu')).toBeNull();

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { applyThemeChoice, resolveTheme, savedThemeChoice, THEME_KEY, watchSystemTheme } from './theme';
+import { act, renderHook } from '@testing-library/react';
+import { applyThemeChoice, resolveTheme, savedThemeChoice, THEME_KEY, useThemeChoice, watchSystemTheme } from './theme';
 
 /** A fake `prefers-color-scheme` the test can flip; returns the flip. */
 function fakeOs(dark: boolean) {
@@ -93,5 +94,40 @@ describe('theme choice', () => {
     expect(os.listeners.size).toBe(0);
     os.set(true);
     expect(document.documentElement.dataset.theme).toBe('light');
+  });
+
+  it('falls back to addListener/removeListener when addEventListener is missing', () => {
+    const listeners = new Set<() => void>();
+    const mq = { matches: false, media: '', addListener: (fn: () => void) => listeners.add(fn), removeListener: (fn: () => void) => listeners.delete(fn) };
+    vi.stubGlobal('matchMedia', vi.fn(() => mq));
+    const onChange = vi.fn();
+    const stop = watchSystemTheme(onChange);
+    expect(listeners.size).toBe(1);
+    for (const fn of listeners) fn();
+    expect(onChange).toHaveBeenCalledOnce();
+    stop();
+    expect(listeners.size).toBe(0);
+  });
+});
+
+describe('useThemeChoice', () => {
+  it('starts on system and follows the OS; after picking Light, an OS change leaves the theme alone', () => {
+    const os = fakeOs(false);
+    applyThemeChoice(savedThemeChoice());
+    const { result, unmount } = renderHook(() => useThemeChoice());
+    expect(result.current[0]).toBe('system');
+    expect(document.documentElement.dataset.theme).toBe('light');
+    act(() => os.set(true));
+    expect(document.documentElement.dataset.theme).toBe('dark');
+
+    act(() => result.current[1]('light'));
+    expect(result.current[0]).toBe('light');
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(localStorage.getItem(THEME_KEY)).toBe('light');
+    act(() => os.set(false));
+    act(() => os.set(true));
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(os.listeners.size).toBe(0);
+    unmount();
   });
 });

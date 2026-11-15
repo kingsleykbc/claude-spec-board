@@ -35,6 +35,10 @@ export interface ResponsiveMenuProps {
   children: ReactNode;
   /** Dropdown alignment against the trigger on wide screens. */
   align?: 'start' | 'center' | 'end';
+  /** Extra classes for the dropdown's box on wide screens (e.g. a fixed width). */
+  contentClassName?: string;
+  /** Told when the menu opens or closes (e.g. to refresh what it lists). */
+  onOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -46,7 +50,7 @@ export interface ResponsiveMenuProps {
  * Focus on close goes back to the trigger, unless the picked item moved it somewhere else (an item
  * that opens a modal): then it stays there.
  */
-export function ResponsiveMenu({ trigger, title, children, align = 'start' }: ResponsiveMenuProps) {
+export function ResponsiveMenu({ trigger, title, children, align = 'start', contentClassName, onOpenChange: tell }: ResponsiveMenuProps) {
   const narrow = useNarrow();
   const [open, setOpen] = useState(false);
   // Closed by picking an item: the drawer goes away at once (no slide-out), so its focus trap and
@@ -58,6 +62,7 @@ export function ResponsiveMenu({ trigger, title, children, align = 'start' }: Re
     if (narrow) {
       setPicked(true);
       setOpen(false);
+      tell?.(false);
     }
   };
   const onOpenChange = (next: boolean) => {
@@ -66,6 +71,7 @@ export function ResponsiveMenu({ trigger, title, children, align = 'start' }: Re
       setPicked(false);
     }
     setOpen(next);
+    tell?.(next);
   };
   const onCloseAutoFocus = (e: Event) => {
     if (!pickedRef.current) return;
@@ -80,7 +86,7 @@ export function ResponsiveMenu({ trigger, title, children, align = 'start' }: Re
             a Modal that an item has just opened. Outside clicks and Esc still close it. */}
         <DropdownMenu open={open} onOpenChange={onOpenChange} modal={false}>
           <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-          <DropdownMenuContent align={align} collisionPadding={8} onCloseAutoFocus={onCloseAutoFocus}>
+          <DropdownMenuContent align={align} collisionPadding={8} onCloseAutoFocus={onCloseAutoFocus} className={contentClassName}>
             {children}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -124,7 +130,7 @@ export interface ResponsiveMenuItemProps {
 // Drawer rows: the dropdown item's look, a little taller for fingers.
 const row =
   'relative flex w-full cursor-pointer items-center gap-2 rounded-[7px] border-0 bg-transparent px-2.5 py-2.5 text-left font-[inherit] text-[14px] text-fg hover:bg-panel disabled:pointer-events-none disabled:opacity-50';
-const indicator = 'pointer-events-none absolute left-2.5 flex size-3.5 items-center justify-center';
+const indicatorBox = 'pointer-events-none absolute left-2.5 flex size-3.5 items-center justify-center';
 
 /** One choice. `checked` makes it a checkable item (a tick when true); `href` makes it a link. */
 export function ResponsiveMenuItem({ onSelect, children, checked, disabled, href, newTab, current }: ResponsiveMenuItemProps) {
@@ -174,7 +180,7 @@ export function ResponsiveMenuItem({ onSelect, children, checked, disabled, href
       onClick={choose}
     >
       {checkable && checked ? (
-        <span className={indicator}>
+        <span className={indicatorBox}>
           <LuCheck className="block size-4" aria-hidden="true" />
         </span>
       ) : null}
@@ -205,13 +211,16 @@ export function ResponsiveMenuRadioGroup({ value, onValueChange, children }: { v
   );
 }
 
-/** One radio choice; a dot marks the group's current value. Picking it closes the menu. */
-export function ResponsiveMenuRadioItem({ value, children }: { value: string; children: ReactNode }) {
+/** A tick in place of the dot (e.g. the current project). */
+const tick = <LuCheck className="block size-4 text-accent-ink" aria-hidden="true" />;
+
+/** One radio choice; a dot (or, with `indicator="check"`, a tick) marks the group's current value. Picking it closes the menu. */
+export function ResponsiveMenuRadioItem({ value, children, indicator = 'dot', className }: { value: string; children: ReactNode; indicator?: 'dot' | 'check'; className?: string }) {
   const { narrow, pick } = useContext(Mode);
   const group = useContext(Radio);
   if (!narrow) {
     return (
-      <DropdownMenuRadioItem value={value} onSelect={pick}>
+      <DropdownMenuRadioItem value={value} onSelect={pick} className={className} {...(indicator === 'check' ? { indicator: tick } : {})}>
         {children}
       </DropdownMenuRadioItem>
     );
@@ -222,17 +231,13 @@ export function ResponsiveMenuRadioItem({ value, children }: { value: string; ch
       type="button"
       role="menuitemradio"
       aria-checked={checked}
-      className={cn(row, 'pl-8')}
+      className={cn(row, 'pl-8', className)}
       onClick={() => {
         pick();
         group?.onValueChange(value);
       }}
     >
-      {checked ? (
-        <span className={indicator}>
-          <LuCircle className="block size-2 fill-current" aria-hidden="true" />
-        </span>
-      ) : null}
+      {checked ? <span className={indicatorBox}>{indicator === 'check' ? tick : <LuCircle className="block size-2 fill-current" aria-hidden="true" />}</span> : null}
       {children}
     </button>
   );

@@ -1,4 +1,4 @@
-import type { ComponentProps } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { LuCheck, LuChevronRight, LuCircle } from 'react-icons/lu';
 import { cn } from '@/lib/utils';
@@ -68,12 +68,13 @@ function DropdownMenuRadioGroup(props: ComponentProps<typeof DropdownMenuPrimiti
   return <DropdownMenuPrimitive.RadioGroup data-slot="dropdown-menu-radio-group" {...props} />;
 }
 
-function DropdownMenuRadioItem({ className, children, ...props }: ComponentProps<typeof DropdownMenuPrimitive.RadioItem>) {
+/** `indicator` replaces the dot that marks the checked item (e.g. a tick). */
+function DropdownMenuRadioItem({ className, children, indicator, ...props }: ComponentProps<typeof DropdownMenuPrimitive.RadioItem> & { indicator?: ReactNode }) {
   return (
     <DropdownMenuPrimitive.RadioItem data-slot="dropdown-menu-radio-item" className={cn(item, 'pl-8', className)} {...props}>
       <span className="pointer-events-none absolute left-2.5 flex size-3.5 items-center justify-center">
         <DropdownMenuPrimitive.ItemIndicator>
-          <LuCircle className="size-2 fill-current" aria-hidden="true" />
+          {indicator ?? <LuCircle className="size-2 fill-current" aria-hidden="true" />}
         </DropdownMenuPrimitive.ItemIndicator>
       </span>
       {children}

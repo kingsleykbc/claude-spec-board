@@ -186,7 +186,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
     saveView(v);
     setView(v);
   };
-  const [menu, setMenu] = useState<'switcher' | Exclude<FilterMenu, null> | null>(null);
+  const [menu, setMenu] = useState<Exclude<FilterMenu, null> | null>(null);
   /** Optimistic status while a move is in flight, so the card does not snap back before the refresh. */
   const [pending, setPending] = useState<Record<string, Status>>({});
   const wantReconnectToast = useRef(false);
@@ -286,17 +286,11 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
           progress,
           projects: projects.map((p) => (p.id === pid ? { ...p, name, progress } : p)),
           current: pid,
-          open: menu === 'switcher',
-          onToggle: () => {
-            if (menu !== 'switcher') reloadProjects();
-            setMenu((m) => (m === 'switcher' ? null : 'switcher'));
-          },
+          onOpen: reloadProjects,
           onPick: (id) => {
-            setMenu(null);
             if (id !== pid) navigate({ project: id, spec: null });
           },
           onOpenFolder: () => {
-            setMenu(null);
             toast('info', 'Run spec-board in a project folder', 'It will appear in this list.');
           },
         }}

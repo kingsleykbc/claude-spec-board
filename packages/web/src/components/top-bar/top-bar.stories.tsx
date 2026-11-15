@@ -20,8 +20,6 @@ interface BarProps {
   /** Starting values; the bar keeps them in state as the app does. */
   simple?: boolean;
   theme?: ThemeChoice;
-  /** The project switcher's menu starts open. */
-  open?: boolean;
   /** Leave the project switcher out (the docs page before the projects load). */
   noSwitcher?: boolean;
   manual?: ManualReason | null;
@@ -40,10 +38,9 @@ interface BarProps {
 }
 
 /** The top bar with the connection banner under it, as the app stacks them. Simple mode and the theme live in state here, as in the app. */
-function Bar({ conn, page = 'board', simple: simple0 = false, theme: theme0 = 'light', open: open0 = false, noSwitcher, manual = null, syncWaiting = false, ...on }: BarProps) {
+function Bar({ conn, page = 'board', simple: simple0 = false, theme: theme0 = 'light', noSwitcher, manual = null, syncWaiting = false, ...on }: BarProps) {
   const [simple, setSimple] = useState(simple0);
   const [theme, setTheme] = useState<ThemeChoice>(theme0);
-  const [open, setOpen] = useState(open0);
   const board = page === 'board';
   return (
     <div className="min-h-[360px]">
@@ -57,8 +54,6 @@ function Bar({ conn, page = 'board', simple: simple0 = false, theme: theme0 = 'l
                 progress: { done: 3, total: 9 },
                 projects,
                 current: 'p1',
-                open,
-                onToggle: () => setOpen((o) => !o),
                 onPick: on.onPick,
                 onOpenFolder: on.onOpenFolder,
               },
@@ -147,12 +142,13 @@ export const Disconnected: Story = {
 };
 
 export const SwitcherOpen: Story = {
-  args: { open: true },
   play: async ({ canvasElement }) => {
-    const c = within(canvasElement);
-    expect(c.getAllByRole('menuitemradio')).toHaveLength(2);
-    expect(c.getByText('No specs yet')).toBeTruthy();
-    expect(c.getByText('Open another project folder…')).toBeTruthy();
+    const body = within(document.body);
+    await userEvent.click(within(canvasElement).getByRole('button', { name: /Recipe Box/ }));
+    expect(await body.findAllByRole('menuitemradio')).toHaveLength(2);
+    expect(body.getByText('No specs yet')).toBeTruthy();
+    expect(body.getByText('Open another project folder…')).toBeTruthy();
+    await userEvent.keyboard('{Escape}');
   },
 };
 

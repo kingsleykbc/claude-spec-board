@@ -100,10 +100,11 @@ describe('DocsPage top bar', () => {
   it('picking a project opens its board; Esc closes the menu', async () => {
     const go = vi.fn();
     render(<DocsPage pathname="/docs" loadProjects={async () => list} go={go} />);
-    fireEvent.click(await screen.findByRole('button', { name: /Recipe Box/ }));
+    // The switcher is a Radix dropdown: it opens on pointer-down or Enter, not on a bare click event.
+    fireEvent.keyDown(await screen.findByRole('button', { name: /Recipe Box/ }), { key: 'Enter' });
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('menuitemradio', { name: /Other/ })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /Recipe Box/ }));
+    fireEvent.keyDown(screen.getByRole('button', { name: /Recipe Box/ }), { key: 'Enter' });
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Other/ }));
     expect(go).toHaveBeenCalledWith('/?project=b2');
   });

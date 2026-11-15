@@ -1,5 +1,4 @@
 .shell { min-height: 100vh; background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 14px; }
-.scrim { position: fixed; inset: 0; z-index: 25; }
 .page { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 32px; max-width: 1040px; margin: 0 auto; padding: 32px 20px; box-sizing: border-box; color: var(--fg); font-family: var(--sans); }
 .nav { position: sticky; top: 84px; align-self: start; display: flex; flex-direction: column; gap: 2px; }
 .title { margin: 0 0 10px; padding: 0 10px; font-size: 14px; font-weight: 700; }

@@ -44,8 +44,13 @@ export function applyThemeChoice(choice: ThemeChoice, remember = false): void {
 export function watchSystemTheme(onChange: () => void): () => void {
   if (!hasMatchMedia()) return () => undefined;
   const mq = window.matchMedia(DARK_QUERY);
-  mq.addEventListener?.('change', onChange);
-  return () => mq.removeEventListener?.('change', onChange);
+  if (typeof mq.addEventListener === 'function') {
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }
+  // Older Safari (before 14) has only the deprecated listener methods.
+  mq.addListener?.(onChange);
+  return () => mq.removeListener?.(onChange);
 }
 
 /**

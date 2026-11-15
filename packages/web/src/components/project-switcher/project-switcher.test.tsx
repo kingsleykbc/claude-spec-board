@@ -1,12 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { composeStories } from '@storybook/react-vite';
 import * as stories from './project-switcher.stories';
 import { progressText } from './project-switcher';
 
-const { Closed, Open, Reconnecting, Disconnected, NoConnection, Narrow } = composeStories(stories);
+const { Closed, Reconnecting, Disconnected, NoConnection, Narrow } = composeStories(stories);
 
 afterEach(cleanup);
+
+async function open(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: /Recipe Box/ }));
+  return screen.findByRole('menu');
+}
 
 describe('ProjectSwitcher', () => {
   it('shows the project, its progress and the live state', () => {
@@ -25,10 +31,10 @@ describe('ProjectSwitcher', () => {
     cleanup();
     render(<Disconnected />);
     expect(screen.getByTestId('conn').title).toBe('Not connected to the local server');
-    expect(screen.getByTestId('conn').firstElementChild!.getAttribute('style')).toContain('var(--block)');
+    expect(screen.getByTestId('conn').firstElementChild!.className).toMatch(/\bbg-block\b/);
     cleanup();
     render(<Closed />);
-    expect(screen.getByTestId('conn').firstElementChild!.getAttribute('style')).toContain('var(--done)');
+    expect(screen.getByTestId('conn').firstElementChild!.className).toMatch(/\bbg-done\b/);
   });
 
   it('has no dot without a connection (the docs page)', () => {
@@ -36,44 +42,68 @@ describe('ProjectSwitcher', () => {
     expect(screen.queryByTestId('conn')).toBeNull();
   });
 
-  it('lists projects with progress and a tick', () => {
+  it('lists projects with progress and a tick; picking calls onPick and closes the menu', async () => {
+    const user = userEvent.setup();
     const onPick = vi.fn();
-    const onOpenFolder = vi.fn();
-    render(<Open onPick={onPick} onOpenFolder={onOpenFolder} />);
-    expect(screen.getByText('PROJECTS')).toBeTruthy();
-    const items = screen.getAllByRole('menuitemradio');
+    const onOpen = vi.fn();
+    render(<Closed onPick={onPick} onOpen={onOpen} />);
+    const menu = await open(user);
+    expect(onOpen).toHaveBeenCalledOnce();
+    expect(within(menu).getByText('PROJECTS')).toBeTruthy();
+    const items = within(menu).getAllByRole('menuitemradio');
     expect(items.map((i) => i.getAttribute('aria-checked'))).toEqual(['true', 'false']);
+    expect(items[0]!.querySelector('svg')).toBeTruthy();
     expect(items[1]!.textContent).toBe('Empty~/code/emptyNo specs yet');
-    fireEvent.click(items[1]!);
+    await user.click(items[1]!);
     expect(onPick).toHaveBeenCalledWith('p2');
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Open another project folder…' }));
-    expect(onOpenFolder).toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
   });
 
-  it('each project in the list has a dot: green and "Folder found", or grey and "Folder missing"', () => {
-    render(<Open />);
+  it('"Open another project folder…" calls onOpenFolder', async () => {
+    const user = userEvent.setup();
+    const onOpenFolder = vi.fn();
+    render(<Closed onOpenFolder={onOpenFolder} />);
+    await open(user);
+    await user.click(screen.getByRole('menuitem', { name: 'Open another project folder…' }));
+    expect(onOpenFolder).toHaveBeenCalledOnce();
+  });
+
+  it('each project in the list has a dot: green and "Folder found", or grey and "Folder missing"', async () => {
+    const user = userEvent.setup();
+    render(<Closed />);
+    await open(user);
     const a = screen.getByTestId('avail-p1');
     const b = screen.getByTestId('avail-p2');
     expect(a.title).toBe('Folder found');
-    expect(a.getAttribute('style')).toContain('var(--done)');
+    expect(a.className).toMatch(/\bbg-done\b/);
     expect(b.title).toBe('Folder missing');
-    expect(b.getAttribute('style')).toContain('var(--fg3)');
+    expect(b.className).toMatch(/\bbg-fg3\b/);
   });
 
-  it('opens and closes on click', () => {
+  it('Esc closes the menu', async () => {
+    const user = userEvent.setup();
     render(<Closed />);
-    const btn = screen.getByRole('button', { name: /Recipe Box/ });
-    expect(btn.getAttribute('aria-expanded')).toBe('false');
-    fireEvent.click(btn);
-    expect(screen.getByRole('menu')).toBeTruthy();
-    fireEvent.click(btn);
-    expect(screen.queryByRole('menu')).toBeNull();
+    await open(user);
+    expect(screen.getByRole('button', { name: /Recipe Box/ }).getAttribute('aria-expanded')).toBe('true');
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
   });
 
-  it('narrow: keeps the dot, drops the progress text', () => {
-    render(<Narrow />);
+  it('narrow (720px): keeps the dot, drops the progress text, and opens as a drawer', async () => {
+    const user = userEvent.setup();
+    const onPick = vi.fn();
+    render(<Narrow onPick={onPick} />);
     expect(screen.getByTestId('conn')).toBeTruthy();
     expect(screen.queryByText('3/9 done')).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Recipe Box/ }));
+    const sheet = await screen.findByRole('dialog', { name: 'Projects' });
+    const items = within(sheet).getAllByRole('menuitemradio');
+    expect(items.map((i) => i.getAttribute('aria-checked'))).toEqual(['true', 'false']);
+    expect(items[1]!.textContent).toBe('Empty~/code/emptyNo specs yet');
+    expect(within(sheet).getByRole('menuitem', { name: 'Open another project folder…' })).toBeTruthy();
+    await user.click(items[1]!);
+    expect(onPick).toHaveBeenCalledWith('p2');
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('progressText', () => {
