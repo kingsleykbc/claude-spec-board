@@ -82,7 +82,7 @@ export function BoardSkeleton() {
 export function AppSkeleton() {
   return (
     <>
-      <div className="sticky top-0 z-30 flex h-[52px] items-center gap-2.5 border-b border-line bg-bg px-5" aria-hidden>
+      <div className="sticky top-0 z-30 flex h-[52px] items-center gap-2.5 border-b border-line bg-bg px-5 [@media(max-width:720px)]:gap-1.5 [@media(max-width:720px)]:px-3" aria-hidden>
         <Skel w={118} h={20} r={6} />
         <Skel w={150} h={20} r={6} />
         <span className="flex-1" />

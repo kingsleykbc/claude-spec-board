@@ -49,6 +49,8 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, { initial = 'co
       if (e.key !== 'Tab') return;
       const root = ref.current;
       if (!root) return;
+      // React passes keys up from portalled layers rendered inside (Radix menus, popovers); they move their own focus.
+      if (!(e.target instanceof Node) || !root.contains(e.target)) return;
       e.stopPropagation();
       const list = focusables(root);
       const first = list[0];

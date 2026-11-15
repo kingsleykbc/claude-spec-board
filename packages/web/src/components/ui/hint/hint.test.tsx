@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { composeStories } from '@storybook/react-vite';
 import * as stories from './hint.stories';
 
-const { Default, OwnLabel } = composeStories(stories);
+const { Default, OwnLabel, AroundMenuTrigger } = composeStories(stories);
 
 afterEach(cleanup);
 
@@ -28,5 +28,17 @@ describe('Hint', () => {
     expect(button.getAttribute('aria-label')).toBe('Settings');
     await user.tab();
     expect((await screen.findByRole('tooltip')).textContent).toBe('Open settings (,)');
+  });
+
+  it('wraps a menu trigger: the label shows on focus and a click still opens the menu', async () => {
+    const user = userEvent.setup();
+    render(<AroundMenuTrigger />);
+    const button = screen.getByRole('button', { name: 'Card actions' });
+    await user.tab();
+    expect(document.activeElement).toBe(button);
+    expect((await screen.findByRole('tooltip')).textContent).toBe('Card actions');
+    await user.click(button);
+    expect(await screen.findByRole('menuitem', { name: 'Archive' })).toBeTruthy();
+    expect(button.getAttribute('aria-expanded')).toBe('true');
   });
 });
