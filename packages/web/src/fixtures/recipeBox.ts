@@ -722,7 +722,7 @@ export const recipeArchived: Spec[] = [
     ],
     "dependsOn": [],
     "draft": false,
-    "milestone": null,
+    "milestone": "Basics",
     "currentSubtask": null,
     "created": "2026-11-01",
     "updated": "2026-11-08",
@@ -734,35 +734,35 @@ export const recipeArchived: Spec[] = [
         "n": 1,
         "title": "Init Vite project",
         "done": true,
-        "line": 30,
+        "line": 31,
         "hasLog": false
       },
       {
         "n": 2,
         "title": "Add router",
         "done": true,
-        "line": 31,
+        "line": 32,
         "hasLog": false
       },
       {
         "n": 3,
         "title": "Lint and format",
         "done": true,
-        "line": 32,
+        "line": 33,
         "hasLog": false
       },
       {
         "n": 4,
         "title": "CI workflow",
         "done": true,
-        "line": 33,
+        "line": 34,
         "hasLog": false
       }
     ],
     "problems": [],
     "dir": "examples/recipe-box/.specboard/archive/T-100-project-scaffold",
     "path": "examples/recipe-box/.specboard/archive/T-100-project-scaffold/spec.md",
-    "hash": "ddd3200424e38aa42dda695d6c4ec5ab58191b728bf2d6bdfacc8009f1721b57",
+    "hash": "b06aa9a450d1418887458db1df3af9fc947949771393c253eebabf9fe2f7a01d",
     "archived": true,
     "slug": "project-scaffold",
     "progress": {

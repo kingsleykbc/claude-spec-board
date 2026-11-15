@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { categoryOptions, effectiveMilestone, filterChips, filterSpecs, milestoneOptions, NO_FILTERS, NO_MILESTONE, sortSpecs, waitingReason, waitItems } from './filters';
+import { archivedShown, categoryOptions, effectiveMilestone, filterChips, filterSpecs, milestoneOptions, NO_FILTERS, NO_MILESTONE, sortSpecs, waitingReason, waitItems } from './filters';
 import { recipeArchived, recipeSpecs } from '../fixtures/recipeBox';
 
 const ids = (xs: { id: string }[]) => xs.map((x) => x.id);
@@ -160,5 +160,26 @@ describe('waitingReason (the table’s "you" marker)', () => {
   it('the first open subtask is a (you) step', () => {
     expect(waitingReason({ ...base, subtasks: [sub(1, 'Build', true), sub(2, '(you) Add the API key', false)] })).toBe('Your step: Add the API key');
     expect(waitingReason({ ...base, subtasks: [sub(1, 'Build', false), sub(2, '(you) Add the API key', false)] })).toBeNull();
+  });
+});
+
+describe('archivedShown (the Done column\'s "Show archived (N)")', () => {
+  // The sample's milestones; T-100 (archived) is in Basics.
+  const SAMPLE_MS = ['Basics', 'Planning'];
+
+  it('follows the milestone: Basics includes T-100, Planning does not', () => {
+    expect(ids(archivedShown(recipeArchived, { ...NO_FILTERS, milestone: 'Basics' }, SAMPLE_MS))).toEqual(['T-100']);
+    expect(archivedShown(recipeArchived, { ...NO_FILTERS, milestone: 'Planning' }, SAMPLE_MS)).toEqual([]);
+    expect(ids(archivedShown(recipeArchived, NO_FILTERS, SAMPLE_MS))).toEqual(['T-100']);
+  });
+
+  it('follows category and urgency', () => {
+    expect(ids(archivedShown(recipeArchived, { ...NO_FILTERS, cats: ['Infra'] }, SAMPLE_MS))).toEqual(['T-100']);
+    expect(archivedShown(recipeArchived, { ...NO_FILTERS, cats: ['Backend'] }, SAMPLE_MS)).toEqual([]);
+    expect(archivedShown(recipeArchived, { ...NO_FILTERS, urg: ['urgent'] }, SAMPLE_MS)).toEqual([]);
+  });
+
+  it('Blocked only does not hide archived specs', () => {
+    expect(ids(archivedShown(recipeArchived, { ...NO_FILTERS, blocked: true, milestone: 'Basics' }, SAMPLE_MS))).toEqual(['T-100']);
   });
 });

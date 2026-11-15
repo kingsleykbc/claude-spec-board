@@ -18,14 +18,13 @@ import {
   type KeyboardCoordinateGetter,
 } from '@dnd-kit/core';
 import type { Spec, Status } from '@specboard/core';
-import type { RunSnapshot } from '../api/client';
-import { PlusIcon } from '../lib/icons';
-import { ORDER, ST } from '../lib/vm';
-import { filterSpecs, NO_FILTERS, sortSpecs, compareSpecs, type Filters } from '../state/filters';
-import { cardRun } from '../state/runUi';
-import { Column } from './Column';
-import { SpecCard } from './SpecCard';
-import s from './Board.module.css';
+import type { RunSnapshot } from '@/api/client';
+import { PlusIcon } from '@/lib/icons';
+import { ORDER, ST } from '@/lib/vm';
+import { archivedShown, filterSpecs, NO_FILTERS, sortSpecs, compareSpecs, type Filters } from '@/state/filters';
+import { cardRun } from '@/state/runUi';
+import { Column } from '@/components/column/column';
+import { SpecCard } from '@/components/spec-card/spec-card';
 
 export interface BoardProps {
   /** Active specs (unfiltered; the board applies `filters`). */
@@ -107,6 +106,7 @@ function DraggableCard({ spec, all, canDrag, flash, p }: CardProps) {
 }
 
 const noop = () => undefined;
+const sheet = 'h-[26px] w-[18px] rounded-[4px] border-[1.5px] border-line2';
 
 /** The four columns with drag and drop (prototype lines 89-115 and 718-731). */
 export function Board(props: BoardProps) {
@@ -124,7 +124,9 @@ export function Board(props: BoardProps) {
   const active = activeId ? specs.find((x) => x.id === activeId) ?? null : null;
 
   const visible = filterSpecs(specs, filters, milestones);
-  const visibleArchived = showArchived ? filterSpecs(archived, filters, milestones) : [];
+  // The Done column's archived cards follow the board's filters (Blocked only aside), and so does their count.
+  const archivedHere = archivedShown(archived, filters, milestones);
+  const visibleArchived = showArchived ? archivedHere : [];
 
   const reset = () => {
     setActiveId(null);
@@ -144,7 +146,12 @@ export function Board(props: BoardProps) {
 
   return (
     <DndContext sensors={sensors} collisionDetection={collision} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={reset} accessibility={{ announcements }}>
-      <main className={s.board} data-tour="columns">
+      {/* Wide: four equal columns. Up to 1100px: they scroll sideways, snapping one at a time. A small bottom pad keeps the
+          sideways scrollbar close under the columns. */}
+      <main
+        className="relative grid grid-cols-4 items-stretch gap-3 px-5 pb-2 max-[1100px]:flex max-[1100px]:snap-x max-[1100px]:snap-mandatory max-[1100px]:overflow-x-auto"
+        data-tour="columns"
+      >
         {ORDER.map((k) => {
           const list = sortSpecs([...visible.filter((x) => x.status === k), ...(k === 'done' ? visibleArchived : [])]);
           const over = !!(active && overId === k && active.status !== k);
@@ -157,7 +164,7 @@ export function Board(props: BoardProps) {
               specs={list}
               over={over}
               placeholderAt={placeholderAt}
-              archivedCount={k === 'done' ? archived.length : 0}
+              archivedCount={k === 'done' ? archivedHere.length : 0}
               showArchived={showArchived}
               onToggleArchived={() => setShowArchived((v) => !v)}
               renderCard={(x) => <DraggableCard key={x.id} spec={x} all={all} canDrag={canDrag} flash={!!changed?.has(x.id)} p={props} />}
@@ -165,17 +172,21 @@ export function Board(props: BoardProps) {
           );
         })}
         {specs.length + archived.length === 0 && (
-          <div className={s.none}>
-            <div className={s.sheets}>
-              <span className={s.sheet} />
-              <span className={s.sheet} />
-              <span className={s.sheetNew} />
+          <div className="absolute top-[110px] left-1/2 flex w-[min(440px,calc(100%-40px))] -translate-x-1/2 flex-col items-center gap-2.5 rounded-2xl border border-line bg-card px-8 pt-8 pb-7 text-center shadow-lg">
+            <div className="mb-1.5 flex gap-[5px]">
+              <span className={sheet} />
+              <span className={sheet} />
+              <span className="h-[26px] w-[18px] rounded-[4px] border-[1.5px] border-dashed border-accent" />
             </div>
-            <div className={s.noneTitle}>No specs yet</div>
-            <div className={s.noneText}>
+            <div className="text-lg font-semibold">No specs yet</div>
+            <div className="text-sm leading-[1.55] text-pretty text-fg2 [&_code]:rounded-[4px] [&_code]:border [&_code]:border-line [&_code]:bg-code [&_code]:px-1.5 [&_code]:py-px [&_code]:font-mono [&_code]:text-[12.5px]">
               Add one, or ask Claude to <code>/create-spec</code> in your terminal. Specs appear here as soon as the files exist.
             </div>
-            <button type="button" className={s.noneAdd} onClick={props.onAdd}>
+            <button
+              type="button"
+              className="mt-2 inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-[9px] border-0 bg-accent px-4 py-0 text-[13.5px] font-semibold text-accent-fg hover:bg-accent-hover"
+              onClick={props.onAdd}
+            >
               <PlusIcon aria-hidden /> Add new spec
             </button>
           </div>

@@ -32,6 +32,14 @@ export function filterSpecs(specs: Spec[], f: Filters, milestones: string[] = []
   );
 }
 
+/**
+ * The archived specs the Done column shows (and counts in "Show archived (N)"): the board's own filters, except
+ * Blocked only, which would hide every archived spec (a finished spec is never blocked).
+ */
+export function archivedShown(archived: Spec[], f: Filters, milestones: string[]): Spec[] {
+  return filterSpecs(archived, { ...f, blocked: false }, milestones);
+}
+
 export interface MilestoneOption {
   /** A listed milestone name, or `NO_MILESTONE`. */
   value: string;

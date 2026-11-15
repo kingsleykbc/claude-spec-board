@@ -20,7 +20,7 @@ import { cardRun, isRefreshing, manualReason, runButtonState, useRunActions, use
 import { useRun } from './state/useRun';
 import { useSync } from './state/useSync';
 import { SyncDialog } from './components/SyncDialog';
-import { Board } from './components/Board';
+import { Board } from './components/board/board';
 import { TableView } from './components/TableView';
 import { AppSkeleton, BoardSkeleton } from '@/components/ui/skeleton/skeleton';
 import { AddSpecModal } from './components/AddSpecModal';
@@ -36,7 +36,6 @@ import { SettingsModal } from './components/SettingsModal';
 import { Toasts } from '@/components/ui/toasts/toasts';
 import { TopBar } from '@/components/top-bar/top-bar';
 import { Footer } from '@/components/footer/footer';
-import boardCss from './components/Board.module.css';
 
 // URL state: ?project=<id> and ?spec=<id>, kept with history.pushState and popstate (no router).
 
@@ -359,8 +358,15 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
             onAdd={openAdd}
           />
           )}
-          <button type="button" className={boardCss.fab} aria-label="Add new spec" onClick={openAdd} data-tour="add">
-            <PlusIcon aria-hidden className={boardCss.fabPlus} />
+          {/* Bottom right, above the footer. On phones it shrinks to a round + (the label stays for screen readers). */}
+          <button
+            type="button"
+            className="fixed right-6 bottom-6 z-20 flex h-[42px] cursor-pointer items-center gap-2 rounded-xl border-0 bg-accent py-0 pr-[18px] pl-3.5 text-sm font-semibold whitespace-nowrap text-accent-fg shadow-[0_8px_24px_oklch(0.63_0.18_42/0.3)] hover:bg-accent-hover max-[640px]:right-4 max-[640px]:bottom-4 max-[640px]:size-12 max-[640px]:justify-center max-[640px]:gap-0 max-[640px]:overflow-hidden max-[640px]:rounded-full max-[640px]:p-0 max-[640px]:text-[0px]"
+            aria-label="Add new spec"
+            onClick={openAdd}
+            data-tour="add"
+          >
+            <PlusIcon aria-hidden className="text-[17px] leading-none font-medium max-[640px]:text-[22px]" />
             Add new spec
           </button>
           <Footer />

@@ -1,19 +1,21 @@
 import type { ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, within } from 'storybook/test';
-import { SpecCard, type SpecCardProps } from './SpecCard';
+import type { Spec } from '@specboard/core';
+import { SpecCard, type SpecCardProps } from './spec-card';
 import { Urgency } from '@/components/ui/urgency/urgency';
-import { allRecipeSpecs, recipeSpec } from '../fixtures/recipeBox';
-import { SimpleMode } from '../state/simpleMode';
+import { allRecipeSpecs, recipeSpec } from '@/fixtures/recipeBox';
+import { SimpleMode } from '@/state/simpleMode';
 
 const THEMES = ['light', 'dark'] as const;
 
-/** The same content in both themes, each on its column colour. */
-function Themed({ children, col = 'var(--panel)' }: { children: ReactNode; col?: string }) {
+/** The same content in both themes, each on its column colour (`col` is a token name: panel, review-soft, card). */
+function Themed({ children, col = 'panel' }: { children: ReactNode; col?: 'panel' | 'review-soft' | 'card' }) {
+  const bg = { panel: 'bg-panel', 'review-soft': 'bg-review-soft', card: 'bg-card' }[col];
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+    <div className="flex flex-wrap">
       {THEMES.map((t) => (
-        <div key={t} data-theme={t} data-testid={`theme-${t}`} style={{ background: col, color: 'var(--fg)', padding: 24, width: 348, minHeight: 120 }}>
+        <div key={t} data-theme={t} data-testid={`theme-${t}`} className={`${bg} min-h-[120px] w-[348px] p-6 text-fg`}>
           {children}
         </div>
       ))}
@@ -22,12 +24,14 @@ function Themed({ children, col = 'var(--panel)' }: { children: ReactNode; col?:
 }
 
 type Handlers = 'onOpen' | 'onArchive' | 'onUnarchive' | 'onWriteUp';
-type SheetProps = { id: string; col?: string } & Partial<Omit<SpecCardProps, 'spec' | 'all'>> & Partial<Pick<SpecCardProps, Handlers>>;
+type SheetProps = { id: string; col?: 'panel' | 'review-soft' | 'card'; patch?: Partial<Spec> } & Partial<Omit<SpecCardProps, 'spec' | 'all'>> &
+  Partial<Pick<SpecCardProps, Handlers>>;
 
-function CardSheet({ id, col, ...rest }: SheetProps) {
+/** One sample card (by ID, optionally patched) in both themes. */
+function CardSheet({ id, col, patch, ...rest }: SheetProps) {
   return (
     <Themed col={col}>
-      <SpecCard spec={recipeSpec(id)} all={allRecipeSpecs} onOpen={fn()} onArchive={fn()} onUnarchive={fn()} onWriteUp={fn()} {...rest} />
+      <SpecCard spec={{ ...recipeSpec(id), ...patch }} all={allRecipeSpecs} onOpen={fn()} onArchive={fn()} onUnarchive={fn()} onWriteUp={fn()} {...rest} />
     </Themed>
   );
 }
@@ -54,7 +58,7 @@ export const Hover: Story = {
   args: { id: 'T-106', forceHover: true },
   play: async ({ canvasElement }) => {
     const card = within(canvasElement).getAllByRole('button', { name: /^T-106 / })[0]!;
-    expect(card.style.background).toContain('var(--raise)');
+    expect(card.className).toMatch(/\bbg-raise\b/);
   },
 };
 
@@ -62,7 +66,7 @@ export const BeingDragged: Story = {
   args: { id: 'T-108', lifted: true },
   play: async ({ canvasElement }) => {
     const card = within(canvasElement).getAllByRole('button', { name: /^T-108 / })[0]!;
-    expect(card.style.transform).toBe('rotate(-1.8deg)');
+    expect(card.getAttribute('data-lifted')).toBe('true');
   },
 };
 
@@ -70,8 +74,10 @@ export const BlockedQuestions: Story = {
   args: { id: 'T-105' },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
-    await userEvent.hover(c.getAllByText('Blocked')[0]!);
-    expect(await c.findByText('3 open questions · Waiting on T-104 (doing)')).toBeTruthy();
+    await userEvent.click(c.getAllByRole('button', { name: 'Why is T-105 blocked?' })[0]!);
+    const pop = await within(document.body).findByRole('dialog', { name: 'Blocked' });
+    expect(pop.textContent).toContain('3 open questions · Waiting on T-104 (doing)');
+    await userEvent.keyboard('{Escape}');
   },
 };
 
@@ -92,7 +98,7 @@ export const Writing: Story = {
 };
 
 export const InReview: Story = {
-  args: { id: 'T-103', col: 'var(--review-soft)' },
+  args: { id: 'T-103', col: 'review-soft' },
   play: async ({ canvasElement }) => {
     expect(within(canvasElement).getAllByText('Waiting on your review')).toHaveLength(2);
   },
@@ -111,9 +117,16 @@ export const FileProblem: Story = {
   args: { id: 'T-109' },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
-    await userEvent.hover(c.getAllByText(/File problem/)[0]!);
-    expect(await c.findByText('The subtask on line 18 is missing its checkbox…')).toBeTruthy();
+    await userEvent.click(c.getAllByRole('button', { name: 'What is wrong with the T-109 file?' })[0]!);
+    const pop = await within(document.body).findByRole('dialog', { name: 'File problem' });
+    expect(pop.textContent).toContain('The subtask on line 18 is missing its checkbox…');
+    await userEvent.keyboard('{Escape}');
   },
+};
+
+/** More than two dependencies: counts instead of IDs (red while one is open). */
+export const ManyNeeds: Story = {
+  args: { id: 'T-108', patch: { dependsOn: ['T-101', 'T-102', 'T-106'] } },
 };
 
 export const Archived: Story = {
@@ -134,8 +147,8 @@ export const MenuOpen: Story = {
 
 function UrgencySheet() {
   return (
-    <Themed col="var(--card)">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <Themed col="card">
+      <div className="flex flex-col gap-3">
         {(['urgent', 'high', 'normal', 'low'] as const).map((u) => (
           <Urgency key={u} level={u} />
         ))}

@@ -5,6 +5,7 @@ status: done
 urgency: normal
 categories:
   - Infra
+milestone: Basics
 depends_on: []
 draft: false
 current_subtask: null

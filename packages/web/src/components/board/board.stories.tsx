@@ -1,7 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fireEvent, fn, waitFor, within } from 'storybook/test';
-import { Board } from './Board';
-import { recipeArchived, recipeSpecs } from '../fixtures/recipeBox';
+import { expect, fireEvent, fn, userEvent, waitFor, within } from 'storybook/test';
+import { Board } from './board';
+import { recipeArchived, recipeSpecs } from '@/fixtures/recipeBox';
+import { NO_FILTERS } from '@/state/filters';
+
+/** The sample's milestone list (examples/recipe-box/.specboard/config.md). */
+const SAMPLE_MILESTONES = ['Basics', 'Planning'];
 
 const meta = {
   title: 'Shell/Board',
@@ -48,6 +52,36 @@ export const ArchivedShown: Story = {
     const c = within(canvasElement);
     fireEvent.click(c.getByRole('button', { name: 'Show archived (1)' }));
     expect(c.getByRole('button', { name: /^T-100 / })).toBeTruthy();
+  },
+};
+
+/** The board on the Basics milestone: the archived scaffold (T-100, Basics) counts and shows. */
+export const MilestoneBasics: Story = {
+  args: { milestones: SAMPLE_MILESTONES, filters: { ...NO_FILTERS, milestone: 'Basics' } },
+  play: async ({ canvasElement }) => {
+    const done = within(within(canvasElement).getByRole('region', { name: 'Done' }));
+    expect(done.queryByText('Project scaffold')).toBeNull();
+    await userEvent.click(done.getByRole('button', { name: 'Show archived (1)' }));
+    expect(done.getByText('Project scaffold')).toBeTruthy();
+    expect(done.getByRole('button', { name: 'Hide archived (1)' })).toBeTruthy();
+  },
+};
+
+/** The board on the Planning milestone: no archived spec is in it, so the Done column has no toggle. */
+export const MilestonePlanning: Story = {
+  args: { milestones: SAMPLE_MILESTONES, filters: { ...NO_FILTERS, milestone: 'Planning' } },
+  play: async ({ canvasElement }) => {
+    const done = within(within(canvasElement).getByRole('region', { name: 'Done' }));
+    expect(done.queryByRole('button', { name: /archived/ })).toBeNull();
+  },
+};
+
+/** Blocked only hides unblocked live cards, but archived specs still count (a finished spec is never blocked). */
+export const BlockedOnly: Story = {
+  args: { milestones: SAMPLE_MILESTONES, filters: { ...NO_FILTERS, blocked: true } },
+  play: async ({ canvasElement }) => {
+    const done = within(within(canvasElement).getByRole('region', { name: 'Done' }));
+    expect(done.getByRole('button', { name: 'Show archived (1)' })).toBeTruthy();
   },
 };
 

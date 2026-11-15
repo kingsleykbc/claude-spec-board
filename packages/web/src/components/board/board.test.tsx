@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { Board, type BoardProps } from './Board';
-import { recipeArchived, recipeSpecs } from '../fixtures/recipeBox';
+import { composeStories } from '@storybook/react-vite';
+import * as stories from './board.stories';
+import { recipeSpecs } from '@/fixtures/recipeBox';
+
+const { Populated, MilestoneBasics, MilestonePlanning, BlockedOnly, EmptyProject } = composeStories(stories);
 
 // happy-dom has no layout: give each column a box side by side (300 px wide), and each card a box inside its column.
 const COLS = ['To-do', 'Doing', 'Review', 'Done'];
@@ -30,15 +33,17 @@ afterEach(async () => {
   await new Promise((r) => setTimeout(r, 60));
 });
 
-function setup(props: Partial<BoardProps> = {}) {
+type Props = Parameters<typeof Populated>[0];
+
+function setup(props: Props = {}, Story: typeof Populated = Populated) {
   const fns = { onMove: vi.fn(), onOpen: vi.fn(), onArchive: vi.fn(), onUnarchive: vi.fn(), onWriteUp: vi.fn(), onAdd: vi.fn() };
-  render(<Board specs={recipeSpecs} archived={recipeArchived} canDrag {...fns} {...props} />);
+  render(<Story {...fns} {...props} />);
   return fns;
 }
 const col = (label: string) => screen.getByRole('region', { name: label });
 const card = (id: string) => screen.getByRole('button', { name: new RegExp(`^${id} `) });
 
-/** Press on a card, move past the 4 px threshold, then over `x`, and release. */
+/** Press on an element, move past the 4 px threshold, then over `x`, and release. */
 function drag(el: HTMLElement, x: number, y = 300) {
   const opts = { isPrimary: true, button: 0, pointerId: 1, bubbles: true };
   act(() => {
@@ -52,6 +57,27 @@ function drag(el: HTMLElement, x: number, y = 300) {
   });
   act(() => {
     fireEvent.pointerUp(document, { ...opts, clientX: x, clientY: y });
+  });
+}
+
+/** Space, then each arrow key, then Space, on a focused card (dnd-kit's keyboard sensor). */
+async function keyboardDrag(el: HTMLElement, ...arrows: string[]) {
+  el.focus();
+  act(() => {
+    fireEvent.keyDown(el, { code: 'Space', key: ' ' });
+  });
+  // dnd-kit attaches its keydown listener on the next tick.
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 0));
+  });
+  expect(el.getAttribute('aria-pressed')).toBe('true');
+  for (const a of arrows) {
+    act(() => {
+      fireEvent.keyDown(el, { code: a, key: a });
+    });
+  }
+  act(() => {
+    fireEvent.keyDown(el, { code: 'Space', key: ' ' });
   });
 }
 
@@ -76,17 +102,39 @@ describe('Board', () => {
     expect(done.getByText('3')).toBeTruthy();
   });
 
+  it('on the Basics milestone, Show archived (1) shows "Project scaffold"', () => {
+    setup({}, MilestoneBasics);
+    const done = within(col('Done'));
+    expect(done.queryByText('Project scaffold')).toBeNull();
+    fireEvent.click(done.getByRole('button', { name: 'Show archived (1)' }));
+    expect(done.getByText('Project scaffold')).toBeTruthy();
+    expect(done.getByRole('button', { name: 'Hide archived (1)' })).toBeTruthy();
+  });
+
+  it('on the Planning milestone, no archived spec is in it, so there is no toggle', () => {
+    setup({}, MilestonePlanning);
+    expect(within(col('Done')).queryByRole('button', { name: /archived/ })).toBeNull();
+  });
+
+  it('Blocked only does not hide archived specs from the count', () => {
+    setup({}, BlockedOnly);
+    const done = within(col('Done'));
+    fireEvent.click(done.getByRole('button', { name: 'Show archived (1)' }));
+    expect(done.getByText('Project scaffold')).toBeTruthy();
+  });
+
   it('shows the per-column empty text', () => {
     setup({ specs: recipeSpecs.filter((s) => s.status === 'todo'), archived: [] });
     expect(within(col('Doing')).getByText('Nothing in progress')).toBeTruthy();
     expect(within(col('Review')).getByText('Nothing waiting on you')).toBeTruthy();
     expect(within(col('Done')).getByText('Nothing done yet')).toBeTruthy();
-    setup({ specs: [], archived: [] });
+    cleanup();
+    setup({}, EmptyProject);
     expect(screen.getAllByText('Nothing to do').length).toBeGreaterThan(0);
   });
 
   it('shows the empty board state when the project has no specs', () => {
-    const fns = setup({ specs: [], archived: [] });
+    const fns = setup({}, EmptyProject);
     expect(screen.getByText('No specs yet')).toBeTruthy();
     fireEvent.click(screen.getAllByRole('button', { name: 'Add new spec' })[0]!);
     expect(fns.onAdd).toHaveBeenCalled();
@@ -123,9 +171,12 @@ describe('Board', () => {
     // T-106 is urgent: it lands before T-103 (high).
     const t103 = within(review).getByRole('button', { name: /^T-103 / });
     expect(ph.compareDocumentPosition(t103) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(review.style.outlineStyle).toBe('dashed');
-    expect(review.style.outlineColor).toBe('var(--accent)');
-    expect(review.style.background).toBe('var(--accent-soft)');
+    // The column under the card: accent background and a dashed accent outline.
+    expect(review.getAttribute('data-over')).toBe('true');
+    expect(review.className).toMatch(/\boutline-dashed\b/);
+    expect(review.className).toMatch(/\boutline-accent\b/);
+    expect(review.className).toMatch(/\bbg-accent-soft\b/);
+    expect(col('Doing').getAttribute('data-over')).toBeNull();
     act(() => {
       fireEvent.pointerUp(document, { ...opts, clientX: 2 * 300 + 100, clientY: 300 });
     });
@@ -149,8 +200,9 @@ describe('Board', () => {
 
   it('flashes changed cards and opens on click', () => {
     const fns = setup({ changed: new Set(['T-105']) });
-    expect(card('T-105').style.background).toBe('var(--accent-soft)');
-    expect(card('T-106').style.background).toBe('');
+    expect(card('T-105').getAttribute('data-flash')).toBe('true');
+    expect(card('T-105').className).toMatch(/\bbg-accent-soft\b/);
+    expect(card('T-106').getAttribute('data-flash')).toBeNull();
     fireEvent.click(card('T-106'));
     expect(fns.onOpen).toHaveBeenCalledWith('T-106');
   });
@@ -185,5 +237,61 @@ describe('Board', () => {
     fireEvent.keyDown(card('T-104'), { code: 'Enter', key: 'Enter' });
     expect(fns.onOpen).toHaveBeenCalledWith('T-104');
     expect(fns.onMove).not.toHaveBeenCalled();
+  });
+});
+
+describe('Board: cards with indicators still drag and open (review focus 2)', () => {
+  it('T-105 (Blocked, an info popover): Space, ArrowRight, Space moves it To-do → Doing', async () => {
+    const fns = setup();
+    const c = card('T-105');
+    expect(within(c).getByRole('button', { name: 'Why is T-105 blocked?' })).toBeTruthy();
+    await keyboardDrag(c, 'ArrowRight');
+    expect(fns.onMove).toHaveBeenCalledTimes(1);
+    expect(fns.onMove.mock.calls[0]![0]).toMatchObject({ id: 'T-105', status: 'todo' });
+    expect(fns.onMove.mock.calls[0]![1]).toBe('doing');
+    expect(fns.onOpen).not.toHaveBeenCalled();
+  });
+
+  it('T-101 (the ⋯ button has a hint): Space, ArrowLeft, Space moves it Done → Review', async () => {
+    const fns = setup();
+    const c = card('T-101');
+    expect(within(c).getByRole('button', { name: 'Card actions' })).toBeTruthy();
+    await keyboardDrag(c, 'ArrowLeft');
+    expect(fns.onMove).toHaveBeenCalledTimes(1);
+    expect(fns.onMove.mock.calls[0]![1]).toBe('review');
+    expect(fns.onOpen).not.toHaveBeenCalled();
+  });
+
+  it('clicking a card with an indicator opens it; clicking the indicator does not', async () => {
+    const fns = setup();
+    const blocked = within(card('T-105')).getByRole('button', { name: 'Why is T-105 blocked?' });
+    fireEvent.click(blocked);
+    expect(fns.onOpen).not.toHaveBeenCalled();
+    expect(await screen.findByRole('dialog', { name: 'Blocked' })).toBeTruthy();
+    fireEvent.click(screen.getByText('3 open questions · Waiting on T-104 (doing)'));
+    expect(fns.onOpen).not.toHaveBeenCalled();
+    fireEvent.click(card('T-105'));
+    expect(fns.onOpen).toHaveBeenCalledWith('T-105');
+  });
+
+  it('pressing on the indicator and moving does not start a drag', () => {
+    const fns = setup();
+    drag(within(card('T-105')).getByRole('button', { name: 'Why is T-105 blocked?' }), 300 + 100);
+    expect(screen.queryByText('Drop to move to Doing')).toBeNull();
+    expect(fns.onMove).not.toHaveBeenCalled();
+  });
+
+  it('Space on the indicator does not pick the card up or open it', async () => {
+    const fns = setup();
+    const blocked = within(card('T-105')).getByRole('button', { name: 'Why is T-105 blocked?' });
+    blocked.focus();
+    act(() => {
+      fireEvent.keyDown(blocked, { code: 'Space', key: ' ' });
+    });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(card('T-105').getAttribute('aria-pressed')).not.toBe('true');
+    expect(fns.onOpen).not.toHaveBeenCalled();
   });
 });

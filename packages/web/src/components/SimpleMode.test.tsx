@@ -6,7 +6,8 @@ import { firstParagraph } from '../lib/vm';
 import { createMutator } from '../state/mutate';
 import { initialSimple, saveSimple, SIMPLE_KEY, SimpleMode } from '../state/simpleMode';
 import { CardDetail } from './detail/CardDetail';
-import { SpecCard } from './SpecCard';
+import { SpecCard } from './spec-card/spec-card';
+import { TooltipProvider } from './ui/tooltip/tooltip';
 
 afterEach(() => {
   cleanup();
@@ -14,11 +15,17 @@ afterEach(() => {
   localStorage.clear();
 });
 
-const simpleWrap = ({ children }: { children: ReactNode }) => <SimpleMode value>{children}</SimpleMode>;
+const simpleWrap = ({ children }: { children: ReactNode }) => (
+  <TooltipProvider>
+    <SimpleMode value>{children}</SimpleMode>
+  </TooltipProvider>
+);
+/** Cards carry tooltips (the ⋯ button, the dependency row); the app gives them a provider. */
+const fullWrap = ({ children }: { children: ReactNode }) => <TooltipProvider>{children}</TooltipProvider>;
 
 function card(id: string, simple: boolean) {
   const fns = { onOpen: vi.fn(), onArchive: vi.fn(), onUnarchive: vi.fn(), onWriteUp: vi.fn() };
-  render(<SpecCard spec={recipeSpec(id)} all={allRecipeSpecs} {...fns} />, simple ? { wrapper: simpleWrap } : {});
+  render(<SpecCard spec={recipeSpec(id)} all={allRecipeSpecs} {...fns} />, { wrapper: simple ? simpleWrap : fullWrap });
   return fns;
 }
 
