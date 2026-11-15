@@ -242,6 +242,15 @@ describe('SpecCard', () => {
   });
 });
 
+describe('SpecCard description', () => {
+  it('renders inline Markdown instead of showing the raw asterisks (T-103)', () => {
+    const { light } = setup(InReview);
+    const root = screen.getByTestId('theme-light');
+    expect(root.textContent).not.toContain('**');
+    expect(light.getByText('tags').tagName).toBe('STRONG');
+  });
+});
+
 describe('SpecCard in Simple mode', () => {
   it('full mode still shows everything (T-105)', () => {
     const { light } = setup(BlockedQuestions);

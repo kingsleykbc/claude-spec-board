@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { useSimple } from '@/state/simpleMode';
 import { CategoryTag } from '@/components/ui/category-tag/category-tag';
 import { Urgency } from '@/components/ui/urgency/urgency';
+import { InlineMarkdown } from '@/components/ui/inline-markdown/inline-markdown';
 import { Hint } from '@/components/ui/hint/hint';
 import { InfoPopover } from '@/components/ui/info-popover/info-popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip/tooltip';
@@ -311,7 +312,7 @@ export function SpecCard({
 
       <div className="flex flex-col gap-1">
         <div className="text-[14.5px] leading-[1.3] font-semibold text-pretty">{spec.title}</div>
-        <div className="line-clamp-2 text-[13px] leading-[1.45] text-fg2">{firstParagraph(spec.bodyMd)}</div>
+        <div className="line-clamp-2 text-[13px] leading-[1.45] text-fg2"><InlineMarkdown md={firstParagraph(spec.bodyMd)} /></div>
       </div>
 
       {!simple && (
