@@ -2,6 +2,7 @@ import path from 'node:path';
 import type { IncomingMessage } from 'node:http';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { shouldRewriteOrigin } from './src/lib/devProxy';
 
 const target = 'http://127.0.0.1:4949';
@@ -47,7 +48,8 @@ const toServer = (ws: boolean) => ({
 });
 
 export default defineConfig({
-  plugins: [react(), trackPort],
+  plugins: [react(), tailwindcss(), trackPort],
+  resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
   server: {
     proxy: {
       '/api': toServer(false),

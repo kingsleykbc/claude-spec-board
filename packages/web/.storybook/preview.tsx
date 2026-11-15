@@ -1,16 +1,9 @@
 import type { Preview } from '@storybook/react-vite';
 import { useEffect } from 'react';
-import '../src/styles/tokens.css';
-import '../src/styles/base.css';
+import '../src/styles/app.css';
+import { TooltipProvider } from '../src/components/ui/tooltip/tooltip';
 
-/** Fonts the app loads from index.html; Storybook needs them too. */
-const FONTS = 'https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap';
-if (typeof document !== 'undefined' && !document.querySelector(`link[href="${FONTS}"]`)) {
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = FONTS;
-  document.head.appendChild(link);
-}
+// Fonts come from preview-head.html (a <link> added here would be fetched by happy-dom in unit tests).
 
 const preview: Preview = {
   globalTypes: {
@@ -37,9 +30,11 @@ const preview: Preview = {
         document.documentElement.dataset.theme = theme;
       }, [theme]);
       return (
-        <div style={{ background: 'var(--bg)', color: 'var(--fg)', fontFamily: 'var(--sans)', minHeight: '100vh' }}>
-          <Story />
-        </div>
+        <TooltipProvider>
+          <div style={{ background: 'var(--bg)', color: 'var(--fg)', fontFamily: 'var(--sans)', minHeight: '100vh' }}>
+            <Story />
+          </div>
+        </TooltipProvider>
       );
     },
   ],

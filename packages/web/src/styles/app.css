@@ -1,0 +1,56 @@
+/*
+ * Tailwind entry. Order matters:
+ * 1. Tailwind (theme, preflight in the base layer, utilities).
+ * 2. tokens.css (copied from the design, never edited) in the base layer, after preflight, so its element
+ *    rules (links, buttons, focus ring) win over preflight but every utility still wins over them.
+ * 3. base.css: our own base rules, including the fixes that keep preflight from changing the look.
+ * CSS modules are unlayered, so they beat all of the above until they are migrated.
+ */
+@import 'tailwindcss';
+@import './tokens.css' layer(base);
+@import './base.css';
+
+/* The theme switch sets data-theme on <html>; `dark:` follows it instead of prefers-color-scheme. */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+/* Utilities named after the tokens: bg-card, text-fg2, border-line, bg-done-soft, ... */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-card: var(--card);
+  --color-raise: var(--raise);
+  --color-line: var(--line);
+  --color-line2: var(--line2);
+  --color-fg: var(--fg);
+  --color-fg2: var(--fg2);
+  --color-fg3: var(--fg3);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-doing: var(--doing);
+  --color-doing-soft: var(--doing-soft);
+  --color-doing-ink: var(--doing-ink);
+  --color-review: var(--review);
+  --color-review-soft: var(--review-soft);
+  --color-review-ink: var(--review-ink);
+  --color-done: var(--done);
+  --color-done-soft: var(--done-soft);
+  --color-done-ink: var(--done-ink);
+  --color-block: var(--block);
+  --color-block-soft: var(--block-soft);
+  --color-block-ink: var(--block-ink);
+  --color-scrim: var(--scrim);
+  --color-code: var(--code);
+
+  --font-sans: var(--sans);
+  --font-mono: var(--mono);
+
+  --shadow-lg: var(--shadow-lg);
+
+  /* The keyframes live in tokens.css. */
+  --animate-sb-pulse: sbPulse 1.6s ease-in-out infinite;
+  --animate-sb-spin: sbSpin 0.8s linear infinite;
+  --animate-sb-in: sbIn 0.25s ease-out;
+}

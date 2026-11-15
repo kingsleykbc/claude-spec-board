@@ -8,7 +8,8 @@
     "types": ["vite/client", "node"],
     "noEmit": true,
     "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "paths": { "@/*": ["./src/*"] }
   },
   "include": ["src", ".storybook", "vite.config.ts", "vitest.storybook.config.ts", "vitest.unit.config.ts", "vitest.config.ts"]
 }
