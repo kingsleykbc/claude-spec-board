@@ -11,6 +11,14 @@ export const EMPTY_TEXT: Record<Status, string> = {
   done: 'Nothing done yet',
 };
 
+/** Each status's icon colour (the same inks as `ST`). */
+const INK: Record<Status, string> = {
+  todo: 'text-fg2',
+  doing: 'text-doing-ink',
+  review: 'text-review-ink',
+  done: 'text-done-ink',
+};
+
 export interface ColumnProps {
   status: Status;
   /** Cards to show, in order. */
@@ -56,8 +64,7 @@ export function Column({ status, specs, placeholderAt, over, archivedCount = 0, 
       )}
     >
       <div className="flex min-h-[30px] items-center gap-2 px-1.5 pt-1 pb-1.5">
-        {/* The status colour is per status, from the shared table. */}
-        <span className="inline-flex w-3.5 justify-center text-[13px]" style={{ color: st.ink }}>
+        <span className={cn('inline-flex w-3.5 justify-center text-[13px]', INK[status])}>
           <st.icon aria-hidden />
         </span>
         <span className="text-[13px] font-semibold">{st.label}</span>

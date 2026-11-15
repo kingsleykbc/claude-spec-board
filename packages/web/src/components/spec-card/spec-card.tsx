@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DragEvent, HTMLAttributes, KeyboardEvent, MouseEvent, PointerEvent, ReactNode } from 'react';
 import type { Spec } from '@specboard/core';
 import { MoreIcon, NeededByIcon, NeedsIcon, PlayIcon, ReviewIcon, WarnIcon } from '@/lib/icons';
@@ -10,6 +9,7 @@ import { Urgency } from '@/components/ui/urgency/urgency';
 import { Hint } from '@/components/ui/hint/hint';
 import { InfoPopover } from '@/components/ui/info-popover/info-popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip/tooltip';
+import { ResponsiveMenu, ResponsiveMenuItem, ResponsiveMenuSeparator } from '@/components/ui/responsive-menu/responsive-menu';
 
 export interface SpecCardProps {
   spec: Spec;
@@ -82,7 +82,6 @@ function Pulse() {
 
 const badge = 'inline-flex items-center gap-1 rounded-[5px] px-[7px] py-0.5 text-[11px] font-semibold';
 const banner = 'flex items-center gap-[7px] rounded-[7px] px-2 py-1.5 text-xs font-medium';
-const menuItem = 'cursor-pointer rounded-[5px] border-0 bg-transparent px-2.5 py-[7px] text-left text-[13px] hover:bg-panel';
 
 export function SpecCard({
   spec,
@@ -103,33 +102,6 @@ export function SpecCard({
   dragProps,
 }: SpecCardProps) {
   const simple = useSimple();
-  const [menu, setMenu] = useState(false);
-  const ref = useRef<HTMLDivElement | null>(null);
-  const setRef = useCallback(
-    (el: HTMLDivElement | null) => {
-      ref.current = el;
-      dragRef?.(el);
-    },
-    [dragRef],
-  );
-
-  // Close the ⋯ menu on a press outside the card or on Escape.
-  useEffect(() => {
-    if (!menu) return;
-    const down = (e: globalThis.MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setMenu(false);
-    };
-    const key = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape') setMenu(false);
-    };
-    document.addEventListener('mousedown', down);
-    document.addEventListener('keydown', key);
-    return () => {
-      document.removeEventListener('mousedown', down);
-      document.removeEventListener('keydown', key);
-    };
-  }, [menu]);
-
   const { subtasks } = spec;
   const total = subtasks.length;
   const done = subtasks.filter((t) => t.done).length;
@@ -204,7 +176,7 @@ export function SpecCard({
   return (
     <div
       {...dragProps}
-      ref={setRef}
+      ref={dragRef}
       role="button"
       tabIndex={0}
       aria-label={`${spec.id} ${spec.title}`}
@@ -264,90 +236,75 @@ export function SpecCard({
           </CardInfo>
         )}
         {showMenu && (
-          <span className="relative">
-            <Hint label={menuLabel}>
-              <button
-                type="button"
-                className="relative inline-flex h-[22px] w-6 cursor-pointer items-center justify-center rounded-[5px] border-0 bg-transparent p-0 text-sm leading-none text-fg3 hover:bg-panel hover:text-fg"
-                aria-label={menuLabel}
-                aria-haspopup="menu"
-                aria-expanded={menu}
-                onClick={stop(() => setMenu((m) => !m))}
-              >
-                <MoreIcon aria-hidden />
-                {simple && attention && (
-                  <span className="absolute top-0.5 right-0.5 size-[7px] rounded-full bg-block shadow-[0_0_0_2px_var(--card)]" data-testid="card-attention" />
-                )}
-              </button>
-            </Hint>
-            {menu && (
-              <span
-                className={cn(
-                  'absolute top-[26px] right-0 z-[6] flex min-w-[150px] flex-col rounded-lg border border-line bg-card p-1 shadow-lg',
-                  simple && 'max-w-[300px] min-w-[250px] cursor-default',
-                )}
-                role="menu"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {simple && (
-                  <span className="flex flex-col gap-2 px-2 pt-1.5 pb-2" data-testid="card-details">
-                    {spec.blocked && (
-                      <Detail label="Blocked" ink="text-block-ink">
-                        {spec.blockedReasons.join(' · ')}
-                      </Detail>
-                    )}
-                    {fileProblem !== undefined && (
-                      <Detail label="File problem" ink="text-review-ink">
-                        {fileProblem}
-                      </Detail>
-                    )}
-                    {spec.status === 'review' && <Detail label="Status">Waiting on your review</Detail>}
-                    <Detail label="Urgency">
-                      <Urgency level={spec.urgency} />
-                    </Detail>
-                    {spec.categories.length > 0 && (
-                      <Detail label="Categories">
-                        {spec.categories.map((c) => (
-                          <CategoryTag key={c} name={c} />
-                        ))}
-                      </Detail>
-                    )}
-                    {needs.length > 0 && (
-                      <Detail label="Needs">
-                        {needs.map(depItem).map((d) => (
-                          <span key={d.id} className={cn('font-mono', d.className)}>
-                            {d.id}
-                          </span>
-                        ))}
-                      </Detail>
-                    )}
-                    {neededBy.length > 0 && (
-                      <Detail label="Needed by">
-                        {neededBy.map((id) => (
-                          <span key={id} className="font-mono">
-                            {id}
-                          </span>
-                        ))}
-                      </Detail>
-                    )}
-                  </span>
-                )}
-                {spec.status === 'done' && (
+          // A control of its own: pressing it (or anything in its portalled menu or drawer) never drags or opens the card.
+          <span {...{ [CONTROL]: '' }} className="inline-flex" onClick={(e) => e.stopPropagation()}>
+            <ResponsiveMenu
+              title={menuLabel}
+              align="end"
+              contentClassName={simple ? 'w-[min(300px,calc(100vw-16px))] min-w-[250px]' : 'min-w-[150px]'}
+              trigger={
+                <Hint label={menuLabel}>
                   <button
                     type="button"
-                    role="menuitem"
-                    className={cn(menuItem, simple && 'rounded-t-none border-t border-solid border-line')}
-                    onClick={stop(() => {
-                      setMenu(false);
-                      if (spec.archived) onUnarchive();
-                      else onArchive();
-                    })}
+                    className="relative inline-flex h-[22px] w-6 cursor-pointer items-center justify-center rounded-[5px] border-0 bg-transparent p-0 text-sm leading-none text-fg3 hover:bg-panel hover:text-fg data-[state=open]:bg-panel data-[state=open]:text-fg"
+                    aria-label={menuLabel}
                   >
-                    {spec.archived ? 'Unarchive' : 'Archive'}
+                    <MoreIcon aria-hidden />
+                    {simple && attention && (
+                      <span className="absolute top-0.5 right-0.5 size-[7px] rounded-full bg-block shadow-[0_0_0_2px_var(--card)]" data-testid="card-attention" />
+                    )}
                   </button>
-                )}
-              </span>
-            )}
+                </Hint>
+              }
+            >
+              {simple && (
+                <span className="flex flex-col gap-2 px-2 pt-1.5 pb-2" data-testid="card-details">
+                  {spec.blocked && (
+                    <Detail label="Blocked" ink="text-block-ink">
+                      {spec.blockedReasons.join(' · ')}
+                    </Detail>
+                  )}
+                  {fileProblem !== undefined && (
+                    <Detail label="File problem" ink="text-review-ink">
+                      {fileProblem}
+                    </Detail>
+                  )}
+                  {spec.status === 'review' && <Detail label="Status">Waiting on your review</Detail>}
+                  <Detail label="Urgency">
+                    <Urgency level={spec.urgency} />
+                  </Detail>
+                  {spec.categories.length > 0 && (
+                    <Detail label="Categories">
+                      {spec.categories.map((c) => (
+                        <CategoryTag key={c} name={c} />
+                      ))}
+                    </Detail>
+                  )}
+                  {needs.length > 0 && (
+                    <Detail label="Needs">
+                      {needs.map(depItem).map((d) => (
+                        <span key={d.id} className={cn('font-mono', d.className)}>
+                          {d.id}
+                        </span>
+                      ))}
+                    </Detail>
+                  )}
+                  {neededBy.length > 0 && (
+                    <Detail label="Needed by">
+                      {neededBy.map((id) => (
+                        <span key={id} className="font-mono">
+                          {id}
+                        </span>
+                      ))}
+                    </Detail>
+                  )}
+                </span>
+              )}
+              {simple && spec.status === 'done' && <ResponsiveMenuSeparator />}
+              {spec.status === 'done' && (
+                <ResponsiveMenuItem onSelect={spec.archived ? onUnarchive : onArchive}>{spec.archived ? 'Unarchive' : 'Archive'}</ResponsiveMenuItem>
+              )}
+            </ResponsiveMenu>
           </span>
         )}
       </div>

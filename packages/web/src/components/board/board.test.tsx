@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { composeStories } from '@storybook/react-vite';
 import * as stories from './board.stories';
 import { recipeSpecs } from '@/fixtures/recipeBox';
+import { NO_FILTERS } from '@/state/filters';
 
 const { Populated, MilestoneBasics, MilestonePlanning, BlockedOnly, EmptyProject } = composeStories(stories);
 
@@ -293,5 +294,20 @@ describe('Board: cards with indicators still drag and open (review focus 2)', ()
     });
     expect(card('T-105').getAttribute('aria-pressed')).not.toBe('true');
     expect(fns.onOpen).not.toHaveBeenCalled();
+  });
+});
+
+describe('Board: the archived toggle folds away when nothing archived matches', () => {
+  it('Basics, open archived, Planning (none), back to Basics: the archived cards are folded again', () => {
+    const fns = { onMove: vi.fn(), onOpen: vi.fn(), onArchive: vi.fn(), onUnarchive: vi.fn(), onWriteUp: vi.fn(), onAdd: vi.fn() };
+    const basics = { ...NO_FILTERS, milestone: 'Basics' };
+    const { rerender } = render(<MilestoneBasics {...fns} filters={basics} />);
+    fireEvent.click(within(col('Done')).getByRole('button', { name: 'Show archived (1)' }));
+    expect(within(col('Done')).getByText('Project scaffold')).toBeTruthy();
+    rerender(<MilestoneBasics {...fns} filters={{ ...NO_FILTERS, milestone: 'Planning' }} />);
+    expect(within(col('Done')).queryByRole('button', { name: /archived/ })).toBeNull();
+    rerender(<MilestoneBasics {...fns} filters={basics} />);
+    expect(within(col('Done')).getByRole('button', { name: 'Show archived (1)' })).toBeTruthy();
+    expect(within(col('Done')).queryByText('Project scaffold')).toBeNull();
   });
 });

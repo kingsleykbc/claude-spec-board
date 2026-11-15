@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
+import userEvent from '@testing-library/user-event';
 import { allRecipeSpecs, recipeArchived, recipeSpec, recipeSpecs } from '../fixtures/recipeBox';
 import { firstParagraph } from '../lib/vm';
 import { createMutator } from '../state/mutate';
@@ -63,7 +64,7 @@ describe('Simple mode: cards', () => {
     expect(screen.queryByRole('button', { name: 'More about T-105' })).toBeNull();
   });
 
-  it('shows the ID, title, the start of the description and progress; the rest is behind ⋯, with a dot for a blocked spec', () => {
+  it('shows the ID, title, the start of the description and progress; the rest is behind ⋯, with a dot for a blocked spec', async () => {
     const { onOpen } = card('T-105', true);
     expect(screen.getByText('Shopping list export')).toBeTruthy();
     expect(screen.queryByText('Blocked')).toBeNull();
@@ -74,7 +75,7 @@ describe('Simple mode: cards', () => {
     expect(screen.queryByRole('button', { name: 'View' })).toBeNull();
     expect(screen.getByTestId('card-attention')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'More about T-105' }));
+    await userEvent.click(screen.getByRole('button', { name: 'More about T-105' }));
     expect(onOpen).not.toHaveBeenCalled();
     const d = within(screen.getByTestId('card-details'));
     expect(d.getByText('Blocked')).toBeTruthy();
@@ -86,27 +87,27 @@ describe('Simple mode: cards', () => {
     expect(d.getByText('T-104')).toBeTruthy();
   });
 
-  it('no dot when nothing needs a look; a review card says so in the menu', () => {
+  it('no dot when nothing needs a look; a review card says so in the menu', async () => {
     card('T-103', true);
     expect(screen.queryByTestId('card-attention')).toBeNull();
     expect(screen.queryByText('Waiting on your review')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'More about T-103' }));
+    await userEvent.click(screen.getByRole('button', { name: 'More about T-103' }));
     expect(within(screen.getByTestId('card-details')).getByText('Waiting on your review')).toBeTruthy();
   });
 
-  it('a file problem moves into the menu too', () => {
+  it('a file problem moves into the menu too', async () => {
     card('T-109', true);
     expect(screen.queryByText(/File problem/)).toBeNull();
     expect(screen.getByTestId('card-attention')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'More about T-109' }));
+    await userEvent.click(screen.getByRole('button', { name: 'More about T-109' }));
     expect(within(screen.getByTestId('card-details')).getByText('File problem')).toBeTruthy();
   });
 
-  it('a done card keeps Archive in the same menu', () => {
+  it('a done card keeps Archive in the same menu', async () => {
     const { onArchive } = card('T-102', true);
-    fireEvent.click(screen.getByRole('button', { name: 'More about T-102' }));
+    await userEvent.click(screen.getByRole('button', { name: 'More about T-102' }));
     expect(screen.getByTestId('card-details')).toBeTruthy();
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Archive' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Archive' }));
     expect(onArchive).toHaveBeenCalled();
   });
 

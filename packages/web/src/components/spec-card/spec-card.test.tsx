@@ -4,8 +4,23 @@ import userEvent from '@testing-library/user-event';
 import { composeStories } from '@storybook/react-vite';
 import * as stories from './spec-card.stories';
 
-const { DefaultDone, Hover, BeingDragged, BlockedQuestions, Running, Writing, InReview, Draft, FileProblem, ManyNeeds, Archived, MenuOpen } =
-  composeStories(stories);
+const {
+  DefaultDone,
+  Hover,
+  BeingDragged,
+  BlockedQuestions,
+  Running,
+  Writing,
+  InReview,
+  Draft,
+  FileProblem,
+  ManyNeeds,
+  Archived,
+  MenuOpen,
+  MenuNarrow,
+  SimpleBlocked,
+  SimpleBlockedNarrow,
+} = composeStories(stories);
 
 afterEach(cleanup);
 
@@ -73,22 +88,67 @@ describe('SpecCard', () => {
     expect(light.getByText('3').className).toMatch(/\btext-block-ink\b/);
   });
 
-  it("a Done card's ⋯ menu offers Archive, which calls onArchive", () => {
+  it("a Done card's ⋯ menu offers Archive, which calls onArchive", async () => {
+    const user = userEvent.setup();
     const { light, onArchive, onOpen } = setup(MenuOpen);
-    expect(light.queryByText('Archive')).toBeNull();
-    fireEvent.click(light.getByRole('button', { name: 'Card actions' }));
-    fireEvent.click(light.getByText('Archive'));
+    expect(screen.queryByText('Archive')).toBeNull();
+    await user.click(light.getByRole('button', { name: 'Card actions' }));
+    expect(onOpen).not.toHaveBeenCalled();
+    await user.click(await screen.findByRole('menuitem', { name: 'Archive' }));
     expect(onArchive).toHaveBeenCalledTimes(1);
     expect(onOpen).not.toHaveBeenCalled();
-    expect(light.queryByText('Archive')).toBeNull();
+    await waitFor(() => expect(screen.queryByText('Archive')).toBeNull());
   });
 
-  it('an archived card is dimmed, labelled, and offers Unarchive', () => {
+  it('the ⋯ menu closes on Escape and on a click outside, without opening the card', async () => {
+    const user = userEvent.setup();
+    const { light, onOpen } = setup(MenuOpen);
+    const trigger = light.getByRole('button', { name: 'Card actions' });
+    await user.click(trigger);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('menuitem', { name: 'Archive' })).toBeNull());
+    await user.click(trigger);
+    expect(await screen.findByRole('menuitem', { name: 'Archive' })).toBeTruthy();
+    await user.click(document.body);
+    await waitFor(() => expect(screen.queryByRole('menuitem', { name: 'Archive' })).toBeNull());
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('narrow: the ⋯ menu opens as a bottom drawer, and Archive still works', async () => {
+    const user = userEvent.setup();
+    const { light, onArchive, onOpen } = setup(MenuNarrow);
+    await user.click(light.getByRole('button', { name: 'Card actions' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Card actions' });
+    expect(within(sheet).getByRole('menu', { name: 'Card actions' })).toBeTruthy();
+    await user.click(within(sheet).getByRole('menuitem', { name: 'Archive' }));
+    expect(onArchive).toHaveBeenCalledTimes(1);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('Simple mode: the ⋯ details sit in a dropdown on wide screens and a drawer on narrow ones', async () => {
+    const user = userEvent.setup();
+    let { light, onOpen } = setup(SimpleBlocked);
+    await user.click(light.getByRole('button', { name: 'More about T-105' }));
+    const menu = await screen.findByRole('menu', { name: 'More about T-105' });
+    expect(within(menu).getByTestId('card-details').textContent).toContain('3 open questions · Waiting on T-104 (doing)');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(onOpen).not.toHaveBeenCalled();
+    cleanup();
+    ({ light, onOpen } = setup(SimpleBlockedNarrow));
+    await user.click(light.getByRole('button', { name: 'More about T-105' }));
+    const sheet = await screen.findByRole('dialog', { name: 'More about T-105' });
+    expect(within(sheet).getByText('3 open questions · Waiting on T-104 (doing)')).toBeTruthy();
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('an archived card is dimmed, labelled, and offers Unarchive', async () => {
+    const user = userEvent.setup();
     const { light, onUnarchive, card } = setup(Archived);
     expect(light.getByText('· Archived')).toBeTruthy();
     expect(card.className).toMatch(/\bopacity-\[0\.62\]/);
-    fireEvent.click(light.getByRole('button', { name: 'Card actions' }));
-    fireEvent.click(light.getByText('Unarchive'));
+    await user.click(light.getByRole('button', { name: 'Card actions' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Unarchive' }));
     expect(onUnarchive).toHaveBeenCalledTimes(1);
   });
 
@@ -121,6 +181,9 @@ describe('SpecCard', () => {
     fireEvent.click(light.getByRole('button', { name: 'View' }));
     expect(onOpen).toHaveBeenCalledTimes(1);
     fireEvent.keyDown(light.getByRole('button', { name: 'Card actions' }), { key: 'Enter' });
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    // Nor does a click on the ⋯ trigger (a card control).
+    fireEvent.click(light.getByRole('button', { name: 'Card actions' }));
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 

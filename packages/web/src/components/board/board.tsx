@@ -126,6 +126,8 @@ export function Board(props: BoardProps) {
   const visible = filterSpecs(specs, filters, milestones);
   // The Done column's archived cards follow the board's filters (Blocked only aside), and so does their count.
   const archivedHere = archivedShown(archived, filters, milestones);
+  // Nothing archived under these filters: fold them away, so coming back to a milestone doesn't find them still open.
+  if (showArchived && archivedHere.length === 0) setShowArchived(false);
   const visibleArchived = showArchived ? archivedHere : [];
 
   const reset = () => {

@@ -6,6 +6,7 @@ import { SpecCard, type SpecCardProps } from './spec-card';
 import { Urgency } from '@/components/ui/urgency/urgency';
 import { allRecipeSpecs, recipeSpec } from '@/fixtures/recipeBox';
 import { SimpleMode } from '@/state/simpleMode';
+import { narrow } from '@/stories/narrow-screen';
 
 const THEMES = ['light', 'dark'] as const;
 
@@ -141,7 +142,22 @@ export const MenuOpen: Story = {
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     await userEvent.click(c.getAllByRole('button', { name: 'Card actions' })[0]!);
-    expect(await c.findByRole('menuitem', { name: 'Archive' })).toBeTruthy();
+    // The menu is portalled out of the card (a dropdown that stays on screen).
+    expect(await within(document.body).findByRole('menuitem', { name: 'Archive' })).toBeTruthy();
+    await userEvent.keyboard('{Escape}');
+  },
+};
+
+/** Narrow screen: the ⋯ menu of a Done card opens as a bottom drawer. */
+export const MenuNarrow: Story = {
+  args: { id: 'T-102' },
+  decorators: [narrow],
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    await userEvent.click(c.getAllByRole('button', { name: 'Card actions' })[0]!);
+    const sheet = await within(document.body).findByRole('dialog', { name: 'Card actions' });
+    expect(within(sheet).getByRole('menuitem', { name: 'Archive' })).toBeTruthy();
+    await userEvent.keyboard('{Escape}');
   },
 };
 
@@ -173,7 +189,22 @@ export const SimpleBlocked: Story = {
     const c = within(canvasElement.querySelector('[data-testid="theme-light"]')!);
     expect(c.queryByText('Blocked')).toBeNull();
     await userEvent.click(c.getByRole('button', { name: 'More about T-105' }));
-    expect(c.getByText('3 open questions · Waiting on T-104 (doing)')).toBeTruthy();
+    const menu = await within(document.body).findByRole('menu', { name: 'More about T-105' });
+    expect(within(menu).getByText('3 open questions · Waiting on T-104 (doing)')).toBeTruthy();
+    await userEvent.keyboard('{Escape}');
+  },
+};
+
+/** Simple mode on a narrow screen: the ⋯ details (long blocked reasons included) open in a bottom drawer. */
+export const SimpleBlockedNarrow: Story = {
+  args: { id: 'T-105' },
+  decorators: [(Story) => <SimpleMode value>{Story()}</SimpleMode>, narrow],
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement.querySelector('[data-testid="theme-light"]')!);
+    await userEvent.click(c.getByRole('button', { name: 'More about T-105' }));
+    const sheet = await within(document.body).findByRole('dialog', { name: 'More about T-105' });
+    expect(within(sheet).getByText('3 open questions · Waiting on T-104 (doing)')).toBeTruthy();
+    await userEvent.keyboard('{Escape}');
   },
 };
 

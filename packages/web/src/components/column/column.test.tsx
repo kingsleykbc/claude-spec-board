@@ -17,6 +17,16 @@ describe('Column', () => {
     expect(col.className).toMatch(/\bbg-panel\b/);
   });
 
+  it('each status icon takes its ink from a class, not an inline style', () => {
+    render(<ToDo />);
+    expect(screen.getByRole('region', { name: 'To-do' }).querySelector('svg')!.parentElement!.className).toMatch(/\btext-fg2\b/);
+    cleanup();
+    render(<Review />);
+    const icon = screen.getByRole('region', { name: 'Review' }).querySelector('svg')!.parentElement!;
+    expect(icon.className).toMatch(/\btext-review-ink\b/);
+    expect(icon.getAttribute('style')).toBeNull();
+  });
+
   it('Review says Needs you and has its own tint', () => {
     render(<Review />);
     const col = screen.getByRole('region', { name: 'Review' });
