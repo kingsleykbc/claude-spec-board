@@ -18760,6 +18760,7 @@ function specRoutes(registry) {
         if (hashText(specBodyMd(text2)) !== bodyHash) throw new BodyConflict(text2);
         const next = replaceSpecBody(text2, md);
         const { meta } = parseSpecMeta(splitFrontMatter(next).yaml);
+        if (next === text2) return text2;
         return needsRefreshFor(meta) ? setNeedsRefresh(next, today2()) : next;
       },
       hash
