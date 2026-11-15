@@ -6,6 +6,7 @@ import { createMutator } from '@/state/mutate';
 import { SimpleMode } from '@/state/simpleMode';
 import { CardDetail, type DetailClient } from './card-detail';
 import { RUN_LINES, RunPanel } from './run-panel/run-panel';
+import { narrow } from '@/stories/narrow-screen';
 
 const client = (over: Partial<DetailClient> = {}): DetailClient => ({
   setMeta: fn(async (_pid: string, id: string) => ({ hash: 'h2', spec: recipeSpec(id) })) as unknown as DetailClient['setMeta'],
@@ -209,5 +210,31 @@ export const ObsoleteLog: Story = {
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(within(canvasElement.ownerDocument.body).queryByRole('dialog', { name: 'Obsolete' })).toBeNull());
     expect(within(canvasElement.ownerDocument.body).getByRole('dialog', { name: 'Recipe list page' })).toBeTruthy();
+  },
+};
+
+/** 720px and under: the status menu is a bottom drawer over the detail; picking a status keeps the detail open. */
+export const NarrowStatus: Story = {
+  name: 'Narrow: status drawer',
+  decorators: [narrow],
+  play: async ({ canvasElement, args }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(body.getByRole('button', { name: 'Doing' }));
+    const sheet = await body.findByRole('dialog', { name: 'Status' });
+    await userEvent.click(within(sheet).getByRole('menuitemradio', { name: /Review/ }));
+    await waitFor(() => expect(body.queryByRole('dialog', { name: 'Status' })).toBeNull());
+    expect(args.onMove).toHaveBeenCalledWith(expect.objectContaining({ id: 'T-104' }), 'review');
+    expect(args.onClose).not.toHaveBeenCalled();
+    const dlg = body.getByRole('dialog', { name: 'Meal planner calendar' });
+    await waitFor(() => expect(dlg.contains(document.activeElement)).toBe(true));
+    // Esc closes only the drawer (after its slide-out), and focus goes back to the status button.
+    const btn = within(dlg).getByRole('button', { name: 'Doing' });
+    await userEvent.click(btn);
+    await body.findByRole('dialog', { name: 'Status' });
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(body.queryByRole('dialog', { name: 'Status' })).toBeNull(), { timeout: 2000 });
+    expect(args.onClose).not.toHaveBeenCalled();
+    expect(body.getByRole('dialog', { name: 'Meal planner calendar' })).toBe(dlg);
+    await waitFor(() => expect(document.activeElement).toBe(btn));
   },
 };

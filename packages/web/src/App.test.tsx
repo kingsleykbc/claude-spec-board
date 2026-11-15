@@ -261,6 +261,23 @@ it('?spec= opens the card detail; Esc closes it, clears ?spec= and returns focus
     expect(document.activeElement).toBe(screen.getByRole('button', { name: /^T-105 / }));
   });
 
+  it('Logs opened from the Overview returns focus to the header Logs button on close', async () => {
+    render(<App />);
+    await board();
+    const overviewBtn = screen.getByRole('button', { name: 'Overview' });
+    overviewBtn.focus();
+    fireEvent.click(overviewBtn);
+    const overview = await screen.findByRole('dialog', { name: /Overview/ });
+    const viewAll = within(overview).getByRole('button', { name: 'View all logs' });
+    viewAll.focus();
+    fireEvent.click(viewAll);
+    await screen.findByRole('dialog', { name: 'Logs' });
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(document.querySelector('[data-header="logs"]'));
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
   it('an open menu closes on Esc before the board does anything else', async () => {
     render(<App />);
     await board();

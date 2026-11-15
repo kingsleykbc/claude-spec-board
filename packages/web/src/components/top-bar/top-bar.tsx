@@ -131,12 +131,12 @@ export function TopBar({
         onOpenLogs &&
         (narrow ? (
           <Hint label="Logs">
-            <button type="button" className={cn(btn, 'w-8 justify-center px-0')} onClick={onOpenLogs}>
+            <button type="button" className={cn(btn, 'w-8 justify-center px-0')} onClick={onOpenLogs} data-header="logs">
               <LogIcon aria-hidden />
             </button>
           </Hint>
         ) : (
-          <button type="button" className={btn} onClick={onOpenLogs}>
+          <button type="button" className={btn} onClick={onOpenLogs} data-header="logs">
             <LogIcon aria-hidden />Logs
           </button>
         ))}

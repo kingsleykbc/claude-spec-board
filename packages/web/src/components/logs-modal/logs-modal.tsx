@@ -18,10 +18,12 @@ export interface LogsModalProps {
   onClose: () => void;
   /** For the "time ago" labels; defaults to the current time. */
   now?: Date;
+  /** Where focus goes on close if the element that opened it is gone (e.g. the Overview's "View all logs"). */
+  returnFocus?: () => HTMLElement | null;
 }
 
 /** Every subtask log entry of the project, newest first, with search: the time on the left, the entry on the right. */
-export function LogsModal({ project, onOpenSpec, onOpenOverview, onClose, now }: LogsModalProps) {
+export function LogsModal({ project, onOpenSpec, onOpenOverview, onClose, now, returnFocus }: LogsModalProps) {
   const [q, setQ] = useState('');
   const all = useMemo(() => allLogEntries(project), [project]);
   const items = useMemo(() => filterLogs(all, q), [all, q]);
@@ -40,7 +42,7 @@ export function LogsModal({ project, onOpenSpec, onOpenOverview, onClose, now }:
   const at = now ?? new Date();
   const query = q.trim();
   return (
-    <Modal label="Logs" width="min(760px, 100%)" onClose={onClose}>
+    <Modal label="Logs" width="min(760px, 100%)" onClose={onClose} {...(returnFocus ? { returnFocus } : {})}>
       <div className="flex items-center gap-2 pt-[18px] pr-5 pb-1.5 pl-7">
         <h1 className="m-0 text-[15px] font-semibold tracking-[0.06em]">Logs</h1>
         <span className="flex-1" />

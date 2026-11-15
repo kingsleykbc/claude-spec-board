@@ -11,7 +11,7 @@ import { interceptPop } from '@/lib/popGuard';
 import { datesLine, type DetailClient } from './card-detail';
 import * as stories from './card-detail.stories';
 
-const { ReadMode, ObsoleteLog, Simple } = composeStories(stories);
+const { ReadMode, ObsoleteLog, Simple, NarrowStatus } = composeStories(stories);
 
 const ROOT = 'examples/recipe-box';
 
@@ -582,6 +582,36 @@ describe('CardDetail', () => {
       expect(onClose).not.toHaveBeenCalled();
     });
 
+    it('a scrim click with the status menu open closes only the menu; the next one closes the dialog', async () => {
+      const user = userEvent.setup();
+      const onClose = vi.fn();
+      render(<ReadMode onClose={onClose} />);
+      const dlg = screen.getByRole('dialog', { name: 'Meal planner calendar' });
+      await user.click(within(dlg).getByRole('button', { name: 'Doing' }));
+      await screen.findByRole('menu', { name: 'Status' });
+      await user.click(dlg.parentElement!);
+      await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+      expect(onClose).not.toHaveBeenCalled();
+      expect(screen.getByRole('dialog', { name: 'Meal planner calendar' })).toBeTruthy();
+      await user.click(dlg.parentElement!);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('a scrim click with the obsolete popover open closes only the popover', async () => {
+      const user = userEvent.setup();
+      const onClose = vi.fn();
+      render(<ObsoleteLog onClose={onClose} />);
+      const row = document.querySelector<HTMLElement>('[data-subtask="2"]')!;
+      await user.click(within(row).getByRole('button', { name: /Log/ }));
+      await user.click(within(row).getByRole('button', { name: 'Obsolete' }));
+      await screen.findByRole('dialog', { name: 'Obsolete' });
+      const dlg = screen.getByRole('dialog', { name: 'Recipe list page' });
+      await user.click(dlg.parentElement!);
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Obsolete' })).toBeNull());
+      expect(onClose).not.toHaveBeenCalled();
+      expect(screen.getByRole('dialog', { name: 'Recipe list page' })).toBeTruthy();
+    });
+
     it('Esc closes the obsolete popover first, and only the next Esc closes the dialog', async () => {
       const user = userEvent.setup();
       const onClose = vi.fn();
@@ -597,6 +627,47 @@ describe('CardDetail', () => {
       expect(screen.getByRole('dialog', { name: 'Recipe list page' })).toBeTruthy();
       await user.keyboard('{Escape}');
       expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    describe('narrow (720px): the status menu is a drawer over the dialog', () => {
+      it('picking a status moves the spec, closes the drawer and keeps the dialog open, with focus inside it', async () => {
+        const user = userEvent.setup();
+        const onMove = vi.fn();
+        const onClose = vi.fn();
+        render(<NarrowStatus onMove={onMove} onClose={onClose} />);
+        const dlg = screen.getByRole('dialog', { name: 'Meal planner calendar' });
+        await user.click(within(dlg).getByRole('button', { name: 'Doing' }));
+        const sheet = await screen.findByRole('dialog', { name: 'Status' });
+        await user.click(within(sheet).getByRole('menuitemradio', { name: /Review/ }));
+        expect(onMove).toHaveBeenCalledWith(expect.objectContaining({ id: 'T-104' }), 'review');
+        await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Status' })).toBeNull());
+        expect(onClose).not.toHaveBeenCalled();
+        expect(screen.getByRole('dialog', { name: 'Meal planner calendar' })).toBe(dlg);
+        await waitFor(() => expect(dlg.contains(document.activeElement)).toBe(true));
+        // The page is usable again: nothing left hidden from assistive tech or blocked by the drawer.
+        expect(dlg.closest('[aria-hidden="true"]')).toBeNull();
+      });
+
+      it('Esc closes only the drawer, focus goes back to the status button, and the next Esc closes the dialog', async () => {
+        const user = userEvent.setup();
+        const onClose = vi.fn();
+        render(<NarrowStatus onClose={onClose} />);
+        const dlg = screen.getByRole('dialog', { name: 'Meal planner calendar' });
+        const btn = within(dlg).getByRole('button', { name: 'Doing' });
+        await user.click(btn);
+        await screen.findByRole('dialog', { name: 'Status' });
+        await user.keyboard('{Escape}');
+        const sheet = screen.getByRole('dialog', { name: 'Status' });
+        expect(sheet.getAttribute('data-state')).toBe('closed');
+        // happy-dom runs no CSS animations: end vaul's slide-out so Radix unmounts the drawer, as a browser would.
+        fireEvent.animationEnd(sheet, { animationName: getComputedStyle(sheet).animationName });
+        await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Status' })).toBeNull());
+        expect(onClose).not.toHaveBeenCalled();
+        expect(screen.getByRole('dialog', { name: 'Meal planner calendar' })).toBe(dlg);
+        await waitFor(() => expect(document.activeElement).toBe(btn));
+        await user.keyboard('{Escape}');
+        expect(onClose).toHaveBeenCalledTimes(1);
+      });
     });
 
     it('Simple mode: Esc closes the ⋯ popover without opening its tooltip, so the next Esc closes the dialog', async () => {

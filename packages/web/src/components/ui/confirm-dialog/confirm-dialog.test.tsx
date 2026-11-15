@@ -52,6 +52,26 @@ describe('ConfirmDialog', () => {
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
+  it('a scrim press while a menu is open closes only the menu (Radix does), not the dialog', () => {
+    const onDismiss = vi.fn();
+    render(<Default onDismiss={onDismiss} />);
+    const scrim = screen.getByRole('alertdialog').parentElement!;
+    // Stands in for an open Radix menu: its popper wrapper holding role=menu, gone once the press closed it.
+    const layer = document.createElement('div');
+    layer.setAttribute('data-radix-popper-content-wrapper', '');
+    layer.innerHTML = '<div role="menu"></div>';
+    document.body.append(layer);
+    fireEvent.pointerDown(scrim);
+    layer.remove();
+    fireEvent.mouseDown(scrim);
+    fireEvent.click(scrim);
+    expect(onDismiss).not.toHaveBeenCalled();
+    fireEvent.pointerDown(scrim);
+    fireEvent.mouseDown(scrim);
+    fireEvent.click(scrim);
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
   it('shows the path in a mono box and marks the primary action', () => {
     render(<WithPath />);
     const dlg = screen.getByRole('alertdialog', { name: 'This spec changed outside the board' });

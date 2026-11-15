@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useState, type ReactNode } from 'react';
 import type { Decorator } from '@storybook/react-vite';
 
 /** Answers a `(max-width: Npx)` media query as a window `width` pixels wide would; any other query is false. */
@@ -7,10 +7,15 @@ function fakeMatch(width: number, query: string): boolean {
   return max ? width <= Number(max[1]) : false;
 }
 
-/** Pretends the window is `width` pixels wide (720 by default, so `useNarrow()` is true) while the story is shown. */
+/**
+ * Pretends the window is `width` pixels wide (720 by default, so `useNarrow()` is true) while the story is shown.
+ * The swap happens in a layout effect, not during render, and the effect's cleanup always puts the real
+ * matchMedia back. The story renders only after the swap (still before paint), so it never sees the wide answer.
+ */
 export function NarrowScreen({ children, width = 720 }: { children: ReactNode; width?: number }) {
-  const [real] = useState(() => {
-    const original = window.matchMedia;
+  const [ready, setReady] = useState(false);
+  useLayoutEffect(() => {
+    const real = window.matchMedia;
     window.matchMedia = ((query: string) => ({
       matches: fakeMatch(width, query),
       media: query,
@@ -21,10 +26,12 @@ export function NarrowScreen({ children, width = 720 }: { children: ReactNode; w
       removeListener: () => undefined,
       dispatchEvent: () => false,
     })) as typeof window.matchMedia;
-    return original;
-  });
-  useEffect(() => () => void (window.matchMedia = real), [real]);
-  return children;
+    setReady(true);
+    return () => {
+      window.matchMedia = real;
+    };
+  }, [width]);
+  return ready ? children : null;
 }
 
 /** Story decorator: render the story as on a narrow screen (720px). */

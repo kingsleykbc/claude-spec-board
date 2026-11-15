@@ -3,6 +3,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Dialog } from '@/components/ui/dialog/dialog';
 import { ESC, runEscape, useEscape } from '@/lib/escape';
 import { useFocusTrap } from '@/lib/focusTrap';
+import { layerOpen } from '@/lib/openLayer';
 
 export interface ModalProps {
   /** Accessible name of the dialog. */
@@ -26,7 +27,8 @@ const prevent = (e: Event) => e.preventDefault();
  * Radix is the layer underneath, so menus, popovers and tooltips opened inside sit above it and Esc
  * closes them first. Closing the modal itself stays with the board: Esc goes through the `lib/escape`
  * stack (an editor's discard guard or a confirm dialog above the modal answers first), and the scrim
- * closes only on a press that both starts and ends on it. Radix treats the dialog as non-modal, so the
+ * closes only on a press that both starts and ends on it, and not on a press that only closes an open
+ * menu, popover or drawer. Radix treats the dialog as non-modal, so the
  * toasts stay clickable; `aria-modal` and the focus trap keep it modal for people.
  */
 export function Modal({ label, width, height = 'min(900px, calc(100vh - 64px))', onClose, returnFocus, children }: ModalProps) {
@@ -35,9 +37,16 @@ export function Modal({ label, width, height = 'min(900px, calc(100vh - 64px))',
   const onKeyDown = useFocusTrap(box, returnFocus ? { returnFocus } : {});
   // Close only for a press that both started and ended on the scrim, so a text selection
   // dragged out of the box does not close it (Ruling 17).
+  // A press while a menu, popover or drawer is open only closes that layer (as on main): note it in the
+  // capture phase, before Radix's outside-press listener on the document has closed it.
   const pressedScrim = useRef(false);
+  const layerAtPress = useRef(false);
+  const onPress = () => {
+    layerAtPress.current = layerOpen();
+  };
   const onDown = (e: MouseEvent<HTMLDivElement>) => {
-    pressedScrim.current = e.target === e.currentTarget;
+    pressedScrim.current = e.target === e.currentTarget && !layerAtPress.current;
+    layerAtPress.current = false;
   };
   const onScrim = (e: MouseEvent<HTMLDivElement>) => {
     const ok = pressedScrim.current && e.target === e.currentTarget;
@@ -48,6 +57,7 @@ export function Modal({ label, width, height = 'min(900px, calc(100vh - 64px))',
     <Dialog open modal={false}>
       <div
         className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-8 [@media(max-width:640px)]:p-0"
+        onPointerDownCapture={onPress}
         onMouseDown={onDown}
         onClick={onScrim}
       >

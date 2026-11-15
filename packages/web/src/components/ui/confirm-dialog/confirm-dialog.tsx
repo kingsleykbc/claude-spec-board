@@ -4,6 +4,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Dialog } from '@/components/ui/dialog/dialog';
 import { ESC, runEscape, useEscape } from '@/lib/escape';
 import { useFocusTrap } from '@/lib/focusTrap';
+import { layerOpen } from '@/lib/openLayer';
 import { cn } from '@/lib/utils';
 import { FileLink } from '@/state/fileLinks';
 
@@ -36,10 +37,16 @@ export function ConfirmDialog({ title, body, path, actions, onDismiss }: Confirm
   const onKeyDown = useFocusTrap(box, { initial: 'first' });
   // As in Modal: only a press that started and ended on the scrim dismisses. React passes events from
   // the portal up to a modal underneath, so they stop here.
+  // Also as in Modal: a press while a menu, popover or drawer is open only closes that layer.
   const pressedScrim = useRef(false);
+  const layerAtPress = useRef(false);
+  const onPress = () => {
+    layerAtPress.current = layerOpen();
+  };
   const onDown = (e: MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    pressedScrim.current = e.target === e.currentTarget;
+    pressedScrim.current = e.target === e.currentTarget && !layerAtPress.current;
+    layerAtPress.current = false;
   };
   const onScrim = (e: MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -51,6 +58,7 @@ export function ConfirmDialog({ title, body, path, actions, onDismiss }: Confirm
     <Dialog open modal={false}>
       <div
         className="fixed inset-0 z-[70] flex items-center justify-center bg-scrim p-8 [@media(max-width:640px)]:p-0"
+        onPointerDownCapture={onPress}
         onMouseDown={onDown}
         onClick={onScrim}
       >

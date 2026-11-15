@@ -196,6 +196,8 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
   const [modal, setModal] = useState<'refs' | 'overview' | 'logs' | 'settings' | 'add' | null>(null);
   /** Where focus goes when a modal opened from the logo menu closes: the menu's item is gone by then, so the logo button. */
   const logoButton = () => document.querySelector<HTMLElement>('[data-tour="brand"]');
+  /** The header's Logs button, for Logs opened from the Overview (whose "View all logs" is gone by then). */
+  const logsButton = () => document.querySelector<HTMLElement>('[data-header="logs"]') ?? logoButton();
 
   const mutate = useMemo(() => createMutator(() => Promise.reject(new Error('No default op')), applyWrite), [applyWrite]);
   const down = conn === 'disconnected';
@@ -443,6 +445,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
               }}
               onOpenOverview={() => setModal('overview')}
               onClose={closeModal}
+              returnFocus={logsButton}
             />
           )}
           {modal === 'settings' && <SettingsModal pid={pid} trackTokens={project.settings.trackTokens} toast={toast} onClose={closeModal} returnFocus={logoButton} />}
