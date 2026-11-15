@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, userEvent, within } from 'storybook/test';
 import { ToggleGroup, ToggleGroupItem } from './toggle-group';
 
 const meta = { title: 'UI/ToggleGroup', component: ToggleGroup } satisfies Meta<typeof ToggleGroup>;
@@ -16,4 +17,12 @@ export const Default: Story = {
       </ToggleGroup>
     </div>
   ),
+  // Real styles (browser run only): Tab onto the selected item shows the focus ring.
+  play: async ({ canvasElement }) => {
+    const board = within(canvasElement).getByRole('radio', { name: 'Board' });
+    (document.activeElement as HTMLElement | null)?.blur();
+    await userEvent.tab();
+    await expect(document.activeElement).toBe(board);
+    await expect(getComputedStyle(board).outlineStyle).not.toBe('none');
+  },
 };

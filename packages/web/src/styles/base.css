@@ -9,7 +9,10 @@
   a { text-decoration: revert; }
   img, svg, video, canvas, audio, iframe, embed, object { display: revert; vertical-align: revert; }
   ::placeholder { color: revert; opacity: revert; }
-  /* Flex rows let some buttons shrink to their content, which counted the browser's padding. */
+  /*
+   * Flex rows let some buttons shrink to their content, which counted the browser's padding.
+   * While this rule exists, every new <button> (and input/select/textarea) must set its own padding (p-0 if none).
+   */
   :where(button, input, select, textarea) { padding: revert; }
 
   /* react-icons draw a 1em <svg>: keep it from shrinking in flex rows and sit it on the text's middle. */

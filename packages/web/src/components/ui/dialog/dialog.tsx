@@ -46,7 +46,7 @@ function DialogContent({
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="absolute top-4 right-4 inline-flex size-7 cursor-pointer items-center justify-center rounded-md text-fg3 hover:bg-panel hover:text-fg"
+            className="absolute top-4 right-4 inline-flex size-7 cursor-pointer p-0 items-center justify-center rounded-md text-fg3 hover:bg-panel hover:text-fg"
           >
             <LuX className="size-4" aria-hidden="true" />
             <span className="sr-only">Close</span>

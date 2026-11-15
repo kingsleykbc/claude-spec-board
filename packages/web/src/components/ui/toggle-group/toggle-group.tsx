@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
  */
 
 const toggleVariants = cva(
-  "inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md text-[13px] font-medium whitespace-nowrap text-fg2 transition-colors outline-none hover:text-fg disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-card data-[state=on]:text-fg data-[state=on]:shadow-sm [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md text-[13px] font-medium whitespace-nowrap text-fg2 transition-colors hover:text-fg disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-card data-[state=on]:text-fg data-[state=on]:shadow-sm [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -18,9 +18,9 @@ const toggleVariants = cva(
         outline: 'border border-line bg-transparent',
       },
       size: {
-        default: 'h-7 min-w-7 px-2.5',
-        sm: 'h-6 min-w-6 px-2',
-        lg: 'h-8 min-w-8 px-3',
+        default: 'h-7 min-w-7 px-2.5 py-0',
+        sm: 'h-6 min-w-6 px-2 py-0',
+        lg: 'h-8 min-w-8 px-3 py-0',
       },
     },
     defaultVariants: { variant: 'default', size: 'default' },
