@@ -11688,7 +11688,8 @@ function defaultMeta() {
     milestone: null,
     currentSubtask: null,
     created: null,
-    updated: null
+    updated: null,
+    needsRefresh: null
   };
 }
 function stringList(value) {
@@ -11739,6 +11740,8 @@ function parseSpecMeta(yaml) {
   }
   meta.created = optionalString(o.created);
   meta.updated = optionalString(o.updated);
+  const nr = optionalString(o.needs_refresh);
+  meta.needsRefresh = nr !== null && /^\d{4}-\d{2}-\d{2}$/.test(nr) ? nr : null;
   return { meta, problems };
 }
 
@@ -11937,6 +11940,31 @@ function setTopLevelKey(text2, key, value) {
   while (end - 1 > start2 && /^(#.*|[ \t]*)$/.test(lines[end - 1])) end--;
   spliceLines(ls, start2, end - start2, entry, fallback);
   return fromLines(ls);
+}
+function removeTopLevelKey(text2, key) {
+  const { yaml, closingLine } = splitFrontMatter(text2);
+  if (yaml === null || closingLine === null) throw new Error("No front matter");
+  const ls = toLines(text2);
+  const lines = textsOf(ls);
+  for (let i = 1; i < closingLine; i++) {
+    const m = TOP_KEY.exec(lines[i]);
+    if (m && m[1] === key) {
+      let end = i + 1;
+      while (end < closingLine && !TOP_KEY.test(lines[end])) end++;
+      while (end - 1 > i && /^(#.*|[ \t]*)$/.test(lines[end - 1])) end--;
+      spliceLines(ls, i, end - i, [], detectEol(text2));
+      return fromLines(ls);
+    }
+  }
+  return text2;
+}
+function setNeedsRefresh(text2, date) {
+  if (date === null) return removeTopLevelKey(text2, "needs_refresh");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Invalid value for needs_refresh");
+  return setTopLevelKey(text2, "needs_refresh", date);
+}
+function needsRefreshFor(spec) {
+  return !spec.draft && (spec.status === "todo" || spec.status === "doing");
 }
 function setMetaField(text2, key, value) {
   if (!Object.hasOwn(VALIDATORS, key)) throw new Error(`Invalid key ${String(key)}`);
@@ -18730,7 +18758,9 @@ function specRoutes(registry) {
       c,
       (text2) => {
         if (hashText(specBodyMd(text2)) !== bodyHash) throw new BodyConflict(text2);
-        return replaceSpecBody(text2, md);
+        const next = replaceSpecBody(text2, md);
+        const { meta } = parseSpecMeta(splitFrontMatter(next).yaml);
+        return needsRefreshFor(meta) ? setNeedsRefresh(next, today2()) : next;
       },
       hash
     );
