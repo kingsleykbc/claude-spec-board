@@ -76,9 +76,9 @@
 
 Files are named `<screen>-<width>-<theme>.png`.
 
-- [ ] Step 1: Write the script, using the existing server CLI (`packages/server` start command with `--port`) and `npm run build -w @specboard/web` first.
-- [ ] Step 2: Run it into `<sdd workspace>/screens/before`. Expected: 24 PNGs; open two to check they show the sample board.
-- [ ] Step 3: Commit `web: screenshot script for visual checks`.
+- [x] Step 1: Write the script, using the existing server CLI (`packages/server` start command with `--port`) and `npm run build -w @specboard/web` first.
+- [x] Step 2: Run it into `<sdd workspace>/screens/before`. Expected: 24 PNGs; open two to check they show the sample board.
+- [x] Step 3: Commit `web: screenshot script for visual checks`.
 
 ### Task 2: Foundation — Tailwind, shadcn primitives, alias, story-based tests
 
@@ -102,14 +102,14 @@ Files are named `<screen>-<width>-<theme>.png`.
 - `src/test/setup.ts` calls `setProjectAnnotations([previewAnnotations])` from `@storybook/react-vite`. It also stubs what Radix/vaul need in happy-dom: `ResizeObserver`, `matchMedia` if missing, `scrollIntoView`, and pointer capture methods.
 - Add `@testing-library/user-event` (exact version) for menu interaction tests.
 
-- [ ] Step 1: Install exact-pinned deps:
+- [x] Step 1: Install exact-pinned deps:
   - `tailwindcss`, `@tailwindcss/vite`
   - `clsx`, `tailwind-merge`, `class-variance-authority`
   - `@radix-ui/react-dropdown-menu`, `@radix-ui/react-dialog`, `@radix-ui/react-popover`, `@radix-ui/react-tooltip`, `@radix-ui/react-switch`, `@radix-ui/react-toggle-group`
   - `vaul`, `@testing-library/user-event`
 
   Generate the primitives with the shadcn CLI or copy them from the shadcn source. Move each into its own folder.
-- [ ] Step 2: Write failing tests for each primitive's story:
+- [x] Step 2: Write failing tests for each primitive's story:
   - dropdown-menu: opens on Enter, shows items, and a submenu item opens its submenu.
   - dialog: opens, then Escape closes it.
   - drawer: opens and shows content.
@@ -119,10 +119,10 @@ Files are named `<screen>-<width>-<theme>.png`.
   - toggle-group: selecting an item sets `data-state="on"`.
 
   Run `npm test -w @specboard/web`. Expected: FAIL (modules missing).
-- [ ] Step 3: Implement the setup. `app.css` imports Tailwind with preflight, then `tokens.css`, then `@theme inline` mappings. Keep `base.css` rules that preflight doesn't cover, moved into `@layer base`. `main.tsx` imports `app.css`, and the existing CSS modules keep working beside it.
-- [ ] Step 4: Run `npm test -w @specboard/web`, `npm run test:stories -w @specboard/web` and `npx tsc -p packages/web`. Expected: all green, and the existing test count unchanged plus the new tests.
-- [ ] Step 5: Run `screens.mjs` into `screens/after-task2` and compare by eye with `before`. Preflight must cause no visible drift; fix any in `@layer base`.
-- [ ] Step 6: Commit `web: tailwind, shadcn primitives and story-based test setup`.
+- [x] Step 3: Implement the setup. `app.css` imports Tailwind with preflight, then `tokens.css`, then `@theme inline` mappings. Keep `base.css` rules that preflight doesn't cover, moved into `@layer base`. `main.tsx` imports `app.css`, and the existing CSS modules keep working beside it.
+- [x] Step 4: Run `npm test -w @specboard/web`, `npm run test:stories -w @specboard/web` and `npx tsc -p packages/web`. Expected: all green, and the existing test count unchanged plus the new tests.
+- [x] Step 5: Run `screens.mjs` into `screens/after-task2` and compare by eye with `before`. Preflight must cause no visible drift; fix any in `@layer base`.
+- [x] Step 6: Commit `web: tailwind, shadcn primitives and story-based test setup`.
 
 ### Task 3: Shared UI pieces
 
@@ -146,7 +146,7 @@ Files are named `<screen>-<width>-<theme>.png`.
   - In the drawer, Sub renders as a labelled group instead of a flyout.
   - Selecting an item closes the menu or drawer.
 
-- [ ] Step 1: Move each component's existing tests into story-based tests in its folder, keeping every assertion. Add tests:
+- [x] Step 1: Move each component's existing tests into story-based tests in its folder, keeping every assertion. Add tests:
   - Hint: the label is shown on focus, and `aria-label` is set.
   - InfoPopover: a click opens it, the title is shown, Escape closes it.
   - ResponsiveMenu wide: a dropdown opens, an item calls `onSelect` and the menu closes.
@@ -154,8 +154,8 @@ Files are named `<screen>-<width>-<theme>.png`.
   - Modal: Escape closes it; with a dirty discard guard, Escape asks first.
   
   Run them. Expected: FAIL.
-- [ ] Step 2: Implement, then run web tests, stories and tsc. Expected: green.
-- [ ] Step 3: Tick the checklist lines and commit `web: shared ui pieces in tailwind`.
+- [x] Step 2: Implement, then run web tests, stories and tsc. Expected: green.
+- [x] Step 3: Tick the checklist lines and commit `web: shared ui pieces in tailwind`.
 
 ### Task 4: Header — top bar, project switcher, not-connected icon, logo, theme
 
@@ -193,7 +193,7 @@ Logo menu (a `ResponsiveMenu`), in order:
 
 **Footer:** content centred; the Add spec button is unaffected.
 
-- [ ] Step 1: Rewrite the moved tests as story-based tests and update them for the new layout. Add these tests:
+- [x] Step 1: Rewrite the moved tests as story-based tests and update them for the new layout. Add these tests:
   - No "Manual" or "non-agentic" text anywhere in the header.
   - The not-connected button opens a popover with the exact title.
   - In Simple mode, Logs is still in the header and is the last button, while References and Overview are in the menu.
@@ -207,8 +207,8 @@ Logo menu (a `ResponsiveMenu`), in order:
   - The footer is centred (its container has the centring class) and the GitHub link is present.
 
   Run them. Expected: FAIL.
-- [ ] Step 2: Implement. Update `lib/tour.ts` steps whose targets moved (the Simple mode step now targets the header switch).
-- [ ] Step 3: Run web tests, stories and tsc. Expected: green. Tick the checklist and commit `web: header in tailwind (logo, not-connected icon, theme submenu, logs placement)`.
+- [x] Step 2: Implement. Update `lib/tour.ts` steps whose targets moved (the Simple mode step now targets the header switch).
+- [x] Step 3: Run web tests, stories and tsc. Expected: green. Tick the checklist and commit `web: header in tailwind (logo, not-connected icon, theme submenu, logs placement)`.
 
 ### Task 5: Filter bar — icon toggle, milestone picker, mobile filters drawer
 
@@ -220,14 +220,14 @@ Logo menu (a `ResponsiveMenu`), in order:
 - **Wide screens:** the Category and Urgency dropdowns become `ResponsiveMenu`s with checkbox items, and the Blocked only toggle becomes a `Switch`.
 - **Narrow screens:** Category, Urgency and Blocked only are replaced by one "Filters" button that opens a bottom drawer containing all three. The button shows a badge with the number of active filters, and the drawer has a "Clear filters" action. The view switch and milestone picker stay visible.
 
-- [ ] Step 1: Write story-based tests, keeping every existing FilterBar assertion:
+- [x] Step 1: Write story-based tests, keeping every existing FilterBar assertion:
   - Board/Table items have names "Board view" and "Table view" and switch the view.
   - The milestone trigger shows `Basics · 2/3` in bold text and is not an `input` or `select`.
   - At narrow width (720), there is a "Filters" button with badge `1` when one category is chosen. It opens a drawer containing the Category, Urgency and Blocked only controls.
   - At 721, the controls are inline and Category opens as a menu, not a drawer.
   
   Run them. Expected: FAIL.
-- [ ] Step 2: Implement. Then run web tests, stories and tsc. Expected: green. Tick the checklist and commit `web: filter bar in tailwind (icon view switch, milestone picker, mobile filters drawer)`.
+- [x] Step 2: Implement. Then run web tests, stories and tsc. Expected: green. Tick the checklist and commit `web: filter bar in tailwind (icon view switch, milestone picker, mobile filters drawer)`.
 
 ### Task 6: Board, columns, cards, archive fix, bottom spacing
 
@@ -243,14 +243,14 @@ Logo menu (a `ResponsiveMenu`), in order:
 - The empty band below the columns (above the horizontal scrollbar) shrinks: the board's bottom padding goes to 8px (`pb-2`) and the columns stretch to fill the height.
 - Icon-only indicators on cards (blocked, waiting, questions) get a `Hint`, or an `InfoPopover` when they carry a reason.
 
-- [ ] Step 1: Write the tests:
+- [x] Step 1: Write the tests:
   - `archivedShown`: with milestone Basics, T-100 (now Basics) is included; with milestone Planning it isn't; Blocked only doesn't hide archived specs.
   - Board story with the sample + milestone Planning: no archived toggle.
   - Board story with milestone Basics: "Show archived (1)", and clicking it shows "Project scaffold".
   - Review Focus 2: a drag via dnd-kit's keyboard sensor (Space, ArrowRight, Space) on a card with an icon Hint still moves it (`onMove` called). Clicking the card still opens it.
   
   Keep all existing Board, SpecCard and Column assertions as story-based tests. Run them. Expected: FAIL.
-- [ ] Step 2: Implement. Then run web, core and server tests, stories and tsc. Expected: green. Tick the checklist and commit `web: board in tailwind, archived count follows filters, tighter bottom spacing`.
+- [x] Step 2: Implement. Then run web, core and server tests, stories and tsc. Expected: green. Tick the checklist and commit `web: board in tailwind, archived count follows filters, tighter bottom spacing`.
 
 ### Task 7: Table view with aligned columns
 
@@ -264,13 +264,13 @@ Logo menu (a `ResponsiveMenu`), in order:
 - Long titles truncate with an ellipsis and a `Hint` showing the full title.
 - The compact (narrow) variant keeps its own column set, shared across its groups in the same way.
 
-- [ ] Step 1: Write story-based tests:
+- [x] Step 1: Write story-based tests:
   - Every `table` in the Milestones story has a `colgroup` with the same `col` widths in the same order.
   - With tracking off, there is no Tokens `col` and no Tokens header.
   - The existing TableView assertions still pass.
   
   Run them. Expected: FAIL.
-- [ ] Step 2: Implement. Then run tests, stories and tsc. Expected: green. Tick the checklist and commit `web: table view in tailwind with aligned columns`.
+- [x] Step 2: Implement. Then run tests, stories and tsc. Expected: green. Tick the checklist and commit `web: table view in tailwind with aligned columns`.
 
 ### Task 8: Card detail
 
@@ -288,7 +288,7 @@ Logo menu (a `ResponsiveMenu`), in order:
   - The PR link, tokens and done time stay as they are.
 - Every icon-only control in the detail (close, copy, run controls, file links) gets a `Hint`.
 
-- [ ] Step 1: Write the tests:
+- [x] Step 1: Write the tests:
   - Move all existing detail tests into story-based tests in their folders.
   - Obsolete: clicking the icon opens a popover with "Obsolete" and "Since 2026-11-10:" (use the fixture's obsolete log).
   - Review Focus 1, in a CardDetail story:
@@ -297,7 +297,7 @@ Logo menu (a `ResponsiveMenu`), in order:
     - With a dirty edit, Escape asks before closing.
   
   Run them. Expected: FAIL.
-- [ ] Step 2: Implement. Then run tests, stories and tsc. Expected: green. Tick the checklist and commit `web: card detail in tailwind with popovers`.
+- [x] Step 2: Implement. Then run tests, stories and tsc. Expected: green. Tick the checklist and commit `web: card detail in tailwind with popovers`.
 
 ### Task 9: Modals, logs grid, docs page
 
@@ -315,7 +315,7 @@ Logo menu (a `ResponsiveMenu`), in order:
   - Search, entry click (opens the spec) and "Open overview" are unchanged.
 - The Settings switch uses `Switch` and is disabled while saving (fixes the deferred double-click race).
 
-- [ ] Step 1: Write the tests:
+- [x] Step 1: Write the tests:
   - `formatLogTime` at a fixed `now` = 2026-11-14 12:00 local:
     - 2026-11-14 11:59 → "1 minute ago";
     - 2026-11-13 12:00 → "yesterday";
@@ -328,7 +328,7 @@ Logo menu (a `ResponsiveMenu`), in order:
   - All existing modal tests are moved as story-based tests.
   
   Run them. Expected: FAIL.
-- [ ] Step 2: Implement. Then run tests, stories and tsc. Expected: green. Tick the checklist and commit `web: modals in tailwind, logs as a time grid`.
+- [x] Step 2: Implement. Then run tests, stories and tsc. Expected: green. Tick the checklist and commit `web: modals in tailwind, logs as a time grid`.
 
 ### Task 10: App tests, leftovers, cleanup
 
@@ -347,7 +347,7 @@ Logo menu (a `ResponsiveMenu`), in order:
 - `docs/documentation.md`.
 - `plugin/web` (rebuilt).
 
-- [ ] Step 1: Grep the repo (excluding `docs/superpowers` and `node_modules`) for "non-agentic", "Manual mode" and "Dark mode". Update the user-facing ones.
-- [ ] Step 2: Run `screens.mjs` into `screens/after` and compare each pair with `before`. Only the listed fixes may differ; fix any other drift.
-- [ ] Step 3: `npm run build:plugin`. Run all suites and tsc. Expected: green, and the bundle staleness test passes.
-- [ ] Step 4: Commit `docs: frontend layout, not-connected wording, theme and logs` and `plugin: rebuild bundle`.
+- [x] Step 1: Grep the repo (excluding `docs/superpowers` and `node_modules`) for "non-agentic", "Manual mode" and "Dark mode". Update the user-facing ones.
+- [x] Step 2: Run `screens.mjs` into `screens/after` and compare each pair with `before`. Only the listed fixes may differ; fix any other drift.
+- [x] Step 3: `npm run build:plugin`. Run all suites and tsc. Expected: green, and the bundle staleness test passes.
+- [x] Step 4: Commit `docs: frontend layout, not-connected wording, theme and logs` and `plugin: rebuild bundle`.

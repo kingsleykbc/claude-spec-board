@@ -1,0 +1,15 @@
+# Contributing to Spec Board
+
+The repo is an npm workspace: `packages/core` (the file format), `packages/server` (the CLI and the board's server) and `packages/web` (the board), plus the Claude Code plugin in `plugin/`. Run `npm install`, then `npm test` for every package, or `npm run storybook` to browse the board's components.
+
+The plugin's skills live in `plugin/skills/<name>/SKILL.md`. They are active once the plugin is installed in Claude Code, not while you work inside this repo. `plugin/web` and `plugin/bin` are a prebuilt bundle: after changing the server or the web app, run `npm run build:plugin` and commit the result (a server test fails when the bundle is out of date).
+
+## Frontend layout
+
+- **One folder per component.** `packages/web/src/components/<name>/` holds `<name>.tsx`, `<name>.stories.tsx`, `<name>.test.tsx` and any helpers only it uses. Kebab-case names, no barrel files. Shared pieces and the shadcn primitives sit in `components/ui/<name>/` with the same layout. Logic stays in `lib/`, `state/` and `api/`.
+- **Tailwind v4** for all styling, through `@tailwindcss/vite`. No CSS modules and no static inline styles. The colour tokens (light and dark) are CSS variables in `styles/tokens.css`; `styles/app.css` exposes them to Tailwind with `@theme inline` (`bg-card`, `text-fg2`, `border-line`, ...) and makes `dark:` follow the board's theme.
+- **shadcn (Radix)** only for dropdown-menu, dialog, drawer (vaul), popover, tooltip, switch and toggle-group. Everything else is hand-written in Tailwind. `ui/responsive-menu` shows a dropdown on wide screens and a bottom drawer at 720px and under.
+- **Adding a shadcn component.** `npx shadcn add <name>` writes a flat file (`components/ui/<name>.tsx`). Move it into `components/ui/<name>/<name>.tsx`, fix its imports, and add `<name>.stories.tsx` and `<name>.test.tsx` beside it, like the other primitives.
+- **Story-based tests.** Every component folder has at least one story and one test. Tests render the stories with `composeStories` (the Storybook preview's decorators are set up in `src/test/setup.ts`) and assert with React Testing Library in Vitest: `npm test -w @specboard/web`. `npm run test:stories -w @specboard/web` runs the stories' own checks in a browser.
+- **Hint nesting rule.** `ui/hint` puts a tooltip on an icon-only control. When the control is itself a stateful Radix trigger (a toggle, a switch, a menu trigger styled by `data-state`), that control is the outer `asChild` and `Hint` goes inside it: `<ToggleGroupItem asChild><Hint label="..."><button /></Hint></ToggleGroupItem>`. The other way round, the tooltip's `data-state` replaces the control's.
+- **Visual checks.** `node packages/web/scripts/screens.mjs <folder>` builds the board, opens it on `examples/recipe-box` and saves screenshots of the main screens at 1280 and 375 px wide, light and dark, to compare before and after a change.
