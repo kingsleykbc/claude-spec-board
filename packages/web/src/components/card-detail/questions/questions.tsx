@@ -79,7 +79,8 @@ export function Questions({
   );
 
   const value = (q: Question): string | null => (Object.prototype.hasOwnProperty.call(draft, q.id) ? draft[q.id]! : q.answer);
-  const isChanged = (q: Question) => norm(value(q)) !== norm(q.answer);
+  // A locked spec has no unsaved changes, whatever drafts are left over.
+  const isChanged = (q: Question) => !readOnly && norm(value(q)) !== norm(q.answer);
   const changedQs = spec.questions.filter(isChanged);
   const dirty = changedQs.length > 0;
   const dirtyCb = useRef(onDirtyChange);
@@ -183,7 +184,8 @@ export function Questions({
               const stateText = changed ? 'Unsaved' : answered ? 'Answered' : waiting ? 'Needs answer' : 'Can skip';
               const StateIcon = changed ? DotIcon : answered ? CheckIcon : null;
               const stateInk = changed ? 'text-accent-ink' : answered ? 'text-done-ink' : waiting ? 'text-review-ink' : 'text-fg3';
-              const viewing = answered && (readOnly || !editing.has(q.id));
+              // A question with a draft stays an input, so an unsaved value is never hidden.
+              const viewing = answered && (readOnly || !(editing.has(q.id) || Object.prototype.hasOwnProperty.call(draft, q.id)));
               const noInput = viewing || readOnly;
               const smallBtn = 'h-7 cursor-pointer rounded-lg border border-line2 bg-card px-2.5 text-[12.5px] font-semibold text-fg2';
               const opts = q.type === 'yesno' ? ['Yes', 'No'] : q.type === 'choice' ? q.options : [];
@@ -284,13 +286,13 @@ export function Questions({
             })}
           </div>
           {!readOnly && (
-          <div className="flex items-center justify-end gap-3 px-4 py-3">
-            <span className="text-[12.5px] text-fg3">{hint}</span>
-            <button type="button" className={cn('inline-flex h-8 items-center gap-1.5 rounded-lg border-0 px-3.5 py-0 text-[13px] font-semibold', btn)} disabled={sv !== 'idle' || !dirty} onClick={() => void save()}>
-              {sv === 'saved' && <CheckIcon aria-hidden />}
-              {label}
-            </button>
-          </div>
+            <div className="flex items-center justify-end gap-3 px-4 py-3">
+              <span className="text-[12.5px] text-fg3">{hint}</span>
+              <button type="button" className={cn('inline-flex h-8 items-center gap-1.5 rounded-lg border-0 px-3.5 py-0 text-[13px] font-semibold', btn)} disabled={sv !== 'idle' || !dirty} onClick={() => void save()}>
+                {sv === 'saved' && <CheckIcon aria-hidden />}
+                {label}
+              </button>
+            </div>
           )}
         </>
       )}

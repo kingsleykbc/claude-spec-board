@@ -304,6 +304,27 @@ describe('answered questions as text', () => {
     expect(within(row('Q3')).getByRole('button', { name: 'Edit' })).toBeTruthy();
   });
 
+  it('a failed save keeps the edit open with the input, the draft and Cancel', async () => {
+    setup(two(), {
+      setAnswers: async () => {
+        throw new Error('boom');
+      },
+    });
+    fireEvent.click(within(row('Q3')).getByRole('button', { name: 'Edit' }));
+    fireEvent.click(within(row('Q3')).getByRole('radio', { name: 'PDF' }));
+    fireEvent.click(save());
+    await waitFor(() => expect(screen.getByText('Unsaved answers')).toBeTruthy());
+    expect((within(row('Q3')).getByRole('radio', { name: 'PDF' }) as HTMLInputElement).checked).toBe(true);
+    expect(within(row('Q3')).getByRole('button', { name: 'Cancel' })).toBeTruthy();
+    expect(state('Q3')).toBe('Unsaved');
+  });
+
+  it('a locked spec shows no inputs', () => {
+    const sp = two();
+    const r = render(<Unanswered pid="p" spec={sp} path="s.md" client={{ setAnswers: vi.fn() }} mutate={createMutator(() => Promise.reject(new Error('x')))} refresh={vi.fn(async () => undefined)} toast={vi.fn()} readOnly />);
+    expect(r.container.querySelector('input')).toBeNull();
+  });
+
   it('readOnly has no Edit, no inputs, no Save, and says No answer for an unanswered one', () => {
     setup(two(), { readOnly: true });
     expect(screen.queryByRole('button')).toBeNull();
