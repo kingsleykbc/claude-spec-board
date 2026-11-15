@@ -1,7 +1,7 @@
 import { firstOpenYouStep, type SpecDoc } from '@specboard/core';
 import type { ClaudeResult, Denial } from './events.js';
 
-export type RunKind = 'run' | 'write-up' | 'fix-file' | 'refresh-overview' | 'sync-plan' | 'sync-apply';
+export type RunKind = 'run' | 'write-up' | 'fix-file' | 'refresh-overview' | 'refresh-questions' | 'sync-plan' | 'sync-apply';
 export type RunStatus = 'running' | 'finished' | 'stopped' | 'needs' | 'permission' | 'error';
 export interface RunTokens { total: number; input: number; output: number; cacheRead: number; cacheWrite: number }
 export interface EndInfo { status: RunStatus; title?: string; text?: string; fix?: string; denied?: Denial[]; waiting?: string; tokens?: RunTokens }

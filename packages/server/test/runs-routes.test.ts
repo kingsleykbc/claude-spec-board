@@ -122,6 +122,15 @@ describe('POST /runs outcomes', () => {
     expect(runs.start).toHaveBeenCalledWith(entry, 'refresh-overview', null);
   });
 
+  it('starts a question refresh for a spec, which needs a specId', async () => {
+    const runs = fakeRuns({ start: vi.fn(async () => snap({ kind: 'refresh-questions' })) });
+    const app = appWith(runs);
+    expect((await post(app, `/api/projects/${entry.id}/runs`, { kind: 'refresh-questions' })).status).toBe(400);
+    const res = await post(app, `/api/projects/${entry.id}/runs`, { kind: 'refresh-questions', specId: 'T-101' });
+    expect(res.status).toBe(202);
+    expect(runs.start).toHaveBeenCalledWith(entry, 'refresh-questions', 'T-101');
+  });
+
   it('maps the manager errors', async () => {
     const run = snap();
     const cases: [Error, number, Record<string, unknown>][] = [

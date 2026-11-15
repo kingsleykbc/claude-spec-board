@@ -5,7 +5,7 @@ import { parseSpec, specBodyMd, splitFrontMatter, youStep } from '@specboard/cor
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { installSkills, kitPluginDir, kitSkills } from '../src/kit.js';
 
-const COMMANDS = ['create-spec', 'update-spec', 'run-spec', 'next', 'refresh-overview', 'refresh-logs', 'correct-specs', 'plan-project', 'import-specs', 'reorganize', 'setup', 'structure', 'sync-specs'];
+const COMMANDS = ['create-spec', 'update-spec', 'run-spec', 'next', 'refresh-overview', 'refresh-questions', 'refresh-logs', 'correct-specs', 'plan-project', 'import-specs', 'reorganize', 'setup', 'structure', 'sync-specs'];
 /** Skills a plain request may trigger; the other commands only run when typed. */
 const MODEL_INVOCABLE = ['specboard', 'setup'];
 
@@ -45,8 +45,8 @@ describe('plugin folder', () => {
   const repo = path.resolve(import.meta.dirname, '../../..');
   it('reads the skills from plugin/skills and hands runs the plugin folder', async () => {
     expect(kitPluginDir()).toBe(path.join(repo, 'plugin'));
-    expect((await kitSkills()).length).toBe(14);
-    expect((await fs.readdir(path.join(repo, 'plugin', 'skills'))).length).toBe(14);
+    expect((await kitSkills()).length).toBe(15);
+    expect((await fs.readdir(path.join(repo, 'plugin', 'skills'))).length).toBe(15);
   });
   it('plugin.json and marketplace.json parse and agree', async () => {
     const plugin = JSON.parse(await fs.readFile(path.join(repo, 'plugin', '.claude-plugin', 'plugin.json'), 'utf8'));

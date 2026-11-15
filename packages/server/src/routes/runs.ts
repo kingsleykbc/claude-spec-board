@@ -8,7 +8,7 @@ import { HttpError, onError, readJson } from '../http.js';
 import { RegistryUnreadableError, type ProjectEntry, type Registry } from '../registry.js';
 import type { ApprovedPermissions } from '../setup.js';
 
-const KINDS: readonly RunKind[] = ['run', 'write-up', 'fix-file', 'refresh-overview', 'sync-plan', 'sync-apply'];
+const KINDS: readonly RunKind[] = ['run', 'write-up', 'fix-file', 'refresh-overview', 'refresh-questions', 'sync-plan', 'sync-apply'];
 const SPEC_ID = /^T-\d{3,}$/;
 
 export interface RunRouteDeps {

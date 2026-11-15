@@ -91,6 +91,7 @@ export function runPrompt(kind: RunKind, specId: string | null): string {
     case 'run': return `/specboard:run-spec ${specId}`;
     case 'write-up': return `/specboard:create-spec ${specId} --board`;
     case 'fix-file': return `/specboard:update-spec ${specId} Fix this file's formatting problems. Keep all content.`;
+    case 'refresh-questions': return `/specboard:refresh-questions ${specId} --board`;
   }
 }
 
@@ -176,6 +177,7 @@ const FINISHED_TEXT: Record<Exclude<RunKind, 'run'>, string> = {
   'write-up': 'Spec written up',
   'fix-file': 'File fixed',
   'refresh-overview': 'Overview refreshed',
+  'refresh-questions': 'Questions and subtasks refreshed',
   'sync-plan': 'Sync proposal ready',
   'sync-apply': 'Board synced with the code',
 };

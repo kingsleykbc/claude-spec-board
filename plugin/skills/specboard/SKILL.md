@@ -43,6 +43,7 @@ Front matter keys:
 | `current_subtask` | the number being worked on right now, or `null` |
 | `milestone` | optional; one name from `milestones` in config.md (see Milestones) |
 | `created`, `updated` | `YYYY-MM-DD`; set `updated` to today on every edit, never change `created` |
+| `needs_refresh` | `YYYY-MM-DD`; set by the board after a body edit in To-do or Doing. Only /refresh-questions removes it. Never set it yourself |
 
 Body sections, matched case-insensitively: `## Spec`, `## Features`, `## Done when`, `## Open questions`, `## Subtasks`. Any other section is kept untouched.
 
