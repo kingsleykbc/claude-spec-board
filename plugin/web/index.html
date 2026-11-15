@@ -4,10 +4,29 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Spec Board</title>
+    <!-- Sets the theme before first paint, so a dark OS never sees a light flash. Mirrors lib/theme.ts
+         (THEME_KEY, savedThemeChoice, resolveTheme), which stays in charge once the app runs. -->
+    <script>
+      (function () {
+        var c = 'system';
+        try {
+          var s = localStorage.getItem('specboard.theme');
+          if (s === 'light' || s === 'dark' || s === 'system') c = s;
+        } catch (e) {}
+        if (c === 'system') {
+          try {
+            c = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          } catch (e) {
+            c = 'light';
+          }
+        }
+        document.documentElement.setAttribute('data-theme', c);
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-5rVPwOya.js"></script>
+    <script type="module" crossorigin src="/assets/index-Dj-jDit-.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-BzTB_5_Q.css">
   </head>
   <body>
