@@ -19479,6 +19479,8 @@ function runPrompt(kind, specId) {
       return `/specboard:create-spec ${specId} --board`;
     case "fix-file":
       return `/specboard:update-spec ${specId} Fix this file's formatting problems. Keep all content.`;
+    case "refresh-questions":
+      return `/specboard:refresh-questions ${specId} --board`;
   }
 }
 function buildRunArgs(prompt, approved, kitDir2) {
@@ -19532,6 +19534,7 @@ var FINISHED_TEXT = {
   "write-up": "Spec written up",
   "fix-file": "File fixed",
   "refresh-overview": "Overview refreshed",
+  "refresh-questions": "Questions and subtasks refreshed",
   "sync-plan": "Sync proposal ready",
   "sync-apply": "Board synced with the code"
 };
@@ -19844,7 +19847,7 @@ var RunManager = class {
 };
 
 // packages/server/src/routes/runs.ts
-var KINDS = ["run", "write-up", "fix-file", "refresh-overview", "sync-plan", "sync-apply"];
+var KINDS = ["run", "write-up", "fix-file", "refresh-overview", "refresh-questions", "sync-plan", "sync-apply"];
 var SPEC_ID2 = /^T-\d{3,}$/;
 function runRoutes(deps) {
   const app = new Hono3();
