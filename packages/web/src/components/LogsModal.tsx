@@ -5,8 +5,8 @@ import { CloseIcon, WarnIcon } from '../lib/icons';
 import { fmtLogTime } from '../lib/vm';
 import { allLogEntries, filterLogs, groupByDay } from '../state/allLogs';
 import { obsoleteText } from './detail/SubtaskLog';
-import { Markdown } from './Markdown';
-import { Modal } from './Modal';
+import { Markdown } from '@/components/ui/markdown/markdown';
+import { Modal } from '@/components/ui/modal/modal';
 import s from './logs.module.css';
 
 export interface LogsModalProps {

@@ -5,6 +5,9 @@ import { useEffect, useRef } from 'react';
 // Each open layer registers here; one document listener calls the top one.
 // An open spec/reference editor sits just above the modal (Ruling 17): Esc leaves the editor
 // (asking first if there are unsaved changes) before it closes the modal.
+// Radix layers (ui/modal, ui/confirm-dialog) claim Esc first, in the capture phase; when one of them is the
+// top Radix layer it hands the key back here with runEscape(), so this stack still decides what closes.
+// A Radix menu, popover or tooltip open above them closes itself instead and marks the key handled.
 
 export const ESC = { modal: 0, editor: 5, menu: 10, input: 20, refAdd: 30, dialog: 40 } as const;
 
@@ -17,13 +20,18 @@ interface Entry {
 const entries = new Set<Entry>();
 let seq = 0;
 
-function onKey(e: KeyboardEvent) {
-  if (e.key !== 'Escape' || e.defaultPrevented) return;
+/** Calls the top layer's handler. Returns false when no layer is open. */
+export function runEscape(): boolean {
   let top: Entry | null = null;
   for (const x of entries) if (!top || x.priority > top.priority || (x.priority === top.priority && x.seq > top.seq)) top = x;
-  if (!top) return;
-  e.preventDefault();
+  if (!top) return false;
   top.run();
+  return true;
+}
+
+function onKey(e: KeyboardEvent) {
+  if (e.key !== 'Escape' || e.defaultPrevented) return;
+  if (runEscape()) e.preventDefault();
 }
 
 /** While `active`, Esc calls `handler` unless a layer with a higher priority (or a newer one at the same priority) is open. */

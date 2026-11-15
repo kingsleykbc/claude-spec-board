@@ -51,7 +51,7 @@
 
 ## Tailwind migration checklist (tick as each lands)
 
-- [ ] ui/status-chip · [ ] ui/category-tag · [ ] ui/urgency · [ ] ui/skeleton · [ ] ui/markdown · [ ] ui/modal · [ ] ui/confirm-dialog · [ ] ui/toasts
+- [x] ui/status-chip · [x] ui/category-tag · [x] ui/urgency · [x] ui/skeleton · [x] ui/markdown · [x] ui/modal · [x] ui/confirm-dialog · [x] ui/toasts
 - [ ] top-bar · [ ] project-switcher · [ ] not-connected · [ ] connection-banner · [ ] footer
 - [ ] filter-bar · [ ] board · [ ] column · [ ] spec-card · [ ] table-view
 - [ ] card-detail (all parts) · [ ] state/fileLinks

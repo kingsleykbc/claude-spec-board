@@ -6,9 +6,9 @@ import { CaretIcon, CaretRightIcon, CheckIcon } from '../lib/icons';
 import { formatTokens } from '../lib/formatTokens';
 import { tokensUsed } from '../lib/vm';
 import { filterSpecs, milestoneOptions, NO_FILTERS, orderSpecs, waitingReason, type Filters } from '../state/filters';
-import { CategoryTag } from './CategoryTag';
-import { StatusChip } from './StatusChip';
-import { Urgency } from './Urgency';
+import { CategoryTag } from '@/components/ui/category-tag/category-tag';
+import { StatusChip } from '@/components/ui/status-chip/status-chip';
+import { Urgency } from '@/components/ui/urgency/urgency';
 import s from './TableView.module.css';
 
 export interface TableViewProps {

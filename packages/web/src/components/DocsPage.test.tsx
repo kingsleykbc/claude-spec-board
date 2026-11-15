@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { DOCS_PAGES, docsLink, isDocsPath, pageForPath } from '../lib/docsPages';
 import { DocsPage } from './DocsPage';
-import { headingId } from './Markdown';
+import { headingId } from '@/components/ui/markdown/markdown';
 
 afterEach(cleanup);
 

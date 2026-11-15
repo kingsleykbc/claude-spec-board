@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, within } from 'storybook/test';
 import { SpecCard, type SpecCardProps } from './SpecCard';
-import { Urgency } from './Urgency';
+import { Urgency } from '@/components/ui/urgency/urgency';
 import { allRecipeSpecs, recipeSpec } from '../fixtures/recipeBox';
 import { SimpleMode } from '../state/simpleMode';
 

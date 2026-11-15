@@ -4,8 +4,8 @@ import type { Spec } from '@specboard/core';
 import { MoreIcon, NeededByIcon, NeedsIcon, PlayIcon, ReviewIcon, WarnIcon } from '../lib/icons';
 import { firstParagraph, statusMeta } from '../lib/vm';
 import { useSimple } from '../state/simpleMode';
-import { CategoryTag } from './CategoryTag';
-import { Urgency } from './Urgency';
+import { CategoryTag } from '@/components/ui/category-tag/category-tag';
+import { Urgency } from '@/components/ui/urgency/urgency';
 import s from './SpecCard.module.css';
 
 export interface SpecCardProps {

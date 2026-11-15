@@ -7,8 +7,8 @@ import { ORDER, relTime, ST } from '../lib/vm';
 import { projectTokens } from '../state/allLogs';
 import type { PushToast } from '../state/toasts';
 import { Spinner } from './ConnectionBanner';
-import { Markdown } from './Markdown';
-import { Modal } from './Modal';
+import { Markdown } from '@/components/ui/markdown/markdown';
+import { Modal } from '@/components/ui/modal/modal';
 import { TableView } from './TableView';
 import s from './modals.module.css';
 

@@ -1,5 +1,5 @@
 import { EditIcon } from '../../lib/icons';
-import { Markdown } from '../Markdown';
+import { Markdown } from '@/components/ui/markdown/markdown';
 import s from './detail.module.css';
 
 export interface SpecSectionProps {

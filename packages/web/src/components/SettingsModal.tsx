@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import { api } from '../api/client';
 import { CloseIcon } from '../lib/icons';
 import type { PushToast } from '../state/toasts';
-import { Modal } from './Modal';
+import { Modal } from '@/components/ui/modal/modal';
 import s from './settings.module.css';
 
 export interface SettingsModalProps {

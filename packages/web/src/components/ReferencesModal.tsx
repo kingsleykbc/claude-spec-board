@@ -6,11 +6,11 @@ import { OFFLINE_TOAST } from '../state/actions';
 import { FileLink } from '../state/fileLinks';
 import type { PushToast } from '../state/toasts';
 import { ConflictDialog } from './ConflictDialog';
-import { Dialog } from './Dialog';
-import { Markdown } from './Markdown';
-import { Modal } from './Modal';
-import { DocSkeleton } from './Skeleton';
-import { useDiscardGuard } from './useDiscardGuard';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog/confirm-dialog';
+import { Markdown } from '@/components/ui/markdown/markdown';
+import { Modal } from '@/components/ui/modal/modal';
+import { DocSkeleton } from '@/components/ui/skeleton/skeleton';
+import { useDiscardGuard } from '@/lib/use-discard-guard';
 import s from './modals.module.css';
 
 export type RefsClient = Pick<
@@ -467,7 +467,7 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
         <ConflictDialog title="This document changed outside the board" path={active.path} onKeepEditing={keepEditing} onReloadKeepCopy={() => void reloadKeepCopy()} onReload={reload} />
       )}
       {removeAsk && (
-        <Dialog
+        <ConfirmDialog
           title={`Remove ${removeAsk.name} from references?`}
           body="This removes the link only. The file stays in your project and you can link it again later."
           path={removeAsk.path}

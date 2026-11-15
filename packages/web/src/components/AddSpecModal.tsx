@@ -4,8 +4,8 @@ import { api } from '../api/client';
 import { OFFLINE_TOAST } from '../state/actions';
 import type { PushToast } from '../state/toasts';
 import { CloseIcon, PlayIcon } from '../lib/icons';
-import { Modal } from './Modal';
-import { useDiscardGuard } from './useDiscardGuard';
+import { Modal } from '@/components/ui/modal/modal';
+import { useDiscardGuard } from '@/lib/use-discard-guard';
 import s from './modals.module.css';
 
 export interface AddSpecModalProps {

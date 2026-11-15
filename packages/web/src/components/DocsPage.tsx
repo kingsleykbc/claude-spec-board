@@ -3,7 +3,7 @@ import { api, type ProjectSummary } from '../api/client';
 import { DOCS_PAGES, docsLink, docsPath, pageForPath } from '../lib/docsPages';
 import { ESC, useEscape } from '../lib/escape';
 import { applyTheme, initialTheme, type Theme } from '../lib/theme';
-import { Markdown } from './Markdown';
+import { Markdown } from '@/components/ui/markdown/markdown';
 import { boardHref, TopBar } from './TopBar';
 import s from './DocsPage.module.css';
 

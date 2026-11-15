@@ -2,8 +2,8 @@ import type { RunLine, SyncProposal } from '../api/client';
 import { CloseIcon, CopyIcon, WarnIcon } from '../lib/icons';
 import type { PushToast } from '../state/toasts';
 import { Spinner } from './ConnectionBanner';
-import { Markdown } from './Markdown';
-import { Modal } from './Modal';
+import { Markdown } from '@/components/ui/markdown/markdown';
+import { Modal } from '@/components/ui/modal/modal';
 import s from './SyncDialog.module.css';
 
 // Sync with code (design sections 10 and 11): the manual-mode command, the plan and apply runs' progress, and the

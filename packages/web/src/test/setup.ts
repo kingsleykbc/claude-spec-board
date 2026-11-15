@@ -24,3 +24,9 @@ globalThis.ResizeObserver ??= class {
   unobserve() {}
   disconnect() {}
 };
+
+// vaul reads `style.transform || style.webkitTransform || style.mozTransform` and calls .match on the result
+// when a drawer is pressed. happy-dom's computed transform is '' and it has neither prefix, so the chain ends
+// in undefined. A real browser stops at `transform` ('none'), so this only fills the gap.
+const styleProto = CSSStyleDeclaration.prototype as unknown as Record<string, unknown>;
+if (!('mozTransform' in styleProto)) Object.defineProperty(styleProto, 'mozTransform', { configurable: true, get: () => '' });

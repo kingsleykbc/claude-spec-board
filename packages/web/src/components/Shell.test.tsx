@@ -1,11 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import { TOAST } from '../state/toasts';
 import { TopBar, type TopBarProps } from './TopBar';
 import { ConnectionBanner } from './ConnectionBanner';
 import { FilterBar, type FilterBarProps } from './FilterBar';
-import { Toasts } from './Toasts';
 import { progressText } from './ProjectSwitcher';
 import { NO_FILTERS, waitItems } from '../state/filters';
 import { recipeSpecs } from '../fixtures/recipeBox';
@@ -164,25 +161,5 @@ describe('FilterBar', () => {
     fireEvent.click(screen.getByText('Clear'));
     expect(p.onChange).toHaveBeenLastCalledWith(NO_FILTERS);
     expect(screen.getByRole('switch', { name: 'Blocked only' }).getAttribute('aria-checked')).toBe('true');
-  });
-});
-
-describe('Toasts', () => {
-  it('renders each kind with its icon and dismisses', () => {
-    const onDismiss = vi.fn();
-    render(
-      <Toasts
-        onDismiss={onDismiss}
-        toasts={[
-          { id: 1, kind: 'ok', text: 'T-104 moved to Review', sub: 'Meal planner calendar' },
-          { id: 2, kind: 'err', text: 'Couldn’t move T-105' },
-        ]}
-      />,
-    );
-    const icons = [...document.querySelectorAll('[data-kind]')].map((t) => t.firstElementChild!.innerHTML);
-    expect(icons).toEqual([renderToStaticMarkup(<TOAST.ok.icon aria-hidden />), renderToStaticMarkup(<TOAST.err.icon aria-hidden />)]);
-    expect(screen.getByText('Meal planner calendar')).toBeTruthy();
-    fireEvent.click(screen.getAllByRole('button', { name: 'Dismiss' })[1]!);
-    expect(onDismiss).toHaveBeenCalledWith(2);
   });
 });

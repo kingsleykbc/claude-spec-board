@@ -1,3 +1,6 @@
-/* No specificity: the class a path already has (its font, box and colour) wins, so it looks as it did. */
-:where(.link) { padding: 0; border: 0; background: transparent; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+/* In the base layer: the class a path already has (its font, box and colour), from a CSS module or a Tailwind
+   utility, wins, so it looks as it did. Inside the layer it still beats the reset and the button padding revert. */
+@layer base {
+  .link { padding: 0; border: 0; background: transparent; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+}
 .link:hover { color: var(--accent-ink); text-decoration: underline; }
