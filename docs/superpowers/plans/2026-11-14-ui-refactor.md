@@ -55,9 +55,9 @@
 - [x] top-bar · [x] project-switcher · [x] not-connected · [x] connection-banner · [x] footer
 - [x] filter-bar · [x] board · [x] column · [x] spec-card · [x] table-view
 - [x] card-detail (all parts) · [x] state/fileLinks
-- [ ] overview-modal · [ ] references-modal · [ ] settings-modal · [ ] logs-modal · [ ] sync-dialog · [ ] add-spec-modal · [ ] conflict-dialog · [ ] docs-page
-- [ ] `modals.module.css`, `settings.module.css`, `logs.module.css`, `detail/*.module.css` deleted
-- [ ] `find src -name '*.module.css'` prints nothing
+- [x] overview-modal · [x] references-modal · [x] settings-modal · [x] logs-modal · [x] sync-dialog · [x] add-spec-modal · [x] conflict-dialog · [x] docs-page
+- [x] `modals.module.css`, `settings.module.css`, `logs.module.css`, `detail/*.module.css` deleted
+- [x] `find src -name '*.module.css'` prints nothing
 
 ---
 

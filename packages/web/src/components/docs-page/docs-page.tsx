@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { api, type ProjectSummary } from '../api/client';
-import { DOCS_PAGES, docsLink, docsPath, pageForPath } from '../lib/docsPages';
-import { useThemeChoice } from '../lib/theme';
+import { api, type ProjectSummary } from '@/api/client';
+import { DOCS_PAGES, docsLink, docsPath, pageForPath } from '@/lib/docsPages';
+import { useThemeChoice } from '@/lib/theme';
 import { Markdown } from '@/components/ui/markdown/markdown';
 import { boardHref, TopBar } from '@/components/top-bar/top-bar';
-import s from './DocsPage.module.css';
 
 export interface DocsPageProps {
   pathname: string;
@@ -54,7 +53,7 @@ export function DocsPage({ pathname, search = '', loadProjects = api.projects, g
   const kept = current ? `?project=${encodeURIComponent(current.id)}` : '';
 
   return (
-    <div className={s.shell}>
+    <div className="min-h-screen bg-bg font-sans text-[14px] text-fg">
       <TopBar
         page="docs"
         {...(current && projects
@@ -74,16 +73,16 @@ export function DocsPage({ pathname, search = '', loadProjects = api.projects, g
         themeChoice={themeChoice}
         onThemeChoice={setThemeChoice}
       />
-      <div className={s.page}>
-        <nav className={s.nav} aria-label="Documentation">
-          <h1 className={s.title}>Spec Board docs</h1>
+      <div className="mx-auto box-border grid max-w-[1040px] grid-cols-[220px_minmax(0,1fr)] gap-8 px-5 py-8 font-sans text-fg [@media(max-width:720px)]:grid-cols-[minmax(0,1fr)] [@media(max-width:720px)]:gap-4 [@media(max-width:720px)]:p-4">
+        <nav className="sticky top-[84px] flex flex-col gap-0.5 self-start [@media(max-width:720px)]:static" aria-label="Documentation">
+          <h1 className="m-0 mb-2.5 px-2.5 text-[14px] font-bold">Spec Board docs</h1>
           {DOCS_PAGES.map((p) => (
-            <a key={p.slug} className={s.link} href={keep(docsPath(p.slug), kept)} aria-current={p.slug === page.slug ? 'page' : undefined}>
+            <a key={p.slug} className="rounded-[7px] px-2.5 py-[7px] text-[13.5px] text-fg2 no-underline hover:bg-panel aria-[current=page]:bg-panel aria-[current=page]:font-semibold aria-[current=page]:text-fg" href={keep(docsPath(p.slug), kept)} aria-current={p.slug === page.slug ? 'page' : undefined}>
               {p.title}
             </a>
           ))}
         </nav>
-        <main className={s.main}>
+        <main className="min-w-0 pb-16 [&_a]:text-accent-ink">
           <Markdown
             md={page.md}
             mapLink={(href) => {

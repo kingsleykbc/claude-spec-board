@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, within } from 'storybook/test';
 import { Modal } from './modal';
-import { ConflictDialog } from '@/components/ConflictDialog';
+import { ConflictDialog } from '@/components/conflict-dialog/conflict-dialog';
 import { useDiscardGuard } from '@/lib/use-discard-guard';
 
 const meta = {

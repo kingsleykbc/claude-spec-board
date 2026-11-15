@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, within } from 'storybook/test';
-import { SyncDialog, type WaitingProposal } from './SyncDialog';
+import { SyncDialog, type WaitingProposal } from './sync-dialog';
 
 const proposal: WaitingProposal = {
   exists: true,

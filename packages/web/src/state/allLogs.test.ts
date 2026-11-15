@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Project, Spec } from '@specboard/core';
-import { allLogEntries, filterLogs, groupByDay, projectTokens, type LogItem } from './allLogs';
+import { allLogEntries, filterLogs, projectTokens } from './allLogs';
 
 const log = (over: Record<string, unknown>) => ({ subtask: 1, commit: null, files: [], pr: null, doneAt: null, tokens: null, obsolete: null, entries: [], problems: [], ...over });
 const spec = (id: string, title: string, logs: Record<number, unknown>, subtasks: { n: number; title: string }[] = [], archived = false) =>
@@ -37,18 +37,6 @@ describe('allLogEntries', () => {
   it('carries archived and obsolete', () => {
     expect(items[0]!.archived).toBe(true);
     expect(items[0]!.obsolete).toEqual({ since: null, reason: 'gone' });
-  });
-});
-
-describe('groupByDay', () => {
-  const mk = (at: string): LogItem => ({ at, specId: 'T-1', specTitle: 't', subtask: 1, subtaskTitle: 's', text: at, tokens: null, obsolete: null, archived: false });
-  it('labels Today, Yesterday, else the date', () => {
-    const g = groupByDay([mk('2026-11-14 10:00'), mk('2026-11-14 09:00'), mk('2026-11-13 23:59'), mk('2026-11-01 08:00:30')], new Date(2026, 10, 14, 12, 0));
-    expect(g.map((x) => [x.label, x.items.length])).toEqual([['Today', 2], ['Yesterday', 1], ['2026-11-01', 1]]);
-  });
-  it('handles month boundaries for Yesterday', () => {
-    const g = groupByDay([mk('2026-10-31 10:00')], new Date(2026, 10, 1, 0, 5));
-    expect(g[0]!.label).toBe('Yesterday');
   });
 });
 

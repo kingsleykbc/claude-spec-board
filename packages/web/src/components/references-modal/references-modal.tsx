@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { api, ConflictError, type ReferenceDoc } from '../api/client';
-import { ESC, useEscape } from '../lib/escape';
-import { CaretLeftIcon, CaretRightIcon, CloseIcon, EditIcon, PlusIcon } from '../lib/icons';
-import { OFFLINE_TOAST } from '../state/actions';
-import { FileLink } from '../state/fileLinks';
-import type { PushToast } from '../state/toasts';
-import { ConflictDialog } from './ConflictDialog';
+import { api, ConflictError, type ReferenceDoc } from '@/api/client';
+import { ESC, useEscape } from '@/lib/escape';
+import { CaretLeftIcon, CaretRightIcon, CloseIcon, EditIcon, PlusIcon } from '@/lib/icons';
+import { OFFLINE_TOAST } from '@/state/actions';
+import { FileLink } from '@/state/fileLinks';
+import type { PushToast } from '@/state/toasts';
+import { ConflictDialog } from '@/components/conflict-dialog/conflict-dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog/confirm-dialog';
 import { Markdown } from '@/components/ui/markdown/markdown';
 import { Modal } from '@/components/ui/modal/modal';
 import { DocSkeleton } from '@/components/ui/skeleton/skeleton';
 import { useDiscardGuard } from '@/lib/use-discard-guard';
-import s from './modals.module.css';
+import { Hint } from '@/components/ui/hint/hint';
 
 export type RefsClient = Pick<
   typeof api,
@@ -290,58 +290,58 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
 
   return (
     <Modal label="Reference documents" width="min(820px, 100%)" height="min(680px, calc(100vh - 64px))" onClose={requestClose} returnFocus={returnFocus}>
-      <div className={s.rfHead}>
-        <span className={s.rfTitle}>REFERENCE DOCUMENTS</span>
-        <span className={s.grow} />
-        <div className={s.rfAddWrap}>
-          <button type="button" className={s.rfAdd} aria-expanded={add !== null} onClick={openAdd}>
+      <div className="flex items-center gap-2.5 pt-[18px] pr-5 pb-3.5 pl-7">
+        <span className="text-[15px] font-semibold tracking-[0.06em]">REFERENCE DOCUMENTS</span>
+        <span className="flex-1" />
+        <div className="relative">
+          <button type="button" className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-line2 bg-card px-3 py-0 text-[13px] font-semibold text-fg hover:bg-panel" aria-expanded={add !== null} onClick={openAdd}>
             <PlusIcon aria-hidden /> Add
           </button>
           {add && (
-            <div className={s.rfMenu}>
+            <div className="absolute top-10 right-0 z-[6] w-[330px] rounded-xl border border-line bg-card p-1.5 shadow-lg">
               {add === 'menu' && (
-                <div className={s.rfMenuList}>
-                  <button type="button" className={s.rfMenuItem} onClick={() => setAdd('link')}>
-                    <span className={s.rfMenuMain}>Link an existing file</span>
-                    <span className={s.rfMenuSub}>Pick a Markdown file already in the project</span>
+                <div className="flex flex-col gap-0.5">
+                  <button type="button" className="flex cursor-pointer flex-col gap-0.5 rounded-lg border-0 bg-transparent px-3 py-2.5 text-left text-fg hover:bg-panel" onClick={() => setAdd('link')}>
+                    <span className="text-[13.5px] font-semibold">Link an existing file</span>
+                    <span className="text-[12.5px] text-fg2">Pick a Markdown file already in the project</span>
                   </button>
-                  <button type="button" className={s.rfMenuItem} onClick={() => setAdd('new')}>
-                    <span className={s.rfMenuMain}>Create a new document</span>
-                    <span className={s.rfMenuSub}>Starts an empty file in docs/</span>
+                  <button type="button" className="flex cursor-pointer flex-col gap-0.5 rounded-lg border-0 bg-transparent px-3 py-2.5 text-left text-fg hover:bg-panel" onClick={() => setAdd('new')}>
+                    <span className="text-[13.5px] font-semibold">Create a new document</span>
+                    <span className="text-[12.5px] text-fg2">Starts an empty file in docs/</span>
                   </button>
                 </div>
               )}
               {add === 'link' && (
                 <form
-                  className={s.rfForm}
+                  className="flex flex-col gap-2 p-2"
                   onSubmit={(e) => {
                     e.preventDefault();
                     void link(input);
                   }}
                 >
-                  <label className={s.rfLabel} htmlFor="rf-link">
+                  <label className="text-[12px] font-semibold text-fg2" htmlFor="rf-link">
                     File path
                   </label>
                   <input
                     id="rf-link"
-                    className={s.rfInput}
+                    className="h-[34px] rounded-lg border border-line2 bg-card px-2.5 py-0 font-mono text-[12.5px] text-fg"
                     autoFocus
                     placeholder="docs/ARCHITECTURE.md"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                   />
-                  <div className={s.rfSuggest}>
+                  <div className="flex flex-col">
                     {suggest.map((p) => (
-                      <button key={p} type="button" className={s.rfSuggestItem} onClick={() => void link(p)}>
+                      <button key={p} type="button" className="cursor-pointer rounded-md border-0 bg-transparent px-2 py-1.5 text-left font-mono text-[12px] text-fg2 hover:bg-panel hover:text-fg" onClick={() => void link(p)}>
                         {p}
                       </button>
                     ))}
                   </div>
-                  <div className={s.rfFormBtns}>
-                    <button type="button" className={s.rfBack} onClick={back}>
+                  <div className="flex justify-end gap-1.5">
+                    <button type="button" className="h-[30px] cursor-pointer rounded-[7px] border border-line bg-card px-3 py-0 text-[12.5px] text-fg" onClick={back}>
                       Back
                     </button>
-                    <button type="submit" className={s.rfConfirm} disabled={busy || input.trim() === ''}>
+                    <button type="submit" className="h-[30px] cursor-pointer rounded-[7px] border-0 bg-accent px-3 py-0 text-[12.5px] font-semibold text-accent-fg disabled:cursor-default disabled:opacity-45" disabled={busy || input.trim() === ''}>
                       Link file
                     </button>
                   </div>
@@ -349,28 +349,28 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
               )}
               {add === 'new' && (
                 <form
-                  className={s.rfForm}
+                  className="flex flex-col gap-2 p-2"
                   onSubmit={(e) => {
                     e.preventDefault();
                     void create();
                   }}
                 >
-                  <label className={s.rfLabel} htmlFor="rf-new">
+                  <label className="text-[12px] font-semibold text-fg2" htmlFor="rf-new">
                     Document name
                   </label>
-                  <input id="rf-new" className={s.rfInput} autoFocus placeholder="DEPLOY.md" value={input} onChange={(e) => setInput(e.target.value)} />
+                  <input id="rf-new" className="h-[34px] rounded-lg border border-line2 bg-card px-2.5 py-0 font-mono text-[12.5px] text-fg" autoFocus placeholder="DEPLOY.md" value={input} onChange={(e) => setInput(e.target.value)} />
                   {validDocName(input) ? (
-                    <span className={s.rfHint}>Saved as docs/{newDocName(input)}</span>
+                    <span className="text-[12px] text-fg3">Saved as docs/{newDocName(input)}</span>
                   ) : (
-                    <span className={s.rfError} role="alert">
+                    <span className="text-[12px] text-block-ink" role="alert">
                       Use letters, numbers, dots, dashes or underscores
                     </span>
                   )}
-                  <div className={s.rfFormBtns}>
-                    <button type="button" className={s.rfBack} onClick={back}>
+                  <div className="flex justify-end gap-1.5">
+                    <button type="button" className="h-[30px] cursor-pointer rounded-[7px] border border-line bg-card px-3 py-0 text-[12.5px] text-fg" onClick={back}>
                       Back
                     </button>
-                    <button type="submit" className={s.rfConfirm} disabled={busy || !validDocName(input)}>
+                    <button type="submit" className="h-[30px] cursor-pointer rounded-[7px] border-0 bg-accent px-3 py-0 text-[12.5px] font-semibold text-accent-fg disabled:cursor-default disabled:opacity-45" disabled={busy || !validDocName(input)}>
                       Create
                     </button>
                   </div>
@@ -379,85 +379,106 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
             </div>
           )}
         </div>
-        <button type="button" className={s.close} aria-label="Close" onClick={requestClose}>
-          <CloseIcon aria-hidden />
-        </button>
-      </div>
-      <div className={s.rfTabsRow}>
-        {arrows.l && (
-          <button type="button" className={s.rfArrowL} aria-label="Scroll tabs left" onClick={() => scrollTabs(-200)}>
-            <CaretLeftIcon aria-hidden />
+        <Hint label="Close">
+          <button
+            type="button"
+            className="flex size-[34px] cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 text-[18px] text-fg2 hover:bg-panel"
+            aria-label="Close"
+            onClick={requestClose}
+          >
+            <CloseIcon aria-hidden />
           </button>
+        </Hint>
+      </div>
+      <div className="relative mx-7 flex items-stretch border-b border-line">
+        {arrows.l && (
+          <Hint label="Scroll tabs left">
+            <button
+              type="button"
+              className="flex w-7 flex-none cursor-pointer items-center justify-center border-0 bg-card p-0 text-[16px] text-fg2"
+              aria-label="Scroll tabs left"
+              onClick={() => scrollTabs(-200)}
+            >
+              <CaretLeftIcon aria-hidden />
+            </button>
+          </Hint>
         )}
-        <div ref={tabsRef} className={s.rfTabs} role="tablist" onScroll={checkTabs}>
+        <div ref={tabsRef} className="flex min-w-0 flex-1 gap-0.5 overflow-x-auto scroll-smooth [scrollbar-width:none]" role="tablist" onScroll={checkTabs}>
           {list.map((r) => (
-            <button key={r.path} type="button" role="tab" title={r.path} aria-selected={active?.path === r.path} className={s.rfTab} onClick={() => pickTab(r)}>
+            <button key={r.path} type="button" role="tab" title={r.path} aria-selected={active?.path === r.path} className="h-[38px] min-w-[132px] flex-none cursor-pointer border-b-2 border-transparent bg-transparent px-4 py-0 font-mono text-[12.5px] font-normal text-fg2 hover:text-fg aria-selected:border-b-accent aria-selected:font-semibold aria-selected:text-fg" onClick={() => pickTab(r)}>
               {r.name}
             </button>
           ))}
         </div>
         {arrows.r && (
-          <button type="button" className={s.rfArrowR} aria-label="Scroll tabs right" onClick={() => scrollTabs(200)}>
-            <CaretRightIcon aria-hidden />
-          </button>
+          <Hint label="Scroll tabs right">
+            <button
+              type="button"
+              className="flex w-8 flex-none cursor-pointer items-center justify-center border-l border-line bg-card p-0 text-[17px] text-fg"
+              aria-label="Scroll tabs right"
+              onClick={() => scrollTabs(200)}
+            >
+              <CaretRightIcon aria-hidden />
+            </button>
+          </Hint>
         )}
       </div>
       {editing ? (
-        <div className={s.rfSplit}>
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <textarea
-            className={s.rfTextarea}
+            className="resize-none border-r border-line bg-code px-[22px] py-[18px] font-mono text-[12.5px] leading-[1.7] text-fg outline-none"
             aria-label="Document markdown"
             spellCheck={false}
             value={edit.text}
             onChange={(e) => setEdit({ path: edit.path, text: e.target.value })}
           />
-          <div className={s.rfPreview}>
+          <div className="overflow-auto px-[22px] py-[18px]">
             <Markdown md={edit.text} size="sm" />
           </div>
         </div>
       ) : (
-        <div className={s.rfView} role="tabpanel">
+        <div className="min-h-0 flex-1 overflow-auto px-7 py-5" role="tabpanel">
           {active ? (
             <>
-              <div className={s.rfPath} data-testid="ref-path">
+              <div className="mb-3.5 font-mono text-[11.5px] text-fg3" data-testid="ref-path">
                 <FileLink path={active.path} />
               </div>
               {active.missing ? (
-                <p className={s.rfMissing}>File not found</p>
+                <p className="my-[1em] text-[14px] text-block-ink">File not found</p>
               ) : (
-                <div className={s.rfDoc}>
+                <div className="max-w-[70ch]">
                   <Markdown md={active.md} />
                 </div>
               )}
             </>
           ) : (
-            refs ? <p className={s.rfNone}>No reference documents yet. Use Add to link a file or create one.</p> : <DocSkeleton label='Loading reference documents…' />
+            refs ? <p className="my-[1em] text-[14px] text-fg2">No reference documents yet. Use Add to link a file or create one.</p> : <DocSkeleton label='Loading reference documents…' />
           )}
         </div>
       )}
-      <div className={s.rfFoot}>
+      <div className="flex items-center gap-2 border-t border-line pt-3 pr-5 pb-3.5 pl-7">
         {editing ? (
           <>
-            <span className={s.rfEditing}>
+            <span className="text-[12px] text-fg3">
               Editing <FileLink path={active.path} />
             </span>
-            <span className={s.grow} />
-            <button type="button" className={s.rfCancel} onClick={() => setEdit(null)}>
+            <span className="flex-1" />
+            <button type="button" className="h-8 cursor-pointer rounded-lg border border-line bg-card px-3.5 py-0 text-[13px] text-fg" onClick={() => setEdit(null)}>
               Cancel
             </button>
-            <button type="button" className={s.rfSave} disabled={saving} onClick={() => void save()}>
+            <button type="button" className="h-8 cursor-pointer rounded-lg border-0 bg-accent px-3.5 py-0 text-[13px] font-semibold text-accent-fg enabled:hover:bg-accent-hover disabled:cursor-default disabled:opacity-45" disabled={saving} onClick={() => void save()}>
               Save
             </button>
           </>
         ) : (
           active && (
             <>
-              <button type="button" className={s.rfRemove} onClick={() => setRemoveAsk(active)}>
+              <button type="button" className="h-8 cursor-pointer rounded-[7px] border-0 bg-transparent px-2.5 py-0 text-[12.5px] text-fg2 hover:bg-panel hover:text-block-ink" onClick={() => setRemoveAsk(active)}>
                 Remove from list
               </button>
-              <span className={s.grow} />
+              <span className="flex-1" />
               {!active.missing && (
-                <button type="button" className={s.rfEdit} onClick={() => startEdit(active)}>
+                <button type="button" className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-line2 bg-card px-3.5 py-0 text-[13px] font-semibold text-fg hover:bg-panel" onClick={() => startEdit(active)}>
                   <EditIcon aria-hidden /> Edit
                 </button>
               )}

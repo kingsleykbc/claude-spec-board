@@ -1,8 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { ApiError, ConflictError, type ReferenceDoc } from '../api/client';
-import { OFFLINE_TOAST } from '../state/actions';
-import { ReferencesModal, type RefsClient } from './ReferencesModal';
+import { composeStories } from '@storybook/react-vite';
+import { ApiError, ConflictError, type ReferenceDoc } from '@/api/client';
+import { OFFLINE_TOAST } from '@/state/actions';
+import { type RefsClient } from './references-modal';
+import * as stories from './references-modal.stories';
+
+const { ReadMode } = composeStories(stories);
 
 afterEach(() => {
   cleanup();
@@ -42,7 +46,7 @@ function setup(over: Partial<RefsClient> = {}, props: { down?: boolean } = {}) {
   };
   const toast = vi.fn();
   const onClose = vi.fn();
-  render(<ReferencesModal pid="p1" client={client} toast={toast} onClose={onClose} down={props.down ?? false} />);
+  render(<ReadMode pid="p1" client={client} toast={toast} onClose={onClose} down={props.down ?? false} />);
   return { client, toast, onClose };
 }
 

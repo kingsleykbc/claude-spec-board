@@ -6,7 +6,7 @@ import { useSimple } from '@/state/simpleMode';
 import type { PushToast } from '@/state/toasts';
 import { blockTexts, relPath, runHold } from '@/lib/vm';
 import { cn } from '@/lib/utils';
-import { ConflictDialog } from '@/components/ConflictDialog';
+import { ConflictDialog } from '@/components/conflict-dialog/conflict-dialog';
 import { Modal } from '@/components/ui/modal/modal';
 import { useDiscardGuard } from '@/lib/use-discard-guard';
 import { BlockedBanner, type BlockReason } from './blocked-banner/blocked-banner';

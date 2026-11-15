@@ -1,13 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { ConflictDialog } from './ConflictDialog';
+import { composeStories } from '@storybook/react-vite';
+import * as stories from './conflict-dialog.stories';
+
+const { Spec, Document } = composeStories(stories);
 
 afterEach(cleanup);
 
 describe('ConflictDialog', () => {
   it('shows the prototype copy and wires the three actions; scrim click keeps editing', () => {
     const h = { onKeepEditing: vi.fn(), onReloadKeepCopy: vi.fn(), onReload: vi.fn() };
-    render(<ConflictDialog path="specs/T-105/spec.md" {...h} />);
+    render(<Spec {...h} />);
     const dlg = screen.getByRole('alertdialog', { name: 'This spec changed outside the board' });
     expect(
       within(dlg).getByText(
@@ -30,7 +33,8 @@ describe('ConflictDialog', () => {
   });
 
   it('takes an optional title', () => {
-    render(<ConflictDialog title="This document changed outside the board" path="CLAUDE.md" onKeepEditing={vi.fn()} onReloadKeepCopy={vi.fn()} onReload={vi.fn()} />);
+    render(<Document />);
     expect(screen.getByRole('alertdialog', { name: 'This document changed outside the board' })).toBeTruthy();
+    expect(screen.getByText('CLAUDE.md')).toBeTruthy();
   });
 });

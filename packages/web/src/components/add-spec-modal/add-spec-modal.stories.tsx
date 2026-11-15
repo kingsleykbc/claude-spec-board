@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
-import { recipeSpec } from '../fixtures/recipeBox';
-import { AddSpecModal } from './AddSpecModal';
+import { recipeSpec } from '@/fixtures/recipeBox';
+import { AddSpecModal } from './add-spec-modal';
 
 const meta = {
   title: 'Modals/AddSpec',

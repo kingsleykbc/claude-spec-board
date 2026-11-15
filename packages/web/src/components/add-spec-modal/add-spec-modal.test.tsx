@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { ApiError } from '../api/client';
-import { recipeSpec } from '../fixtures/recipeBox';
-import { OFFLINE_TOAST } from '../state/actions';
-import { AddSpecModal } from './AddSpecModal';
+import { composeStories } from '@storybook/react-vite';
+import { ApiError } from '@/api/client';
+import { recipeSpec } from '@/fixtures/recipeBox';
+import { OFFLINE_TOAST } from '@/state/actions';
+import * as stories from './add-spec-modal.stories';
+
+const { Empty } = composeStories(stories);
 
 afterEach(cleanup);
 
@@ -19,7 +22,7 @@ function setup(over: { down?: boolean; createSpec?: ReturnType<typeof vi.fn>; re
     onClose: vi.fn(),
     down: over.down ?? false,
   };
-  render(<AddSpecModal {...props} />);
+  render(<Empty {...props} />);
   return { ...props, created };
 }
 
@@ -34,13 +37,13 @@ describe('AddSpecModal', () => {
     expect(document.activeElement).toBe(screen.getByLabelText('Title'));
     expect(draftBtn().disabled).toBe(true);
     expect(writeBtn().disabled).toBe(true);
-    expect(draftBtn().style.opacity).toBe('0.45');
+    expect(draftBtn().classList.contains('opacity-45')).toBe(true);
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: '   ' } });
     expect(draftBtn().disabled).toBe(true);
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Nutrition info' } });
     expect(draftBtn().disabled).toBe(false);
     expect(writeBtn().disabled).toBe(false);
-    expect(draftBtn().style.opacity).toBe('1');
+    expect(draftBtn().classList.contains('opacity-45')).toBe(false);
   });
 
   it('Add as draft sends draft:true and "No description yet." for an empty description', async () => {

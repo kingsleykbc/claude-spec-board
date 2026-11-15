@@ -7,7 +7,7 @@ import { NO_FILTERS } from '@/state/filters';
 import type { TableViewProps } from './table-view';
 import * as stories from './table-view.stories';
 
-const { Flat, Milestones, TrackingOff, Compact, LongTitle } = composeStories(stories);
+const { Flat, Milestones, TrackingOff, Compact, CompactLongTitle, LongTitle } = composeStories(stories);
 
 afterEach(cleanup);
 
@@ -37,15 +37,18 @@ describe('TableView', () => {
     expect(p.onOpen).toHaveBeenCalledWith('T-104');
   });
 
-  it('shows status, progress and the "you" marker titled with why the spec waits on you', () => {
+  it('shows status, progress and the "you" marker on the specs that wait on you', () => {
     table();
     const row = screen.getByTestId('row-T-104');
     const t104 = recipeSpecs.find((x) => x.id === 'T-104')!;
     expect(within(row).getByText('Doing')).toBeTruthy();
     expect(within(row).getByText(`${t104.subtasks.filter((x) => x.done).length}/${t104.subtasks.length}`)).toBeTruthy();
-    expect(within(screen.getByTestId('row-T-103')).getByTitle('Waiting on your review')).toBeTruthy();
-    expect(screen.getAllByTitle('Waiting on your review')).toHaveLength(1);
-    expect(within(screen.getByTestId('row-T-105')).getByTitle('3 questions for you').textContent).toBe('you');
+    expect(within(screen.getByTestId('row-T-103')).getByRole('button', { name: 'Why is T-103 waiting on you?' }).textContent).toBe('you');
+    expect(within(screen.getByTestId('row-T-105')).getByRole('button', { name: 'Why is T-105 waiting on you?' }).textContent).toBe('you');
+    // The reason lives in the popover only, not in a native title on top of it.
+    const pill = within(screen.getByTestId('row-T-103')).getByRole('button', { name: 'Why is T-103 waiting on you?' });
+    expect(pill.querySelector('[title]')).toBeNull();
+    expect(pill.hasAttribute('title')).toBe(false);
     expect(within(screen.getByTestId('row-T-101')).queryByText('you')).toBeNull();
   });
 
@@ -79,7 +82,7 @@ describe('TableView', () => {
     expect(btn.getAttribute('aria-expanded')).toBe('false');
     const list = document.getElementById(btn.getAttribute('aria-controls')!)!;
     expect(list.hidden).toBe(true);
-    expect(within(screen.getByTestId('row-T-104')).getByTitle('Your step: Add the API key')).toBeTruthy();
+    expect(within(screen.getByTestId('row-T-104')).getByRole('button', { name: 'Why is T-104 waiting on you?' })).toBeTruthy();
     fireEvent.click(btn);
     expect(btn.getAttribute('aria-expanded')).toBe('true');
     expect(list.hidden).toBe(false);
@@ -206,10 +209,28 @@ describe('TableView columns', () => {
     await waitFor(() => expect(screen.getByRole('tooltip').textContent).toBe(long));
   });
 
+  it('a compact (overview) title truncates too, and its Hint shows the full title', async () => {
+    render(<CompactLongTitle />);
+    const long = 'Meal planner calendar with drag and drop between days, weekly totals and a printable shopping summary';
+    const title = screen.getByText(long);
+    expect(title.className).toContain('truncate');
+    expect(screen.queryByRole('button', { name: long })).toBeNull();
+    fireEvent.focus(title);
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toBe(long));
+  });
+
   it('the "you" marker opens a popover with why the spec waits on you', async () => {
     table();
     fireEvent.click(within(screen.getByTestId('row-T-103')).getByRole('button', { name: 'Why is T-103 waiting on you?' }));
     const pop = await screen.findByRole('dialog', { name: 'Waiting on you' });
     expect(pop.textContent).toContain('Waiting on your review');
+  });
+
+  it('a subtask waiting on you shows its step in the popover', async () => {
+    const t104 = recipeSpecs.find((x) => x.id === 'T-104')!;
+    const subtasks = [{ ...t104.subtasks[0]!, n: 2, title: '(you) Add the API key', done: false }];
+    table({ specs: recipeSpecs.map((x) => (x.id === 'T-104' ? { ...x, subtasks } : x)) });
+    fireEvent.click(within(screen.getByTestId('row-T-104')).getByRole('button', { name: 'Why is T-104 waiting on you?' }));
+    expect((await screen.findByRole('dialog', { name: 'Waiting on you' })).textContent).toContain('Your step: Add the API key');
   });
 });

@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { DOCS_PAGES, docsLink, isDocsPath, pageForPath } from '../lib/docsPages';
-import { DocsPage } from './DocsPage';
+import { DOCS_PAGES, docsLink, isDocsPath, pageForPath } from '@/lib/docsPages';
+import { composeStories } from '@storybook/react-vite';
+import * as stories from './docs-page.stories';
 import { headingId } from '@/components/ui/markdown/markdown';
+
+const { Readme } = composeStories(stories);
 
 afterEach(cleanup);
 
@@ -57,7 +60,7 @@ describe('the manual notice link', () => {
 
 describe('DocsPage', () => {
   it('shows the README first, with every page in the nav', () => {
-    render(<DocsPage loadProjects={noProjects} pathname="/docs" />);
+    render(<Readme loadProjects={noProjects} pathname="/docs" />);
     expect(screen.getByRole('heading', { name: 'Spec Board', level: 2 })).toBeTruthy();
     const nav = within(screen.getByRole('navigation', { name: 'Documentation' }));
     expect(nav.getAllByRole('link').map((a) => a.textContent)).toEqual(DOCS_PAGES.map((p) => p.title));
@@ -65,7 +68,7 @@ describe('DocsPage', () => {
   });
 
   it('keeps links between pages in this tab, and sends others to a new one', () => {
-    render(<DocsPage loadProjects={noProjects} pathname="/docs" />);
+    render(<Readme loadProjects={noProjects} pathname="/docs" />);
     const main = within(screen.getByRole('main'));
     const internal = main.getAllByRole('link', { name: 'Safety' })[0]!;
     expect(internal.getAttribute('href')).toBe('/docs/safety');
@@ -74,7 +77,7 @@ describe('DocsPage', () => {
   });
 
   it('explains both ways of running a spec', () => {
-    render(<DocsPage loadProjects={noProjects} pathname="/docs/running-specs" />);
+    render(<Readme loadProjects={noProjects} pathname="/docs/running-specs" />);
     expect(screen.getByRole('heading', { name: 'Running a spec', level: 2 })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Why the chat is the usual choice' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Why the background run stays' })).toBeTruthy();
@@ -88,7 +91,7 @@ describe('DocsPage top bar', () => {
   ];
 
   it('shows the project the docs were opened from, and keeps it on links between pages', async () => {
-    render(<DocsPage pathname="/docs" search="?project=b2" loadProjects={async () => list} />);
+    render(<Readme pathname="/docs" search="?project=b2" loadProjects={async () => list} />);
     expect(await screen.findByRole('button', { name: /Other/ })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Open the board' }).getAttribute('href')).toBe('/?project=b2');
     const nav = within(screen.getByRole('navigation', { name: 'Documentation' }));
@@ -99,7 +102,7 @@ describe('DocsPage top bar', () => {
 
   it('picking a project opens its board; Esc closes the menu', async () => {
     const go = vi.fn();
-    render(<DocsPage pathname="/docs" loadProjects={async () => list} go={go} />);
+    render(<Readme pathname="/docs" loadProjects={async () => list} go={go} />);
     // The switcher is a Radix dropdown: it opens on pointer-down or Enter, not on a bare click event.
     fireEvent.keyDown(await screen.findByRole('button', { name: /Recipe Box/ }), { key: 'Enter' });
     fireEvent.keyDown(document, { key: 'Escape' });
@@ -110,7 +113,7 @@ describe('DocsPage top bar', () => {
   });
 
   it('the server is not running: the docs still show, without a project switcher', async () => {
-    render(<DocsPage pathname="/docs" loadProjects={() => Promise.reject(new Error('offline'))} />);
+    render(<Readme pathname="/docs" loadProjects={() => Promise.reject(new Error('offline'))} />);
     expect(screen.getByRole('heading', { name: 'Spec Board', level: 2 })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Open the board' }).getAttribute('href')).toBe('/');
     await Promise.resolve();

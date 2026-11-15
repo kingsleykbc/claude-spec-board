@@ -1,14 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { recipeProject } from '../fixtures/recipeBox';
-import { OverviewModal } from './OverviewModal';
+import { composeStories } from '@storybook/react-vite';
+import { recipeProject } from '@/fixtures/recipeBox';
+import type { OverviewModalProps } from './overview-modal';
+import * as stories from './overview-modal.stories';
+
+const { WithSummary } = composeStories(stories);
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
 
-const setup = (over: Partial<Parameters<typeof OverviewModal>[0]> = {}) => {
+const setup = (over: Partial<OverviewModalProps> = {}) => {
   const props = {
     project: recipeProject,
     name: 'Recipe Box',
@@ -18,7 +22,8 @@ const setup = (over: Partial<Parameters<typeof OverviewModal>[0]> = {}) => {
     now: new Date(2026, 10, 8, 11, 30),
     ...over,
   };
-  render(<OverviewModal {...props} />);
+  // The story types its handlers as mocks; any handler does here.
+  render(<WithSummary {...(props as Parameters<typeof WithSummary>[0])} />);
   return props;
 };
 

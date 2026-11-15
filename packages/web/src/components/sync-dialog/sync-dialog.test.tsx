@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import type { RunLine } from '../api/client';
-import { SyncDialog, type SyncDialogProps, type WaitingProposal } from './SyncDialog';
+import { composeStories } from '@storybook/react-vite';
+import type { RunLine } from '@/api/client';
+import { type SyncDialogProps, type WaitingProposal } from './sync-dialog';
+import * as stories from './sync-dialog.stories';
+
+const { Manual } = composeStories(stories);
 
 afterEach(() => {
   cleanup();
@@ -35,7 +39,8 @@ const setup = (over: Partial<SyncDialogProps> = {}) => {
     onClose: vi.fn(),
     ...over,
   };
-  render(<SyncDialog {...props} />);
+  // The story types its handlers as mocks; any handler does here.
+  render(<Manual {...(props as Parameters<typeof Manual>[0])} />);
   return props;
 };
 const dialog = () => screen.getByRole('dialog');

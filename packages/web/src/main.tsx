@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles/app.css';
 import { App } from './App';
-import { DocsPage } from './components/DocsPage';
+import { DocsPage } from '@/components/docs-page/docs-page';
 import { TooltipProvider } from './components/ui/tooltip/tooltip';
 import { isDocsPath } from './lib/docsPages';
 import { applyThemeChoice, savedThemeChoice } from './lib/theme';

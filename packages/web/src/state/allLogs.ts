@@ -56,24 +56,6 @@ export function allLogEntries(project: Pick<Project, 'specs' | 'archived'>): Log
   return rows.map((r) => r.item);
 }
 
-const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-/** Group (already sorted) items by local calendar day: "Today", "Yesterday", else `YYYY-MM-DD`. */
-export function groupByDay(items: LogItem[], today: Date): { label: string; items: LogItem[] }[] {
-  const t = ymd(today);
-  const y = ymd(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1));
-  const out: { label: string; items: LogItem[] }[] = [];
-  for (const it of items) {
-    const m = /^\d{4}-\d{2}-\d{2}/.exec(it.at.trim());
-    const day = m ? m[0] : 'Unknown date';
-    const label = day === t ? 'Today' : day === y ? 'Yesterday' : day;
-    const last = out[out.length - 1];
-    if (last && last.label === label) last.items.push(it);
-    else out.push({ label, items: [it] });
-  }
-  return out;
-}
-
 /** Case-insensitive match over the text, spec ID, spec title and subtask title. */
 export function filterLogs(items: LogItem[], q: string): LogItem[] {
   const needle = q.trim().toLowerCase();

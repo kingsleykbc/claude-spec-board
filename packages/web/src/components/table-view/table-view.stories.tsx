@@ -91,6 +91,14 @@ export const LongTitle: Story = {
   },
 };
 
+/** In the overview's read-only table a long title truncates as well; the Hint shows the full title. */
+export const CompactLongTitle: Story = {
+  args: { compact: true, onOpen: undefined, specs: recipeSpecs.map((x) => (x.id === 'T-104' ? { ...x, title: LONG } : x)), archived: [] },
+  play: async ({ canvasElement }) => {
+    expect(within(canvasElement).getByText(LONG).className).toContain('truncate');
+  },
+};
+
 export const Empty: Story = {
   args: { specs: [], archived: [] },
   play: async ({ canvasElement }) => {

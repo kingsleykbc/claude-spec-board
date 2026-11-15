@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
-import type { ReferenceDoc } from '../api/client';
-import { ReferencesModal, type RefsClient } from './ReferencesModal';
+import type { ReferenceDoc } from '@/api/client';
+import { ReferencesModal, type RefsClient } from './references-modal';
 
 const doc = (path: string, md: string): ReferenceDoc => ({ name: path.split('/').pop()!, path, md, hash: `h:${path}`, missing: false });
 

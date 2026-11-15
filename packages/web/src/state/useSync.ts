@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, type RunKind, type RunSnapshot } from '../api/client';
-import type { SyncDialogProps, WaitingProposal } from '../components/SyncDialog';
+import type { SyncDialogProps, WaitingProposal } from '@/components/sync-dialog/sync-dialog';
 import { OFFLINE_TOAST } from './actions';
 import type { PushToast } from './toasts';
 

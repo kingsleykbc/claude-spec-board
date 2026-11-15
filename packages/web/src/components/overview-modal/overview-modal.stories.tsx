@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, within } from 'storybook/test';
-import { recipeProject } from '../fixtures/recipeBox';
-import { OverviewModal } from './OverviewModal';
+import { recipeProject } from '@/fixtures/recipeBox';
+import { OverviewModal } from './overview-modal';
 
 const meta = {
   title: 'Modals/Overview',

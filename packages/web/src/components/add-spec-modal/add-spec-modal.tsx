@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react';
 import type { Spec } from '@specboard/core';
-import { api } from '../api/client';
-import { OFFLINE_TOAST } from '../state/actions';
-import type { PushToast } from '../state/toasts';
-import { CloseIcon, PlayIcon } from '../lib/icons';
+import { api } from '@/api/client';
+import { OFFLINE_TOAST } from '@/state/actions';
+import type { PushToast } from '@/state/toasts';
+import { CloseIcon, PlayIcon } from '@/lib/icons';
 import { Modal } from '@/components/ui/modal/modal';
 import { useDiscardGuard } from '@/lib/use-discard-guard';
-import s from './modals.module.css';
+import { Hint } from '@/components/ui/hint/hint';
+import { cn } from '@/lib/utils';
 
 export interface AddSpecModalProps {
   pid: string;
@@ -34,7 +35,7 @@ export function AddSpecModal({ pid, nextId, client = api, toast, down = false, r
   const inFlight = useRef(false);
   const t = title.trim();
   const disabled = t === '' || busy;
-  const opacity = t === '' ? 0.45 : 1;
+  const faded = t === '' ? 'opacity-45' : '';
   // F3d: typed text counts as unsaved work, so Esc, the scrim and × ask before dropping it.
   const { requestClose, dialog } = useDiscardGuard({
     editing: false,
@@ -75,53 +76,62 @@ export function AddSpecModal({ pid, nextId, client = api, toast, down = false, r
 
   return (
     <Modal label="New spec" width="min(600px, 100%)" height="auto" onClose={requestClose}>
-      <div className={s.nsHead}>
-        <span className={s.nsTitle}>New spec</span>
-        <span className={s.nsId}>{nextId}</span>
-        <span className={s.grow} />
-        <button type="button" className={s.close} aria-label="Close" onClick={requestClose}>
-          <CloseIcon aria-hidden />
-        </button>
+      <div className="flex items-center pt-[18px] pr-5 pb-1 pl-7">
+        <span className="text-[18px] font-semibold">New spec</span>
+        <span className="ml-2.5 font-mono text-[12px] text-fg3">{nextId}</span>
+        <span className="flex-1" />
+        <Hint label="Close">
+          <button
+            type="button"
+            className="flex size-[34px] cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 text-[18px] text-fg2 hover:bg-panel"
+            aria-label="Close"
+            onClick={requestClose}
+          >
+            <CloseIcon aria-hidden />
+          </button>
+        </Hint>
       </div>
-      <div className={s.nsBody}>
-        <div className={s.nsField}>
-          <label className={s.nsLabel} htmlFor="ns-title">
+      <div className="flex flex-col gap-4 px-7 pt-3 pb-2">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[12.5px] font-semibold text-fg2" htmlFor="ns-title">
             Title
           </label>
           <input
             id="ns-title"
-            className={s.nsInput}
+            className="h-10 rounded-[9px] border border-line2 bg-card px-3 py-0 text-[15px] text-fg"
             autoFocus
             placeholder="e.g. Nutrition info per serving"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
         </div>
-        <div className={s.nsField}>
-          <label className={s.nsLabel} htmlFor="ns-desc">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[12.5px] font-semibold text-fg2" htmlFor="ns-desc">
             Description
           </label>
           <textarea
             id="ns-desc"
-            className={s.nsTextarea}
+            className="resize-y rounded-[9px] border border-line2 bg-card px-3 py-2.5 text-[14px] leading-[1.55] text-fg"
             rows={6}
             placeholder="Describe the idea in plain words. What should it do, and for whom?"
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
           />
-          <span className={s.nsHint}>Claude can turn this into a full spec with features, open questions and subtasks.</span>
+          <span className="text-[12.5px] leading-[1.5] text-fg3">Claude can turn this into a full spec with features, open questions and subtasks.</span>
         </div>
       </div>
-      <div className={s.nsFoot}>
-        <button type="button" className={s.nsCancel} onClick={onClose}>
+      <div className="flex items-center gap-2 px-7 pt-4 pb-[22px]">
+        <button type="button" className="h-9 cursor-pointer rounded-lg border-0 bg-transparent px-3 py-0 text-[13.5px] text-fg2 hover:bg-panel" onClick={onClose}>
           Cancel
         </button>
-        <span className={s.grow} />
-        <button type="button" className={s.nsDraft} disabled={disabled} style={{ opacity }} onClick={() => void add(false)}>
+        <span className="flex-1" />
+        <button type="button" className={cn('h-9 cursor-pointer rounded-lg border border-line2 bg-card px-3.5 py-0 text-[13.5px] font-semibold text-fg disabled:cursor-default', faded)}
+          disabled={disabled} onClick={() => void add(false)}>
           Add as draft
         </button>
-        <button type="button" className={s.nsWrite} disabled={disabled} style={{ opacity }} onClick={() => void add(true)}>
-          <PlayIcon aria-hidden className={s.nsPlay} />
+        <button type="button" className={cn('flex h-9 cursor-pointer items-center gap-[7px] rounded-lg border-0 bg-accent px-[15px] py-0 text-[13.5px] font-semibold text-accent-fg disabled:cursor-default', faded)}
+          disabled={disabled} onClick={() => void add(true)}>
+          <PlayIcon aria-hidden className="text-[12px]" />
           Add &amp; have Claude write it up
         </button>
       </div>

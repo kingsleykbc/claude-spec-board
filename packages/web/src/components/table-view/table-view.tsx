@@ -117,7 +117,12 @@ function Row({ spec, c, span }: { spec: Spec; c: Cols; span: number }) {
         </td>
         <td className={td}>
           {c.compact ? (
-            <span className="font-medium text-fg">{spec.title}</span>
+            // Read only here: the title truncates to the shared column width, and the full title is in a tooltip.
+            <Hint label={spec.title}>
+              <span tabIndex={0} className="block truncate rounded-sm font-medium text-fg">
+                {spec.title}
+              </span>
+            </Hint>
           ) : (
             <div className="flex min-w-0 items-center">
               <Hint label={spec.title}>
@@ -131,7 +136,7 @@ function Row({ spec, c, span }: { spec: Spec; c: Cols; span: number }) {
               </Hint>
               {waiting !== null && (
                 <span className="ml-2 inline-flex flex-none">
-                  <InfoPopover label={`Why is ${spec.id} waiting on you?`} title="Waiting on you" trigger={<span className={youTag} title={waiting}>you</span>}>
+                  <InfoPopover label={`Why is ${spec.id} waiting on you?`} title="Waiting on you" trigger={<span className={youTag}>you</span>}>
                     {waiting}
                   </InfoPopover>
                 </span>
