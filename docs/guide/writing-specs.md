@@ -149,6 +149,16 @@ End a question with `(recommended: <value>)` to show what Claude would pick. The
 
 A recommendation is only a suggestion: nothing is filled in for you, and a required question still needs your answer even if you agree with it.
 
+### Answering and editing
+
+An answered question shows as plain text with an **Edit** button. Press Edit to change the answer, or Cancel to go back to the saved one. Other questions you are still typing are not touched. Once a spec is in Review or Done, its answers are locked.
+
+### When the spec text changes
+
+If you edit a spec's text on the board, the questions and subtasks may no longer match it. The spec gets `needs_refresh: <date>` in its front matter. Claude then runs `/specboard:refresh-questions <ID>` on its own when background runs are approved and Claude is signed in.
+
+If it can't, the **Open questions** and **Subtasks** headings show a warning: "These may be out of date after the last spec edit. Run `/specboard:refresh-questions <ID>` in Claude." Run that command in your chat. It clears the flag. Specs in Review or Done, and drafts, are never flagged.
+
 ## Subtask logs
 
 Each subtask Claude finishes gets a log in `logs/<n>-<title>.md`, with a short entry for each sitting, headed by the date and time:

@@ -50,6 +50,8 @@ Each finished subtask has a log. Besides what was done, the card shows:
 - **The commit**, and the **pull request** (or merge request) link when the branch has one. Claude looks for it with `gh pr view`, then `glab mr view`, and quietly skips it when neither finds one.
 - **When it was done**, as a date and time in your local time.
 - **Tokens**, described next.
+
+In the Logs window, press **More info** on a log to see its files, commit, pull request and tokens.
 - **A warning icon** if a sync found that the work in that log no longer exists. Click or tap it to see the date and reason.
 
 Press **Logs** at the right end of the header to see every log in the project, newest first, with a search box for text, spec IDs and titles. Each log is a row: the time on the left, the spec, subtask and text on the right. Times up to 30 days old read as "time ago" ("3 hours ago"), older ones as a date and time; hover a time to see it exactly.

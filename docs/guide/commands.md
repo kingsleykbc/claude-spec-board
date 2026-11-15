@@ -17,6 +17,7 @@ Type these in a chat open in your project folder. With the plugin, every command
 | `/specboard:next` | Picks the most urgent spec that isn't blocked (from the current milestone first) and runs it. |
 | `/specboard:update-spec <id> <instructions>` | Changes a spec as you describe. |
 | `/specboard:refresh-overview` | Rewrites `overview.md` from the current state of the specs. |
+| `/specboard:refresh-questions <id>` | After you edit a spec's text on the board, removes open questions and unstarted subtasks that no longer fit, adds only the ones the new text needs, and clears the stale-question warning. The board runs it for you when background runs are approved and Claude is signed in. |
 | `/specboard:refresh-logs [id]` | Brings subtask logs up to date from what was actually done, using git history. |
 | `/specboard:correct-specs [id]` | Finds specs that no longer match the code and fixes them. |
 

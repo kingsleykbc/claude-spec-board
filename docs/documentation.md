@@ -123,7 +123,7 @@ Every screen has a top bar with **SPEC-BOARD**, a **Project Name ▾** dropdown,
 From top to bottom:
 - **Header:** the ID, the file path (click it to open the file in VS Code, or to copy the full path without it), the title, the **Copy run command** and **Run in background** buttons (section 9, both secondary buttons), and a **status dropdown** in the top-right corner. (I'm reading the sketch's "TODO ▾" as that dropdown.) Urgency and categories can be edited here. `/create-spec` sets both, and the user can change them.
 - **Spec** section: the description and the **Features** list, rendered nicely. An **Edit** button switches to a Markdown editor for that section. Saving writes it back to the file.
-- **Open questions:** each question renders as the right input: yes/no checkboxes, a text box, a number box (and a single-choice list, **my call**). A **Save changes** button writes the answers into the file.
+- **Open questions:** each question renders as the right input: yes/no checkboxes, a text box, a number box (and a single-choice list, **my call**). A **Save changes** button writes the answers into the file. An answered question shows as text with an **Edit** button, and is locked in Review and Done (round 7).
 - **Dependencies and dependents:** the specs this one depends on and the specs that depend on it, each linked and showing its status. Kingsley asked for this, but it isn't in the sketch, so placement is up to the builder.
 - **Subtasks:** a checkbox list. Kingsley can tick them too. Each subtask that has a log shows a **≡ Log** link that opens its log.
 - **Blocked banner** (red/pink) at the bottom while anything is unanswered, e.g. "Blocked. Awaiting answers on: No. of versions".
