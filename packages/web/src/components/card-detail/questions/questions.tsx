@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type Ref } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
 import type { Question, Spec } from '@specboard/core';
 import { api, ConflictError } from '@/api/client';
 import { OFFLINE_TOAST, type Mutate } from '@/state/actions';
@@ -32,6 +32,8 @@ export interface QuestionsProps {
   highlight?: boolean;
   /** Review and Done specs: answers read as text and can't be edited. */
   readOnly?: boolean;
+  /** Shown at the right end of the heading, e.g. the stale-questions warning. */
+  warning?: ReactNode;
 }
 
 export const SAVED_MS = 1800;
@@ -61,6 +63,7 @@ export function Questions({
   sectionRef,
   highlight = false,
   readOnly = false,
+  warning,
 }: QuestionsProps) {
   const id = spec.id;
   /** Unsaved values by question ID. */
@@ -168,6 +171,7 @@ export function Questions({
         <span className={sectionLabel}>OPEN QUESTIONS</span>
         {!readOnly && open > 0 && <span className={cn(pill, 'bg-review-soft text-review-ink')}>{`${open} waiting on you`}</span>}
         {!readOnly && optional > 0 && <span className={cn(pill, 'bg-panel text-fg2')}>{`${optional} optional`}</span>}
+        {warning && <span className="ml-auto flex">{warning}</span>}
       </div>
       {spec.questions.length === 0 ? (
         <div className="px-4 py-[18px] text-[13.5px] text-fg3">No open questions. Claude has what it needs.</div>

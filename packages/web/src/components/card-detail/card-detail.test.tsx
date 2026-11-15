@@ -8,14 +8,14 @@ import { recipeArchived, recipeSpec, recipeSpecs, fileProblemSpec } from '@/fixt
 import { createSpecActions } from '@/state/actions';
 import { createMutator } from '@/state/mutate';
 import { interceptPop } from '@/lib/popGuard';
-import { datesLine, type DetailClient } from './card-detail';
+import { datesLine, type CardDetailProps, type DetailClient } from './card-detail';
 import * as stories from './card-detail.stories';
 
 const { ReadMode, ObsoleteLog, Simple, NarrowStatus } = composeStories(stories);
 
 const ROOT = 'examples/recipe-box';
 
-function setup(id: string, over: Partial<DetailClient> = {}, specs: Spec[] = [...recipeSpecs, fileProblemSpec]) {
+function setup(id: string, over: Partial<DetailClient> = {}, specs: Spec[] = [...recipeSpecs, fileProblemSpec], extra: Pick<CardDetailProps, 'canAutoRun' | 'startRun' | 'refreshing'> = {}) {
   const client = {
     setMeta: vi.fn(async (_pid: string, sid: string) => ({ hash: 'h2', spec: recipeSpec(sid) })),
     setBody: vi.fn(async (_pid: string, sid: string) => ({ hash: 'h2', spec: recipeSpec(sid) })),
@@ -51,6 +51,7 @@ function setup(id: string, over: Partial<DetailClient> = {}, specs: Spec[] = [..
       onRun={onRun}
       onFixFile={onFixFile}
       down={down}
+      {...extra}
     />
   );
   const r = render(el(specs));
@@ -701,6 +702,69 @@ describe('CardDetail', () => {
       await user.keyboard('{Escape}');
       expect(onClose).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe('questions refresh after a spec edit', () => {
+  const flagged = (sid: string): Spec => ({ ...recipeSpec(sid), needsRefresh: '2026-11-15' });
+  const setBody = vi.fn(async (_pid: string, sid: string) => ({ hash: 'h2', spec: flagged(sid) }));
+  const save = async (toast: ReturnType<typeof vi.fn>) => {
+    startEdit('New text');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith('ok', 'Spec saved', undefined, expect.anything()));
+  };
+  const warnings = () => screen.queryAllByRole('button', { name: 'Questions may be out of date' });
+
+  it('connected and approved: saving a To-do spec the server flagged starts a refresh-questions run for it', async () => {
+    const startRun = vi.fn(async () => undefined);
+    const { toast } = setup('T-105', { setBody }, undefined, { canAutoRun: true, startRun });
+    await save(toast);
+    expect(startRun).toHaveBeenCalledTimes(1);
+    expect(startRun).toHaveBeenCalledWith('refresh-questions', 'T-105');
+  });
+
+  it('a start refusal is quiet: no error toast, and the flag stays', async () => {
+    const startRun = vi.fn(async () => {
+      throw new Error('busy');
+    });
+    const { toast } = setup('T-105', { setBody }, undefined, { canAutoRun: true, startRun });
+    await save(toast);
+    await waitFor(() => expect(startRun).toHaveBeenCalled());
+    expect(toast).not.toHaveBeenCalledWith('err', expect.anything(), expect.anything());
+  });
+
+  it('not connected: no run starts, and both headings warn; hovering shows the copy', async () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('hover: hover'), media: q, addEventListener() {}, removeEventListener() {} }));
+    try {
+      const startRun = vi.fn(async () => undefined);
+      const { toast, update } = setup('T-105', { setBody }, undefined, { canAutoRun: false, startRun });
+      expect(warnings()).toHaveLength(0);
+      await save(toast);
+      update(flagged('T-105'));
+      expect(startRun).not.toHaveBeenCalled();
+      const [q, s] = warnings();
+      expect(warnings()).toHaveLength(2);
+      expect(within(screen.getByRole('region', { name: 'Open questions' })).getByRole('button', { name: 'Questions may be out of date' })).toBe(q);
+      expect(s!.closest('section')?.textContent).toContain('SUBTASKS');
+      fireEvent.pointerEnter(q!);
+      expect(screen.getByRole('dialog', { name: 'Questions may be out of date' }).textContent).toContain(
+        'These may be out of date after the last spec edit. Run /specboard:refresh-questions T-105 in Claude.',
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('no warning while a refresh run for this spec is going', () => {
+    setup('T-105', {}, [...recipeSpecs.filter((x) => x.id !== 'T-105'), flagged('T-105')], { refreshing: true });
+    expect(warnings()).toHaveLength(0);
+  });
+
+  it('a Review spec never starts a run, even if a save came back flagged (Review Focus 3)', async () => {
+    const startRun = vi.fn(async () => undefined);
+    const { toast } = setup('T-103', { setBody }, undefined, { canAutoRun: true, startRun });
+    await save(toast);
+    expect(startRun).not.toHaveBeenCalled();
   });
 });
 

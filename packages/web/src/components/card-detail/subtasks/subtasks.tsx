@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import type { Spec } from '@specboard/core';
 // Subpath import: the core index pulls in node:crypto, which the browser build cannot load.
 import { youStep } from '@specboard/core/you';
@@ -28,12 +28,14 @@ export interface SubtasksProps {
   changed?: ReadonlySet<string>;
   /** A run is working on this spec: the current subtask shows "In progress". */
   runActive?: boolean;
+  /** Shown at the right end of the heading, e.g. the stale-questions warning. */
+  warning?: ReactNode;
 }
 
 const NONE: ReadonlySet<string> = new Set();
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-export function Subtasks({ pid, spec, client = api, mutate, refresh, toast, down = false, changed = NONE, runActive = false }: SubtasksProps) {
+export function Subtasks({ pid, spec, client = api, mutate, refresh, toast, down = false, changed = NONE, runActive = false, warning }: SubtasksProps) {
   const id = spec.id;
   /** Optimistic ticks while writes are in flight. */
   const [local, setLocal] = useState<Record<number, boolean>>({});
@@ -80,6 +82,7 @@ export function Subtasks({ pid, spec, client = api, mutate, refresh, toast, down
             style={{ width: total > 0 ? `${Math.round((done / total) * 100)}%` : '0%' }}
           />
         </div>
+        {warning && <span className="flex">{warning}</span>}
       </div>
       {total === 0 && <div className="px-4 py-[18px] text-[13.5px] text-fg3">No subtasks yet. Claude adds them when it writes up the spec.</div>}
       <div className="flex flex-col">

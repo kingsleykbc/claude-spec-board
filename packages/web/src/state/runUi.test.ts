@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ClaudeStatus, RunSnapshot } from '../api/client';
 import { recipeSpec } from '../fixtures/recipeBox';
 import { resetMode, setPluginMode } from '../lib/mode';
-import { cardRun, endedToast, manualReason, runButtonState } from './runUi';
+import { cardRun, endedToast, isRefreshingQuestions, manualReason, runButtonState } from './runUi';
 
 const PLUGIN_HINT = 'Ask Claude to run /specboard:setup again to update the allowed commands, or ask Claude to run `specboard init --yes --no-skills --runs yes <project path>`.';
 
@@ -92,6 +92,23 @@ describe('endedToast', () => {
   it('a run that needs an answer is unchanged', () => {
     const end = { status: 'needs' as const, title: 'Claude has a question', text: 'There is 1 unanswered question on this spec.' };
     expect(endedToast(run({ status: 'needs', end }))).toEqual(['warn', 'Claude needs your answer on T-104', end.text]);
+  });
+});
+
+describe('refresh-questions runs', () => {
+  it('the card shows the usual running state, and the detail its Running button', () => {
+    const r = run({ kind: 'refresh-questions' });
+    expect(cardRun(r, recipeSpec('T-104'))).toEqual({ running: '', writing: false, runActive: false });
+    expect(runButtonState(r, 'T-104', OK).runState).toBe('running');
+  });
+  it('is refreshing only while running, for its own spec', () => {
+    expect(isRefreshingQuestions(run({ kind: 'refresh-questions' }), 'T-104')).toBe(true);
+    expect(isRefreshingQuestions(run({ kind: 'refresh-questions' }), 'T-105')).toBe(false);
+    expect(isRefreshingQuestions(run({ kind: 'refresh-questions', status: 'finished' }), 'T-104')).toBe(false);
+    expect(isRefreshingQuestions(run(), 'T-104')).toBe(false);
+  });
+  it('a finished refresh says so instead of moving to Review', () => {
+    expect(endedToast(run({ kind: 'refresh-questions', status: 'finished' }))).toEqual(['ok', 'Refreshed T-104’s questions and subtasks']);
   });
 });
 

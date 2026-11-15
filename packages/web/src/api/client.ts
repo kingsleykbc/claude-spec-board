@@ -37,7 +37,7 @@ export type SyncProposal =
   | { exists: true; head: string | null; changes: number | null; created: string | null; scope: string | null; bodyMd: string; problems: string[] };
 
 // Run wire types, duplicated from packages/server/src/claude/ (runs.ts, classify.ts, events.ts, status.ts).
-export type RunKind = 'run' | 'write-up' | 'fix-file' | 'refresh-overview' | 'sync-plan' | 'sync-apply';
+export type RunKind = 'run' | 'write-up' | 'fix-file' | 'refresh-overview' | 'refresh-questions' | 'sync-plan' | 'sync-apply';
 export type RunStatus = 'running' | 'finished' | 'stopped' | 'needs' | 'permission' | 'error';
 export type RunLineKind = 'start' | 'read' | 'edit' | 'cmd' | 'ok' | 'done' | 'stop' | 'warn' | 'err';
 /** A run's output line as the server sends it: `seq` counts from 1 within a run. */

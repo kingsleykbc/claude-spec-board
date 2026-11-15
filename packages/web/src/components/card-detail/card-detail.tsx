@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Spec, Status, Urgency } from '@specboard/core';
-import { api, ConflictError, type SpecWrite } from '@/api/client';
+import { api, ConflictError, type RunKind, type SpecWrite } from '@/api/client';
 import { OFFLINE_TOAST, type Mutate } from '@/state/actions';
 import { useSimple } from '@/state/simpleMode';
 import type { PushToast } from '@/state/toasts';
@@ -15,6 +15,7 @@ import { DetailHeader } from './detail-header/detail-header';
 import { FileProblem } from './file-problem/file-problem';
 import type { RunState } from './run-button/run-button';
 import { Questions } from './questions/questions';
+import { RefreshWarning } from './refresh-warning/refresh-warning';
 import { SpecSection } from './spec-section/spec-section';
 import { specImageDir } from '@/lib/image-src';
 import { Subtasks } from './subtasks/subtasks';
@@ -74,6 +75,12 @@ export interface CardDetailProps {
   newQuestions?: ReadonlySet<string>;
   /** The New keys cleared by a successful answers save. */
   onQuestionsSeen?: (keys: string[]) => void;
+  /** Runs are approved and Claude is installed and signed in: a flagged save starts the question refresh on its own. */
+  canAutoRun?: boolean;
+  /** Starts a background run quietly (a refusal shows no toast). */
+  startRun?: (kind: RunKind, specId: string) => Promise<unknown>;
+  /** A refresh-questions run for this spec is going: no stale warning. */
+  refreshing?: boolean;
   /** Where focus goes on close if the opening element is gone. */
   returnFocus?: () => HTMLElement | null;
 }
@@ -136,6 +143,9 @@ function SpecDetail({
   changed,
   newQuestions,
   onQuestionsSeen,
+  canAutoRun = false,
+  startRun,
+  refreshing = false,
   returnFocus,
 }: CardDetailProps & { spec: Spec }) {
   const id = spec.id;
@@ -213,10 +223,15 @@ function SpecDetail({
     const text = editText;
     const { bodyHash } = editBase.current;
     setSaving(true);
+    let saved: Spec | undefined;
     try {
       // Any file hash will do (chain or current): writes that left the body alone are kept, and the
       // server 409s if the body itself changed since editing began.
-      await mutate(id, spec.hash, (h) => client.setBody(pid, id, h, bodyHash, text));
+      await mutate(id, spec.hash, async (h) => {
+        const res = await client.setBody(pid, id, h, bodyHash, text);
+        saved = res.spec;
+        return res;
+      });
     } catch (e) {
       setSaving(false);
       if (e instanceof ConflictError) setConflict(true);
@@ -227,6 +242,11 @@ function SpecDetail({
     setSaving(false);
     setEditText(null);
     toast('ok', 'Spec saved', undefined, { path });
+    // The server flagged the questions and subtasks for a refresh: run it now when Claude can. A refusal (busy, not
+    // set up, logged out) is quiet; the flag stays and the warning shows. Review and Done specs and drafts never run.
+    if (saved?.needsRefresh && canAutoRun && startRun && (saved.status === 'todo' || saved.status === 'doing') && !saved.draft) {
+      startRun('refresh-questions', id).catch(() => undefined);
+    }
   };
 
   const reloadKeepCopy = async () => {
@@ -293,6 +313,7 @@ function SpecDetail({
   const problem = spec.problems[0];
 
   const dates = datesLine(spec.created, spec.updated);
+  const warning = spec.needsRefresh && !refreshing ? <RefreshWarning id={id} /> : undefined;
   return (
     <Modal
       label={spec.title}
@@ -367,6 +388,7 @@ function SpecDetail({
                 {...(onQuestionsSeen ? { onSeen: onQuestionsSeen } : {})}
                 onDirtyChange={setAnswersDirty}
                 readOnly={spec.status === 'review' || spec.status === 'done'}
+                warning={warning}
                 sectionRef={sectionRefs.questions}
                 highlight={hl === 'questions'}
               />
@@ -381,6 +403,7 @@ function SpecDetail({
                 down={down}
                 {...(changed ? { changed } : {})}
                 runActive={runActive}
+                warning={warning}
               />
               {dates !== null && <p className="m-0 text-[12px] text-fg3">{dates}</p>}
             </div>

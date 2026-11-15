@@ -16,7 +16,7 @@ import { initialSimple, saveSimple, SimpleMode } from './state/simpleMode';
 import { initialView, saveView, type View } from './state/viewMode';
 import { useToasts, type PushToast } from './state/toasts';
 import { useProject } from './state/useProject';
-import { cardRun, isRefreshing, manualReason, runButtonState, useRunActions, useRunToasts } from './state/runUi';
+import { cardRun, isRefreshing, isRefreshingQuestions, manualReason, runButtonState, useRunActions, useRunToasts } from './state/runUi';
 import { useRun } from './state/useRun';
 import { useSync } from './state/useSync';
 import { SyncDialog } from '@/components/sync-dialog/sync-dialog';
@@ -398,6 +398,9 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
               onRun={() => void startRun('run', openId)}
               onStop={() => void stopRun()}
               onFixFile={() => void startRun('fix-file', openId)}
+              canAutoRun={run.claude !== null && manual === null}
+              startRun={run.start}
+              refreshing={isRefreshingQuestions(run.run, openId)}
               onSync={() => sync.openSync(openId)}
               syncWaiting={sync.proposal?.scope === openId}
               onSyncWaiting={sync.openWaiting}

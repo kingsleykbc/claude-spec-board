@@ -65,6 +65,10 @@ export function cardRun(run: RunSnapshot | null, spec: Spec): { running: string 
 /** The refresh run in flight drives the Overview modal's Refreshing state. */
 export const isRefreshing = (run: RunSnapshot | null): boolean => isRunning(run) && run.kind === 'refresh-overview';
 
+/** A question refresh for `specId` is in flight: its stale warning waits for the outcome. */
+export const isRefreshingQuestions = (run: RunSnapshot | null, specId: string): boolean =>
+  isRunning(run) && run.kind === 'refresh-questions' && run.specId === specId;
+
 function startedToast(run: RunSnapshot, title: string | undefined): ToastArgs | null {
   const id = run.specId;
   switch (run.kind) {
@@ -74,6 +78,8 @@ function startedToast(run: RunSnapshot, title: string | undefined): ToastArgs | 
       return ['run', `Claude is writing up ${id}`, 'Features, questions and subtasks will appear on the card.'];
     case 'fix-file':
       return ['run', `Asked Claude to fix ${id}`, title];
+    case 'refresh-questions':
+      return ['run', `Claude is checking ${id}’s questions and subtasks`, 'After your spec edit.'];
     case 'refresh-overview':
     case 'sync-plan':
     case 'sync-apply':
@@ -118,6 +124,7 @@ export function endedToast(run: RunSnapshot): ToastArgs {
     default:
       if (run.kind === 'write-up') return ['ok', `Claude wrote up ${id}`];
       if (run.kind === 'fix-file') return ['ok', `${id} is fixed`];
+      if (run.kind === 'refresh-questions') return ['ok', `Refreshed ${id}’s questions and subtasks`];
       return ['ok', `${id} moved to Review`, 'Claude finished. Have a look when you can.'];
   }
 }

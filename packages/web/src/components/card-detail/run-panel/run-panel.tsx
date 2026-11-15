@@ -95,6 +95,7 @@ const FINISHED: Partial<Record<RunKind, { title: string; text: string }>> = {
   'sync-apply': { title: 'Synced with the code', text: 'The spec now matches the code.' },
   'write-up': { title: 'Written up', text: 'Features, questions and subtasks are on the card. Check them, then run it.' },
   'fix-file': { title: 'Fixed', text: 'Claude finished fixing the file. Check the spec.' },
+  'refresh-questions': { title: 'Refreshed', text: 'Questions and subtasks now match the spec text.' },
 };
 
 /** The status chip's words and colours (as classes). */
