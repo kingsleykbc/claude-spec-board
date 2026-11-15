@@ -33,6 +33,7 @@ function defaultMeta(): SpecMeta {
     currentSubtask: null,
     created: null,
     updated: null,
+    needsRefresh: null,
   };
 }
 
@@ -95,5 +96,7 @@ export function parseSpecMeta(yaml: string | null): { meta: SpecMeta; problems: 
 
   meta.created = optionalString(o.created);
   meta.updated = optionalString(o.updated);
+  const nr = optionalString(o.needs_refresh);
+  meta.needsRefresh = nr !== null && /^\d{4}-\d{2}-\d{2}$/.test(nr) ? nr : null;
   return { meta, problems };
 }

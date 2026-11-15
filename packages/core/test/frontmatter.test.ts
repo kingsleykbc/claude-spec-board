@@ -29,6 +29,7 @@ describe('parseSpecMeta', () => {
       currentSubtask: 2,
       created: '2026-01-02',
       updated: '2026-01-03',
+      needsRefresh: null,
     });
   });
 
@@ -94,5 +95,13 @@ describe('splitFrontMatter edge cases', () => {
   });
   it('F2: accepts a leading BOM', () => {
     expect(splitFrontMatter('\uFEFF---\nid: T-1\n---\nbody')).toEqual({ yaml: 'id: T-1', body: 'body', bodyStartLine: 3, closingLine: 2 });
+  });
+});
+
+describe('parseSpecMeta needs_refresh', () => {
+  it('reads a date, null when absent or not a date', () => {
+    expect(parseSpecMeta('id: T-1\ntitle: X\nneeds_refresh: 2026-11-15').meta.needsRefresh).toBe('2026-11-15');
+    expect(parseSpecMeta('id: T-1\ntitle: X').meta.needsRefresh).toBeNull();
+    expect(parseSpecMeta('id: T-1\ntitle: X\nneeds_refresh: soon').meta.needsRefresh).toBeNull();
   });
 });

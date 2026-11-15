@@ -7,7 +7,7 @@ const spec = (o: Partial<SpecDoc> & { open?: string[]; done?: boolean[] } = {}):
   const { open = [], done = [], ...rest } = o;
   return {
     id: 'T-001', title: 't', status: 'doing', urgency: 'normal', categories: [], dependsOn: [], draft: false, milestone: null, currentSubtask: null,
-    created: null, updated: null, specMd: '', featuresMd: '', problems: [],
+    created: null, updated: null, needsRefresh: null, specMd: '', featuresMd: '', problems: [],
     questions: open.map((id, i) => ({ id, type: 'text' as const, text: id, options: [], answer: null, required: true, recommendation: null, line: i })),
     subtasks: done.map((d, i) => ({ n: i + 1, title: `s${i + 1}`, done: d, line: i, hasLog: false })),
     ...rest,

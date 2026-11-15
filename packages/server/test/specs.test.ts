@@ -247,3 +247,51 @@ describe('spec mutations', () => {
     }
   });
 });
+
+describe('body save flags needs_refresh', () => {
+  const save = async (id: string) => {
+    const s = await get(id);
+    return send('PATCH', `/specs/${id}/body`, { hash: s.hash, bodyHash: s.bodyHash, md: s.bodyMd + '\nEdited.\n' });
+  };
+  const setFm = async (id: string, from: RegExp, to: string) => {
+    const f = specFile(id);
+    await fs.writeFile(f, (await fs.readFile(f, 'utf8')).replace(from, to));
+  };
+
+  it('writes today on a todo non-draft spec and returns it', async () => {
+    const res = await save('T-105');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { spec: Spec };
+    expect(body.spec.needsRefresh).toBe(localToday());
+    expect(await fs.readFile(specFile('T-105'), 'utf8')).toMatch(new RegExp(`^needs_refresh: ${localToday()}$`, 'm'));
+  });
+
+  it('writes it for a doing spec', async () => {
+    await setFm('T-105', /^status: todo$/m, 'status: doing');
+    const body = (await (await save('T-105')).json()) as { spec: Spec };
+    expect(body.spec.needsRefresh).toBe(localToday());
+  });
+
+  it.each(['review', 'done'])('does not write it for a %s spec', async (st) => {
+    await setFm('T-105', /^status: todo$/m, `status: ${st}`);
+    expect((await save('T-105')).status).toBe(200);
+    expect(await fs.readFile(specFile('T-105'), 'utf8')).not.toContain('needs_refresh');
+  });
+
+  it('does not write it for a draft spec', async () => {
+    await setFm('T-105', /^draft: false$/m, 'draft: true');
+    expect((await save('T-105')).status).toBe(200);
+    expect(await fs.readFile(specFile('T-105'), 'utf8')).not.toContain('needs_refresh');
+  });
+
+  it('a body conflict writes nothing', async () => {
+    const file = specFile('T-105');
+    const s = await get('T-105');
+    const claude = (await fs.readFile(file, 'utf8')).replace('## Features', 'Claude added this.\n\n## Features');
+    await fs.writeFile(file, claude);
+    const now = await get('T-105');
+    const res = await send('PATCH', '/specs/T-105/body', { hash: now.hash, bodyHash: s.bodyHash, md: s.bodyMd + '\nMine.\n' });
+    expect(res.status).toBe(409);
+    expect(await fs.readFile(file, 'utf8')).toBe(claude);
+  });
+});

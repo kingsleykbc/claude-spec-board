@@ -118,6 +118,37 @@ export function setTopLevelKey(text: string, key: string, value: unknown): strin
   return fromLines(ls);
 }
 
+/** Remove one top-level front matter key (its own lines only). A key that is absent leaves the text unchanged. */
+function removeTopLevelKey(text: string, key: string): string {
+  const { yaml, closingLine } = splitFrontMatter(text);
+  if (yaml === null || closingLine === null) throw new Error('No front matter');
+  const ls = toLines(text);
+  const lines = textsOf(ls);
+  for (let i = 1; i < closingLine; i++) {
+    const m = TOP_KEY.exec(lines[i]!);
+    if (m && m[1] === key) {
+      let end = i + 1;
+      while (end < closingLine && !TOP_KEY.test(lines[end]!)) end++;
+      while (end - 1 > i && /^(#.*|[ \t]*)$/.test(lines[end - 1]!)) end--;
+      spliceLines(ls, i, end - i, [], detectEol(text));
+      return fromLines(ls);
+    }
+  }
+  return text;
+}
+
+/** Add, replace (date) or remove (null) the `needs_refresh:` line. Every other byte and key order stay as they were. */
+export function setNeedsRefresh(text: string, date: string | null): string {
+  if (date === null) return removeTopLevelKey(text, 'needs_refresh');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Invalid value for needs_refresh');
+  return setTopLevelKey(text, 'needs_refresh', date);
+}
+
+/** Only an open (todo or doing), non-draft spec has questions that can go stale. */
+export function needsRefreshFor(spec: { status: Status; draft: boolean }): boolean {
+  return !spec.draft && (spec.status === 'todo' || spec.status === 'doing');
+}
+
 /** Set one spec front matter field. Throws on an unknown key or an invalid value. */
 export function setMetaField<K extends MetaKey>(text: string, key: K, value: MetaValues[K]): string {
   if (!Object.hasOwn(VALIDATORS, key)) throw new Error(`Invalid key ${String(key)}`);

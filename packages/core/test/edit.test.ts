@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { detectEol, replaceSection, setAnswers, setMetaField, setSubtaskDone } from '../src/edit.js';
+import { detectEol, needsRefreshFor, replaceSection, setNeedsRefresh, setAnswers, setMetaField, setSubtaskDone } from '../src/edit.js';
 import { parseSpec } from '../src/parseSpec.js';
 import { demoteH2 } from '../src/sections.js';
 
@@ -248,5 +248,50 @@ describe('F9: mixed line endings', () => {
     const t = '---\nid: T-9\n---\r\n\r\n## Open questions\r\n\r\n- [ ] Q1 (text): Why?\n- [ ] Q2 (text): How?\r\n';
     expect(setAnswers(t, { Q1: 'a' })).toBe(t.replace('- [ ] Q1 (text): Why?\n', '- [x] Q1 (text): Why?\n  > answer: a\n'));
     expect(setAnswers(t, { Q2: 'b' })).toBe(t.replace('- [ ] Q2 (text): How?\r\n', '- [x] Q2 (text): How?\r\n  > answer: b\r\n'));
+  });
+});
+
+describe('setNeedsRefresh', () => {
+  it('adds then removes on a CRLF file, byte-identical to the input', () => {
+    const added = setNeedsRefresh(crlf, '2026-11-15');
+    expect(added).toContain('needs_refresh: 2026-11-15\r\n');
+    expect(noLoneLf(added)).toBe(true);
+    expect(added.split('\r\n').filter((l) => l !== 'needs_refresh: 2026-11-15')).toEqual(crlf.split('\r\n'));
+    expect(setNeedsRefresh(added, null)).toBe(crlf);
+  });
+
+  it('replaces an existing date and keeps every other byte', () => {
+    const a = setNeedsRefresh(fixture, '2026-11-14');
+    const b = setNeedsRefresh(a, '2026-11-15');
+    expect(changedLines(a, b)).toHaveLength(1);
+    expect(b.match(/needs_refresh:/g)).toHaveLength(1);
+    expect(setNeedsRefresh(b, null)).toBe(fixture);
+  });
+
+  it('changes only one line when keys are in an unusual order', () => {
+    const odd = '---\nupdated: 2026-01-01\ntitle: X\nstatus: todo\nid: T-9\ndraft: false\n---\n\nBody\n';
+    const out = setNeedsRefresh(odd, '2026-11-15');
+    expect(out.split('\n')).toHaveLength(odd.split('\n').length + 1);
+    expect(out.split('\n').filter((l) => l !== 'needs_refresh: 2026-11-15')).toEqual(odd.split('\n'));
+    expect(setNeedsRefresh(out, null)).toBe(odd);
+  });
+
+  it('removing an absent key is a no-op', () => {
+    expect(setNeedsRefresh(fixture, null)).toBe(fixture);
+  });
+
+  it('rejects a malformed date', () => {
+    expect(() => setNeedsRefresh(fixture, 'yesterday')).toThrow();
+  });
+});
+
+describe('needsRefreshFor', () => {
+  it('is true only for non-draft todo or doing', () => {
+    expect(needsRefreshFor({ status: 'todo', draft: false })).toBe(true);
+    expect(needsRefreshFor({ status: 'doing', draft: false })).toBe(true);
+    expect(needsRefreshFor({ status: 'review', draft: false })).toBe(false);
+    expect(needsRefreshFor({ status: 'done', draft: false })).toBe(false);
+    expect(needsRefreshFor({ status: 'todo', draft: true })).toBe(false);
+    expect(needsRefreshFor({ status: 'doing', draft: true })).toBe(false);
   });
 });

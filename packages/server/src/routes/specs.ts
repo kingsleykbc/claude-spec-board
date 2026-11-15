@@ -6,11 +6,15 @@ import {
   createSpec,
   hashText,
   loadProject,
+  needsRefreshFor,
+  parseSpecMeta,
   replaceSpecBody,
   specBodyMd,
   setAnswers,
   setMetaField,
+  setNeedsRefresh,
   setSubtaskDone,
+  splitFrontMatter,
   unarchiveSpec,
   writeIfUnchanged,
   writeSettings,
@@ -123,7 +127,10 @@ export function specRoutes(registry: Registry): Hono {
       c,
       (text) => {
         if (hashText(specBodyMd(text)) !== bodyHash) throw new BodyConflict(text);
-        return replaceSpecBody(text, md);
+        const next = replaceSpecBody(text, md);
+        // An open, non-draft spec's questions may now be stale: flag it in the same write.
+        const { meta } = parseSpecMeta(splitFrontMatter(next).yaml);
+        return needsRefreshFor(meta) ? setNeedsRefresh(next, today()) : next;
       },
       hash,
     );
