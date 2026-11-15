@@ -123,20 +123,15 @@ describe('Simple mode: the filter bar', () => {
       menu: null,
       onMenu: vi.fn(),
       simple: false,
-      onSimple: vi.fn(),
       ...over,
     };
     const r = render(<FilterBar {...p} />);
     return { p, ...r };
   }
 
-  it('the Simple mode switch comes right after Blocked only and turns it on', () => {
-    const { p } = bar();
-    const switches = screen.getAllByRole('switch');
-    expect(switches.map((x) => x.textContent)).toEqual(['Blocked only', 'Simple mode']);
-    expect(switches[1]!.getAttribute('aria-checked')).toBe('false');
-    fireEvent.click(switches[1]!);
-    expect(p.onSimple).toHaveBeenCalledWith(true);
+  it('has no Simple mode switch of its own (it is in the top bar)', () => {
+    bar();
+    expect(screen.getAllByRole('switch').map((x) => x.textContent)).toEqual(['Blocked only']);
   });
 
   it('full mode lists the waiting items; Simple mode puts them behind ⋯', () => {
@@ -144,7 +139,6 @@ describe('Simple mode: the filter bar', () => {
     expect(screen.getByText('1 to review')).toBeTruthy();
     rerender(<FilterBar {...p} simple />);
     expect(screen.queryByText('1 to review')).toBeNull();
-    expect(screen.getByRole('switch', { name: 'Simple mode' }).getAttribute('aria-checked')).toBe('true');
     fireEvent.click(screen.getByRole('button', { name: 'Waiting on you' }));
     expect(p.onMenu).toHaveBeenCalledWith('waits');
   });

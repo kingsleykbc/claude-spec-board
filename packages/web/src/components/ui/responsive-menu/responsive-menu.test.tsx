@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { composeStories } from '@storybook/react-vite';
 import * as stories from './responsive-menu.stories';
 
-const { Wide, Narrow, ItemOpensModal, ItemOpensModalNarrow } = composeStories(stories);
+const { Wide, Narrow, ItemOpensModal, ItemOpensModalNarrow, Links, LinksNarrow } = composeStories(stories);
 
 afterEach(cleanup);
 
@@ -116,5 +116,30 @@ describe('ResponsiveMenu', () => {
     expect(window.matchMedia('(max-width: 720px)').matches).toBe(true);
     unmount();
     expect(window.matchMedia).toBe(before);
+  });
+
+  it.each([
+    ['wide', Links],
+    ['narrow', LinksNarrow],
+  ] as const)('%s: link items keep href, target and aria-current, and close the menu when followed', async (_, Story) => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(<Story onSelect={onSelect} />);
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    const docs = await screen.findByRole('menuitem', { name: 'Documentation' });
+    expect(docs.tagName).toBe('A');
+    expect(docs.getAttribute('href')).toBe('/docs');
+    expect(docs.getAttribute('target')).toBe('_blank');
+    expect(docs.getAttribute('rel')).toBe('noopener');
+    const board = screen.getByRole('menuitem', { name: 'Board' });
+    expect(board.getAttribute('aria-current')).toBe('page');
+    expect(board.getAttribute('target')).toBeNull();
+    // Keep happy-dom from following the link; on window, so it runs after React's own click handling.
+    const stay = (e: Event) => e.preventDefault();
+    window.addEventListener('click', stay);
+    await user.click(docs);
+    window.removeEventListener('click', stay);
+    expect(onSelect).toHaveBeenCalledOnce();
+    await waitFor(() => expect(screen.queryByRole('menuitem', { name: 'Documentation' })).toBeNull());
   });
 });

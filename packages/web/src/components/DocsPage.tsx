@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { api, type ProjectSummary } from '../api/client';
 import { DOCS_PAGES, docsLink, docsPath, pageForPath } from '../lib/docsPages';
 import { ESC, useEscape } from '../lib/escape';
-import { applyTheme, initialTheme, type Theme } from '../lib/theme';
+import { useThemeChoice } from '../lib/theme';
 import { Markdown } from '@/components/ui/markdown/markdown';
-import { boardHref, TopBar } from './TopBar';
+import { boardHref, TopBar } from '@/components/top-bar/top-bar';
 import s from './DocsPage.module.css';
 
 export interface DocsPageProps {
@@ -27,8 +27,8 @@ function keep(href: string, search: string): string {
 /** The documentation: the repo's README and guide files, opened from the menu under the logo, under the same top bar as the board. */
 export function DocsPage({ pathname, search = '', loadProjects = api.projects, go = (href) => location.assign(href) }: DocsPageProps) {
   const page = pageForPath(pathname);
-  const [theme, setTheme] = useState<Theme>(initialTheme);
-  const [menu, setMenu] = useState<'brand' | 'switcher' | null>(null);
+  const [themeChoice, setThemeChoice] = useThemeChoice();
+  const [menu, setMenu] = useState<'switcher' | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   useEscape(menu !== null, () => setMenu(null), ESC.menu);
 
@@ -81,16 +81,8 @@ export function DocsPage({ pathname, search = '', loadProjects = api.projects, g
               },
             }
           : {})}
-        brandOpen={menu === 'brand'}
-        onToggleBrand={() => setMenu((m) => (m === 'brand' ? null : 'brand'))}
-        theme={theme}
-        onToggleTheme={() =>
-          setTheme((t) => {
-            const next = t === 'dark' ? 'light' : 'dark';
-            applyTheme(next, true);
-            return next;
-          })
-        }
+        themeChoice={themeChoice}
+        onThemeChoice={setThemeChoice}
       />
       <div className={s.page}>
         <nav className={s.nav} aria-label="Documentation">

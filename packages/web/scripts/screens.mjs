@@ -49,8 +49,9 @@ const SIZES = [
 const THEMES = ['light', 'dark'];
 
 // Open a header action: the button on a wide screen, a logo-menu item on a narrow one.
+// Logs is always a header button (icon-only on a narrow screen, named by its tooltip label).
 async function openHeaderAction(page, name, narrow) {
-  if (narrow) {
+  if (narrow && name !== 'Logs') {
     await page.locator('[data-tour="brand"]').click();
     await page.getByRole('menuitem', { name }).click();
   } else {

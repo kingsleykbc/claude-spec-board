@@ -89,7 +89,8 @@ describe('App', () => {
     render(<App />);
     await board();
     expect(await screen.findByText('Welcome to Spec Board', {}, { timeout: 2000 })).toBeTruthy();
-    expect(screen.getByText('1 / 7')).toBeTruthy();
+    // Eight steps: Simple mode has its own, on its switch in the header.
+    expect(screen.getByText('1 / 8')).toBeTruthy();
     fireEvent.click(document.querySelector<HTMLElement>('.driver-popover-close-btn')!);
     await waitFor(() => expect(screen.queryByText('Welcome to Spec Board')).toBeNull());
     expect(localStorage.getItem('specboard.tour')).toBe('seen');
@@ -190,16 +191,18 @@ describe('App', () => {
     expect(screen.queryByText('Disconnected from the local server.')).toBeNull();
   });
 
-  it('the theme toggle is remembered', async () => {
+  it('the theme choice in Theme ▸ Light / Dark / System is applied and remembered', async () => {
     render(<App />);
     await board();
-    fireEvent.click(screen.getByRole('button', { name: /SPEC-BOARD/ }));
-    const btn = screen.getByRole('menuitemcheckbox', { name: 'Dark mode' });
-    const was = document.documentElement.dataset.theme;
-    fireEvent.click(btn);
-    const now = was === 'dark' ? 'light' : 'dark';
-    expect(document.documentElement.dataset.theme).toBe(now);
-    expect(localStorage.getItem('specboard.theme')).toBe(now);
+    for (const [name, value] of [['Dark', 'dark'], ['Light', 'light']] as const) {
+      // The logo menu is a Radix dropdown: it opens on pointer-down or Enter, not on a bare click event.
+      fireEvent.keyDown(screen.getByRole('button', { name: 'Spec Board' }), { key: 'Enter' });
+      fireEvent.click(await screen.findByRole('menuitem', { name: 'Theme' }));
+      fireEvent.click(await screen.findByRole('menuitemradio', { name }));
+      expect(document.documentElement.dataset.theme).toBe(value);
+      expect(localStorage.getItem('specboard.theme')).toBe(value);
+      await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+    }
   });
 
   it('"Open another project folder…" shows the info toast', async () => {

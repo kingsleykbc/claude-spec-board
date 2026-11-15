@@ -12,10 +12,12 @@ export interface SettingsModalProps {
   client?: Pick<typeof api, 'setSettings'>;
   toast: PushToast;
   onClose: () => void;
+  /** Where focus goes on close when the opener is gone (a logo-menu item): the logo button. */
+  returnFocus?: () => HTMLElement | null;
 }
 
 /** Project settings. Each switch saves the moment it is toggled; a failed save puts it back. */
-export function SettingsModal({ pid, trackTokens, client = api, toast, onClose }: SettingsModalProps) {
+export function SettingsModal({ pid, trackTokens, client = api, toast, onClose, returnFocus }: SettingsModalProps) {
   const [on, setOn] = useState(trackTokens);
   const helpId = useId();
   useEffect(() => setOn(trackTokens), [trackTokens]);
@@ -33,7 +35,7 @@ export function SettingsModal({ pid, trackTokens, client = api, toast, onClose }
   };
 
   return (
-    <Modal label="Settings" width="min(520px, 100%)" height="auto" onClose={onClose}>
+    <Modal label="Settings" width="min(520px, 100%)" height="auto" onClose={onClose} returnFocus={returnFocus}>
       <div className={s.head}>
         <h1 className={s.title}>Settings</h1>
         <span className={s.grow} />

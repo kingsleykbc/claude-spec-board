@@ -1,4 +1,5 @@
-import type { Conn } from '../api/live';
+import type { Conn } from '@/api/live';
+import { cn } from '@/lib/utils';
 
 /** The prototype's spinner (line 544). */
 export function Spinner() {
@@ -6,7 +7,7 @@ export function Spinner() {
     <span
       aria-hidden="true"
       data-testid="spinner"
-      style={{ display: 'inline-block', width: 11, height: 11, flex: 'none', border: '2px solid var(--line2)', borderTopColor: 'var(--doing)', borderRadius: 99, animation: 'sbSpin .8s linear infinite' }}
+      className="inline-block size-[11px] flex-none animate-sb-spin rounded-full border-2 border-line2 border-t-doing"
     />
   );
 }
@@ -27,29 +28,17 @@ export function ConnectionBanner({ conn, onReconnect }: ConnectionBannerProps) {
   const down = conn === 'disconnected';
   const copy = CONN_COPY[conn];
   return (
-    <div
-      role="status"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        padding: '9px 20px',
-        background: down ? 'var(--block-soft)' : 'var(--review-soft)',
-        borderBottom: '1px solid var(--line)',
-        fontSize: 13,
-        color: 'var(--fg)',
-      }}
-    >
+    <div role="status" className={cn('flex items-center gap-2.5 border-b border-line px-5 py-[9px] text-[13px] text-fg', down ? 'bg-block-soft' : 'bg-review-soft')}>
       {!down && <Spinner />}
-      {down && <span style={{ width: 8, height: 8, borderRadius: 99, background: 'var(--block)' }} />}
-      <span style={{ fontWeight: 600 }}>{copy.title}</span>
-      <span style={{ color: 'var(--fg2)' }}>{copy.text}</span>
-      <span style={{ flex: 1 }} />
+      {down && <span className="size-2 rounded-full bg-block" />}
+      <span className="font-semibold">{copy.title}</span>
+      <span className="text-fg2">{copy.text}</span>
+      <span className="flex-1" />
       {down && (
         <button
           type="button"
           onClick={onReconnect}
-          style={{ height: 28, padding: '0 12px', border: '1px solid var(--line2)', borderRadius: 7, background: 'var(--card)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}
+          className="h-7 cursor-pointer rounded-[7px] border border-line2 bg-card px-3 py-0 text-[12.5px] font-semibold"
         >
           Reconnect
         </button>

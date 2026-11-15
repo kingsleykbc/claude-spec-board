@@ -107,11 +107,18 @@ export function ResponsiveMenu({ trigger, title, children, align = 'start' }: Re
 }
 
 export interface ResponsiveMenuItemProps {
-  onSelect: () => void;
+  /** What picking it does; optional for a link item, which follows its href. */
+  onSelect?: () => void;
   children: ReactNode;
   /** Makes it a checkable item, ticked when true. */
   checked?: boolean;
   disabled?: boolean;
+  /** Makes it a link (an `<a role="menuitem">`) to this address. */
+  href?: string;
+  /** A link item opens in a new tab (`target=_blank`, `rel=noopener`). */
+  newTab?: boolean;
+  /** A link item is the page you are on (`aria-current=page`). */
+  current?: boolean;
 }
 
 // Drawer rows: the dropdown item's look, a little taller for fingers.
@@ -119,15 +126,27 @@ const row =
   'relative flex w-full cursor-pointer items-center gap-2 rounded-[7px] border-0 bg-transparent px-2.5 py-2.5 text-left font-[inherit] text-[14px] text-fg hover:bg-panel disabled:pointer-events-none disabled:opacity-50';
 const indicator = 'pointer-events-none absolute left-2.5 flex size-3.5 items-center justify-center';
 
-/** One choice. `checked` makes it a checkable item (a tick when true). */
-export function ResponsiveMenuItem({ onSelect, children, checked, disabled }: ResponsiveMenuItemProps) {
+/** One choice. `checked` makes it a checkable item (a tick when true); `href` makes it a link. */
+export function ResponsiveMenuItem({ onSelect, children, checked, disabled, href, newTab, current }: ResponsiveMenuItemProps) {
   const { narrow, pick } = useContext(Mode);
   const checkable = checked !== undefined;
   const choose = () => {
     pick();
-    onSelect();
+    onSelect?.();
   };
+  // An anchor still follows its href after the menu has removed it (the HTML spec lets an `a` navigate when disconnected).
+  const link =
+    href !== undefined
+      ? { href, ...(newTab ? { target: '_blank', rel: 'noopener' } : {}), ...(current ? { 'aria-current': 'page' as const } : {}) }
+      : null;
   if (!narrow) {
+    if (link) {
+      return (
+        <DropdownMenuItem asChild disabled={disabled} onSelect={choose} className="text-fg no-underline hover:text-fg">
+          <a {...link}>{children}</a>
+        </DropdownMenuItem>
+      );
+    }
     return checkable ? (
       <DropdownMenuCheckboxItem checked={checked} disabled={disabled} onSelect={choose}>
         {children}
@@ -136,6 +155,13 @@ export function ResponsiveMenuItem({ onSelect, children, checked, disabled }: Re
       <DropdownMenuItem disabled={disabled} onSelect={choose}>
         {children}
       </DropdownMenuItem>
+    );
+  }
+  if (link) {
+    return (
+      <a role="menuitem" {...link} className={cn(row, 'no-underline hover:text-fg')} onClick={choose}>
+        {children}
+      </a>
     );
   }
   return (

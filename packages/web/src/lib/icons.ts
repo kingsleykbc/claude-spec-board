@@ -13,6 +13,7 @@ export {
   LuCircle as TodoIcon,
   LuCircleCheck as DoneIcon,
   LuCircleDot as DoingIcon,
+  LuChartPie as OverviewIcon,
   LuCircleHelp as HelpIcon,
   LuCopy as CopyIcon,
   LuDiamond as ReviewIcon,

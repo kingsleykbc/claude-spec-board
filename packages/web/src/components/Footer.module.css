@@ -1,9 +1,0 @@
-/* Under the board. Right padding keeps it clear of the "Add new spec" button. */
-.footer { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 18px 200px 26px 20px; border-top: 1px solid var(--line); color: var(--fg3); font-size: 12.5px; }
-.dot { color: var(--line2); }
-.link { display: inline-flex; align-items: center; gap: 5px; color: var(--fg2); text-decoration: none; }
-.link:hover { color: var(--fg); text-decoration: underline; }
-.star { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; color: var(--fg2); font-weight: 500; text-decoration: none; }
-.star:hover { background: var(--panel); color: var(--fg); }
-.star:hover svg { color: var(--review); }
-@media (max-width: 640px) { .footer { padding-right: 20px; padding-bottom: 84px; } }

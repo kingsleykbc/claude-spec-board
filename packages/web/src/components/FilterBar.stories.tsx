@@ -24,7 +24,7 @@ function Bar({
 }) {
   const [filters, setFilters] = useState(initial);
   const [view, setView] = useState<View>('board');
-  const [simple, setSimple] = useState(initialSimple);
+  const simple = initialSimple;
   const [menu, setMenu] = useState<FilterMenu>(initialMenu);
   return (
     <div style={{ minHeight: 280 }}>
@@ -39,7 +39,6 @@ function Bar({
         menu={menu}
         onMenu={setMenu}
         simple={simple}
-        onSimple={setSimple}
         view={view}
         onView={setView}
         milestones={milestones}
@@ -89,8 +88,8 @@ export const SimpleMode: Story = {
     expect(c.queryByText('1 to review')).toBeNull();
     await userEvent.click(c.getByRole('button', { name: 'Waiting on you' }));
     expect(c.getByRole('menuitem', { name: '1 to review' })).toBeTruthy();
-    await userEvent.click(c.getByRole('switch', { name: 'Simple mode' }));
-    expect(c.getByText('1 to review')).toBeTruthy();
+    // The Simple mode switch lives in the top bar now.
+    expect(c.queryByRole('switch', { name: 'Simple mode' })).toBeNull();
   },
 };
 

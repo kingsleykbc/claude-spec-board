@@ -86,7 +86,8 @@ async function mount(url = '/?project=p1', over: Partial<RunState> = {}, first: 
   await screen.findByRole('region', { name: 'Review' });
   await flush();
 }
-const openMenu = () => fireEvent.click(screen.getByRole('button', { name: /SPEC-BOARD/ }));
+// The logo menu is a Radix dropdown: it opens on pointer-down or Enter, not on a bare click event.
+const openMenu = () => fireEvent.keyDown(screen.getByRole('button', { name: 'Spec Board' }), { key: 'Enter' });
 const syncDialog = () => screen.getByRole('dialog', { name: /Sync/ });
 
 beforeEach(() => {

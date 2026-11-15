@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Spec, Status } from '@specboard/core';
 import { api, type ProjectSummary } from './api/client';
-import { applyTheme, initialTheme, type Theme } from './lib/theme';
+import { useThemeChoice, type ThemeChoice } from './lib/theme';
 import { createSpecActions, OFFLINE_TOAST } from './state/actions';
 import { ESC, useEscape } from './lib/escape';
 import { interceptPop } from './lib/popGuard';
@@ -27,15 +27,15 @@ import { AppSkeleton, BoardSkeleton } from '@/components/ui/skeleton/skeleton';
 import { AddSpecModal } from './components/AddSpecModal';
 import { CardDetail } from './components/detail/CardDetail';
 import { RunPanel } from './components/detail/RunPanel';
-import { ConnectionBanner } from './components/ConnectionBanner';
+import { ConnectionBanner } from '@/components/connection-banner/connection-banner';
 import { FilterBar, type FilterMenu } from './components/FilterBar';
 import { LogsModal } from './components/LogsModal';
 import { OverviewModal } from './components/OverviewModal';
 import { ReferencesModal } from './components/ReferencesModal';
 import { SettingsModal } from './components/SettingsModal';
 import { Toasts } from '@/components/ui/toasts/toasts';
-import { TopBar } from './components/TopBar';
-import { Footer } from './components/Footer';
+import { TopBar } from '@/components/top-bar/top-bar';
+import { Footer } from '@/components/footer/footer';
 import boardCss from './components/Board.module.css';
 
 // URL state: ?project=<id> and ?spec=<id>, kept with history.pushState and popstate (no router).
@@ -79,7 +79,8 @@ export function App() {
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [url, setUrl] = useState<UrlState>(readUrl);
-  const [theme, setTheme] = useState<Theme>(initialTheme);
+  // The theme choice; while it is System, an OS light/dark change re-applies it.
+  const [themeChoice, setThemeChoice] = useThemeChoice();
   const [simple, setSimple] = useState<boolean>(initialSimple);
   const toggleSimple = useCallback((on: boolean) => {
     saveSimple(on);
@@ -128,14 +129,6 @@ export function App() {
     if (pid && url.project !== pid) navigate({ project: pid, spec: url.project ? null : url.spec }, true);
   }, [pid, url, navigate]);
 
-  const toggleTheme = useCallback(() => {
-    setTheme((t) => {
-      const next = t === 'dark' ? 'light' : 'dark';
-      applyTheme(next, true);
-      return next;
-    });
-  }, []);
-
   let body;
   if (pid && projects) {
     body = (
@@ -146,8 +139,8 @@ export function App() {
         projects={projects}
         navigate={navigate}
         toast={push}
-        theme={theme}
-        onToggleTheme={toggleTheme}
+        themeChoice={themeChoice}
+        onThemeChoice={setThemeChoice}
         simple={simple}
         onSimple={toggleSimple}
         reloadProjects={loadProjects}
@@ -172,16 +165,16 @@ interface ProjectViewProps {
   projects: ProjectSummary[];
   navigate: Navigate;
   toast: PushToast;
-  theme: Theme;
-  onToggleTheme: () => void;
-  /** Simple mode (the switch in the filter bar). */
+  themeChoice: ThemeChoice;
+  onThemeChoice: (choice: ThemeChoice) => void;
+  /** Simple mode (the switch in the top bar). */
   simple: boolean;
   onSimple: (on: boolean) => void;
   reloadProjects: () => void;
 }
 
 /** One project's board. Keyed by project ID, so filters and menus reset on a switch (pinned behaviour 4). */
-function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onToggleTheme, simple, onSimple, reloadProjects }: ProjectViewProps) {
+function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice, onThemeChoice, simple, onSimple, reloadProjects }: ProjectViewProps) {
   const { data, conn, live, changed, newQuestions, refresh, applyWrite, error, reconnect, loads } = useProject(pid);
   const run = useRun(pid, live);
   /** New-question badges cleared by saving answers (useProject keeps the session's full set). */
@@ -193,12 +186,14 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
     saveView(v);
     setView(v);
   };
-  const [menu, setMenu] = useState<'brand' | 'switcher' | Exclude<FilterMenu, null> | null>(null);
+  const [menu, setMenu] = useState<'switcher' | Exclude<FilterMenu, null> | null>(null);
   /** Optimistic status while a move is in flight, so the card does not snap back before the refresh. */
   const [pending, setPending] = useState<Record<string, Status>>({});
   const wantReconnectToast = useRef(false);
   /** The References, Overview, Logs, Settings or Add spec modal. */
   const [modal, setModal] = useState<'refs' | 'overview' | 'logs' | 'settings' | 'add' | null>(null);
+  /** Where focus goes when a modal opened from the logo menu closes: the menu's item is gone by then, so the logo button. */
+  const logoButton = () => document.querySelector<HTMLElement>('[data-tour="brand"]');
 
   const mutate = useMemo(() => createMutator(() => Promise.reject(new Error('No default op')), applyWrite), [applyWrite]);
   const down = conn === 'disconnected';
@@ -310,11 +305,10 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
         syncWaiting={!!sync.proposal && sync.proposal.scope === null}
         onSyncWaiting={sync.openWaiting}
         simple={simple}
-        brandOpen={menu === 'brand'}
-        onToggleBrand={() => setMenu((m) => (m === 'brand' ? null : 'brand'))}
+        onSimple={onSimple}
         conn={conn}
-        theme={theme}
-        onToggleTheme={onToggleTheme}
+        themeChoice={themeChoice}
+        onThemeChoice={onThemeChoice}
         onOpenRefs={() => setModal('refs')}
         onOpenOverview={() => setModal('overview')}
         onOpenLogs={() => setModal('logs')}
@@ -344,7 +338,6 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
             menu={menu === 'cat' || menu === 'urg' || menu === 'waits' || menu === 'milestone' ? menu : null}
             onMenu={(m) => setMenu(m)}
             simple={simple}
-            onSimple={onSimple}
             view={view}
             onView={pickView}
             milestones={msOptions}
@@ -441,6 +434,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
               onRefresh={() => void startRun('refresh-overview')}
               onOpenLogs={() => setModal('logs')}
               onClose={closeModal}
+              returnFocus={logoButton}
             />
           )}
           {modal === 'logs' && (
@@ -454,9 +448,9 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, theme, onTo
               onClose={closeModal}
             />
           )}
-          {modal === 'settings' && <SettingsModal pid={pid} trackTokens={project.settings.trackTokens} toast={toast} onClose={closeModal} />}
-          {sync.dialog && <SyncDialog {...sync.dialog} toast={toast} />}
-          {modal === 'refs' && <ReferencesModal pid={pid} toast={toast} down={down} stamp={project} onClose={closeModal} />}
+          {modal === 'settings' && <SettingsModal pid={pid} trackTokens={project.settings.trackTokens} toast={toast} onClose={closeModal} returnFocus={logoButton} />}
+          {sync.dialog && <SyncDialog {...sync.dialog} toast={toast} returnFocus={logoButton} />}
+          {modal === 'refs' && <ReferencesModal pid={pid} toast={toast} down={down} stamp={project} onClose={closeModal} returnFocus={logoButton} />}
           {modal === 'add' && data && (
             <AddSpecModal
               pid={pid}

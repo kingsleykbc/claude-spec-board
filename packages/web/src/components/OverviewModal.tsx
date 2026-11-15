@@ -6,7 +6,7 @@ import { CaretIcon, CaretRightIcon, CloseIcon, ErrorIcon, ExportIcon, RefreshIco
 import { ORDER, relTime, ST } from '../lib/vm';
 import { projectTokens } from '../state/allLogs';
 import type { PushToast } from '../state/toasts';
-import { Spinner } from './ConnectionBanner';
+import { Spinner } from '@/components/connection-banner/connection-banner';
 import { Markdown } from '@/components/ui/markdown/markdown';
 import { Modal } from '@/components/ui/modal/modal';
 import { TableView } from './TableView';
@@ -24,6 +24,8 @@ export interface OverviewModalProps {
   /** Switches to the all-logs modal; the link shows when given. */
   onOpenLogs?: () => void;
   onClose: () => void;
+  /** Where focus goes on close when the opener is gone (a logo-menu item): the logo button. */
+  returnFocus?: () => HTMLElement | null;
   /** For "Last updated"; defaults to the current time. */
   now?: Date;
 }
@@ -42,7 +44,7 @@ function download(filename: string, text: string): void {
 }
 
 /** Project overview (pinned behaviour 17; prototype lines 295-319 and 748-751). */
-export function OverviewModal({ project, name, toast, refreshing = false, onRefresh, onOpenLogs, onClose, now }: OverviewModalProps) {
+export function OverviewModal({ project, name, toast, refreshing = false, onRefresh, onOpenLogs, onClose, now, returnFocus }: OverviewModalProps) {
   const c = overviewCounts(project);
   const [tasksOpen, setTasksOpen] = useState(false);
   const tasksId = useId();
@@ -63,7 +65,7 @@ export function OverviewModal({ project, name, toast, refreshing = false, onRefr
   };
 
   return (
-    <Modal label="Overview" width="min(760px, 100%)" height="auto" onClose={onClose}>
+    <Modal label="Overview" width="min(760px, 100%)" height="auto" onClose={onClose} returnFocus={returnFocus}>
       <div className={s.ovScroll}>
         <div className={s.ovHead}>
           <span className={s.ovKicker}>OVERVIEW</span>

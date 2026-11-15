@@ -1,7 +1,7 @@
 import type { RunLine, SyncProposal } from '../api/client';
 import { CloseIcon, CopyIcon, WarnIcon } from '../lib/icons';
 import type { PushToast } from '../state/toasts';
-import { Spinner } from './ConnectionBanner';
+import { Spinner } from '@/components/connection-banner/connection-banner';
 import { Markdown } from '@/components/ui/markdown/markdown';
 import { Modal } from '@/components/ui/modal/modal';
 import s from './SyncDialog.module.css';
@@ -28,6 +28,8 @@ export interface SyncDialogProps {
   onConfirm: () => void;
   /** Close without touching anything (Esc, the scrim, ×): a proposal stays waiting. */
   onClose: () => void;
+  /** Where focus goes on close when the opener is gone (a logo-menu item): the logo button. */
+  returnFocus?: () => HTMLElement | null;
 }
 
 export const syncCommand = (scope: string | null): string => (scope ? `/specboard:sync-specs ${scope}` : '/specboard:sync-specs');
@@ -38,10 +40,10 @@ function changeLine(changes: number | null): string {
   return `This will change ${changes} ${changes === 1 ? 'spec' : 'specs'}.`;
 }
 
-export function SyncDialog({ scope, view, toast, onStop, onDiscard, onConfirm, onClose }: SyncDialogProps) {
+export function SyncDialog({ scope, view, toast, onStop, onDiscard, onConfirm, onClose, returnFocus }: SyncDialogProps) {
   const title = view.kind === 'manual' ? 'Sync needs Claude' : syncTitle(scope);
   return (
-    <Modal label={title} width="min(620px, 100%)" height="auto" onClose={onClose}>
+    <Modal label={title} width="min(620px, 100%)" height="auto" onClose={onClose} returnFocus={returnFocus}>
       <div className={s.root}>
         <div className={s.head}>
           <h2 className={s.title}>{title}</h2>

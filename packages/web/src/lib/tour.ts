@@ -33,6 +33,8 @@ interface TourStep {
   side?: 'top' | 'bottom' | 'left' | 'right';
   /** In Simple mode the step points here instead, with this text. */
   simple?: { target: string; text: string };
+  /** When the target is not on screen (e.g. small screens), point here instead, with this text. */
+  fallback?: { target: string; text: string };
 }
 
 export const TOUR_STEPS: TourStep[] = [
@@ -54,15 +56,22 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     target: 'filters',
-    title: 'Filters and Simple mode',
-    text: 'Switch between Board and Table views. Narrow the specs by category, urgency or blocked cards. <b>Simple mode</b> hides the extra detail when you just want to follow the work.',
+    title: 'Views and filters',
+    text: 'Switch between Board and Table views. Narrow the specs by milestone, category, urgency or blocked cards.',
+    side: 'bottom',
+  },
+  {
+    target: 'simple',
+    title: 'Simple mode',
+    text: '<b>Simple mode</b> hides the extra detail when you just want to follow the work.',
+    fallback: { target: 'brand', text: '<b>Simple mode</b> is in this menu on small screens. It hides the extra detail when you just want to follow the work.' },
     side: 'bottom',
   },
   {
     target: 'project',
     title: 'References, Overview and Logs',
     text: '<b>References</b> lists the docs Claude reads for this project. <b>Overview</b> is a short write-up of where the whole project stands. <b>Logs</b> shows what Claude has been doing.',
-    simple: { target: 'brand', text: 'References, Overview and Logs are in this menu in Simple mode.' },
+    simple: { target: 'brand', text: 'References and Overview are in this menu in Simple mode. Logs stays at the right of the header.' },
     side: 'bottom',
   },
   {
@@ -86,14 +95,20 @@ const TARGETS: Record<string, string> = { card: '[data-tour="columns"] [role="bu
 export function tourSteps(root: ParentNode = document, simple = false): DriveStep[] {
   const steps: DriveStep[] = [];
   for (const st of TOUR_STEPS) {
-    const alt = simple ? st.simple : undefined;
-    const target = alt?.target ?? st.target;
+    const find = (t: string) => root.querySelector<HTMLElement>(TARGETS[t] ?? `[data-tour="${t}"]`);
+    let alt = simple ? st.simple : undefined;
+    let target = alt?.target ?? st.target;
+    // Not on screen (the Simple mode switch on a small screen): point at where it went instead.
+    if (target && st.fallback && !find(target)) {
+      alt = st.fallback;
+      target = alt.target;
+    }
     const popover = { title: st.title, description: alt?.text ?? st.text, ...(st.side ? { side: st.side, align: 'start' as const } : {}) };
     if (!target) {
       steps.push({ popover });
       continue;
     }
-    const el = root.querySelector<HTMLElement>(TARGETS[target] ?? `[data-tour="${target}"]`);
+    const el = find(target);
     if (el) steps.push({ element: el, popover });
   }
   return steps;

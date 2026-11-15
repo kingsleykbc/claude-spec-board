@@ -18,9 +18,8 @@ export interface FilterBarProps {
   onWait: (w: WaitItem) => void;
   menu: FilterMenu;
   onMenu: (m: FilterMenu) => void;
-  /** Simple mode: the waiting items move behind a ⋯ menu. */
+  /** Simple mode (switched in the top bar): the waiting items move behind a ⋯ menu. */
   simple?: boolean;
-  onSimple?: (on: boolean) => void;
   /** Board or Table; the switch shows when `onView` is given. */
   view?: View;
   onView?: (v: View) => void;
@@ -74,7 +73,7 @@ function Switch({ on, label, title, onToggle }: { on: boolean; label: string; ti
 }
 
 /** Category / Urgency / Blocked only, active chips, and the "waiting" items (prototype lines 62-87; pinned behaviours 3 and 4). */
-export function FilterBar({ filters: f, onChange, categories, waits, onWait, menu, onMenu, simple = false, onSimple, view = 'board', onView, milestones = [] }: FilterBarProps) {
+export function FilterBar({ filters: f, onChange, categories, waits, onWait, menu, onMenu, simple = false, view = 'board', onView, milestones = [] }: FilterBarProps) {
   const chips = filterChips(f);
   const msLabel = f.milestone === null ? 'All milestones' : (milestones.find((o) => o.value === f.milestone)?.label ?? f.milestone);
   const pickMilestone = (m: string | null) => {
@@ -158,14 +157,6 @@ export function FilterBar({ filters: f, onChange, categories, waits, onWait, men
         )}
       </div>
       <Switch on={f.blocked} label="Blocked only" onToggle={() => onChange({ ...f, blocked: !f.blocked })} />
-      {onSimple && (
-        <Switch
-          on={simple}
-          label="Simple mode"
-          title="Show less on the board. Urgency, categories, dependencies and statuses move into the ⋯ menus."
-          onToggle={() => onSimple(!simple)}
-        />
-      )}
       {chips.length > 0 && (
         <>
           <span className={s.sep} />

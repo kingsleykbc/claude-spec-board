@@ -5,7 +5,7 @@ import { youStep } from '@specboard/core/you';
 import { api, ConflictError } from '../../api/client';
 import { OFFLINE_TOAST, type Mutate } from '../../state/actions';
 import type { PushToast } from '../../state/toasts';
-import { Spinner } from '../ConnectionBanner';
+import { Spinner } from '@/components/connection-banner/connection-banner';
 import { CaretIcon, CaretUpIcon, LogIcon } from '../../lib/icons';
 import { SubtaskLog } from './SubtaskLog';
 import s from './sections.module.css';

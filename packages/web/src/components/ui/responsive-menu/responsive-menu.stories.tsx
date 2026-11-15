@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import type { Decorator, Meta, StoryObj } from '@storybook/react-vite';
+import { useState } from 'react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import {
   ResponsiveMenu,
@@ -11,6 +11,7 @@ import {
   ResponsiveMenuSub,
 } from './responsive-menu';
 import { Modal } from '@/components/ui/modal/modal';
+import { narrow } from '@/stories/narrow-screen';
 
 const triggerClass = 'cursor-pointer rounded-lg border border-line bg-card px-3 py-1.5 text-fg';
 
@@ -77,27 +78,6 @@ export const Wide: Story = {
   },
 };
 
-/** Pretends the window is 720px or narrower, so `useNarrow()` is true while the story is shown. */
-function NarrowScreen({ children }: { children: ReactNode }) {
-  const [real] = useState(() => {
-    const original = window.matchMedia;
-    window.matchMedia = ((query: string) => ({
-      matches: /max-width:\s*720px/.test(query),
-      media: query,
-      onchange: null,
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
-      addListener: () => undefined,
-      removeListener: () => undefined,
-      dispatchEvent: () => false,
-    })) as typeof window.matchMedia;
-    return original;
-  });
-  useEffect(() => () => void (window.matchMedia = real), [real]);
-  return children;
-}
-
-const narrow: Decorator = (Story) => <NarrowScreen>{Story()}</NarrowScreen>;
 
 /** Narrow screens: a bottom drawer titled "Board menu"; Theme shows as a labelled group. */
 export const Narrow: Story = {
@@ -151,4 +131,38 @@ export const ItemOpensModalNarrow: Story = {
   render: () => <OpensModal />,
   decorators: [narrow],
   play: focusStaysInModal,
+};
+
+/** Items that are links: one opens in a new tab, one is the page you are on. */
+function WithLinks({ onSelect }: { onSelect: () => void }) {
+  return (
+    <div className="p-6">
+      <ResponsiveMenu
+        title="Board menu"
+        trigger={
+          <button type="button" className={triggerClass}>
+            Menu
+          </button>
+        }
+      >
+        <ResponsiveMenuItem href="/docs" newTab onSelect={onSelect}>
+          Documentation
+        </ResponsiveMenuItem>
+        <ResponsiveMenuItem href="/" current>
+          Board
+        </ResponsiveMenuItem>
+      </ResponsiveMenu>
+    </div>
+  );
+}
+
+export const Links: StoryObj<typeof WithLinks> = {
+  render: (args) => <WithLinks {...args} />,
+  args: { onSelect: fn() },
+};
+
+export const LinksNarrow: StoryObj<typeof WithLinks> = {
+  render: (args) => <WithLinks {...args} />,
+  args: { onSelect: fn() },
+  decorators: [narrow],
 };

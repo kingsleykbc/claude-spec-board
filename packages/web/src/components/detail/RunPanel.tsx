@@ -5,7 +5,7 @@ import { CheckIcon, DotIcon } from '../../lib/icons';
 import { usePluginMode } from '../../lib/mode';
 import { LINE } from '../../lib/vm';
 import { FileLink } from '../../state/fileLinks';
-import { Spinner } from '../ConnectionBanner';
+import { Spinner } from '@/components/connection-banner/connection-banner';
 import s from './sections.module.css';
 
 // The RUN OUTPUT aside (prototype lines 270-291, END and CHIP at lines 683-691). Purely

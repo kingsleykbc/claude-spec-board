@@ -26,6 +26,8 @@ export interface ReferencesModalProps {
   /** Changes whenever the project reloads (a live update): the list is fetched again. */
   stamp?: unknown;
   onClose: () => void;
+  /** Where focus goes on close when the opener is gone (a logo-menu item): the logo button. */
+  returnFocus?: () => HTMLElement | null;
 }
 
 /** How long the link-path input waits before asking for suggestions. */
@@ -45,7 +47,7 @@ interface Edit {
 }
 
 /** Reference documents (pinned behaviour 18; prototype lines 321-367 and 752-767). */
-export function ReferencesModal({ pid, client = api, toast, down = false, stamp, onClose }: ReferencesModalProps) {
+export function ReferencesModal({ pid, client = api, toast, down = false, stamp, onClose, returnFocus }: ReferencesModalProps) {
   const [refs, setRefs] = useState<ReferenceDoc[] | null>(null);
   const [activePath, setActivePath] = useState<string | null>(null);
   const [edit, setEdit] = useState<Edit | null>(null);
@@ -287,7 +289,7 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
   };
 
   return (
-    <Modal label="Reference documents" width="min(820px, 100%)" height="min(680px, calc(100vh - 64px))" onClose={requestClose}>
+    <Modal label="Reference documents" width="min(820px, 100%)" height="min(680px, calc(100vh - 64px))" onClose={requestClose} returnFocus={returnFocus}>
       <div className={s.rfHead}>
         <span className={s.rfTitle}>REFERENCE DOCUMENTS</span>
         <span className={s.grow} />
