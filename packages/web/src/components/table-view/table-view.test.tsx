@@ -1,9 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { composeStories } from '@storybook/react-vite';
 import type { Spec } from '@specboard/core';
-import { recipeArchived, recipeSpecs } from '../fixtures/recipeBox';
-import { NO_FILTERS } from '../state/filters';
-import { TableView, type TableViewProps } from './TableView';
+import { recipeArchived, recipeSpecs } from '@/fixtures/recipeBox';
+import { NO_FILTERS } from '@/state/filters';
+import type { TableViewProps } from './table-view';
+import * as stories from './table-view.stories';
+
+const { Flat, Milestones, TrackingOff, Compact, LongTitle } = composeStories(stories);
 
 afterEach(cleanup);
 
@@ -14,7 +18,8 @@ const withMs = (xs: Spec[]) => xs.map((x) => ({ ...x, milestone: IN[x.id] ?? nul
 
 function table(props: Partial<TableViewProps> = {}) {
   const p: TableViewProps = { specs: recipeSpecs, archived: recipeArchived, milestones: [], simple: false, trackTokens: false, onOpen: vi.fn(), ...props };
-  render(<TableView {...p} />);
+  // The story's args type onOpen as a mock; any handler does here.
+  render(<Flat {...(p as Parameters<typeof Flat>[0])} />);
   return p;
 }
 
@@ -153,5 +158,58 @@ describe('TableView compact', () => {
     expect(screen.queryByText(/Archived/)).toBeNull();
     expect(screen.queryByText('T-100')).toBeNull();
     expect(screen.getAllByRole('button').every((b) => b.hasAttribute('data-section'))).toBe(true);
+  });
+});
+
+/** Each table's colgroup as `col` widths, in order ('auto' for the Title column). */
+const colWidths = () =>
+  screen.getAllByRole('table').map((t) => [...t.querySelectorAll('colgroup > col')].map((c) => (c as HTMLElement).style.width || 'auto'));
+
+describe('TableView columns', () => {
+  it('every group in the Milestones story shares one fixed column template', () => {
+    render(<Milestones />);
+    fireEvent.click(screen.getByRole('button', { name: /^Archived/ }));
+    const tables = screen.getAllByRole('table');
+    expect(tables).toHaveLength(5);
+    for (const t of tables) expect(t.className).toContain('table-fixed');
+    const widths = colWidths();
+    for (const w of widths) expect(w).toEqual(widths[0]);
+    expect(widths[0]).toEqual(['40px', '96px', 'auto', '140px', '96px', '112px', '220px', '96px']);
+    // One col per header cell, so the template and the headers never drift apart.
+    for (const t of tables) expect(t.querySelectorAll('colgroup > col')).toHaveLength(within(t).getAllByRole('columnheader').length);
+  });
+
+  it('tracking off: no Tokens col and no Tokens header', () => {
+    render(<TrackingOff />);
+    expect(screen.queryByRole('columnheader', { name: 'Tokens' })).toBeNull();
+    for (const w of colWidths()) expect(w).toEqual(['40px', '96px', 'auto', '140px', '96px', '112px', '220px']);
+  });
+
+  it('Simple mode drops the Urgency and Categories cols', () => {
+    table({ simple: true, trackTokens: true });
+    expect(colWidths()).toEqual([['40px', '96px', 'auto', '140px', '96px', '96px']]);
+  });
+
+  it('compact keeps its own column set, shared across its groups', () => {
+    render(<Compact />);
+    const widths = colWidths();
+    expect(widths).toHaveLength(4);
+    for (const w of widths) expect(w).toEqual(['96px', 'auto', '140px', '96px']);
+  });
+
+  it('a long title truncates, and its Hint shows the full title', async () => {
+    render(<LongTitle />);
+    const long = 'Meal planner calendar with drag and drop between days, weekly totals and a printable shopping summary';
+    const btn = screen.getByRole('button', { name: long });
+    expect(btn.className).toContain('truncate');
+    fireEvent.focus(btn);
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toBe(long));
+  });
+
+  it('the "you" marker opens a popover with why the spec waits on you', async () => {
+    table();
+    fireEvent.click(within(screen.getByTestId('row-T-103')).getByRole('button', { name: 'Why is T-103 waiting on you?' }));
+    const pop = await screen.findByRole('dialog', { name: 'Waiting on you' });
+    expect(pop.textContent).toContain('Waiting on your review');
   });
 });

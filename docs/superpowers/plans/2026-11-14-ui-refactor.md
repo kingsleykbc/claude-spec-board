@@ -53,7 +53,7 @@
 
 - [x] ui/status-chip · [x] ui/category-tag · [x] ui/urgency · [x] ui/skeleton · [x] ui/markdown · [x] ui/modal · [x] ui/confirm-dialog · [x] ui/toasts
 - [x] top-bar · [x] project-switcher · [x] not-connected · [x] connection-banner · [x] footer
-- [x] filter-bar · [x] board · [x] column · [x] spec-card · [ ] table-view
+- [x] filter-bar · [x] board · [x] column · [x] spec-card · [x] table-view
 - [ ] card-detail (all parts) · [ ] state/fileLinks
 - [ ] overview-modal · [ ] references-modal · [ ] settings-modal · [ ] logs-modal · [ ] sync-dialog · [ ] add-spec-modal · [ ] conflict-dialog · [ ] docs-page
 - [ ] `modals.module.css`, `settings.module.css`, `logs.module.css`, `detail/*.module.css` deleted

@@ -9,7 +9,7 @@ import type { PushToast } from '../state/toasts';
 import { Spinner } from '@/components/connection-banner/connection-banner';
 import { Markdown } from '@/components/ui/markdown/markdown';
 import { Modal } from '@/components/ui/modal/modal';
-import { TableView } from './TableView';
+import { TableView } from './table-view/table-view';
 import s from './modals.module.css';
 
 export interface OverviewModalProps {

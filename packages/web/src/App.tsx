@@ -21,7 +21,7 @@ import { useRun } from './state/useRun';
 import { useSync } from './state/useSync';
 import { SyncDialog } from './components/SyncDialog';
 import { Board } from './components/board/board';
-import { TableView } from './components/TableView';
+import { TableView } from './components/table-view/table-view';
 import { AppSkeleton, BoardSkeleton } from '@/components/ui/skeleton/skeleton';
 import { AddSpecModal } from './components/AddSpecModal';
 import { CardDetail } from './components/detail/CardDetail';
