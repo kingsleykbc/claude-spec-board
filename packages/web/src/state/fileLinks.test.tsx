@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { TooltipProvider } from '@/components/ui/tooltip/tooltip';
 import { FileLink, FileLinks, fullPath } from './fileLinks';
 
 const writeText = vi.fn(async (_t: string) => undefined);
@@ -14,9 +16,11 @@ afterEach(cleanup);
 const setup = (openFile: (pid: string, rel: string) => Promise<{ opened: boolean; path: string; reason?: 'missing' | 'no-editor' }>) => {
   const toast = vi.fn();
   render(
-    <FileLinks pid="p1" root="C:\proj" toast={toast} client={{ openFile }}>
-      <FileLink path="src/a.ts" />
-    </FileLinks>,
+    <TooltipProvider>
+      <FileLinks pid="p1" root="C:\proj" toast={toast} client={{ openFile }}>
+        <FileLink path="src/a.ts" />
+      </FileLinks>
+    </TooltipProvider>,
   );
   fireEvent.click(screen.getByRole('button', { name: 'src/a.ts' }));
   return toast;
@@ -52,6 +56,15 @@ describe('FileLink', () => {
     writeText.mockRejectedValue(new Error('denied'));
     const toast = setup(async () => ({ opened: false, path: 'C:\\proj\\src\\a.ts', reason: 'no-editor' }));
     await waitFor(() => expect(toast).toHaveBeenCalledWith('err', 'Couldn’t copy the file path', 'C:\\proj\\src\\a.ts'));
+  });
+
+  it('says what a click does in a tooltip, and keeps the path as its name', async () => {
+    const user = userEvent.setup();
+    setup(async () => ({ opened: true, path: 'C:\\proj\\src\\a.ts' }));
+    const link = screen.getByRole('button', { name: 'src/a.ts' });
+    expect(link.getAttribute('title')).toBeNull();
+    await user.hover(link);
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toBe('src/a.ts · Open in VS Code, or copy the full path if it isn’t installed'));
   });
 
   it('is plain text with no project around it', () => {

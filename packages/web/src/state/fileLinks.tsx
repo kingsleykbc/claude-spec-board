@@ -1,7 +1,8 @@
-import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, type ReactNode } from 'react';
 import { api } from '../api/client';
 import type { PushToast } from './toasts';
-import s from './fileLinks.module.css';
+import { Hint } from '@/components/ui/hint/hint';
+import { cn } from '@/lib/utils';
 
 export type FileLinksClient = Pick<typeof api, 'openFile'>;
 
@@ -66,7 +67,6 @@ export interface FileLinkProps {
 export function FileLink({ path, className, children }: FileLinkProps) {
   const open = useContext(Open);
   const text = children ?? path;
-  const classes = useMemo(() => [s.link, className].filter(Boolean).join(' '), [className]);
   if (!open) {
     return (
       <span className={className} title={path}>
@@ -74,9 +74,17 @@ export function FileLink({ path, className, children }: FileLinkProps) {
       </span>
     );
   }
+  // A plain-looking link: the caller's classes (font, box, colour) win over these.
   return (
-    <button type="button" className={classes} title={`${path}\nOpen in VS Code, or copy the full path if it isn’t installed`} onClick={() => open(path)}>
-      {text}
-    </button>
+    <Hint label={`${path} · Open in VS Code, or copy the full path if it isn’t installed`}>
+      <button
+        type="button"
+        className={cn('cursor-pointer border-0 bg-transparent p-0 text-left text-inherit hover:text-accent-ink hover:underline', className)}
+        aria-label={typeof text === 'string' ? text : path}
+        onClick={() => open(path)}
+      >
+        {text}
+      </button>
+    </Hint>
   );
 }

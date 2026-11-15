@@ -3,7 +3,7 @@ import { allowHint, initHint } from '../lib/prePublish';
 import { isPluginMode } from '../lib/mode';
 import type { Spec } from '@specboard/core';
 import type { ClaudeStatus, RunEvent, RunKind, RunSnapshot } from '../api/client';
-import type { RunState } from '../components/detail/RunButton';
+import type { RunState } from '@/components/card-detail/run-button/run-button';
 import { OFFLINE_TOAST } from './actions';
 import type { PushToast, ToastKind } from './toasts';
 import type { StartResult, UseRun } from './useRun';

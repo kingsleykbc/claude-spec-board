@@ -225,13 +225,21 @@ export function ResponsiveMenuRadioGroup({ value, onValueChange, children }: { v
 /** A tick in place of the dot (e.g. the current project). */
 const tick = <LuCheck className="block size-4 text-accent-ink" aria-hidden="true" />;
 
-/** One radio choice; a dot (or, with `indicator="check"`, a tick) marks the group's current value. Picking it closes the menu. */
-export function ResponsiveMenuRadioItem({ value, children, indicator = 'dot', className }: { value: string; children: ReactNode; indicator?: 'dot' | 'check'; className?: string }) {
+/**
+ * One radio choice; a dot (or, with `indicator="check"`, a tick) marks the group's current value. Picking it closes the menu.
+ * `indicator="none"` leaves the mark out (and its left gutter) for items that say which is current themselves.
+ */
+export function ResponsiveMenuRadioItem({ value, children, indicator = 'dot', className }: { value: string; children: ReactNode; indicator?: 'dot' | 'check' | 'none'; className?: string }) {
   const { narrow, pick } = useContext(Mode);
   const group = useContext(Radio);
   if (!narrow) {
     return (
-      <DropdownMenuRadioItem value={value} onSelect={pick} className={className} {...(indicator === 'check' ? { indicator: tick } : {})}>
+      <DropdownMenuRadioItem
+        value={value}
+        onSelect={pick}
+        className={cn(indicator === 'none' && 'pl-2.5', className)}
+        {...(indicator === 'check' ? { indicator: tick } : indicator === 'none' ? { indicator: <></> } : {})}
+      >
         {children}
       </DropdownMenuRadioItem>
     );
@@ -242,13 +250,13 @@ export function ResponsiveMenuRadioItem({ value, children, indicator = 'dot', cl
       type="button"
       role="menuitemradio"
       aria-checked={checked}
-      className={cn(row, 'pl-8', className)}
+      className={cn(row, indicator !== 'none' && 'pl-8', className)}
       onClick={() => {
         pick();
         group?.onValueChange(value);
       }}
     >
-      {checked ? <span className={indicatorBox}>{indicator === 'check' ? tick : <LuCircle className="block size-2 fill-current" aria-hidden="true" />}</span> : null}
+      {checked && indicator !== 'none' ? <span className={indicatorBox}>{indicator === 'check' ? tick : <LuCircle className="block size-2 fill-current" aria-hidden="true" />}</span> : null}
       {children}
     </button>
   );

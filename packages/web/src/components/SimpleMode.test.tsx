@@ -6,7 +6,7 @@ import { allRecipeSpecs, recipeArchived, recipeSpec, recipeSpecs } from '../fixt
 import { firstParagraph } from '../lib/vm';
 import { createMutator } from '../state/mutate';
 import { initialSimple, saveSimple, SIMPLE_KEY, SimpleMode } from '../state/simpleMode';
-import { CardDetail } from './detail/CardDetail';
+import { CardDetail } from './card-detail/card-detail';
 import { SpecCard } from './spec-card/spec-card';
 import { TooltipProvider } from './ui/tooltip/tooltip';
 
@@ -136,7 +136,7 @@ describe('Simple mode: the card detail', () => {
         onClose={onClose}
         onOpenSpec={onOpenSpec}
       />,
-      simple ? { wrapper: simpleWrap } : {},
+      { wrapper: simple ? simpleWrap : fullWrap },
     );
     return { onOpenSpec, onClose };
   }

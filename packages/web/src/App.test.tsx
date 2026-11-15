@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { Project } from '@specboard/core';
 import { recipeArchived, recipeSpecs } from './fixtures/recipeBox';
 import type { Conn } from './api/live';
@@ -281,8 +282,10 @@ it('?spec= opens the card detail; Esc closes it, clears ?spec= and returns focus
     history.replaceState(null, '', '/?project=p1&spec=T-103');
     render(<App />);
     const dlg = await screen.findByRole('dialog', { name: 'Search & filters' });
-    fireEvent.click(within(dlg).getByRole('button', { name: /Review/ }));
-    fireEvent.click(within(dlg).getByRole('menuitemradio', { name: /Done/ }));
+    // The status menu is a Radix menu: it opens on pointerdown and renders in a portal.
+    const user = userEvent.setup();
+    await user.click(within(dlg).getByRole('button', { name: 'Review' }));
+    await user.click(await screen.findByRole('menuitemradio', { name: /Done/ }));
     await waitFor(() => expect(screen.getByText('T-103 approved')).toBeTruthy());
     expect(api.setMeta).toHaveBeenCalledWith('p1', 'T-103', expect.any(String), 'status', 'done');
   });

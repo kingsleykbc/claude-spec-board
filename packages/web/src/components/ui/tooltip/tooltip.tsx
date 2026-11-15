@@ -27,7 +27,8 @@ function TooltipContent({ className, sideOffset = 4, children, ...props }: Compo
         data-slot="tooltip-content"
         sideOffset={sideOffset}
         className={cn(
-          'z-[80] w-fit origin-(--radix-tooltip-content-transform-origin) rounded-md bg-fg px-2 py-1 font-sans text-xs text-balance text-bg',
+          // Long explanations (the Run buttons) wrap instead of running across the screen.
+          'z-[80] w-fit max-w-[min(320px,calc(100vw-32px))] origin-(--radix-tooltip-content-transform-origin) rounded-md bg-fg px-2 py-1 font-sans text-xs text-balance text-bg',
           className,
         )}
         {...props}
