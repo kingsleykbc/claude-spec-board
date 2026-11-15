@@ -1,6 +1,6 @@
-import { EditIcon } from "@/lib/icons";
-import { Markdown } from "@/components/ui/markdown/markdown";
-import { section, sectionHead, sectionLabel } from "../section";
+import { EditIcon } from '@/lib/icons';
+import { Markdown } from '@/components/ui/markdown/markdown';
+import { section, sectionHead, sectionLabel } from '../section';
 
 export interface SpecSectionProps {
   /** The saved spec body (`spec.bodyMd`). */
@@ -15,18 +15,10 @@ export interface SpecSectionProps {
   onSave: () => void;
 }
 
-const smallButton = "h-7 cursor-pointer rounded-[7px] py-0 text-[12.5px]";
+const smallButton = 'h-7 cursor-pointer rounded-[7px] py-0 text-[12.5px]';
 
 /** The SPEC section: rendered Markdown, or a split editor with live preview (prototype lines 172-183). */
-export function SpecSection({
-  md,
-  text,
-  saving = false,
-  onEdit,
-  onChange,
-  onCancel,
-  onSave,
-}: SpecSectionProps) {
+export function SpecSection({ md, text, saving = false, onEdit, onChange, onCancel, onSave }: SpecSectionProps) {
   const editing = text !== null;
   return (
     <section className={section} data-section="spec" aria-label="Spec">
@@ -35,9 +27,7 @@ export function SpecSection({
         <span className="flex-1" />
         {editing ? (
           <>
-            <span className="text-[12px] text-fg3">
-              Markdown · preview on the right
-            </span>
+            <span className="text-[12px] text-fg3">Markdown · preview on the right</span>
           </>
         ) : (
           <button
@@ -64,11 +54,7 @@ export function SpecSection({
             </div>
           </div>
           <div className="flex justify-end gap-2 border-t border-line px-3 py-2.5">
-            <button
-              type="button"
-              className={`${smallButton} border border-line bg-card px-3 text-fg`}
-              onClick={onCancel}
-            >
+            <button type="button" className={`${smallButton} border border-line bg-card px-3 text-fg`} onClick={onCancel}>
               Cancel
             </button>
             <button
