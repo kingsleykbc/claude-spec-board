@@ -1,7 +1,7 @@
 import type { Spec, Status, Urgency } from '@specboard/core';
 import { CheckIcon, CommandIcon, DoingIcon, DoneIcon, EditIcon, ErrorIcon, HelpIcon, PlayIcon, ReadIcon, ReviewIcon, StopIcon, TodoIcon, type IconType } from './icons';
 
-// View-model helpers copied from the prototype (docs/design/Spec Board.dc.html, lines 495-509).
+// View-model helpers: labels, colours and derived text for the board.
 
 export interface StatusMeta {
   label: string;

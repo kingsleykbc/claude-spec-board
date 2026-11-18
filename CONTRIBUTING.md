@@ -1,6 +1,6 @@
 # Contributing to Spec Board
 
-The repo is an npm workspace: `packages/core` (the file format), `packages/server` (the CLI and the board's server) and `packages/web` (the board), plus the Claude Code plugin in `plugin/`. Run `npm install`, then `npm test` for every package, or `npm run storybook` to browse the board's components.
+The repo is an npm workspace: `packages/core` (the file format), `packages/server` (the CLI and the board's server) and `packages/web` (the board), plus the Claude Code plugin in `plugin/`. Run `npm install`, then `npm test` for every package, or `npm run storybook` to browse the board's components. [ARCHITECTURE.md](ARCHITECTURE.md) explains how the packages, the server, the board and the Claude integration fit together.
 
 The plugin's skills live in `plugin/skills/<name>/SKILL.md`. They are active once the plugin is installed in Claude Code, not while you work inside this repo. `plugin/web` and `plugin/bin` are a prebuilt bundle: after changing the server or the web app, run `npm run build:plugin` and commit the result (a server test fails when the bundle is out of date).
 
