@@ -79,7 +79,7 @@ async function mount(first: RunSnapshot | null = null, url = '/?project=p1', ove
 }
 const named = (text: string) => screen.queryAllByText(text);
 const panel = () => screen.queryByRole('complementary', { name: 'Run output' });
-const runBtn = () => screen.getByRole('button', { name: /Run in background/ });
+const runBtn = () => screen.getByRole('button', { name: /Run with Claude/ });
 const chatBtn = () => screen.getByRole('button', { name: /Copy run command/ });
 
 beforeEach(() => {
@@ -96,7 +96,7 @@ describe('toasts come from live run events, once each', () => {
     await mount();
     send({ type: 'run-started', run: run() });
     send({ type: 'run-started', run: run() });
-    expect(named('Claude started on T-104')).toHaveLength(1);
+    expect(named('Claude started working on T-104 in the background.')).toHaveLength(1);
     // One on the card, one as the toast's sub-line.
     expect(named(recipeSpec('T-104').title)).toHaveLength(2);
   });
@@ -108,7 +108,7 @@ describe('toasts come from live run events, once each', () => {
     await flush();
     send({ type: 'run-started', run: run() });
     expect(api.startRun).toHaveBeenCalledWith('p1', 'run', 'T-104');
-    expect(named('Claude started on T-104')).toHaveLength(1);
+    expect(named('Claude started working on T-104 in the background.')).toHaveLength(1);
   });
 
   it.each([
@@ -118,7 +118,7 @@ describe('toasts come from live run events, once each', () => {
     await mount();
     send({ type: 'run-started', run: run({ kind }) });
     expect(named(text)).toHaveLength(1);
-    expect(named('Claude started on T-104')).toHaveLength(0);
+    expect(named('Claude started working on T-104 in the background.')).toHaveLength(0);
   });
 
   it('a refresh-overview start has no toast', async () => {
@@ -203,7 +203,7 @@ describe('toasts come from live run events, once each', () => {
     await mount(ended(run({ lines: [{ seq: 1, k: 'done', text: 'Subtask 1 done: A', time: '10:00' }] }), { status: 'finished' }));
     expect(named('T-104 moved to Review')).toHaveLength(0);
     expect(named('T-104 · Subtask done')).toHaveLength(0);
-    expect(named('Claude started on T-104')).toHaveLength(0);
+    expect(named('Claude started working on T-104 in the background.')).toHaveLength(0);
   });
 
   it('a snapshot replayed after a reconnect fires nothing, and the state still catches up', async () => {
@@ -246,7 +246,7 @@ describe('refusals', () => {
     await click(new ApiError(409, 'busy', { run: run({ specId: 'T-103' }) }));
     // The toast, and the Run button's own note now that the busy run is adopted (without a "started" toast).
     expect(named('Claude is already working on T-103')).toHaveLength(2);
-    expect(named('Claude started on T-103')).toHaveLength(0);
+    expect(named('Claude started working on T-103 in the background.')).toHaveLength(0);
   });
 
   it('while disconnected: the offline toast and no request', async () => {
@@ -516,7 +516,7 @@ describe('the run panel in the detail', () => {
   it('a blocked spec or a draft says why and cannot start', async () => {
     await mount(null, '/?project=p1&spec=T-105');
     expect((chatBtn() as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.queryByRole('button', { name: /Run in background/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Run with Claude/ })).toBeNull();
     expect(screen.getByText(/^Blocked\. Awaiting answers on:/)).toBeTruthy();
     fireEvent.click(chatBtn());
     await flush();

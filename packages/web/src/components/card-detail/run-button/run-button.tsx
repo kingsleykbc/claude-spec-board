@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { docsPath } from '@/lib/docsPages';
 import { CheckIcon, CopyIcon, HelpIcon, PlayIcon } from '@/lib/icons';
 import { Hint } from '@/components/ui/hint/hint';
+import { InfoPopover } from '@/components/ui/info-popover/info-popover';
+import { NOT_CONNECTED_TITLE, NotConnectedBody } from '@/components/not-connected/not-connected';
+import type { ManualReason } from '@/state/runUi';
 import { cn } from '@/lib/utils';
 
 export type RunState = 'ready' | 'running' | 'disabled' | 'fallback';
@@ -17,6 +20,10 @@ export interface RunButtonProps {
   blockedNote?: string | undefined;
   /** The disabled note when the active run has no spec to name and isn't the overview (a project-level sync). */
   busyNote?: string | undefined;
+  /** Why the board can't run Claude here (null when it can). A click on Run with Claude then explains instead of starting. */
+  manual: ManualReason | null;
+  /** Claude's status and the project's approval have loaded; until then Run with Claude waits. */
+  statusKnown: boolean;
   onRun: () => void;
   onStop: () => void;
 }
@@ -26,26 +33,30 @@ export const COPIED_MS = 2600;
 export const COPY_FAILED_MS = 6000;
 
 export const CHAT_TITLE = 'Copies the command to paste into a Claude chat open in this project. You see all the work in that chat, and this card follows along. It uses your normal Claude settings and approvals.';
-export const BACKGROUND_TITLE = 'Starts a separate Claude with its output on this card. It can’t ask you anything, ignores the project’s and your Claude settings, and can only do what you approved. Best for a repo you don’t fully trust.';
+export const BACKGROUND_TITLE =
+  'Starts a separate Claude with its output on this card. It can’t ask you anything, ignores the project’s and your Claude settings, and can only do what you approved. Best for a repo you don’t fully trust. Uses background runs when this project is connected.';
 const HELP = 'Chat or background: which to use';
 
 const button = 'flex h-[34px] items-center gap-2 rounded-lg py-0 pr-3.5 pl-3 text-[13px] font-semibold whitespace-nowrap';
-/** Copy run command, Run in background (and the header's Sync): secondary buttons of equal weight. */
+/** Copy run command (and the header's Sync): the secondary buttons. */
 export const secondaryButton = cn(
   button,
   'cursor-pointer border border-line2 bg-card text-fg hover:border-fg3 hover:bg-raise data-[copied=true]:border-done data-[copied=true]:text-done-ink',
 );
+/** Run with Claude: the card's one filled button. */
+const primaryButton = cn(button, 'cursor-pointer border-0 bg-accent text-accent-fg hover:bg-accent-hover');
 /** The same button while nothing can start. */
 export const offButton = cn(button, 'cursor-not-allowed border-0 bg-panel text-fg3');
 /** A one-line note beside the buttons (cut with … when it doesn't fit, except on phones). */
 const note = 'min-w-0 flex-[0_1_auto] overflow-hidden text-[12px] text-ellipsis whitespace-nowrap text-fg3 [@media(max-width:640px)]:whitespace-normal';
 
 /**
- * The header's Run controls in their four states (prototype lines 128-131, 679-683). Both ways are secondary buttons of
- * equal weight: copy the run command for a Claude chat (the board can't type into one), or run it in the background.
+ * The header's Run controls in their four states (prototype lines 128-131, 679-683). Run with Claude is the primary
+ * button: it starts a background run, or, when the board isn't connected to Claude, opens the notice that says why.
+ * Copy run command stays beside it for a Claude chat (the board can't type into one).
  * docs/guide/running-specs.md says when to use which.
  */
-export function RunButton({ id, state, runningId, hold, blockedNote, busyNote, onRun, onStop }: RunButtonProps) {
+export function RunButton({ id, state, runningId, hold, blockedNote, busyNote, manual, statusKnown, onRun, onStop }: RunButtonProps) {
   const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const alive = useRef(true);
@@ -113,6 +124,26 @@ export function RunButton({ id, state, runningId, hold, blockedNote, busyNote, o
       </a>
     </Hint>
   );
+  const runLabel = (
+    <>
+      <PlayIcon aria-hidden className="text-[12px]" />
+      Run with Claude
+    </>
+  );
+  // Not connected: the same button explains why instead of starting. Status not loaded yet: it waits, so nothing is
+  // started or explained wrongly.
+  const runWithClaude =
+    manual && statusKnown ? (
+      <InfoPopover label="Run with Claude" title={NOT_CONNECTED_TITLE} triggerClassName={primaryButton} trigger={runLabel}>
+        <NotConnectedBody reason={manual} />
+      </InfoPopover>
+    ) : (
+      <Hint label={BACKGROUND_TITLE}>
+        <button type="button" className={primaryButton} aria-label="Run with Claude" aria-disabled={!statusKnown} onClick={statusKnown ? onRun : undefined}>
+          {runLabel}
+        </button>
+      </Hint>
+    );
   const copied = copy === 'copied';
   const failedNote = copy === 'failed' && (
     <span className="min-w-0 flex-[0_1_auto] text-[12px] wrap-anywhere text-block-ink select-text" data-testid="copy-failed">
@@ -157,6 +188,8 @@ export function RunButton({ id, state, runningId, hold, blockedNote, busyNote, o
             <span className={note}>Claude Code not found</span>
           ))}
         {help}
+        {/* Claude Code isn't there: the primary button opens the notice, so there is always a working button or the reason. */}
+        {manual ? runWithClaude : null}
         {copyButton}
       </>
     );
@@ -166,12 +199,7 @@ export function RunButton({ id, state, runningId, hold, blockedNote, busyNote, o
     <>
       {failedNote}
       {help}
-      <Hint label={BACKGROUND_TITLE}>
-        <button type="button" className={secondaryButton} aria-label="Run in background" onClick={onRun}>
-          <PlayIcon aria-hidden className="text-[12px]" />
-          Run in background
-        </button>
-      </Hint>
+      {runWithClaude}
       {copyButton}
     </>
   );

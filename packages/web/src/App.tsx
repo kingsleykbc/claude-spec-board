@@ -394,6 +394,8 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
               onQuestionsSeen={(keys) => setSeenQuestions((x) => new Set([...x, ...keys]))}
               down={down}
               {...runButtonState(run.run, openId, run.claude)}
+              manual={manual}
+              statusKnown={run.claude !== null && run.approved !== null}
               runActive={openDoc ? cardRun(run.run, openDoc).runActive : false}
               onRun={() => void startRun('run', openId)}
               onStop={() => void stopRun()}

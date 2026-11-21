@@ -4,6 +4,7 @@ import { api, ConflictError, type RunKind, type SpecWrite } from '@/api/client';
 import { OFFLINE_TOAST, type Mutate } from '@/state/actions';
 import { useSimple } from '@/state/simpleMode';
 import type { PushToast } from '@/state/toasts';
+import type { ManualReason } from '@/state/runUi';
 import { blockTexts, relPath, runHold } from '@/lib/vm';
 import { cn } from '@/lib/utils';
 import { ConflictDialog } from '@/components/conflict-dialog/conflict-dialog';
@@ -54,6 +55,10 @@ export interface CardDetailProps {
   runBlockedNote?: string | undefined;
   /** The disabled Run note when the active run has no spec to name (a project-level sync). */
   runBusyNote?: string | undefined;
+  /** Why the board can't run Claude here (null when it can): Run with Claude explains instead of starting. */
+  manual?: ManualReason | null;
+  /** Claude's status and the project's approval have loaded. */
+  statusKnown?: boolean;
   /** A run is working on this spec (the subtask "In progress" pill). */
   runActive?: boolean;
   onRun?: () => void;
@@ -131,6 +136,8 @@ function SpecDetail({
   runningId = null,
   runBlockedNote,
   runBusyNote,
+  manual = null,
+  statusKnown = true,
   runActive = false,
   onRun = () => undefined,
   onStop = () => undefined,
@@ -344,6 +351,8 @@ function SpecDetail({
           runningId={runningId}
           runBlockedNote={runBlockedNote}
           runBusyNote={runBusyNote}
+          manual={manual}
+          statusKnown={statusKnown}
           runHold={runHold(spec, all)}
           onRun={onRun}
           onStop={onStop}

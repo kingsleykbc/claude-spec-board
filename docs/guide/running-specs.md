@@ -1,10 +1,10 @@
 # Running a spec
 
-There are two ways to have Claude work on a spec, and the card shows both as equal buttons: **Copy run command** and **Run in background**. **Use your chat unless you have a reason not to.** Use the background when you don't fully trust the repo, or don't want to sit with a chat.
+There are two ways to have Claude work on a spec, and the card shows both: **Run with Claude** (the main button) and **Copy run command**. **Use your chat unless you have a reason not to.** Use the background when you don't fully trust the repo, or don't want to sit with a chat.
 
 | | In your Claude chat | In the background |
 |---|---|---|
-| **How to start** | Press **Copy run command** on the card and paste it into a chat, or type `/specboard:run-spec T-001` | Press **Run in background** on the card |
+| **How to start** | Press **Copy run command** on the card and paste it into a chat, or type `/specboard:run-spec T-001` | Press **Run with Claude** on the card |
 | **Where you watch it** | In the chat, in full | On the card, as a short list of steps |
 | **When Claude needs an action approved** | It asks you in the chat | It can't ask. Anything you haven't approved is refused and the run stops |
 | **Your Claude settings, plugins and MCP servers** | Apply as usual | Off (only Spec Board's own plugin is loaded) |

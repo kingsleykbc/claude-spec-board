@@ -295,7 +295,7 @@ describe('CardDetail', () => {
 
   it('Run asks for a run', () => {
     const { onRun } = setup('T-104');
-    fireEvent.click(screen.getByRole('button', { name: /Run in background/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Run with Claude/ }));
     expect(onRun).toHaveBeenCalledOnce();
   });
 

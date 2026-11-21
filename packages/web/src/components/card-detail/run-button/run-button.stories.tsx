@@ -5,7 +5,7 @@ import { RunButton } from './run-button';
 const meta = {
   title: 'Detail/RunButton',
   component: RunButton,
-  args: { id: 'T-104', state: 'ready', onRun: fn(), onStop: fn() },
+  args: { id: 'T-104', state: 'ready', manual: null, statusKnown: true, onRun: fn(), onStop: fn() },
   decorators: [
     (Story) => (
       <div className="flex w-[520px] items-center gap-2.5 p-6">
@@ -19,8 +19,25 @@ type Story = StoryObj<typeof meta>;
 
 export const Ready: Story = {
   play: async ({ canvasElement, args }) => {
-    await userEvent.click(within(canvasElement).getByRole('button', { name: /Run in background/ }));
+    await userEvent.click(within(canvasElement).getByRole('button', { name: /Run with Claude/ }));
     expect(args.onRun).toHaveBeenCalled();
+  },
+};
+
+export const NotConnected: Story = {
+  args: { manual: 'not-approved' },
+  play: async ({ canvasElement, args }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Run with Claude' }));
+    expect(await within(document.body).findByText("This project isn't set up for background runs.")).toBeTruthy();
+    expect(args.onRun).not.toHaveBeenCalled();
+  },
+};
+
+export const StatusUnknown: Story = {
+  args: { statusKnown: false },
+  play: async ({ canvasElement, args }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Run with Claude' }));
+    expect(args.onRun).not.toHaveBeenCalled();
   },
 };
 

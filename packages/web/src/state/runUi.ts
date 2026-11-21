@@ -73,7 +73,7 @@ function startedToast(run: RunSnapshot, title: string | undefined): ToastArgs | 
   const id = run.specId;
   switch (run.kind) {
     case 'run':
-      return ['run', `Claude started on ${id}`, title];
+      return ['run', `Claude started working on ${id} in the background.`, title];
     case 'write-up':
       return ['run', `Claude is writing up ${id}`, 'Features, questions and subtasks will appear on the card.'];
     case 'fix-file':

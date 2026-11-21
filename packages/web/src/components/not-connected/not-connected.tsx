@@ -24,13 +24,20 @@ export function NotConnected({ reason }: { reason: ManualReason | null }) {
       title={NOT_CONNECTED_TITLE}
       trigger={<img src={notConnectedUrl} alt="" width={22} height={22} className="block size-[22px] overflow-hidden rounded-md" />}
     >
-      <div className="flex flex-col gap-2">
-        <p className="m-0">The board can't run Claude for you here, so use the Copy command buttons and paste them into a Claude chat.</p>
-        <p className="m-0 font-medium text-fg">{REASON[reason]}</p>
-        <a className="font-medium text-accent-ink underline" href="/docs/running-specs#turn-on-background-runs" target="_blank" rel="noopener">
-          How to turn on background runs
-        </a>
-      </div>
+      <NotConnectedBody reason={reason} />
     </InfoPopover>
+  );
+}
+
+/** Why the board can't run Claude, and how to fix it. Also the body of the Run with Claude notice. */
+export function NotConnectedBody({ reason }: { reason: ManualReason }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="m-0">The board can't run Claude for you here, so use the Copy command buttons and paste them into a Claude chat.</p>
+      <p className="m-0 font-medium text-fg">{REASON[reason]}</p>
+      <a className="font-medium text-accent-ink underline" href="/docs/running-specs#turn-on-background-runs" target="_blank" rel="noopener">
+        How to turn on background runs
+      </a>
+    </div>
   );
 }

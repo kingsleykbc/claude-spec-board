@@ -6,6 +6,7 @@ import { FileLink } from '@/state/fileLinks';
 import { Hint } from '@/components/ui/hint/hint';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover/popover';
 import { CategoryEditor } from '../category-editor/category-editor';
+import type { ManualReason } from '@/state/runUi';
 import { offButton, RunButton, secondaryButton, type RunState } from '../run-button/run-button';
 import { StatusMenu } from '../status-menu/status-menu';
 import { UrgencyControl } from '../urgency-control/urgency-control';
@@ -25,6 +26,10 @@ export interface DetailHeaderProps {
   runHold?: string | null;
   runBlockedNote?: string | undefined;
   runBusyNote?: string | undefined;
+  /** Why the board can't run Claude here; Run with Claude explains instead of starting. */
+  manual?: ManualReason | null;
+  /** Claude's status has loaded. */
+  statusKnown?: boolean;
   onRun: () => void;
   onStop: () => void;
   /** Sync this spec with the code; off while any run is active, like Run. */
@@ -74,7 +79,7 @@ export function DetailHeader(p: DetailHeaderProps) {
           path={p.path}
           className="min-w-[120px] flex-1 overflow-hidden text-[11.5px] text-ellipsis whitespace-nowrap text-fg3 [@media(max-width:640px)]:order-3! [@media(max-width:640px)]:min-w-0 [@media(max-width:640px)]:basis-full"
         />
-        <RunButton id={p.id} state={p.runState} runningId={p.runningId ?? null} hold={p.runHold ?? null} blockedNote={p.runBlockedNote} busyNote={p.runBusyNote} onRun={p.onRun} onStop={p.onStop} />
+        <RunButton id={p.id} state={p.runState} runningId={p.runningId ?? null} hold={p.runHold ?? null} blockedNote={p.runBlockedNote} busyNote={p.runBusyNote} manual={p.manual ?? null} statusKnown={p.statusKnown ?? true} onRun={p.onRun} onStop={p.onStop} />
         {p.syncWaiting && p.onSyncWaiting && (
           <button
             type="button"

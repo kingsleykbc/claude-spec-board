@@ -30,6 +30,8 @@ export interface RunPanelProps {
   onAction: (action: RunAction) => void;
 }
 
+export const BACKGROUND_LINE = "Running in the background as a separate Claude session. It won't show in your terminal chat; follow it here.";
+
 export const FIX_NOTE = 'Run this in a terminal, then run again.';
 
 /** Lines whose `code` names a file. A Read line can also hold a search pattern, which has wildcards and no place on disk. */
@@ -225,6 +227,7 @@ export function RunPanel({ kind = 'run', status, lines, end: server, projectRoot
             </div>
           );
         })}
+        {running && <p className="m-0 pb-1 text-[12.5px] leading-[1.5] text-fg2">{BACKGROUND_LINE}</p>}
         {running && (
           <div className="flex items-center gap-2 py-2 text-[12.5px] text-fg3">
             <Spinner />

@@ -42,6 +42,7 @@ describe('RunPanel', () => {
     expect(p.getByText('RUN OUTPUT')).toBeTruthy();
     expect(p.getByTestId('run-chip').textContent).toBe('Running');
     expect(p.getByText('Working…')).toBeTruthy();
+    expect(p.getByText("Running in the background as a separate Claude session. It won't show in your terminal chat; follow it here.")).toBeTruthy();
     expect(p.queryByRole('button', { name: 'Dismiss' })).toBeNull();
     const icons = p.getAllByTestId('line-icon').map((i) => i.innerHTML);
     expect(icons).toEqual(['start', 'read', 'ok', 'done', 'read', 'edit'].map(iconHtml));
