@@ -9,7 +9,7 @@ const CORE_422 = [/^No front matter$/, /^Front matter is not valid YAML/];
 /** Raised for requests we reject on purpose; carries the HTTP status. */
 export class HttpError extends Error {
   constructor(
-    readonly status: 400 | 404 | 409,
+    readonly status: 400 | 404 | 409 | 413,
     message: string,
   ) {
     super(message);

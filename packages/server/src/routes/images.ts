@@ -16,6 +16,9 @@ export const IMAGE_TYPES: Record<string, string> = {
   '.avif': 'image/avif',
 };
 
+/** The file extensions an image may have. */
+export const IMAGE_EXTS = Object.keys(IMAGE_TYPES);
+
 /** Shows an image that a spec or reference links to, from anywhere inside its project. */
 export function imageRoutes(registry: Registry): Hono {
   const app = new Hono();
