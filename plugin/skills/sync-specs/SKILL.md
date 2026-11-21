@@ -23,10 +23,13 @@ Read the specs (and their logs) in scope, `git log` and the code they describe. 
 - moving a card back, by this rule. For each unticked Claude subtask (not `(you)` ones), look for the work in the code and the git log, as for ticks:
   - when the work exists, propose the tick and keep the column;
   - otherwise, when the card sits in a column ahead of its work, move it to To-do (no Claude subtask is ticked) or to Doing (some are);
-  - never move back a card with no Claude subtasks (only `(you)` steps), nor a Done card whose Claude subtasks are all ticked;
+  - a card with no subtasks at all (for example a draft) in Review or Done, with no code for its `## Spec`, moves back to To-do;
+  - never move back a card whose only subtasks are `(you)` steps, nor a Done card whose Claude subtasks are all ticked;
   - still never set `done`;
 - new specs for clear work in the code that has no card: drafts, or `review` when the work is finished (whole-project sync only), placed in a milestone when the project has them;
 - specs that no longer match anything, to archive.
+
+Without a git repo, the evidence is the code only.
 
 Sync never deletes a spec file or a log, never deletes or rewrites a log entry, and never changes `created`.
 - A tick is like any tick: in the subtask's log write `done_at:` (now) and a dated entry `Ticked by sync: <evidence>`, creating the log in the log format if it is missing.
@@ -69,7 +72,7 @@ changes: <number of specs that change>
 1. ...
 ```
 
-Without a git repo, the evidence is the code only: write `head: "none"`. Leave out `scope:` for a whole-project sync. Quote `created` and `head` as shown. If nothing needs changing, still write the file, with `changes: 0`, the summary line "The board already matches the code." and no tree or operations. Finish with the summary.
+Without a git repo, write `head: "none"`. Leave out `scope:` for a whole-project sync. Quote `created` and `head` as shown. If nothing needs changing, still write the file, with `changes: 0`, the summary line "The board already matches the code." and no tree or operations. Finish with the summary.
 
 ## --board --apply
 

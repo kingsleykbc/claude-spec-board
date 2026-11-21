@@ -92,6 +92,13 @@ describe('kit content', () => {
     for (const { name, text } of commands) expect(text, name).toContain(line);
   });
 
+  it('every ../<name>/SKILL.md path a skill mentions exists in plugin/skills', async () => {
+    const names = (await fs.readdir(path.resolve(import.meta.dirname, '../../../plugin/skills'))).sort();
+    for (const { name, text } of await kitSkills()) {
+      for (const m of text.matchAll(/\.\.\/([\w-]+)\/SKILL\.md/g)) expect(names, `${name} -> ${m[0]}`).toContain(m[1]);
+    }
+  });
+
   it('run-spec and next share one set of steps, in the rules skill', async () => {
     const skills = await kitSkills();
     expect(runningSection(skills.find((s) => s.name === 'specboard')!.text)).toContain('1. Find');

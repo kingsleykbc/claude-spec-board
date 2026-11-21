@@ -195,7 +195,8 @@ Built the time-slot grid. Slots come from the barber's opening hours. Tests adde
 
 Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never start a spec on your own.
 
-1. Find `.specboard/specs/<ID>-*/spec.md` (Glob) and read it, then read its existing logs. Say so and stop if there is no such spec, or if `draft: true` (it needs `/create-spec` first), or if `status` is already `review` or `done` and all of Claude's subtasks (everything except trailing `(you)` steps) are ticked.
+1. Find `.specboard/specs/<ID>-*/spec.md` (Glob) and read it, then read its existing logs. Say so and stop if there is no such spec, or if `status` is already `review` or `done` and all of Claude's subtasks (everything except trailing `(you)` steps) are ticked.
+   - If `draft: true`: when the person asked in a chat to run or implement it, say it needs writing up first, Read `../create-spec/SKILL.md` (relative to this skill's base directory) and follow it (its questions are asked in the chat), then continue with the run. In a background run (the board started you, no one is in the chat), say it needs `/create-spec` first and stop.
 2. **Refuse to start** (change nothing, say why, stop) when:
    - any required question under `## Open questions` is unanswered. List them with their numbers; or
    - a spec in `depends_on` is not finished, or does not exist. Name it.
@@ -215,7 +216,7 @@ Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never s
 6. When only `(you)` subtasks (or none) are left unticked, check each line of `## Done when` before moving to Review:
    - Check it with the code, the tests or a command you may run. Write the result of each line in a log entry: met, not met, or needs your check (when only a person can check it), and how you checked.
    - Write the results in the log of the last subtask done in this run (or, if none was done this run, as a new dated entry in the log of the last code subtask).
-   - A line you checked and found not met: fix it and commit the fix as `<ID> · <n>. <title>` of the last code subtask, adding a dated entry to its log; or add a required question (step 5) and stop. Do not move to Review.
+   - A line you checked and found not met: fix it and commit the fix as `<ID> · <n>. <title>` of the last code subtask (no commit when `commits: false` or there is no repo, as in the commit step above), adding a dated entry to its log; or add a required question (step 5) and stop. Do not move to Review.
    - A line you cannot check yourself is "needs your check". It does not block Review and is not a question.
    - Otherwise set `current_subtask: null`, `status: review` and `updated` to today, and list the `(you)` subtasks still to do in your summary. Never set `status: done`.
    - A spec without `## Done when` has nothing to check: go straight to Review.
