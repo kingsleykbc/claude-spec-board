@@ -137,8 +137,8 @@ describe('classifyEnd', () => {
     expect(end({ kind: 'write-up', result: res({ isError: true }) }).status).toBe('error');
   });
 
-  it('ignores refusals of the optional commands gh pr view, glab mr view and specboard tree', () => {
-    const optional = [bash('gh pr view --json url'), bash('  glab mr view 3'), bash('specboard tree'), { tool: 'PowerShell', input: { command: 'gh pr view' } }];
+  it('ignores refusals of the optional commands gh pr view, glab mr view, specboard tree and date', () => {
+    const optional = [bash('gh pr view --json url'), bash('  glab mr view 3'), bash('specboard tree'), bash('date "+%Y-%m-%d %H:%M"'), { tool: 'PowerShell', input: { command: 'gh pr view' } }];
     expect(end({ kind: 'write-up', result: res({ denials: optional }), after: spec() })).toEqual({ status: 'finished' });
     const run = end({ result: res({ denials: optional }), after: spec({ status: 'review' }) });
     expect(run).toEqual({ status: 'finished' });
