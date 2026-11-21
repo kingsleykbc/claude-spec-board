@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createInterface } from 'node:readline/promises';
-import { initProject } from '@specboard/core';
+import { initProject, parseConfig } from '@specboard/core';
 import { matchesDeny, NEVER_PREFIX, normProg } from './claude/classify.js';
 import { assertNoLinks, installSkills, kitPluginDir } from './kit.js';
 import { initHint, nextLine } from './prePublish.js';
@@ -268,41 +268,6 @@ export class ApprovedPermissions {
   }
 }
 
-/** Add our rules to `<root>/.claude/settings.json`, keeping every other key and rule. Never writes through a link. */
-export async function mergeClaudeSettings(root: string, p: Permissions): Promise<void> {
-  const realRoot = await fs.realpath(root);
-  await assertNoLinks(realRoot, ['.claude', 'settings.json'], 'update settings');
-  const file = path.join(realRoot, '.claude', 'settings.json');
-  let settings: Record<string, unknown> = {};
-  let text: string | null = null;
-  try {
-    text = await fs.readFile(file, 'utf8');
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
-  }
-  if (text !== null) {
-    const bad = (why: string) => new Error(`${file} ${why}. Fix it by hand; Spec Board did not change it.`);
-    let data: unknown;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      throw bad('is not valid JSON');
-    }
-    if (typeof data !== 'object' || data === null || Array.isArray(data)) throw bad('is not a JSON object');
-    settings = data as Record<string, unknown>;
-    const perms = settings.permissions;
-    if (perms !== undefined && (typeof perms !== 'object' || perms === null || Array.isArray(perms))) throw bad('has a "permissions" that is not an object');
-    for (const k of ['allow', 'deny']) {
-      const v = (perms as Record<string, unknown> | undefined)?.[k];
-      if (v !== undefined && !isStrings(v)) throw bad(`has a "permissions.${k}" that is not a list of strings`);
-    }
-  }
-  const perms = { ...((settings.permissions as Record<string, unknown> | undefined) ?? {}) };
-  perms.allow = unique([...((perms.allow as string[] | undefined) ?? []), ...p.allow]);
-  perms.deny = unique([...((perms.deny as string[] | undefined) ?? []), ...p.deny]);
-  await writeAtomic(file, JSON.stringify({ ...settings, permissions: perms }, null, 2) + '\n');
-}
-
 // ---------- commands ----------
 
 export interface SetupIO {
@@ -360,9 +325,15 @@ export async function initCommand(
 
   for (const s of skills) io.log(`skill ${s.name}: ${s.action}`);
   if (skills.some((s) => s.action === 'skipped-modified')) io.log('Some skills were edited and kept. Use --force-skills to replace them.');
-  if (!(await exists(path.join(root, '.git')))) io.log(`Warning: no .git in ${root}. Runs commit per subtask and need a git repo, so run \`git init\` here unless this folder is inside one.`);
+  if (!(await exists(path.join(root, '.git')))) io.log(`No git repo here: tasks won't be committed unless you \`git init\`.`);
 
   const defaults = await defaultAllowList(root);
+  const testCommand = parseConfig(await fs.readFile(path.join(root, '.specboard', 'config.md'), 'utf8').catch(() => '')).testCommand;
+  if (testCommand !== null) {
+    const rule = `Bash(${testCommand})`;
+    if (isValidRule(rule) && !matchesDeny(rule, defaults.deny)) defaults.allow.push(rule);
+    else io.log(`Not allowing test_command ${testCommand}: it doesn't pass the rule checks.`);
+  }
   const store = approvedStore();
   const previous = await store.stored(id, root);
   const keptDeny: string[] = [];
@@ -391,7 +362,6 @@ export async function initCommand(
     }
     return { approved: false, id };
   }
-  await mergeClaudeSettings(root, { allow, deny }); // validates the project's settings before anything is approved
   await store.set(id, root, { allow, deny });
   io.log('Approved. Runs use only this list.');
   io.log(nextLine(root));
@@ -409,7 +379,6 @@ export async function allowCommand(opts: { rule: string; root: string }, io: Set
   // This is the one way to widen what runs can do, so it always needs a person at a terminal: there is no --yes.
   if (!io.isTTY) throw new Error('specboard allow needs a terminal and your answer; it cannot run without one.');
   if (!(await io.confirm(`Allow ${rule} for headless runs in ${root}? [y/N] `))) throw new Error(`Rule not added: ${rule}`);
-  await mergeClaudeSettings(root, { allow: [rule], deny: [] }); // may refuse (links, bad JSON) before anything is approved
   await store.addAllow(id, root, rule);
   io.log(`Allowed ${rule}`);
 }

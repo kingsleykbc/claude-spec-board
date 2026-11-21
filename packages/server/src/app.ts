@@ -69,7 +69,7 @@ export function createApp(deps: AppDeps): Hono {
 
   app.get('/api/projects', async (c) => {
     const entries = await deps.registry.list();
-    const out = await Promise.all(
+    const all = await Promise.all(
       entries.map(async (entry) => {
         const p = await loadProject(entry.root);
         // Archived specs count as done.
@@ -78,7 +78,7 @@ export function createApp(deps: AppDeps): Hono {
         return { ...entry, available, progress: { done, total: p.specs.length + p.archived.length } };
       }),
     );
-    return c.json(out);
+    return c.json(all.filter((p) => p.available));
   });
 
   app.get('/api/projects/:pid', async (c) => {

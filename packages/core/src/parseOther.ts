@@ -16,7 +16,7 @@ export interface SubtaskLog {
   entries: LogEntry[];
   problems: string[];
 }
-export interface ProjectConfig { name: string; created: string | null; references: string[]; milestones: string[]; closingSteps: string[]; description: string; problems: string[] }
+export interface ProjectConfig { name: string; created: string | null; references: string[]; milestones: string[]; closingSteps: string[]; commits: boolean | null; testCommand: string | null; description: string; problems: string[] }
 export interface ProjectSettings { trackTokens: boolean; problems: string[] }
 export interface Overview { updated: string | null; summaryMd: string }
 
@@ -104,13 +104,19 @@ export function parseLog(text: string): SubtaskLog {
 export function parseConfig(text: string): ProjectConfig {
   const { yaml, body } = splitFrontMatter(text);
   const { data, problems } = parseMapping(yaml);
-  const config: ProjectConfig = { name: '', created: null, references: [], milestones: [], closingSteps: [], description: body.trim(), problems };
+  const config: ProjectConfig = { name: '', created: null, references: [], milestones: [], closingSteps: [], commits: null, testCommand: null, description: body.trim(), problems };
   if (!data) return config;
   config.name = optionalString(data.name) ?? '';
   config.created = optionalString(data.created);
   config.references = stringList(data.references);
   config.milestones = [...new Set(stringList(data.milestones).map((m) => m.trim()).filter((m) => m !== ''))];
   config.closingSteps = stringList(data.closing_steps);
+  const commits = data.commits;
+  if (typeof commits === 'boolean') config.commits = commits;
+  else if (commits !== undefined && commits !== null) problems.push(`Invalid commits "${String(commits)}"`);
+  const testCommand = data.test_command;
+  if (typeof testCommand === 'string' && testCommand.trim() !== '') config.testCommand = testCommand;
+  else if (testCommand !== undefined && testCommand !== null) problems.push(`Invalid test_command "${String(testCommand)}"`);
   return config;
 }
 

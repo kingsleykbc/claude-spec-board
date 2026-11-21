@@ -172,14 +172,24 @@ describe('static files', () => {
 });
 
 describe('settings and availability', () => {
-  it('lists available true when config.md exists, false when not', async () => {
-    const entry = await reg.add(proj);
-    let body = (await (await app.request('/api/projects', { headers: HOST })).json()) as Array<{ available: boolean }>;
+  it('lists a project with config.md as available', async () => {
+    await reg.add(proj);
+    const body = (await (await app.request('/api/projects', { headers: HOST })).json()) as Array<{ available: boolean }>;
+    expect(body).toHaveLength(1);
     expect(body[0]!.available).toBe(true);
+  });
+  it('leaves out a project whose config.md was deleted', async () => {
+    await reg.add(proj);
     await fs.rm(path.join(proj, '.specboard', 'config.md'));
-    body = (await (await app.request('/api/projects', { headers: HOST })).json()) as Array<{ available: boolean }>;
-    expect(body[0]!.available).toBe(false);
-    expect(entry.id).toBeTruthy();
+    const body = await (await app.request('/api/projects', { headers: HOST })).json();
+    expect(body).toEqual([]);
+  });
+  it('leaves out a project whose folder was deleted', async () => {
+    await reg.add(proj);
+    await fs.rm(proj, { recursive: true, force: true });
+    const res = await app.request('/api/projects', { headers: HOST });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual([]);
   });
   const put = (pid: string, body: unknown) =>
     app.request(`/api/projects/${pid}/settings`, { method: 'PUT', headers: { ...HOST, 'content-type': 'application/json' }, body: typeof body === 'string' ? body : JSON.stringify(body) });

@@ -13,7 +13,6 @@ import {
   initCommand,
   InvalidApprovalError,
   isValidRule,
-  mergeClaudeSettings,
   specboardHome,
   type SetupIO,
 } from '../src/setup.js';
@@ -128,67 +127,6 @@ describe('defaultAllowList', () => {
   it('never offers a rule that meets its own deny list', async () => {
     const p = await defaultAllowList(await project('f', { scripts: { test: 'x' } }));
     await expect(new ApprovedPermissions(approvedFile()).set('abcd1234', tmp, p)).resolves.toBeUndefined();
-  });
-});
-
-describe('mergeClaudeSettings', () => {
-  const p = { allow: ['Read(./**)', 'Bash(git status:*)'], deny: ['Bash(git push:*)'] };
-  it('keeps existing keys and rules, adds ours without duplicates', async () => {
-    const root = await project();
-    await fs.mkdir(path.join(root, '.claude'));
-    const file = path.join(root, '.claude', 'settings.json');
-    await fs.writeFile(file, JSON.stringify({ model: 'x', permissions: { allow: ['Bash(ls:*)', 'Read(./**)'], ask: ['Bash(rm:*)'] } }));
-    await mergeClaudeSettings(root, p);
-    await mergeClaudeSettings(root, p);
-    const s = await readJson(file);
-    expect(s.model).toBe('x');
-    expect(s.permissions.ask).toEqual(['Bash(rm:*)']);
-    expect(s.permissions.allow).toEqual(['Bash(ls:*)', 'Read(./**)', 'Bash(git status:*)']);
-    expect(s.permissions.deny).toEqual(['Bash(git push:*)']);
-  });
-  it('creates the file when missing', async () => {
-    const root = await project();
-    await mergeClaudeSettings(root, p);
-    expect((await readJson(path.join(root, '.claude', 'settings.json'))).permissions.allow).toEqual(p.allow);
-  });
-  it('refuses to overwrite invalid JSON, naming the file, and leaves it unchanged', async () => {
-    const root = await project();
-    await fs.mkdir(path.join(root, '.claude'));
-    const file = path.join(root, '.claude', 'settings.json');
-    await fs.writeFile(file, '{ "permissions": ');
-    await expect(mergeClaudeSettings(root, p)).rejects.toThrow(/settings\.json/);
-    expect(await fs.readFile(file, 'utf8')).toBe('{ "permissions": ');
-  });
-  it('refuses a settings.json whose permissions are not lists', async () => {
-    const root = await project();
-    await fs.mkdir(path.join(root, '.claude'));
-    const file = path.join(root, '.claude', 'settings.json');
-    await fs.writeFile(file, '{"permissions":{"allow":"Bash(*)"}}');
-    await expect(mergeClaudeSettings(root, p)).rejects.toThrow(/settings\.json/);
-    expect(await fs.readFile(file, 'utf8')).toBe('{"permissions":{"allow":"Bash(*)"}}');
-  });
-  it('refuses to write through a linked .claude folder', async () => {
-    const outside = path.join(tmp, 'outside');
-    await fs.mkdir(outside);
-    const root = await project('r1');
-    await fs.symlink(outside, path.join(root, '.claude'), 'junction');
-    await expect(mergeClaudeSettings(root, p)).rejects.toThrow(/link/);
-    expect(await fs.readdir(outside)).toEqual([]);
-  });
-  it('refuses to write through a linked settings.json', async () => {
-    const outside = path.join(tmp, 'outside');
-    await fs.mkdir(outside);
-    const target = path.join(outside, 'target.json');
-    await fs.writeFile(target, '{}');
-    const root = await project('r2');
-    await fs.mkdir(path.join(root, '.claude'));
-    try {
-      await fs.symlink(target, path.join(root, '.claude', 'settings.json'), 'file');
-    } catch {
-      return; // file symlinks need privileges on Windows; the junction test covers the folder case
-    }
-    await expect(mergeClaudeSettings(root, p)).rejects.toThrow(/link/);
-    expect(await fs.readFile(target, 'utf8')).toBe('{}');
   });
 });
 
@@ -318,7 +256,7 @@ describe('initCommand', () => {
     expect(await approvedStore().get(r.id, root)).not.toBeNull();
   });
 
-  it('--yes completes: project, skills, both permission files, registry', async () => {
+  it('--yes completes: project, skills, approved store, registry', async () => {
     const root = await project('p1', { scripts: { test: 'vitest' } });
     const i = io({ tty: false });
     const r = await initCommand({ root, yes: true, forceSkills: false }, i);
@@ -326,19 +264,52 @@ describe('initCommand', () => {
     expect(i.asked).toEqual([]);
     await fs.stat(path.join(root, '.specboard', 'config.md'));
     await fs.stat(path.join(root, '.claude', 'skills', 'specboard', 'SKILL.md'));
-    const settings = await readJson(path.join(root, '.claude', 'settings.json'));
+    await expect(fs.stat(path.join(root, '.claude', 'settings.json'))).rejects.toThrow();
     const approved = await readJson(approvedFile());
     const id = projectId(root);
-    expect(approved[id]).toEqual({ ...settings.permissions, root: await fs.realpath(root) });
+    expect(approved[id].root).toBe(await fs.realpath(root));
     expect(approved[id].allow).toContain('Bash(npm test:*)');
     expect((await readJson(path.join(home, 'projects.json')))[0].id).toBe(id);
     expect(i.out.join('\n')).toContain('Bash(git push:*)');
   });
 
+  it('--runs yes writes no settings.json and leaves an existing one unchanged', async () => {
+    const fresh = await project('nf');
+    await initCommand({ root: fresh, yes: false, forceSkills: false, runs: 'yes' }, io({ tty: false }));
+    await expect(fs.stat(path.join(fresh, '.claude', 'settings.json'))).rejects.toThrow();
+    const root = await project('ex');
+    await fs.mkdir(path.join(root, '.claude'));
+    const file = path.join(root, '.claude', 'settings.json');
+    await fs.writeFile(file, '{ "model": "x",  "permissions": ');
+    await initCommand({ root, yes: false, forceSkills: false, runs: 'yes' }, io({ tty: false }));
+    expect(await fs.readFile(file, 'utf8')).toBe('{ "model": "x",  "permissions": ');
+  });
+
+  async function withTestCommand(name: string, cmd: string): Promise<{ allow: string[]; out: string }> {
+    const root = await project(name);
+    await fs.mkdir(path.join(root, '.specboard'));
+    await fs.writeFile(path.join(root, '.specboard', 'config.md'), '---\nname: X\ntest_command: ' + JSON.stringify(cmd) + '\n---\n');
+    const i = io({ tty: false });
+    const r = await initCommand({ root, yes: true, forceSkills: false }, i);
+    return { allow: (await approvedStore().get(r.id, root))!.allow, out: i.out.join('\n') };
+  }
+
+  it('adds the config test_command to the allow list', async () => {
+    const r = await withTestCommand('tc1', 'pnpm test');
+    expect(r.allow).toContain('Bash(pnpm test)');
+    expect(r.out).toContain('Bash(pnpm test)');
+  });
+
+  it.each(['pnpm test; rm x', 'git push origin main'])('leaves a test_command that fails the rule checks off the list: %s', async (cmd) => {
+    const r = await withTestCommand('tc2', cmd);
+    expect(r.allow).not.toContain(`Bash(${cmd})`);
+    expect(r.out).not.toContain(`allow  Bash(${cmd})`);
+  });
+
   it('is idempotent', async () => {
     const root = await project('p2');
     await init(root);
-    const files = [approvedFile(), path.join(root, '.claude', 'settings.json')];
+    const files = [approvedFile()];
     const before = await Promise.all(files.map((f) => fs.readFile(f, 'utf8')));
     await init(root);
     expect(await Promise.all(files.map((f) => fs.readFile(f, 'utf8')))).toEqual(before);
@@ -361,12 +332,11 @@ describe('initCommand', () => {
     expect(r.approved).toBe(true);
   });
 
-  it('no: sets up the project but writes neither permission file', async () => {
+  it('no: sets up the project but approves nothing', async () => {
     const root = await project('p4');
     const r = await initCommand({ root, yes: false, forceSkills: false }, io({ answer: false }));
     expect(r.approved).toBe(false);
     await fs.stat(path.join(root, '.specboard', 'config.md'));
-    await expect(fs.stat(path.join(root, '.claude', 'settings.json'))).rejects.toThrow();
     await expect(fs.stat(approvedFile())).rejects.toThrow();
     expect(await readJson(path.join(home, 'projects.json'))).toHaveLength(1);
   });
@@ -496,11 +466,11 @@ describe('allowCommand', () => {
     return root;
   }
 
-  it('adds the rule to the approved list and to .claude/settings.json', async () => {
+  it('adds the rule to the approved list only and writes no file', async () => {
     const root = await inited('a1');
     await allowCommand({ rule: 'Bash(npm run lint:*)', root }, io());
     expect((await readJson(approvedFile()))[projectId(root)].allow).toContain('Bash(npm run lint:*)');
-    expect((await readJson(path.join(root, '.claude', 'settings.json'))).permissions.allow).toContain('Bash(npm run lint:*)');
+    await expect(fs.stat(path.join(root, '.claude', 'settings.json'))).rejects.toThrow();
   });
 
   it('needs a real terminal and a y: no TTY or a no changes nothing', async () => {
@@ -509,7 +479,6 @@ describe('allowCommand', () => {
     await expect(allowCommand({ rule: 'Bash(npm run lint:*)', root }, io({ tty: false }))).rejects.toThrow(/terminal/);
     await expect(allowCommand({ rule: 'Bash(npm run lint:*)', root }, io({ answer: false }))).rejects.toThrow(/not added/i);
     expect(await fs.readFile(approvedFile(), 'utf8')).toBe(before);
-    expect((await readJson(path.join(root, '.claude', 'settings.json'))).permissions.allow).not.toContain('Bash(npm run lint:*)');
   });
 
   it.each(['Bash(git push:*)', 'Bash(git:*)', 'Bash(GIT.exe push:*)'])('refuses %s as blocked by policy, even when confirmed', async (rule) => {
@@ -518,7 +487,6 @@ describe('allowCommand', () => {
     await expect(allowCommand({ rule, root }, i)).rejects.toThrow(/blocked by policy/);
     expect(i.asked).toEqual([]);
     expect((await readJson(approvedFile()))[projectId(root)].allow).not.toContain(rule);
-    expect((await readJson(path.join(root, '.claude', 'settings.json'))).permissions.allow).not.toContain(rule);
   });
 
   it('refuses invalid rules and projects that were never approved', async () => {
@@ -627,7 +595,7 @@ describe('first-time path', () => {
     const root = await project();
     const i = io();
     await expect(initCommand({ root, yes: true, forceSkills: false }, i)).resolves.toMatchObject({ approved: true });
-    expect(i.out.join('\n')).toMatch(/commit per subtask.*git repo/);
+    expect(i.out.join('\n')).toContain("No git repo here: tasks won't be committed unless you \`git init\`.");
   });
 
   it('does not warn with .git, a folder or a worktree file', async () => {
@@ -638,7 +606,7 @@ describe('first-time path', () => {
     for (const root of [dir, file]) {
       const i = io();
       await initCommand({ root, yes: true, forceSkills: false }, i);
-      expect(i.out.join('\n')).not.toMatch(/git repo/);
+      expect(i.out.join('\n')).not.toMatch(/No git repo/);
     }
   });
 

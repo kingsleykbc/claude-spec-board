@@ -862,6 +862,8 @@ export const recipeProject: Project = {
     references: ['CLAUDE.md', 'docs/CONTEXT.md', 'docs/RULES.md', 'docs/API-NOTES.md', 'docs/STYLE-GUIDE.md'],
     milestones: ['Basics', 'Planning'],
     closingSteps: [],
+    commits: null,
+    testCommand: null,
     problems: [],
   },
   settings: { trackTokens: true, problems: [] },

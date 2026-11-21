@@ -62,12 +62,35 @@ describe('parseLog', () => {
 describe('parseConfig', () => {
   it('missing references gives []; description is trimmed body', () => {
     const c = parseConfig('---\nname: Demo\n---\n\nA project.\n\n');
-    expect(c).toEqual({ name: 'Demo', created: null, references: [], milestones: [], closingSteps: [], description: 'A project.', problems: [] });
+    expect(c).toEqual({ name: 'Demo', created: null, references: [], milestones: [], closingSteps: [], commits: null, testCommand: null, description: 'A project.', problems: [] });
   });
 
   it('parses references', () => {
     const c = parseConfig('---\nname: Demo\nreferences: [docs/a.md, docs/b.md]\n---\nBody');
     expect(c.references).toEqual(['docs/a.md', 'docs/b.md']);
+  });
+
+  it('parses commits and test_command', () => {
+    const c = parseConfig('---\nname: X\ncommits: false\ntest_command: "npm test"\n---\n');
+    expect(c.commits).toBe(false);
+    expect(c.testCommand).toBe('npm test');
+  });
+
+  it('missing commits and test_command are null', () => {
+    const c = parseConfig('---\nname: X\n---\n');
+    expect(c.commits).toBeNull();
+    expect(c.testCommand).toBeNull();
+  });
+
+  it('bad values are problems', () => {
+    const a = parseConfig('---\nname: X\ncommits: "yes"\n---\n');
+    expect(a.commits).toBeNull();
+    expect(a.problems).toHaveLength(1);
+    expect(a.problems[0]).toMatch(/commits/);
+    const b = parseConfig('---\nname: X\ntest_command: 5\n---\n');
+    expect(b.testCommand).toBeNull();
+    expect(b.problems).toHaveLength(1);
+    expect(b.problems[0]).toMatch(/test_command/);
   });
 
   it('bad input gives defaults and problems', () => {
