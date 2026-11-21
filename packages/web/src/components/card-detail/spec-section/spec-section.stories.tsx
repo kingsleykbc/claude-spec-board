@@ -32,3 +32,10 @@ export const Editing: Story = {
     expect(within(canvasElement).getByRole('textbox', { name: 'Spec markdown' })).toBeTruthy();
   },
 };
+
+export const EditingWithImages: Story = {
+  args: { text: md, onUpload: async (file: File) => `images/${file.name}`, onUploadError: fn() },
+  play: async ({ canvasElement }) => {
+    expect(within(canvasElement).getByRole('button', { name: 'Add image' })).toBeTruthy();
+  },
+};

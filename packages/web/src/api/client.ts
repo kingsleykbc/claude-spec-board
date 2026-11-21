@@ -154,6 +154,16 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
   return data as T;
 }
 
+/** The file's bytes as base64, with no `data:` prefix. */
+function toBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).replace(/^data:[^,]*,/, ''));
+    reader.onerror = () => reject(new Error('Couldn’t read the image'));
+    reader.readAsDataURL(file);
+  });
+}
+
 export const api = {
   // Reads
   health: () => request<{ ok: boolean; app: string; plugin?: boolean }>('GET', '/api/health'),
@@ -170,6 +180,9 @@ export const api = {
   /** `bodyHash` is `spec.bodyHash` from when editing began: the server 409s if the body changed since. */
   setBody: (pid: string, id: string, hash: string, bodyHash: string, md: string) =>
     request<SpecWrite>('PATCH', `${spec(pid, id)}/body`, { hash, bodyHash, md }),
+  /** Saves an image next to the spec; resolves to its path relative to the spec folder (`images/x.png`). */
+  uploadImage: async (pid: string, id: string, file: File) =>
+    request<{ path: string }>('POST', `${spec(pid, id)}/images`, { name: file.name, data: await toBase64(file) }),
   specDraftCopy: (pid: string, id: string, md: string) => request<{ path: string }>('POST', `${spec(pid, id)}/draft-copy`, { md }),
   /** Saves `.specboard/settings.md`; the server answers with the settings as now parsed. */
   setSettings: (pid: string, body: { trackTokens: boolean }) => request<{ settings: ProjectSettings }>('PUT', `${proj(pid)}/settings`, body),

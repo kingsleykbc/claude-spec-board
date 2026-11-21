@@ -22,6 +22,7 @@ export {
   LuEllipsis as MoreIcon,
   LuEye as ReadIcon,
   LuEyeOff as SimpleIcon,
+  LuImage as ImageIcon,
   LuInfo as InfoIcon,
   LuLayoutGrid as BoardIcon,
   LuGithub as GithubIcon,

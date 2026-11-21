@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { composeStories } from '@storybook/react-vite';
 import * as stories from './spec-section.stories';
 
@@ -51,5 +51,77 @@ describe('SpecSection', () => {
     expect(follows(screen.getByRole('button', { name: 'Cancel' }))).toBe(true);
     expect(follows(screen.getByRole('button', { name: 'Save' }))).toBe(true);
     expect(follows(screen.getByText('Markdown · preview on the right'))).toBe(false);
+  });
+
+  describe('images', () => {
+    const png = (name = 'a.png') => new File(['x'], name, { type: 'image/png' });
+    const box = () => screen.getByRole('textbox', { name: 'Spec markdown' }) as HTMLTextAreaElement;
+    const at = (pos: number) => {
+      box().focus();
+      box().setSelectionRange(pos, pos);
+    };
+    const paste = (files: File[]) => fireEvent.paste(box(), { clipboardData: { files, items: [], types: ['Files'] } });
+
+    it('pasting an image uploads it and inserts Markdown at the cursor', async () => {
+      const onUpload = vi.fn().mockResolvedValue('images/a.png');
+      const onChange = vi.fn();
+      render(<Editing text="ab" onUpload={onUpload} onChange={onChange} />);
+      at(1);
+      paste([png()]);
+      expect(onUpload).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(onChange).toHaveBeenCalledWith('a![a](images/a.png)b'));
+    });
+
+    it('dropping an image does the same', async () => {
+      const onUpload = vi.fn().mockResolvedValue('images/a.png');
+      const onChange = vi.fn();
+      render(<Editing text="ab" onUpload={onUpload} onChange={onChange} />);
+      at(2);
+      fireEvent.drop(box(), { dataTransfer: { files: [png()], types: ['Files'] } });
+      expect(onUpload).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(onChange).toHaveBeenCalledWith('ab![a](images/a.png)'));
+    });
+
+    it('Add image exists only in edit mode and uploads the chosen file', async () => {
+      const onUpload = vi.fn().mockResolvedValue('images/a.png');
+      const onChange = vi.fn();
+      const { unmount } = render(<View onUpload={onUpload} />);
+      expect(screen.queryByRole('button', { name: 'Add image' })).toBeNull();
+      unmount();
+      const { container } = render(<Editing text="" onUpload={onUpload} onChange={onChange} />);
+      expect(screen.getByRole('button', { name: 'Add image' })).toBeTruthy();
+      const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+      fireEvent.change(input, { target: { files: [png()] } });
+      expect(onUpload).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(onChange).toHaveBeenCalledWith('![a](images/a.png)'));
+    });
+
+    it('shows Uploading… and disables the button while pending', async () => {
+      let done: (p: string) => void = () => undefined;
+      const onUpload = vi.fn().mockReturnValue(new Promise<string>((r) => (done = r)));
+      render(<Editing text="" onUpload={onUpload} />);
+      paste([png()]);
+      const btn = (await screen.findByRole('button', { name: 'Uploading…' })) as HTMLButtonElement;
+      expect(btn.disabled).toBe(true);
+      done('images/a.png');
+      await screen.findByRole('button', { name: 'Add image' });
+    });
+
+    it('a rejected upload leaves the text alone and reports the error', async () => {
+      const onUpload = vi.fn().mockRejectedValue(new Error('Too big'));
+      const onChange = vi.fn();
+      const onUploadError = vi.fn();
+      render(<Editing text="ab" onUpload={onUpload} onChange={onChange} onUploadError={onUploadError} />);
+      paste([png()]);
+      await waitFor(() => expect(onUploadError).toHaveBeenCalledWith('Too big'));
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('pasting plain text does not upload', () => {
+      const onUpload = vi.fn();
+      render(<Editing text="ab" onUpload={onUpload} />);
+      fireEvent.paste(box(), { clipboardData: { files: [], items: [], types: ['text/plain'], getData: () => 'hi' } });
+      expect(onUpload).not.toHaveBeenCalled();
+    });
   });
 });

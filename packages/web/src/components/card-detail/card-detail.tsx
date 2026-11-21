@@ -26,7 +26,7 @@ export function datesLine(created: string | null, updated: string | null): strin
   return parts.length > 0 ? parts.join(' · ') : null;
 }
 
-export type DetailClient = Pick<typeof api, 'setMeta' | 'setBody' | 'specDraftCopy' | 'setAnswers' | 'setSubtask'>;
+export type DetailClient = Pick<typeof api, 'setMeta' | 'setBody' | 'specDraftCopy' | 'setAnswers' | 'setSubtask'> & Partial<Pick<typeof api, 'uploadImage'>>;
 
 export interface CardDetailProps {
   pid: string;
@@ -384,6 +384,8 @@ function SpecDetail({
                 onChange={setEditText}
                 onCancel={() => setEditText(null)}
                 onSave={() => void save()}
+                onUpload={(file) => (client.uploadImage ?? api.uploadImage)(pid, id, file).then((r) => r.path)}
+                onUploadError={(m) => toast('err', 'Couldn’t add the image', m)}
               />
               <Questions
                 pid={pid}
