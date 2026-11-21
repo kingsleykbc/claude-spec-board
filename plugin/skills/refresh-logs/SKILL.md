@@ -13,6 +13,7 @@ Limit to this spec if an ID is given, otherwise do every spec: $ARGUMENTS
 
 ## Steps
 
+0. If there is no git repo (neither the folder nor a parent has `.git`), say "Refreshing logs needs git history, and this project has none." and stop.
 1. For each spec, list its ticked subtasks (skip `(you)` subtasks: they have no commit and need no log) and the files in its `logs/` folder. A ticked subtask with no log, or a log with an empty `commit` or `files`, needs work.
 2. Find the commit for each. Runs commit with the message `<ID> · <n>. <title>`, so search with `git log --grep="<ID> · <n>\." --format="%h %cd" --date=format:"%Y-%m-%d %H:%M"`, then get the files with `git diff --name-only <hash>~1 <hash>`.
 3. If there is no such commit, look through `git log --stat` for commits that plainly match the subtask. Use a match only if you are sure; otherwise leave `commit` empty and write in the entry that the commit was not found.

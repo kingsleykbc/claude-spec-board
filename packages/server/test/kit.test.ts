@@ -5,7 +5,7 @@ import { parseSpec, specBodyMd, splitFrontMatter, youStep } from '@specboard/cor
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { installSkills, kitPluginDir, kitSkills } from '../src/kit.js';
 
-const COMMANDS = ['create-spec', 'update-spec', 'run-spec', 'next', 'refresh-overview', 'refresh-questions', 'refresh-logs', 'correct-specs', 'plan-project', 'import-specs', 'reorganize', 'setup', 'structure', 'sync-specs'];
+const COMMANDS = ['create-spec', 'update-spec', 'run-spec', 'next', 'refresh-overview', 'refresh-questions', 'refresh-logs', 'correct-specs', 'plan-project', 'import-specs', 'reorganize', 'setup', 'structure', 'sync-specs', 'move'];
 /** Skills a plain request may trigger; the other commands only run when typed. */
 const MODEL_INVOCABLE = ['specboard', 'setup'];
 
@@ -45,8 +45,8 @@ describe('plugin folder', () => {
   const repo = path.resolve(import.meta.dirname, '../../..');
   it('reads the skills from plugin/skills and hands runs the plugin folder', async () => {
     expect(kitPluginDir()).toBe(path.join(repo, 'plugin'));
-    expect((await kitSkills()).length).toBe(15);
-    expect((await fs.readdir(path.join(repo, 'plugin', 'skills'))).length).toBe(15);
+    expect((await kitSkills()).length).toBe(16);
+    expect((await fs.readdir(path.join(repo, 'plugin', 'skills'))).length).toBe(16);
   });
   it('plugin.json and marketplace.json parse and agree', async () => {
     const plugin = JSON.parse(await fs.readFile(path.join(repo, 'plugin', '.claude-plugin', 'plugin.json'), 'utf8'));
@@ -233,10 +233,10 @@ describe('kit content', () => {
     }
   });
 
-  it('running a spec takes the test command from the allow-list and never invents one', async () => {
+  it('running a spec takes the test command from config.md and never invents one', async () => {
     const text = runningSection((await kitSkills()).find((s) => s.name === 'specboard')!.text);
-    expect(text).toContain('.claude/settings.json');
-    expect(text).toContain('permissions.allow');
+    expect(text).toContain('test_command');
+    expect(text).not.toContain('.claude/settings.json');
     expect(text).toContain('No test command is set up');
     expect(text).toMatch(/do not run or add tests/);
     expect(text).toMatch(/do not edit `package.json`/);

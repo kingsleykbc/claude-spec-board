@@ -20,6 +20,11 @@ Input: $ARGUMENTS
 Read the specs (and their logs) in scope, `git log` and the code they describe. Propose only what the evidence shows:
 - subtasks to tick, naming the commit or code that shows them done; untick only with clear evidence the work was removed;
 - status moves: `todo` to `doing`, or to `review` when Claude's subtasks are done. Never set `status: done`;
+- moving a card back, by this rule. For each unticked Claude subtask (not `(you)` ones), look for the work in the code and the git log, as for ticks:
+  - when the work exists, propose the tick and keep the column;
+  - otherwise, when the card sits in a column ahead of its work, move it to To-do (no Claude subtask is ticked) or to Doing (some are);
+  - never move back a card with no Claude subtasks (only `(you)` steps), nor a Done card whose Claude subtasks are all ticked;
+  - still never set `done`;
 - new specs for clear work in the code that has no card: drafts, or `review` when the work is finished (whole-project sync only), placed in a milestone when the project has them;
 - specs that no longer match anything, to archive.
 
@@ -39,6 +44,7 @@ Make a summary (one line per spec that changes), the tree with `+`, `~` and `→
 4. Mark obsolete: T-090 log 2 (the CSV export was removed)
 5. Archive T-090 (the CSV export was removed)
 6. Create draft: Recipe ratings in Sharing
+7. Move T-107 back to todo (no code for subtasks 1-3)
 ```
 
 ## --board --dry-run
@@ -63,14 +69,14 @@ changes: <number of specs that change>
 1. ...
 ```
 
-Leave out `scope:` for a whole-project sync. Quote `created` and `head` as shown. If nothing needs changing, still write the file, with `changes: 0`, the summary line "The board already matches the code." and no tree or operations. Finish with the summary.
+Without a git repo, the evidence is the code only: write `head: "none"`. Leave out `scope:` for a whole-project sync. Quote `created` and `head` as shown. If nothing needs changing, still write the file, with `changes: 0`, the summary line "The board already matches the code." and no tree or operations. Finish with the summary.
 
 ## --board --apply
 
 1. Read `.specboard/sync-proposal.md`. If it is missing, say "There is no sync proposal to apply." and stop.
-2. Run `git log -1 --format=%h`. If it differs from `head`, change nothing (not even the proposal) and stop with: "The code changed since the proposal. Run Sync again."
+2. If `head` is `none` or missing, skip the head check. Otherwise run `git log -1 --format=%h`; if it differs from `head`, change nothing (not even the proposal) and stop with: "The code changed since the proposal. Run Sync again."
 3. If the proposal's `scope` differs from the ID you were given (one present and not the other, or two different IDs), change nothing (not even the proposal) and stop with: "This proposal is for a different scope. Run Sync again."
-4. Apply exactly the listed operations, in order, with small Edit calls (Write for a new draft or log). Do nothing else. Set `updated` to today on every spec you change. A new draft has front matter and a short `## Spec`, like any draft. For an `Archive <ID>` line, change only that spec's logs as above: the board archives the spec.
+4. Apply exactly the listed operations, in order, with small Edit calls (Write for a new draft or log). Check each operation against the file as it is now: when it no longer fits (the subtask is already ticked, or the spec is already in that column), skip it and report it. Do nothing else. Set `updated` to today on every spec you change. A new draft has front matter and a short `## Spec`, like any draft. For an `Archive <ID>` line, change only that spec's logs as above: the board archives the spec.
 5. Last, only once every operation is applied: add the line `applied: true` to the proposal's front matter with one Edit. The board archives the listed specs and reports the sync done only when it finds that line; it deletes the file when the run ends. Change nothing else in the proposal.
 6. Finish with a short list of what changed.
 

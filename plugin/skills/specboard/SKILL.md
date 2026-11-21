@@ -11,7 +11,7 @@ Spec Board is a kanban board over plain Markdown files in `.specboard/`. People 
 
 ```
 .specboard/
-  config.md                     # front matter: name, created (YYYY-MM-DD), references (list of repo-relative paths), closing_steps and milestones (lists, optional); body = project description
+  config.md                     # front matter: name, created (YYYY-MM-DD), references (list of repo-relative paths), closing_steps and milestones (lists, optional), commits (true or false, optional) and test_command (a command string, optional); body = project description, then optional ## Stack and ## Design sections
   overview.md                   # front matter: updated (YYYY-MM-DD); body = progress summary
   settings.md                   # optional, front matter only: track_tokens (true or false); the person sets it on the board
   specs/<ID>-<slug>/spec.md
@@ -180,7 +180,7 @@ files: [src/slots.ts, src/slots.test.ts]
 Built the time-slot grid. Slots come from the barber's opening hours. Tests added for the empty day.
 ```
 
-- `commit` is the short hash of the subtask's commit (empty if there is none), and `files` lists the files that commit changed.
+- `commit` is the short hash of the subtask's commit. It is empty when there is no commit (`commits: false` or no git repo); then `files` lists the files changed for that subtask and there is no `pr`. Otherwise `files` lists the files that commit changed.
 - `pr: <url>` (optional) links the open pull or merge request for the commit's branch. After the commit, try `gh pr view --json url -q .url`, then `glab mr view -F json` (take its `web_url`). If neither works or there is none, leave `pr:` out and say nothing. If you opened the PR yourself, use its link.
 - `done_at: YYYY-MM-DD HH:mm` (local time) is written when the subtask is ticked.
 - `obsolete: "<YYYY-MM-DD>: <reason>"` marks a log whose work no longer exists. Only sync sets it (see /sync-specs).
@@ -206,10 +206,10 @@ Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never s
    1. If it is a `(you)` subtask and Claude subtasks come after it: set `current_subtask: null`, leave the status as `doing`, say exactly what the person needs to do, and **stop**. Never tick it. The person ticks it on the board and runs again. A `(you)` subtask with only `(you)` subtasks after it does not stop the run: go to step 6 of Running a spec (the Done when check).
    2. Set `current_subtask: <n>`.
    3. Do the work the subtask describes, using the Spec and Features sections and the answers.
-   4. Run the project's tests. Read `.claude/settings.json`, take the test command from the `Bash(...)` entries in `permissions.allow` (the entry that runs the tests, for example `Bash(npm test)` means `npm test`), and run exactly that command, alone, with the Bash tool. Do not pick another test command and do not chain anything onto it. If it fails, fix the cause. If you cannot, treat it as the decision step (step 5 of Running a spec) and do not commit failing work. If no test command is listed, do not run or add tests and do not edit `package.json` to create a test script; write "No test command is set up" in the subtask's log entry and carry on.
-   5. Commit only this subtask's code with the Bash tool: `git add <the files you changed>`, then `git commit -m "<ID> · <n>. <subtask title>"`. Do not add `.specboard/` files to the commit.
-   6. Get the short hash and local time with `git log -1 --format="%h %cd" --date=format:"%Y-%m-%d %H:%M"`, the changed files with `git diff --name-only HEAD~1 HEAD`, and the PR link as the log format says.
-   7. Write `.specboard/specs/<ID>-<slug>/logs/<n>-<slug>.md` in the log format: `subtask`, `commit`, `files`, `pr` (when found), `done_at` (the commit's time), and a dated entry (`### YYYY-MM-DD HH:mm`) of what you did.
+   4. Run the project's tests. Read `test_command` from `.specboard/config.md` (for example `test_command: "npm test"`) and run exactly that command, alone, with the Bash tool. Do not pick another test command and do not chain anything onto it. If it fails, fix the cause. If you cannot, treat it as the decision step (step 5 of Running a spec) and do not commit failing work. If there is no `test_command`, skip the tests: do not run or add tests and do not edit `package.json` to create a test script; write "No test command is set up" in the subtask's log entry and carry on.
+   5. Commit only this subtask's code with the Bash tool: `git add <the files you changed>`, then `git commit -m "<ID> · <n>. <subtask title>"`. Do not add `.specboard/` files to the commit. When config.md has `commits: false`, or there is no git repo (neither the folder nor a parent has `.git`), make no commit.
+   6. Get the short hash and local time with `git log -1 --format="%h %cd" --date=format:"%Y-%m-%d %H:%M"`, the changed files with `git diff --name-only HEAD~1 HEAD`, and the PR link as the log format says. With no commit, there is no hash and no PR link: take the current local time and list the files you changed for this subtask.
+   7. Write `.specboard/specs/<ID>-<slug>/logs/<n>-<slug>.md` in the log format: `subtask`, `commit` (empty with no commit), `files`, `pr` (when found; never with no commit), `done_at` (the commit's time, or now with no commit), and a dated entry (`### YYYY-MM-DD HH:mm`) of what you did.
    8. Tick the subtask (`- [x]`) and set `updated`.
 5. When you reach a decision you cannot make from the spec and its answers (or tests cannot be fixed): add a required open question (`- [ ] Q<k> (<type>): <text>` then `  > answer:`, with a recommendation if you have one), set `current_subtask: null`, leave the status as `doing`, say what you need, and **stop**. Do not guess and do not carry on to the next subtask. A refused action is different: see rule 8.
 6. When only `(you)` subtasks (or none) are left unticked, check each line of `## Done when` before moving to Review:

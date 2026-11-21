@@ -17,12 +17,20 @@ Any input is the person's notes about the project. Use them, and do not ask what
 
 1. If there is no `.specboard/config.md`, the project is not set up: say so, suggest `/specboard:setup` (or `specboard init "<project folder>"` in a terminal), and stop. This command does not install anything.
 2. Look at the folder first. If there is code, read enough of it to describe what it does today: the README, package files, the main folders and any existing docs. Describe what exists before planning changes. Read the existing specs too, so you do not suggest work that is already on the board.
-3. Ask the person a few questions in the chat, one at a time, waiting for each answer:
-   - what the project is for (if the code already shows it, say what you found and ask them to confirm);
-   - whether each spec should end with tests, and if so with what command;
-   - which docs should be kept up to date as work finishes;
-   - small or large: whether the project needs milestones (see Milestones in the rules). Suggest yes when there are more than about 12 pieces of work or the plans already come in phases; phases of a whole plan become milestones.
-4. Write `.specboard/config.md`: `name`, `references` (existing docs worth reading, as repo-relative paths), `closing_steps` (from the answers, for example `[Write tests, Update the docs]`), `milestones` (large projects only, in order), and the description as the body. Keep `created`. `specboard init` leaves a bare file (only `name` and empty `references`): fill that in. If it already holds more than that, show the person exactly what would change and ask first. Change it with small Edit calls and keep everything else.
+3. Ask these questions in the chat, one at a time, waiting for each answer (at most 7). Show a suggested answer with each, written `(suggested: …)`. If the person says "skip", take the suggestion. Leave a question out when the input or the project already answers it, and say what you assumed instead.
+
+   | # | Question | Suggestion | Goes to |
+   |---|---|---|---|
+   | 1 | What are you building? | the input (usually skipped); for existing code, what you found | the `config.md` body |
+   | 2 | Stack? | the project files, else a simple default for that kind of app | `## Stack` in the `config.md` body |
+   | 3 | Must-have features for the first version? | the input | the specs |
+   | 4 | Any design references (links, image paths, or none)? | none | links go under `## Design` in the `config.md` body; files inside the project go in `references` |
+   | 5 | Split into phases (milestones, see the rules)? | by size: yes for more than about 12 pieces of work or plans already in phases, else no | `milestones` |
+   | 6 | After each spec: run tests (which command)? Update docs? | the command you detect; "update the README" only if one exists | `closing_steps`, `test_command` |
+   | 7 | Commit after each task? | yes; only asked when there is a git repo (the folder or a parent has `.git`) | `commits` |
+
+   With no git repo, do not ask 7: write `commits: false` and say "No git repo found, so tasks won't be committed."
+4. Write `.specboard/config.md`: `name`, `references` (existing docs worth reading and design files inside the project, as repo-relative paths), `closing_steps` (from the answers, for example `[Write tests, Update the docs]`), `test_command` (the tests command, as a quoted string like `"npm test"`; leave it out when there are no tests), `commits` (`true` or `false`), `milestones` (large projects only, in order), and the body: the description, then `## Stack` and `## Design` (the links, or "none"). Keep `created`. `specboard init` leaves a bare file (only `name` and empty `references`): fill that in. If it already holds more than that, show the person exactly what would change and ask first. Change it with small Edit calls and keep everything else.
 5. Suggest the first specs as a tree (see "Proposing changes" in the rules), in the order they should be built, grouped by milestone when there are milestones. Size them by "Spec or subtask?" in the rules. Wait for the person's OK or changes.
 6. On the OK, create each one as a draft with the Write tool, using the next free IDs: front matter with `status: todo`, `draft: true`, `depends_on` set from the order, `milestone` (when there are milestones), `urgency`, `categories`, `current_subtask: null`, `created` and `updated` to today, and only a short `## Spec` (the first sentence plus a line or two). Do not write full specs in bulk: each one is written up later with `/create-spec <ID>`.
 7. Do not change code. Finish by saying what is in `config.md` and listing the drafts with their IDs and dependencies, then suggest `/create-spec <ID>` for the first one.

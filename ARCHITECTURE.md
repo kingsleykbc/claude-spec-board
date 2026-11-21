@@ -29,7 +29,7 @@ packages/
   web/       @specboard/web: the board (React 19 + Vite).
 plugin/
   .claude-plugin/plugin.json      Plugin "specboard"
-  skills/<name>/SKILL.md          The 15 skills (the Claude side of the product)
+  skills/<name>/SKILL.md          The 16 skills (the Claude side of the product)
   hooks/hooks.json                PostToolUse hook for token counts
   bin/specboard(.cmd|.mjs)        GENERATED: bundled CLI + server
   web/                            GENERATED: built board
