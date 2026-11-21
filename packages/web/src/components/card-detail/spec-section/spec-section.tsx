@@ -42,10 +42,13 @@ export function SpecSection({ md, pid, baseDir, text, saving = false, onEdit, on
     try {
       for (const file of files) {
         const path = await onUpload(file);
-        const cur = latest.current ?? '';
+        // Editing was cancelled while the upload ran: don't reopen the editor.
+        if (latest.current === null) return;
+        const cur = latest.current;
         const start = Math.min(at.start, cur.length);
         const end = Math.min(Math.max(at.end, start), cur.length);
-        const md = `![${file.name.replace(/.[^.]*$/, '')}](${path})`;
+        const alt = file.name.replace(/\.[^.]*$/, '').replace(/[[\]]/g, '');
+        const md = `![${alt}](${path})`;
         latest.current = cur.slice(0, start) + md + cur.slice(end);
         onChange(latest.current);
         at = { start: start + md.length, end: start + md.length };

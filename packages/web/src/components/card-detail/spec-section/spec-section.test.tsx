@@ -117,6 +117,29 @@ describe('SpecSection', () => {
       expect(onChange).not.toHaveBeenCalled();
     });
 
+    it('an upload that finishes after Cancel changes nothing', async () => {
+      let done: (p: string) => void = () => undefined;
+      const onUpload = vi.fn().mockReturnValue(new Promise<string>((r) => (done = r)));
+      const onChange = vi.fn();
+      const { rerender } = render(<Editing text="ab" onUpload={onUpload} onChange={onChange} />);
+      paste([png()]);
+      rerender(<Editing text={null} onUpload={onUpload} onChange={onChange} />);
+      done('images/a.png');
+      await waitFor(() => expect(screen.queryByRole('button', { name: 'Uploading…' })).toBeNull());
+      expect(onChange).not.toHaveBeenCalled();
+      expect(screen.queryByRole('textbox', { name: 'Spec markdown' })).toBeNull();
+    });
+
+    it('alt text drops the extension, keeps extension-less names, and strips brackets', async () => {
+      const onUpload = vi.fn().mockImplementation(async (f: File) => `images/${f.name}`);
+      const onChange = vi.fn();
+      render(<Editing text="" onUpload={onUpload} onChange={onChange} />);
+      paste([png('photo')]);
+      await waitFor(() => expect(onChange).toHaveBeenLastCalledWith('![photo](images/photo)'));
+      paste([png('a[1].png')]);
+      await waitFor(() => expect(onChange).toHaveBeenLastCalledWith('![a1](images/a[1].png)'));
+    });
+
     it('pasting plain text does not upload', () => {
       const onUpload = vi.fn();
       render(<Editing text="ab" onUpload={onUpload} />);
