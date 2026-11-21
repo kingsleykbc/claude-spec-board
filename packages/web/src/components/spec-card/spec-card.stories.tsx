@@ -82,6 +82,14 @@ export const BlockedQuestions: Story = {
   },
 };
 
+export const Chat: Story = {
+  name: 'Working in a chat',
+  args: { id: 'T-104', chat: 2 },
+  play: async ({ canvasElement }) => {
+    expect(within(canvasElement).getAllByText('Claude is working on step 2 in a chat')).toHaveLength(2);
+  },
+};
+
 export const Running: Story = {
   args: { id: 'T-104', running: 'Persist planned meals' },
   play: async ({ canvasElement }) => {

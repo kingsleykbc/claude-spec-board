@@ -86,13 +86,14 @@ interface CardProps {
 function DraggableCard({ spec, all, canDrag, flash, p }: CardProps) {
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id: spec.id, data: { status: spec.status }, disabled: !canDrag || spec.archived });
   const dragProps = { ...attributes, ...listeners } as HTMLAttributes<HTMLDivElement>;
-  const { running, writing } = cardRun(p.run ?? null, spec);
+  const { running, writing, chat } = cardRun(p.run ?? null, spec);
   return (
     <SpecCard
       spec={spec}
       all={all}
       running={running}
       writing={writing}
+      chat={chat}
       flash={flash}
       dragging={isDragging}
       dragRef={setNodeRef}

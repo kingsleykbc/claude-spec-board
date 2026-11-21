@@ -11,7 +11,7 @@ import { interceptPop } from '@/lib/popGuard';
 import { datesLine, type CardDetailProps, type DetailClient } from './card-detail';
 import * as stories from './card-detail.stories';
 
-const { ReadMode, ObsoleteLog, Simple, NarrowStatus } = composeStories(stories);
+const { ReadMode, WorkingInChat, ObsoleteLog, Simple, NarrowStatus } = composeStories(stories);
 
 const ROOT = 'examples/recipe-box';
 
@@ -834,5 +834,42 @@ describe('CardDetail in Simple mode', () => {
     render(<Simple />);
     fireEvent.click(screen.getByRole('button', { name: /Waiting on T-104/ }));
     expect(screen.getByRole('dialog', { name: 'More details' })).toBeTruthy();
+  });
+});
+
+describe('working in a chat', () => {
+  const setupChat = () => {
+    const client = { setMeta: vi.fn(async (_pid: string, sid: string) => ({ hash: 'h2', spec: recipeSpec(sid) })) };
+    render(
+      <WorkingInChat
+        pid="p1"
+        specId="T-104"
+        root={ROOT}
+        specs={recipeSpecs}
+        archived={recipeArchived}
+        client={client as unknown as DetailClient}
+        mutate={createMutator(() => Promise.reject(new Error('no default')))}
+        refresh={vi.fn(async () => undefined)}
+        toast={vi.fn()}
+        onMove={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    return client;
+  };
+
+  it('shows Not running? Clear; confirming clears current_subtask', async () => {
+    const client = setupChat();
+    fireEvent.click(screen.getByRole('button', { name: 'Not running? Clear' }));
+    expect(client.setMeta).not.toHaveBeenCalled();
+    fireEvent.click(within(screen.getByRole('alertdialog', { name: 'Clear the working step?' })).getByRole('button', { name: 'Clear' }));
+    await waitFor(() => expect(client.setMeta).toHaveBeenCalledWith('p1', 'T-104', recipeSpec('T-104').hash, 'current_subtask', null));
+  });
+
+  it('cancelling writes nothing', async () => {
+    const client = setupChat();
+    fireEvent.click(screen.getByRole('button', { name: 'Not running? Clear' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Keep it' }));
+    expect(client.setMeta).not.toHaveBeenCalled();
   });
 });

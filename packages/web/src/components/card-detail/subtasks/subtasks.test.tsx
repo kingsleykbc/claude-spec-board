@@ -14,6 +14,7 @@ interface Opts {
   setSubtask?: SubtaskClient['setSubtask'];
   changed?: Set<string>;
   runActive?: boolean;
+  chat?: number | null;
   down?: boolean;
 }
 
@@ -42,6 +43,7 @@ function setup(sp: Spec, opts: Opts = {}) {
       down={opts.down ?? false}
       changed={opts.changed ?? new Set()}
       runActive={opts.runActive ?? false}
+      chat={opts.chat ?? null}
     />,
   );
   return { client, toast, refresh };
@@ -118,6 +120,12 @@ describe('Subtasks', () => {
     cleanup();
     setup(recipeSpec('T-104'), { runActive: true });
     expect(within(row(3)).getByText('In progress')).toBeTruthy();
+    expect(screen.getAllByText('In progress')).toHaveLength(1);
+  });
+
+  it('In progress shows on the chat step, as for a background run', () => {
+    setup(recipeSpec('T-104'), { chat: 2 });
+    expect(within(row(2)).getByText('In progress')).toBeTruthy();
     expect(screen.getAllByText('In progress')).toHaveLength(1);
   });
 

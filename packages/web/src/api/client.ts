@@ -29,7 +29,7 @@ export interface ReferenceDoc {
   hash: string;
   missing: boolean;
 }
-export type MetaKey = 'status' | 'urgency' | 'categories' | 'title' | 'draft';
+export type MetaKey = 'status' | 'urgency' | 'categories' | 'title' | 'draft' | 'current_subtask';
 
 /** The sync proposal file, `GET /sync-proposal`. Broken front matter gives `problems` and null fields; `bodyMd` is still there. */
 export type SyncProposal =

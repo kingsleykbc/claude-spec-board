@@ -397,6 +397,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
               manual={manual}
               statusKnown={run.claude !== null && run.approved !== null}
               runActive={openDoc ? cardRun(run.run, openDoc).runActive : false}
+              chat={openDoc ? cardRun(run.run, openDoc).chat : null}
               onRun={() => void startRun('run', openId)}
               onStop={() => void stopRun()}
               onFixFile={() => void startRun('fix-file', openId)}

@@ -62,6 +62,23 @@ const get = async (id: string): Promise<Spec> => {
 };
 
 describe('spec mutations', () => {
+  it('meta clears current_subtask with null and bumps updated', async () => {
+    const file = specFile('T-101');
+    const old = await fs.readFile(file, 'utf8');
+    await fs.writeFile(file, old.replace(/^updated: .*$/m, 'updated: 2020-01-01'));
+    const s = await get('T-101');
+    const res = await send('PATCH', '/specs/T-101/meta', { hash: s.hash, key: 'current_subtask', value: null });
+    expect(res.status).toBe(200);
+    const text = await fs.readFile(file, 'utf8');
+    expect(text).toMatch(/^current_subtask: null$/m);
+    expect(text).not.toMatch(/^updated: 2020-01-01$/m);
+  });
+
+  it('meta refuses a number for current_subtask', async () => {
+    const s = await get('T-101');
+    expect((await send('PATCH', '/specs/T-101/meta', { hash: s.hash, key: 'current_subtask', value: 3 })).status).toBe(400);
+  });
+
   it('meta sets the field and bumps updated to today', async () => {
     // Make `updated` stale first so the bump is observable.
     const file = specFile('T-101');

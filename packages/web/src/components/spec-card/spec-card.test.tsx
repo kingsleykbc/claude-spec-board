@@ -12,6 +12,7 @@ const {
   BeingDragged,
   BlockedQuestions,
   Running,
+  Chat,
   Writing,
   InReview,
   Draft,
@@ -219,6 +220,11 @@ describe('SpecCard', () => {
     ({ light } = setup(InReview));
     expect(light.getByText('Waiting on your review')).toBeTruthy();
     expect(light.queryByText(/Claude is working/)).toBeNull();
+  });
+
+  it('a chat shows which step Claude is working on', () => {
+    const { light } = setup(Chat);
+    expect(light.getByText('Claude is working on step 2 in a chat')).toBeTruthy();
   });
 
   it('writing shows its banner instead of the write-up button', () => {

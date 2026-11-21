@@ -9,6 +9,7 @@ import { blockTexts, relPath, runHold } from '@/lib/vm';
 import { cn } from '@/lib/utils';
 import { ConflictDialog } from '@/components/conflict-dialog/conflict-dialog';
 import { Modal } from '@/components/ui/modal/modal';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog/confirm-dialog';
 import { useDiscardGuard } from '@/lib/use-discard-guard';
 import { BlockedBanner, type BlockReason } from './blocked-banner/blocked-banner';
 import { Dependencies } from './dependencies/dependencies';
@@ -61,6 +62,8 @@ export interface CardDetailProps {
   statusKnown?: boolean;
   /** A run is working on this spec (the subtask "In progress" pill). */
   runActive?: boolean;
+  /** The step Claude is working on from a chat (no background run): a marker with "Not running? Clear". */
+  chat?: number | null;
   onRun?: () => void;
   onStop?: () => void;
   /** "Ask Claude to fix" on a file problem. */
@@ -139,6 +142,7 @@ function SpecDetail({
   manual = null,
   statusKnown = true,
   runActive = false,
+  chat = null,
   onRun = () => undefined,
   onStop = () => undefined,
   onFixFile = () => undefined,
@@ -218,6 +222,19 @@ function SpecDetail({
 
   const setUrgency = (u: Urgency) => void writeMeta({ urgency: u }, (h) => client.setMeta(pid, id, h, 'urgency', u));
   const setCategories = (next: string[]) => void writeMeta({ categories: next }, (h) => client.setMeta(pid, id, h, 'categories', next));
+
+  const [clearAsk, setClearAsk] = useState(false);
+  const clearChat = async () => {
+    setClearAsk(false);
+    if (down) return offline();
+    try {
+      await mutate(id, spec.hash, (h) => client.setMeta(pid, id, h, 'current_subtask', null));
+    } catch (e) {
+      if (e instanceof ConflictError) toast('err', `Couldn’t update ${id}`, 'The file changed. Try again.');
+      else toast('err', `Couldn’t update ${id}`, message(e));
+    }
+    await refresh();
+  };
 
   const startEdit = () => {
     editBase.current = { md: spec.bodyMd, bodyHash: spec.bodyHash };
@@ -414,6 +431,14 @@ function SpecDetail({
                 highlight={hl === 'questions'}
               />
               {!simple && dependencies}
+              {chat !== null && (
+                <p className="m-0 flex flex-wrap items-center gap-x-2 text-[13px] text-fg2">
+                  Claude is working on step {chat} in a chat.
+                  <button type="button" className="cursor-pointer border-0 bg-transparent p-0 text-[13px] text-accent-ink underline" onClick={() => setClearAsk(true)}>
+                    Not running? Clear
+                  </button>
+                </p>
+              )}
               <Subtasks
                 pid={pid}
                 spec={spec}
@@ -424,6 +449,7 @@ function SpecDetail({
                 down={down}
                 {...(changed ? { changed } : {})}
                 runActive={runActive}
+                chat={chat}
                 warning={subtasksWarning}
               />
               {dates !== null && <p className="m-0 text-[12px] text-fg3">{dates}</p>}
@@ -437,6 +463,17 @@ function SpecDetail({
         <ConflictDialog path={path} onKeepEditing={keepEditing} onReloadKeepCopy={() => void reloadKeepCopy()} onReload={reload} />
       )}
       {discardDialog}
+      {clearAsk && (
+        <ConfirmDialog
+          title="Clear the working step?"
+          body={`This removes the “working on step ${chat}” marker from ${id}. Do it only if no chat is running. Nothing else changes.`}
+          onDismiss={() => setClearAsk(false)}
+          actions={[
+            { label: 'Keep it', onClick: () => setClearAsk(false) },
+            { label: 'Clear', kind: 'primary', onClick: () => void clearChat() },
+          ]}
+        />
+      )}
     </Modal>
   );
 }

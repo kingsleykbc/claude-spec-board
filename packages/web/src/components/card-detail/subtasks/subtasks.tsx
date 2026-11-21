@@ -28,6 +28,8 @@ export interface SubtasksProps {
   changed?: ReadonlySet<string>;
   /** A run is working on this spec: the current subtask shows "In progress". */
   runActive?: boolean;
+  /** The step Claude is working on from a chat: it shows "In progress" like a background run's step. */
+  chat?: number | null;
   /** Shown at the right end of the heading, e.g. the stale-questions warning. */
   warning?: ReactNode;
 }
@@ -35,7 +37,7 @@ export interface SubtasksProps {
 const NONE: ReadonlySet<string> = new Set();
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-export function Subtasks({ pid, spec, client = api, mutate, refresh, toast, down = false, changed = NONE, runActive = false, warning }: SubtasksProps) {
+export function Subtasks({ pid, spec, client = api, mutate, refresh, toast, down = false, changed = NONE, runActive = false, chat = null, warning }: SubtasksProps) {
   const id = spec.id;
   /** Optimistic ticks while writes are in flight. */
   const [local, setLocal] = useState<Record<number, boolean>>({});
@@ -115,7 +117,7 @@ export function Subtasks({ pid, spec, client = api, mutate, refresh, toast, down
                   )}
                   {you ?? t.title}
                 </label>
-                {runActive && spec.currentSubtask === t.n && (
+                {(runActive ? spec.currentSubtask === t.n : chat === t.n) && (
                   <span className="inline-flex items-center gap-[7px] rounded-full bg-doing-soft px-[9px] py-[3px] text-[12px] font-medium text-doing-ink">
                     <Spinner />
                     In progress

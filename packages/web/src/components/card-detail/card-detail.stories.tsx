@@ -127,6 +127,14 @@ export const Missing: Story = {
   },
 };
 
+export const WorkingInChat: Story = {
+  name: 'Working in a chat',
+  args: { chat: 2 },
+  play: async ({ canvasElement }) => {
+    expect(within(canvasElement).getByRole('button', { name: 'Not running? Clear' })).toBeTruthy();
+  },
+};
+
 export const RunRunning: Story = {
   name: 'Run: running',
   args: { runState: 'running' },

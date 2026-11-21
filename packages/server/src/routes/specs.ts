@@ -24,7 +24,7 @@ import type { Spec } from '@specboard/core';
 import type { Registry, ProjectEntry } from '../registry.js';
 import { HttpError, onError, readJson, requireString } from '../http.js';
 
-const META_KEYS = ['status', 'urgency', 'categories', 'title', 'draft'] as const;
+const META_KEYS = ['status', 'urgency', 'categories', 'title', 'draft', 'current_subtask'] as const;
 type MetaKey = (typeof META_KEYS)[number];
 
 function today(): string {
@@ -87,6 +87,8 @@ export function specRoutes(registry: Registry): Hono {
     const key = b.key;
     if (typeof key !== 'string' || !(META_KEYS as readonly string[]).includes(key)) throw new HttpError(400, `Invalid key`);
     if (!('value' in b)) throw new HttpError(400, 'Missing "value"');
+    // Only a clear: Claude sets the step itself, the board just lets the user drop a leftover one.
+    if (key === 'current_subtask' && b.value !== null) throw new HttpError(400, 'current_subtask can only be cleared');
     return mutate(
       c,
       (text) => {

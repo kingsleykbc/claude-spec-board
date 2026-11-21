@@ -54,12 +54,18 @@ export function manualReason(claude: ClaudeStatus | null, approved: boolean | nu
   return null;
 }
 
-/** What a run means for one spec: `running` and `writing` for its card, `runActive` for its subtask list. */
-export function cardRun(run: RunSnapshot | null, spec: Spec): { running: string | null; writing: boolean; runActive: boolean } {
-  if (!isRunning(run) || run.specId !== spec.id) return { running: null, writing: false, runActive: false };
-  if (run.kind === 'write-up') return { running: null, writing: true, runActive: false };
-  if (run.kind !== 'run') return { running: '', writing: false, runActive: false };
-  return { running: spec.subtasks.find((t) => t.n === spec.currentSubtask)?.title ?? '', writing: false, runActive: true };
+/**
+ * What a run means for one spec: `running` and `writing` for its card, `runActive` for its subtask list.
+ * `chat` is the step Claude is working on from a chat: the spec has a current step and no background run is going for it.
+ */
+export function cardRun(
+  run: RunSnapshot | null,
+  spec: Spec,
+): { running: string | null; writing: boolean; runActive: boolean; chat: number | null } {
+  if (!isRunning(run) || run.specId !== spec.id) return { running: null, writing: false, runActive: false, chat: spec.currentSubtask };
+  if (run.kind === 'write-up') return { running: null, writing: true, runActive: false, chat: null };
+  if (run.kind !== 'run') return { running: '', writing: false, runActive: false, chat: null };
+  return { running: spec.subtasks.find((t) => t.n === spec.currentSubtask)?.title ?? '', writing: false, runActive: true, chat: null };
 }
 
 /** The refresh run in flight drives the Overview modal's Refreshing state. */

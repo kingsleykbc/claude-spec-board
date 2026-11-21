@@ -451,7 +451,9 @@ describe('the board cards', () => {
     expect(card('T-104').getByText(`· ${title}`)).toBeTruthy();
     expect(card('T-103').queryByText(/Claude is working/)).toBeNull();
     send({ type: 'run-ended', run: ended(held, { status: 'stopped' }) });
-    expect(card('T-104').queryByText(/Claude is working/)).toBeNull();
+    // The run is over, but the spec still has a current step: the card says it is in a chat.
+    expect(card('T-104').queryByText(`· ${title}`)).toBeNull();
+    expect(card('T-104').getByText(`Claude is working on step ${spec.currentSubtask} in a chat`)).toBeTruthy();
   });
 
   it('runActive feeds the subtask pill in the detail', async () => {

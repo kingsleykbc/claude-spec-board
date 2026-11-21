@@ -20,6 +20,8 @@ export interface SpecCardProps {
   running?: string | null;
   /** Claude is writing this draft up. */
   writing?: boolean;
+  /** The step Claude is working on from a chat (no background run); null or undefined when none. */
+  chat?: number | null;
   /** Brief highlight after the spec changed. */
   flash?: boolean;
   dragging?: boolean;
@@ -89,6 +91,7 @@ export function SpecCard({
   all,
   running,
   writing = false,
+  chat = null,
   flash = false,
   dragging = false,
   lifted = false,
@@ -372,6 +375,12 @@ export function SpecCard({
             Claude is working
             {running !== '' && <span className="font-normal opacity-85"> · {running}</span>}
           </span>
+        </div>
+      )}
+      {chat !== null && !writing && (
+        <div className={cn(banner, 'min-w-0 bg-doing-soft text-doing-ink')}>
+          <Pulse />
+          <span className="truncate">Claude is working on step {chat} in a chat</span>
         </div>
       )}
       {writing && (

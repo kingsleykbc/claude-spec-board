@@ -63,24 +63,28 @@ describe('runButtonState', () => {
 describe('cardRun', () => {
   const spec = { ...recipeSpec('T-104'), currentSubtask: 2 };
   const title = spec.subtasks.find((t) => t.n === 2)!.title;
-  const idle = { running: null, writing: false, runActive: false };
+  const idle = { running: null, writing: false, runActive: false, chat: 2 };
 
   it('a run: the current subtask title, and active', () => {
-    expect(cardRun(run(), spec)).toEqual({ running: title, writing: false, runActive: true });
+    expect(cardRun(run(), spec)).toEqual({ running: title, writing: false, runActive: true, chat: null });
   });
   it('a run with no current subtask: working, no name', () => {
-    expect(cardRun(run(), { ...spec, currentSubtask: null })).toEqual({ running: '', writing: false, runActive: true });
+    expect(cardRun(run(), { ...spec, currentSubtask: null })).toEqual({ running: '', writing: false, runActive: true, chat: null });
   });
   it('a write-up: writing', () => {
-    expect(cardRun(run({ kind: 'write-up' }), spec)).toEqual({ running: null, writing: true, runActive: false });
+    expect(cardRun(run({ kind: 'write-up' }), spec)).toEqual({ running: null, writing: true, runActive: false, chat: null });
   });
   it('a fix: working, no subtask', () => {
-    expect(cardRun(run({ kind: 'fix-file' }), spec)).toEqual({ running: '', writing: false, runActive: false });
+    expect(cardRun(run({ kind: 'fix-file' }), spec)).toEqual({ running: '', writing: false, runActive: false, chat: null });
   });
-  it('nothing for another spec, an ended run, or no run', () => {
+  it('a current subtask with no run for the spec: working in a chat', () => {
     expect(cardRun(run({ specId: 'T-103' }), spec)).toEqual(idle);
     expect(cardRun(run({ status: 'stopped' }), spec)).toEqual(idle);
     expect(cardRun(null, spec)).toEqual(idle);
+    expect(cardRun(null, { ...spec, currentSubtask: null }).chat).toBeNull();
+  });
+  it('a background run for the same spec wins over the chat', () => {
+    expect(cardRun(run(), spec)).toEqual({ running: title, writing: false, runActive: true, chat: null });
   });
 });
 
@@ -98,7 +102,7 @@ describe('endedToast', () => {
 describe('refresh-questions runs', () => {
   it('the card shows the usual running state, and the detail its Running button', () => {
     const r = run({ kind: 'refresh-questions' });
-    expect(cardRun(r, recipeSpec('T-104'))).toEqual({ running: '', writing: false, runActive: false });
+    expect(cardRun(r, recipeSpec('T-104'))).toEqual({ running: '', writing: false, runActive: false, chat: null });
     expect(runButtonState(r, 'T-104', OK).runState).toBe('running');
   });
   it('is refreshing only while running, for its own spec', () => {

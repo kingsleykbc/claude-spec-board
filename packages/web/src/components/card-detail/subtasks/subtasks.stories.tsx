@@ -48,6 +48,15 @@ export const OpenLog: Story = {
   },
 };
 
+export const InChat: Story = {
+  name: 'In a chat',
+  args: { chat: 2 },
+  play: async ({ canvasElement }) => {
+    const pill = within(canvasElement).getByText('In progress');
+    expect(pill.closest('[data-subtask]')!.getAttribute('data-subtask')).toBe('2');
+  },
+};
+
 export const InProgress: Story = {
   name: 'In progress',
   args: { runActive: true },
