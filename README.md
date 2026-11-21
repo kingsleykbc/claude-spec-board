@@ -18,7 +18,7 @@ Following Claude's plans and progress in a terminal, or in raw Markdown, is hard
 
 ## Install as a plugin
 
-You need git, [Claude Code](https://code.claude.com/docs) and Node.js 22 or later (the plugin runs its board and token counter with it). In a Claude Code chat:
+You need [Claude Code](https://code.claude.com/docs) and Node.js 22 or later (the plugin runs its board and token counter with it). In a Claude Code chat:
 
 ```
 /plugin marketplace add kingsleykbc/claude-spec-board
@@ -39,11 +39,11 @@ To write a spec, or start from an idea:
 /specboard:create-spec A page where customers can book a time slot
 ```
 
-The card appears on the board. Answer its required questions there, press **Copy run command**, and paste the command into your chat.
+The card appears on the board. Answer its required questions there, press **Run with Claude** to start a background run, or **Copy run command** and paste the command into your chat.
 
 ## Or from a terminal
 
-You need Node.js 22 or later, git and Claude Code. Spec Board isn't published to npm, so run these from a copy of this repo, with the path of your own project, which should be a git repo:
+You need Node.js 22 or later, git and Claude Code. Spec Board isn't published to npm, so run these from a copy of this repo, with the path of your own project, ideally a git repo:
 
 ```
 npm install

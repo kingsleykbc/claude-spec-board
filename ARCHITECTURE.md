@@ -81,14 +81,14 @@ A project's data:
 
 ```
 <project>/.specboard/
-  config.md            name, created, references, milestones, closing_steps (front matter) + notes
+  config.md            name, created, references, milestones, closing_steps, commits, test_command (front matter) + notes
   settings.md          per-project settings (track_tokens)
   overview.md          project summary written by /specboard:refresh-overview
   sync-proposal.md     pending sync plan (written by sync-specs --dry-run, read by the board)
   specs/<ID>-<slug>/
     spec.md            front matter + ## Spec, ## Features, ## Done when, ## Open questions, ## Subtasks
     logs/<n>-<slug>.md one log per finished subtask (summary, files, commit, PR, tokens)
-    images/            images the spec links to with relative paths
+    images/            images the spec links to with relative paths (uploaded from the editor)
   archive/<ID>-<slug>/ archived specs, same layout
   imported/            old plan files moved in by setup (never deleted)
 ```
@@ -134,6 +134,7 @@ When a format rule changes, update core, the `specboard` skill's format section 
 | `references.ts` | reference docs list, content, link, create, delete, file picker |
 | `files.ts` | open a file in VS Code (`open-file`) |
 | `images.ts` | serve an image from inside the project (`?path=`): extension allowlist, `nosniff`, CSP `sandbox` for SVG |
+| `uploads.ts` | `POST /specs/:id/images`: save a pasted or dropped image (JSON `{ name, data }`, base64) into the spec's `images/` folder: 10 MB limit (413), same extension allowlist (400), slugified name, `-2`, `-3` when taken |
 | `sync.ts` | read/discard `sync-proposal.md` |
 | `runs.ts` | start/stop/dismiss background runs, run + Claude status |
 
@@ -189,7 +190,7 @@ claude -p "<fixed prompt>" --output-format stream-json --verbose --permission-mo
 
 ### Without the plugin
 
-`specboard init` (run from the repo) can copy the skills into `<project>/.claude/skills/` instead (`kit.ts`, never `setup`) and merge permissions into `.claude/settings.json`.
+`specboard init` (run from the repo) can copy the skills into `<project>/.claude/skills/` instead (`kit.ts`, never `setup`). Spec Board writes nothing in a project outside `.specboard/`, with these exceptions: that `.claude/skills/` copy (opt-in), the person's own `~/.specboard` (the project list and approvals) and the plugin's token-count data folder. It never writes `.claude/settings.json`.
 
 ## The board (`packages/web`)
 

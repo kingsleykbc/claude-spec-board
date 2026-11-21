@@ -2,7 +2,7 @@
 
 ## What you need
 
-- git
+- git (optional, see [Without git](getting-started.md#without-git))
 - [Claude Code](https://code.claude.com/docs), logged in
 - Node.js 22 or later (the plugin runs its board and token counter with it). The plugin brings its own ready-built copy of the board, so you don't need to build anything.
 - VS Code is optional. With its `code` command on your PATH, clicking a file path on the board opens the file there. Otherwise the click copies the full path.
@@ -18,6 +18,8 @@ In a Claude Code chat:
 
 The plugin is named `specboard`, so its commands start with `/specboard:`, as in `/specboard:run-spec T-001`. The code is at https://github.com/kingsleykbc/claude-spec-board.
 
+If you already had a Claude chat open, run `/reload-plugins` in it (or restart Claude) so it can see the new commands.
+
 ## Set up a project
 
 Open a Claude chat in your project folder, a new project or an existing codebase, and run:
@@ -26,7 +28,13 @@ Open a Claude chat in your project folder, a new project or an existing codebase
 /specboard:setup
 ```
 
-You can also just say "set up spec board here". Claude goes through these steps, one question at a time:
+You can also just say "set up spec board here", or describe the project and let Claude take it from there. Copy and paste this, with your own idea:
+
+```
+use spec-board to plan a project that lets customers book a time slot
+```
+
+Claude treats what you wrote as the project notes. Setup goes through these steps, one question at a time:
 
 1. **Where.** Which folder. If it already has a `.specboard/` folder, it tells you and offers `/specboard:structure`, an import or a sync instead.
 2. **Look first.** It searches the folder for plans you already have: Spec Kit, OpenSpec, or roadmap and plan documents.
@@ -34,11 +42,21 @@ You can also just say "set up spec board here". Claude goes through these steps,
 4. **Small or large.** Whether the project needs [milestones](writing-specs.md#milestones).
 5. **Preview.** It shows the specs it would make as a tree, and waits for your OK or changes. Nothing is written before that.
 6. **Set up.** It creates `.specboard/` and writes the specs as drafts.
-7. **Old plan files.** After an import it asks whether to keep them or move them to `.specboard/imported/`. It never deletes them.
+7. **Old plan files.** After an import it asks whether to keep them or move them to `.specboard/imported/`. It never deletes them, and warns you that deleting `.specboard` later deletes the moved files too.
 8. **Background runs.** It shows the actions a background run may use, and asks whether to turn runs on. If you say no, the board still works, and gives you commands to copy instead (see [When Claude isn't connected](running-specs.md#when-claude-isnt-connected)).
 9. **Finish.** It summarises what it did and opens the board in your browser.
 
+The questions are short, and each has a suggested answer. Say "skip" to take the suggestion.
+
 If Claude is in plan mode, it puts the tree in the plan and writes nothing until you approve it.
+
+### Without git
+
+Git is optional. Without a git repo, or with `commits: false` in `.specboard/config.md`, a run makes no commits. Each log lists the files changed instead of a commit. Sync still works. It just can't use the git history.
+
+### Removing Spec Board
+
+Everything Spec Board keeps for a project is in `.specboard/`, so delete that folder to remove Spec Board. If you moved old plan files into `.specboard/imported/`, they go with it. Spec Board writes nothing else in your project, with one exception: if you used the terminal route, `init` copies commands into `.claude/skills/`. It also keeps a few things outside the project: the project list and approvals in `~/.specboard/`, and the plugin's token-count data.
 
 To see the structure again later, run `/specboard:structure`. To write up a draft, run `/specboard:create-spec <ID>`.
 
@@ -91,13 +109,13 @@ npm run specboard -- init "<your project folder>"
 npm run board -- "<your project folder>"
 ```
 
-Use a real path in place of `<your project folder>`, without the `<` and `>`. The project should be a git repo, because a run makes one commit per subtask.
+Use a real path in place of `<your project folder>`, without the `<` and `>`. A git repo is best, because a run makes one commit per subtask (see [Without git](getting-started.md#without-git)).
 
 `init` does these things:
 
 1. Creates `.specboard/` in your project, which holds your specs.
 2. Copies Spec Board's commands to `.claude/skills/`, so `/plan-project`, `/run-spec` and the others work in a Claude chat there. (They have no `specboard:` prefix this way.)
-3. Shows the actions a background run may use, and asks you to approve them.
+3. Shows the actions a background run may use, and asks you to approve them. It doesn't write `.claude/settings.json`.
 4. Adds the board's list of projects and your approvals to `~/.specboard/`, outside the repo.
 
 Then open a chat in the project folder and run `/plan-project`. It asks a few questions, writes `.specboard/config.md` and suggests your first specs as drafts.
@@ -111,9 +129,8 @@ Two things to know about this route:
 
 | Location | What's there | Commit it? |
 |---|---|---|
-| `.specboard/` in your project | Specs, subtask logs, overview, config, settings | Yes |
+| `.specboard/` in your project | Specs, subtask logs, images, overview, config, settings | Yes |
 | `.claude/skills/` in your project | Copies of Spec Board's commands (terminal route only) | Your choice |
-| `.claude/settings.json` in your project | Actions allowed in a chat | Your choice |
 | `~/.specboard/` in your home folder | The list of projects and the actions approved for background runs | No, it's outside the repo |
 
 To get newer commands into a terminal-route project after updating Spec Board, run `init` on it again with `--force-skills`. Without that flag, `init` keeps any copy that differs from the current one, because you may have edited it. Plugin users update the plugin instead.

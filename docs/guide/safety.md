@@ -12,6 +12,7 @@ A background run starts Claude with only the list of actions you approved in `in
 
 - The project's hooks, MCP servers and allow rules are ignored, and so are your own plugins, MCP servers and hooks.
 - The default list has no `git push`, `git reset` or `rm -rf`, and no writes to `.claude/` or `.git/`.
+- Spec Board doesn't write `.claude/settings.json` in your project. Your chats keep asking you for permission as usual.
 - It can't ask you anything, so anything not on the list is refused and the run stops.
 - `claude` is looked up by full path, and folders inside any project on the board are left out of its PATH, so a repo can't supply its own `claude`.
 

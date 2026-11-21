@@ -4,7 +4,7 @@ Everything lives in `.specboard/` in your project, as files you can read and edi
 
 ```
 .specboard/
-  config.md                  project name, description, reference documents, closing steps and milestones
+  config.md                  project name, description, reference documents, closing steps, milestones, test command and commits
   settings.md                optional, board settings (token tracking)
   overview.md                a summary of the project's progress
   specs/T-001-booking-page/
@@ -126,7 +126,19 @@ Some steps belong at the end of every spec, such as writing tests and updating t
 closing_steps: [Write tests, Update the docs]
 ```
 
-`/plan-project` asks you about these and fills them in, and you can edit the line by hand. Every spec Claude writes after that has those subtasks after Claude's work, in order, ahead of any final `(you)` checks. It leaves one out when a spec plainly doesn't need it, a docs-only spec having no "Write tests", and says so. "Write tests" uses the test command already allowed in `.claude/settings.json`. "Update the docs" means the documents listed in `references` plus the README.
+`/plan-project` asks you about these and fills them in, and you can edit the line by hand. Every spec Claude writes after that has those subtasks after Claude's work, in order, ahead of any final `(you)` checks. It leaves one out when a spec plainly doesn't need it, a docs-only spec having no "Write tests", and says so. "Write tests" uses the project's `test_command` (see below). "Update the docs" means the documents listed in `references` plus the README.
+
+## Tests and commits
+
+Two more keys in `.specboard/config.md` control how a run works:
+
+```
+test_command: "npm test"
+commits: false
+```
+
+- **`test_command`** is the command a run uses to check its work. A run uses exactly this command and nothing else. Without it, the run skips tests and its log says "No test command is set up". A background run is refused the command until it is on the approved list. The board's notice offers the rule to add.
+- **`commits`** is `true` unless you set `false`. With `false`, or with no git repo, a run makes no commits. Each log lists the files changed instead.
 
 ## Open questions
 
@@ -203,7 +215,9 @@ Blocked isn't a status. A spec is blocked when a required question is unanswered
 
 ## Images
 
-Put a spec's images in its `images/` subfolder and link them relatively, e.g. `![Login screen](images/login.png)`. The board shows them in the spec, and in a reference document when the path is relative to that document (`../img/a.png` works too). PNG, JPG, GIF, WebP, SVG and AVIF files are shown, and only from inside the project.
+In the spec editor, paste an image, drop it in, or press **Add image**. The board saves it in the spec's `images/` folder and adds the link to your text. Images can be up to 10 MB. An image stays in the folder even if you cancel the edit, so you may find an unused file there.
+
+You can also put images in a spec's `images/` subfolder yourself and link them relatively, e.g. `![Login screen](images/login.png)`. The board shows them in the spec, and in a reference document when the path is relative to that document (`../img/a.png` works too). PNG, JPG, GIF, WebP, SVG and AVIF files are shown, and only from inside the project.
 
 ## Editing by hand
 

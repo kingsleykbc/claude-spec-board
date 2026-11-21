@@ -12,6 +12,14 @@ There are two ways to have Claude work on a spec, and the card shows both: **Run
 | **To stop it** | Press Esc in the chat | Press **Stop** on the card |
 | **Setup it needs** | The plugin (or the commands `init` copied), the chat is open in the project folder, and you trusted that folder when Claude asked | Background runs turned on for the project (see below) |
 
+## Run with Claude or Copy run command
+
+**Run with Claude** is the main button on a card. When Claude is connected, it starts a background run and shows a toast, "Claude started working on T-001 in the background." The card then says "Running in the background as a separate Claude session. It won't show in your terminal chat; follow it here." When Claude isn't connected, the button shows the [not connected](running-specs.md#when-claude-isnt-connected) notice instead.
+
+**Copy run command** is the alternative. It copies `/specboard:run-spec T-001` for you to paste into a chat.
+
+While Claude works on a spec in a chat, the card shows "Claude is working on step 2 in a chat". The board can't tell when a chat is closed, so the marker can outlast the work. If nothing is running, press **Not running? Clear** in the card's detail. It removes the marker and changes nothing else.
+
 ## Turn on background runs
 
 Background runs need two things: Claude Code installed and logged in, and your approval of the actions a run may use. Until both are true, Claude isn't connected to the board (next section).
@@ -74,6 +82,8 @@ Over time the board can drift from the code: work gets done without a tick, or a
 
 - **Whole project:** choose **Sync with code** in the logo menu. **One spec:** press **Sync** in the card, beside **Run**. In a chat, type `/specboard:sync-specs` or `/specboard:sync-specs T-104`.
 - **What it looks at:** the specs, their logs, the code and the git history. It proposes ticks (with the commit that shows the work), status moves, new draft specs for work that has no card, and specs to archive. It unticks only with clear evidence the work was removed. It never moves a spec to Done, and it never deletes a spec or a log.
+- **Cards can move back.** If a Claude subtask has no work in the code and the card is in a column ahead of it, sync proposes moving the card back: to To-do when no Claude subtask is ticked, otherwise to Doing. A spec with only `(you)` steps never moves back.
+- **Without git** sync still runs. It can't compare against the git history, and when you confirm, it skips any change that no longer fits the files and tells you.
 - **You see it first.** From the board, Claude writes a proposal and changes nothing else. A dialog shows a warning, the list of changes and the tree. Choose **Confirm** to apply exactly that proposal, or **Cancel** to throw it away. If the code changed between the two steps, the apply stops, the run panel says **Sync stopped**, nothing is archived and the proposal is thrown away: sync again.
 - **Specs to archive** are archived by the board once you confirm and Claude has applied every change. In a chat, sync names them and you archive them on the board.
 - **Old logs stay.** When sync unticks a subtask or archives a spec, it marks the matching logs obsolete instead of deleting them.

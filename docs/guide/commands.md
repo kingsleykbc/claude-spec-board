@@ -6,7 +6,7 @@ Type these in a chat open in your project folder. With the plugin, every command
 
 | Command | What it does |
 |---|---|
-| `/specboard:setup [folder]` | Sets up Spec Board in a project, new or existing. It looks for existing plans, asks whether to import them or start fresh, asks if you need milestones, shows the structure as a tree and waits for your OK, then opens the board. |
+| `/specboard:setup [folder]` | Sets up Spec Board in a project, new or existing. You can describe the project instead of giving a folder, as in "use spec-board to plan a project that …". It looks for existing plans, asks whether to import them or start fresh, asks if you need milestones, shows the structure as a tree and waits for your OK, then opens the board. |
 | `/specboard:structure [ID or milestone]` | Prints the board as a tree: milestones, specs, subtasks. With an ID, one spec. With a milestone name, one milestone. It changes nothing. |
 | `/specboard:sync-specs [ID]` | Brings the board in line with the code. It compares the specs and logs with the code and git history, shows the changes as a tree, and applies them after your OK. With an ID, only that spec. It never sets a spec to Done and never deletes files. |
 | `/specboard:plan-project [notes]` | Sets up a new project or an existing codebase: reads what's there, asks a few questions, writes `config.md` with the closing steps, and suggests the first specs as drafts. It never changes your code. |
@@ -14,6 +14,7 @@ Type these in a chat open in your project folder. With the plugin, every command
 | `/specboard:import-specs <path>` | Turns plans from another tool (Spec Kit, OpenSpec, or your own notes) into cards. It shows you what it will make and waits for your OK. It never edits the files it reads. |
 | `/specboard:reorganize [instructions]` | Tidies the board: splits big specs, merges small ones, reorders, fixes dependencies, and creates, renames or reorders milestones. Without instructions it proposes changes and waits for your OK. |
 | `/specboard:run-spec <id>` | Works through a spec's subtasks, with a commit and a log for each, then checks "Done when" and moves the card to Review. It stops at a `(you)` step that has work after it. |
+| `/specboard:move <id> <column>` | Moves a spec to To-do, Doing, Review or Done. It warns if Review or Done leaves Claude subtasks unticked, or if the spec is a draft, and still moves it. It changes only the status. |
 | `/specboard:next` | Picks the most urgent spec that isn't blocked (from the current milestone first) and runs it. |
 | `/specboard:update-spec <id> <instructions>` | Changes a spec as you describe. |
 | `/specboard:refresh-overview` | Rewrites `overview.md` from the current state of the specs. |
