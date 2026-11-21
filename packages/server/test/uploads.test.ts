@@ -67,6 +67,31 @@ describe('POST /api/projects/:pid/specs/:id/images', () => {
     expect((await post('bigger.png', b64(Buffer.alloc(MAX + 1)))).status).toBe(413);
   });
 
+  it.each([
+    ['con.png', 'images/con-file.png'],
+    ['NUL.PNG', 'images/nul-file.png'],
+  ])('avoids the Windows device name in %j', async (name, want) => {
+    const res = await post(name, b64(PNG));
+    expect(res.status).toBe(201);
+    expect(((await res.json()) as { path: string }).path).toBe(want);
+  });
+
+  it('answers 413 for a body over the raw limit, with and without Content-Length', async () => {
+    const url = `/api/projects/${pid}/specs/T-101/images`;
+    const big = JSON.stringify({ name: 'a.png', data: 'A'.repeat(Math.ceil((MAX * 4) / 3) + 8192) });
+    const withLength = await app.request(url, { method: 'POST', headers: { ...HEADERS, 'Content-Length': String(Buffer.byteLength(big)) }, body: big });
+    expect(withLength.status).toBe(413);
+    const bytes = Buffer.from(big);
+    const stream = new ReadableStream({
+      start(ctrl) {
+        for (let i = 0; i < bytes.length; i += 65536) ctrl.enqueue(bytes.subarray(i, i + 65536));
+        ctrl.close();
+      },
+    });
+    const streamed = await app.request(url, { method: 'POST', headers: HEADERS, body: stream, duplex: 'half' } as RequestInit);
+    expect(streamed.status).toBe(413);
+  });
+
   it('answers 404 for an unknown spec and 409 for an archived one', async () => {
     expect((await post('a.png', b64(PNG), 'T-999')).status).toBe(404);
     expect((await post('a.png', b64(PNG), 'T-100')).status).toBe(409);

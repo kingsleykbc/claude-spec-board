@@ -29,7 +29,9 @@ function cleanName(name: string): { stem: string; ext: string } {
   const raw = base.slice(0, dot);
   const slug = slugify(raw);
   // slugify answers "spec" when nothing usable is left; that is no name for an image.
-  return { stem: raw === '' || (slug === 'spec' && !/spec/i.test(raw)) ? 'image' : slug, ext };
+  // Windows treats these as devices, so a file with such a name would store nothing.
+  const safe = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])$/i.test(slug) ? `${slug}-file` : slug;
+  return { stem: raw === '' || (slug === 'spec' && !/spec/i.test(raw)) ? 'image' : safe, ext };
 }
 
 /** Adds an image to a spec's images folder. */
@@ -40,9 +42,7 @@ export function uploadRoutes(registry: Registry): Hono {
     '/api/projects/:pid/specs/:id/images',
     bodyLimit({
       maxSize: MAX_BODY,
-      onError: () => {
-        throw new HttpError(413, TOO_BIG);
-      },
+      onError: (c) => c.json({ error: TOO_BIG }, 413),
     }),
     async (c) => {
       const entry = await registry.get(c.req.param('pid') ?? '');
