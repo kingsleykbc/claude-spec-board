@@ -39,7 +39,7 @@ Claude treats what you wrote as the project notes. Setup goes through these step
 1. **Where.** Which folder. If it already has a `.specboard/` folder, it tells you and offers `/specboard:structure`, an import or a sync instead.
 2. **Look first.** It searches the folder for plans you already have: Spec Kit, OpenSpec, or roadmap and plan documents.
 3. **Import or start fresh.** If it found plans it asks which. If not, it starts from scratch.
-4. **Small or large.** Whether the project needs [milestones](writing-specs.md#milestones).
+4. **Setup questions.** What you're building, the stack, must-have features, design references, phases ([milestones](writing-specs.md#milestones)), tests and docs after each spec, and commits. Each has a suggested answer, and "skip" takes it. Questions your request already answers are skipped.
 5. **Preview.** It shows the specs it would make as a tree, and waits for your OK or changes. Nothing is written before that.
 6. **Set up.** It creates `.specboard/` and writes the specs as drafts.
 7. **Old plan files.** After an import it asks whether to keep them or move them to `.specboard/imported/`. It never deletes them, and warns you that deleting `.specboard` later deletes the moved files too.

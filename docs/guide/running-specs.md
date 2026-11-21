@@ -97,7 +97,7 @@ Over time the board can drift from the code: work gets done without a tick, or a
 - **It's waiting on you.** The spec has a `(you)` step before more work, such as adding a file or a key. The run panel says **Waiting on you** and names the step. Do it, tick it on the card, then run again. This is a pause, not an error.
 - **It finished.** The card moves to Review. Only you can move a card to Done.
 
-A blocked spec or a draft can't be started from the card. If you start one from a chat anyway, Claude refuses and says why.
+A blocked spec or a draft can't be started from the card. If you start a draft from a chat, Claude writes it up first (it asks its questions in the chat), then runs it. If you start a blocked spec from a chat, Claude refuses and says why.
 
 ## The other Claude buttons on the board
 
