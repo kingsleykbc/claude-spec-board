@@ -13116,7 +13116,7 @@ function withRefusals(info, denials) {
   const line = `Claude was refused ${denials.length === 1 ? "1 action" : `${denials.length} actions`} on the way. Check the result before moving this to Done.`;
   return { ...info, denied: denials.map(forWire), text: info.text ? `${info.text} ${line}` : line };
 }
-var OPTIONAL_COMMAND = /^(?:gh\s+pr\s+view|glab\s+mr\s+view|specboard\s+tree)(?:\s|$)/;
+var OPTIONAL_COMMAND = /^(?:gh\s+pr\s+view|glab\s+mr\s+view|specboard\s+tree|date)(?:\s|$)/;
 function optionalRefusal(d) {
   const command = d.input?.command;
   return SHELL_TOOLS.has(d.tool) && typeof command === "string" && OPTIONAL_COMMAND.test(command.trim());
@@ -13460,7 +13460,8 @@ var BASE_ALLOW = [
   "Bash(git commit:*)",
   "Bash(specboard tree:*)",
   "Bash(gh pr view:*)",
-  "Bash(glab mr view:*)"
+  "Bash(glab mr view:*)",
+  "Bash(date:*)"
 ];
 var DENY = [
   "Bash(git push:*)",
