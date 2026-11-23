@@ -65,7 +65,7 @@ describe('OverviewModal', () => {
     expect(btn.getAttribute('aria-description')).toBe('Claude isn’t connected');
     fireEvent.click(btn);
     const pop = await screen.findByRole('dialog', { name: "Claude isn’t connected" });
-    expect(pop.textContent).toContain('/specboard:refresh-overview');
+    expect(pop.textContent).toContain('/refresh-overview');
     expect(p.onRefresh).not.toHaveBeenCalled();
   });
 

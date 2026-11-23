@@ -185,7 +185,7 @@ describe('SpecCard', () => {
     expect(btn.className).not.toMatch(/bg-accent/);
     await userEvent.click(btn);
     const pop = await screen.findByRole('dialog', { name: "Claude isn’t connected" });
-    expect(pop.textContent).toMatch('/specboard:create-spec T-107');
+    expect(pop.textContent).toMatch('/create-spec T-107');
     expect(onWriteUp).not.toHaveBeenCalled();
     expect(onOpen).not.toHaveBeenCalled();
   });

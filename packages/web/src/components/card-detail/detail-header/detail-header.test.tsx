@@ -102,7 +102,7 @@ describe('DetailHeader', () => {
     expect(btn.getAttribute('aria-description')).toBe('Claude isn’t connected');
     await user.click(btn);
     const pop = await screen.findByRole('dialog', { name: "Claude isn’t connected" });
-    expect(pop.textContent).toContain('/specboard:create-spec T-103');
+    expect(pop.textContent).toContain('/create-spec T-103');
     expect(onWriteUp).not.toHaveBeenCalled();
   });
 

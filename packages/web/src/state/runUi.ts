@@ -167,9 +167,9 @@ export function pasteCommand(kind: RunKind, specId: string | undefined): string 
     case 'run':
       return specId ? `/run-spec ${specId}` : null;
     case 'write-up':
-      return specId ? `/specboard:create-spec ${specId}` : null;
+      return specId ? `/create-spec ${specId}` : null;
     case 'refresh-overview':
-      return '/specboard:refresh-overview';
+      return '/refresh-overview';
     default:
       return null;
   }

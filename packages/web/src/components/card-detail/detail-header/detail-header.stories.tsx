@@ -72,7 +72,7 @@ export const NotConnectedDraft: Story = {
     expect(run.disabled).toBe(false);
     expect(write.disabled).toBe(false);
     await userEvent.click(write);
-    expect(await within(document.body).findByText('/specboard:create-spec T-103')).toBeTruthy();
+    expect(await within(document.body).findByText('/create-spec T-103')).toBeTruthy();
     await userEvent.keyboard('{Escape}');
   },
 };
@@ -82,13 +82,13 @@ export const Narrow: Story = {
   args: { path: LONG_PATH, draft: true, onWriteUp: fn(), onSync: fn(), syncWaiting: true, onSyncWaiting: fn(), status: 'todo' },
   decorators: [
     (Story) => (
-      <div className="relative w-[320px] max-w-[320px] overflow-hidden bg-card">
+      <div data-narrow-frame="" className="relative w-[320px] max-w-[320px] overflow-hidden bg-card">
         <Story />
       </div>
     ),
   ],
   play: async ({ canvasElement }) => {
-    const frame = canvasElement.querySelector('.max-w-\[320px\]')!.getBoundingClientRect();
+    const frame = canvasElement.querySelector('[data-narrow-frame]')!.getBoundingClientRect();
     const close = within(canvasElement).getByRole('button', { name: 'Close' }).getBoundingClientRect();
     expect(close.right).toBeLessThanOrEqual(frame.right);
     expect(close.left).toBeGreaterThanOrEqual(frame.left);

@@ -45,7 +45,7 @@ export const NotConnected: Story = {
   play: async ({ canvasElement, userEvent }) => {
     const dlg = within(canvasElement).getByRole('dialog', { name: 'Overview' });
     await userEvent.click(within(dlg).getByRole('button', { name: 'Refresh' }));
-    expect(await within(document.body).findByText('/specboard:refresh-overview')).toBeTruthy();
+    expect(await within(document.body).findByText('/refresh-overview')).toBeTruthy();
   },
 };
 

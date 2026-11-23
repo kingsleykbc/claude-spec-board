@@ -16,7 +16,7 @@ const SIZE = { sm: 'h-6 gap-1.5 rounded-md px-[9px] text-xs', md: 'h-[34px] gap-
 const FIT = 'inline-flex cursor-pointer items-center border-0 py-0 font-semibold whitespace-nowrap';
 
 /** The command that does the same as the button, for a Claude chat. */
-export const writeUpCommand = (id: string) => `/specboard:create-spec ${id}`;
+export const writeUpCommand = (id: string) => `/create-spec ${id}`;
 
 /**
  * "Have Claude write this up" on a draft. Starts a write-up run; while the board isn't connected to Claude it is

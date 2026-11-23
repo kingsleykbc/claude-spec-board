@@ -42,7 +42,7 @@ export const NoReason: Story = { args: { reason: null }, decorators: [frame] };
 /** The greyed button behind Have Claude write this up and Refresh: not disabled, with the command to paste. */
 export const Trigger: Story = {
   render: () => (
-    <NotConnectedTrigger label="Refresh" reason="not-logged-in" command="/specboard:refresh-overview">
+    <NotConnectedTrigger label="Refresh" reason="not-logged-in" command="/refresh-overview">
       Refresh
     </NotConnectedTrigger>
   ),
@@ -52,7 +52,7 @@ export const Trigger: Story = {
     expect(btn.disabled).toBe(false);
     await userEvent.click(btn);
     const pop = await within(document.body).findByRole('dialog', { name: "Claude isn’t connected" });
-    expect(within(pop).getByText('/specboard:refresh-overview')).toBeTruthy();
+    expect(within(pop).getByText('/refresh-overview')).toBeTruthy();
     await userEvent.keyboard('{Escape}');
   },
 };

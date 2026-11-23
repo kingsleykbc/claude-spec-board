@@ -169,7 +169,10 @@ export const RunFallbackLongPath: Story = {
     const close = c.getByRole('button', { name: 'Close' });
     expect(note.scrollWidth).toBeLessThanOrEqual(note.clientWidth);
     expect(note.getBoundingClientRect().height).toBeGreaterThan(20); // it wrapped, rather than cutting the path off
-    expect(note.getBoundingClientRect().right).toBeLessThanOrEqual(close.getBoundingClientRect().left);
+    // The close button sits top right, above the actions row: the note must not run under it.
+    const n = note.getBoundingClientRect();
+    const x = close.getBoundingClientRect();
+    expect(n.right <= x.left || n.left >= x.right || n.bottom <= x.top || n.top >= x.bottom).toBe(true);
     const dialog = c.getByRole('dialog').getBoundingClientRect();
     expect(close.getBoundingClientRect().right).toBeLessThanOrEqual(dialog.right);
   },

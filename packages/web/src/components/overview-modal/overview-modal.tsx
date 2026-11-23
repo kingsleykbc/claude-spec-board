@@ -119,7 +119,7 @@ export function OverviewModal({ project, pid, name, toast, refreshing = false, o
               <NotConnectedTrigger
                 label="Refresh"
                 reason={manual}
-                command="/specboard:refresh-overview"
+                command="/refresh-overview"
                 className="inline-flex h-[30px] cursor-pointer items-center gap-[7px] rounded-[7px] border border-line bg-panel px-[11px] py-0 text-[12.5px] font-medium text-fg3 hover:text-fg2 aria-expanded:text-fg2"
               >
                 <RefreshIcon aria-hidden /> Refresh
@@ -155,7 +155,7 @@ export function OverviewModal({ project, pid, name, toast, refreshing = false, o
                 <NotConnectedTrigger
                   label="Refresh summary"
                   reason={manual}
-                  command="/specboard:refresh-overview"
+                  command="/refresh-overview"
                   className="inline-flex h-8 cursor-pointer items-center rounded-lg border border-line2 bg-panel px-3.5 py-0 text-[13px] font-semibold text-fg3 hover:text-fg2 aria-expanded:text-fg2"
                 >
                   Refresh summary

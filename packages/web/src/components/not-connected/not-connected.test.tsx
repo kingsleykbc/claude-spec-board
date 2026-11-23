@@ -74,7 +74,7 @@ describe('NotConnected', () => {
     expect(btn.disabled).toBe(false);
     await user.click(btn);
     const pop = await screen.findByRole('dialog', { name: "Claude isn’t connected" });
-    expect(within(pop).getByText('/specboard:refresh-overview')).toBeTruthy();
+    expect(within(pop).getByText('/refresh-overview')).toBeTruthy();
     expect(within(pop).getByText("Claude Code isn't logged in.")).toBeTruthy();
     expect(within(pop).getByRole('button', { name: 'Copy command' })).toBeTruthy();
     await user.keyboard('{Escape}');
