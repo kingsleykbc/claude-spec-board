@@ -138,14 +138,14 @@ describe('classifyEnd', () => {
   });
 
   it('ignores refusals of the optional commands gh pr view, glab mr view, specboard tree and date', () => {
-    const optional = [bash('gh pr view --json url'), bash('  glab mr view 3'), bash('specboard tree'), bash('date "+%Y-%m-%d %H:%M"'), { tool: 'PowerShell', input: { command: 'gh pr view' } }];
+    const optional = [bash('gh pr view --json url'), bash('  glab mr view 3'), bash('specboard tree'), bash('specboard archive T-002'), bash('date "+%Y-%m-%d %H:%M"'), { tool: 'PowerShell', input: { command: 'gh pr view' } }];
     expect(end({ kind: 'write-up', result: res({ denials: optional }), after: spec() })).toEqual({ status: 'finished' });
     const run = end({ result: res({ denials: optional }), after: spec({ status: 'review' }) });
     expect(run).toEqual({ status: 'finished' });
     const mixed = end({ kind: 'write-up', result: res({ denials: [...optional, bash('git push')] }), after: spec() });
     expect(mixed.status).toBe('permission');
     expect(mixed.denied).toEqual([{ tool: 'Bash', input: { command: 'git push' } }]);
-    for (const cmd of ['gh pr create', 'specboard trees', 'echo gh pr view']) {
+    for (const cmd of ['gh pr create', 'specboard trees', 'specboard archives T-002', 'echo gh pr view']) {
       expect(end({ kind: 'write-up', result: res({ denials: [bash(cmd)] }), after: spec() }).status).toBe('permission');
     }
   });

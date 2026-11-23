@@ -5,7 +5,8 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { detachArgs, parseArgs, parseInitArgs, runDetached, shutdown } from '../src/cli.js';
+import { archiveCommand, detachArgs, parseArchiveArgs, parseArgs, parseInitArgs, runDetached, shutdown } from '../src/cli.js';
+import { loadProject } from '@specboard/core';
 import { start } from '../src/start.js';
 
 const SAMPLE = path.resolve(import.meta.dirname, '../../../examples/recipe-box');
@@ -294,4 +295,48 @@ describe('tree command', () => {
     expect(none.status).toBe(1);
     expect(none.stderr.trim()).toMatch(/No \.specboard folder/);
   }, 30000);
+});
+
+describe('archive command', () => {
+  const cli = path.resolve(import.meta.dirname, '../src/cli.ts');
+  const run = (...args: string[]) =>
+    spawnSync(process.execPath, ['--import', 'tsx', cli, 'archive', ...args], { encoding: 'utf8', cwd: path.resolve(import.meta.dirname, '..') });
+
+  it('parses the ID and an optional folder, and rejects options and bad counts', () => {
+    expect(parseArchiveArgs(['T-002', '/some/dir'])).toEqual({ id: 'T-002', path: path.resolve('/some/dir') });
+    expect(parseArchiveArgs(['T-002']).id).toBe('T-002');
+    expect(() => parseArchiveArgs([])).toThrow(/Usage/);
+    expect(() => parseArchiveArgs(['a', 'b', 'c'])).toThrow(/Usage/);
+    expect(() => parseArchiveArgs(['T-1', '--force'])).toThrow('Unknown option: --force');
+  });
+
+  it('archives a spec from any status, is a no-op the second time, and exits 1 on unknown input', async () => {
+    const dir = await copySample('archive-sample');
+    const before = await loadProject(dir);
+    const open = before.specs.find((s) => s.status !== 'done')!;
+    const ok = run(open.id, dir);
+    expect(ok.stderr).toBe('');
+    expect([ok.status, ok.stdout.trim()]).toEqual([0, `Archived ${open.id}.`]);
+    const after = await loadProject(dir);
+    expect(after.specs.some((s) => s.id === open.id)).toBe(false);
+    expect(after.archived.some((s) => s.id === open.id)).toBe(true);
+    const again = run(open.id, dir);
+    expect([again.status, again.stdout.trim()]).toEqual([0, `${open.id} is already archived.`]);
+    const unknown = run('T-999', dir);
+    expect(unknown.status).toBe(1);
+    expect(unknown.stderr.trim()).toBe(`No spec T-999 in ${dir}`);
+    const none = run('T-001', path.join(tmp, 'empty'));
+    expect(none.status).toBe(1);
+    expect(none.stderr.trim()).toMatch(/No .specboard folder/);
+  }, 30000);
+
+  it('archiveCommand reports through the given writers', async () => {
+    const dir = await copySample('archive-fn');
+    const out: string[] = [];
+    const errs: string[] = [];
+    expect(await archiveCommand({ id: 'T-101', path: dir }, (m) => out.push(m), (m) => errs.push(m))).toBe(0);
+    expect(await archiveCommand({ id: 'T-nope', path: dir }, (m) => out.push(m), (m) => errs.push(m))).toBe(1);
+    expect(out).toEqual(['Archived T-101.']);
+    expect(errs).toEqual([`No spec T-nope in ${dir}`]);
+  });
 });

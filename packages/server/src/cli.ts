@@ -4,7 +4,7 @@ import net from 'node:net';
 import path from 'node:path';
 import os from 'node:os';
 import { pathToFileURL } from 'node:url';
-import { loadProject, renderTree } from '@specboard/core';
+import { archiveSpec, loadProject, renderTree } from '@specboard/core';
 import { pluginDir } from './paths.js';
 import { runTokenHook } from './hookTokens.js';
 import { initHint } from './prePublish.js';
@@ -81,6 +81,38 @@ export function parseTreeArgs(argv: string[]): { path: string; spec?: string; mi
     else dir = path.resolve(base, a);
   }
   return { path: dir, spec, milestone };
+}
+
+export function parseArchiveArgs(argv: string[]): { id: string; path: string } {
+  const base = process.env.INIT_CWD || process.cwd();
+  const bad = argv.find((a) => a.startsWith('--'));
+  if (bad) throw new Error(`Unknown option: ${bad}`);
+  if (argv.length < 1 || argv.length > 2) throw new Error('Usage: specboard archive <ID> [project folder]');
+  return { id: argv[0]!, path: argv[1] ? path.resolve(base, argv[1]) : base };
+}
+
+/**
+ * Move a spec to the archive, from any status (the same as the board's Archive button). Returns the exit code.
+ * It cannot tell whether a board run is working on the spec (that lives in the board's own process), so only the
+ * board's archive button refuses during a run.
+ */
+export async function archiveCommand(a: { id: string; path: string }, log: (m: string) => void = console.log, err: (m: string) => void = console.error): Promise<number> {
+  const project = await loadProject(a.path);
+  if (project.config === null && project.specs.length === 0 && project.problems[0] === 'No .specboard folder') {
+    err(`No .specboard folder in ${a.path}`);
+    return 1;
+  }
+  if (project.archived.some((s) => s.id === a.id) && !project.specs.some((s) => s.id === a.id)) {
+    log(`${a.id} is already archived.`);
+    return 0;
+  }
+  if (!project.specs.some((s) => s.id === a.id)) {
+    err(`No spec ${a.id} in ${a.path}`);
+    return 1;
+  }
+  await archiveSpec(a.path, a.id, { anyStatus: true });
+  log(`Archived ${a.id}.`);
+  return 0;
 }
 
 /** The arguments for the detached child: the same as ours, without --detach, plus --no-detach. */
@@ -206,6 +238,9 @@ async function main(): Promise<void> {
     if (project.config === null && project.specs.length === 0 && project.problems[0] === 'No .specboard folder') throw new Error(`No .specboard folder in ${a.path}`);
     console.log(renderTree(project, { spec: a.spec, milestone: a.milestone }));
     return;
+  }
+  if (cmd === 'archive') {
+    process.exit(await archiveCommand(parseArchiveArgs(rest)));
   }
   const args = parseArgs(process.argv.slice(2));
   if (args.detach) {

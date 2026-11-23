@@ -114,7 +114,7 @@ function assertAllowable(rule: string, deny: string[]): void {
 const BASE_ALLOW = [
   'Read(./**)', 'Edit(./**)', 'Write(./**)',
   'Bash(git status:*)', 'Bash(git diff:*)', 'Bash(git log:*)', 'Bash(git add:*)', 'Bash(git commit:*)',
-  'Bash(specboard tree:*)', 'Bash(gh pr view:*)', 'Bash(glab mr view:*)', 'Bash(date:*)',
+  'Bash(specboard tree:*)', 'Bash(specboard archive:*)', 'Bash(gh pr view:*)', 'Bash(glab mr view:*)', 'Bash(date:*)',
 ];
 const DENY = [
   'Bash(git push:*)', 'Bash(git reset:*)', 'Bash(rm -rf:*)',
