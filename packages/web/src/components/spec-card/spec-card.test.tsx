@@ -245,6 +245,13 @@ describe('SpecCard', () => {
     expect(light.queryByText(/Claude is working/)).toBeNull();
   });
 
+  it('a card in Review with review items shows Reviewed 1/3; other cards do not', () => {
+    const { light } = setup(InReview);
+    expect(light.getByTestId('review-chip').textContent).toBe('Reviewed 1/3');
+    cleanup();
+    expect(setup(DefaultDone).light.queryByTestId('review-chip')).toBeNull();
+  });
+
   it('a chat shows which step Claude is working on', () => {
     const { light } = setup(Chat);
     expect(light.getByText('Claude is working on step 2 in a chat')).toBeTruthy();

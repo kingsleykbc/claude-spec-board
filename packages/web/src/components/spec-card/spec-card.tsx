@@ -415,6 +415,11 @@ export function SpecCard({
             </span>
           </div>
         )}
+        {spec.status === 'review' && spec.reviews.length > 0 && (
+          <span data-testid="review-chip" className="rounded-full border border-review bg-review-soft px-2 py-px text-[11.5px] font-medium text-review-ink">
+            Reviewed {spec.reviews.filter((r) => r.done).length}/{spec.reviews.length}
+          </span>
+        )}
         <span className="flex-1" />
         {!simple && (
           <button
