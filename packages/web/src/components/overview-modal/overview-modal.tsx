@@ -9,6 +9,8 @@ import type { PushToast } from '@/state/toasts';
 import { Spinner } from '@/components/connection-banner/connection-banner';
 import { Markdown } from '@/components/ui/markdown/markdown';
 import { Modal, ModalClose } from '@/components/ui/modal/modal';
+import { NotConnectedTrigger } from '@/components/not-connected/not-connected';
+import type { ManualReason } from '@/state/runUi';
 import { TableView } from '@/components/table-view/table-view';
 
 export interface OverviewModalProps {
@@ -22,6 +24,8 @@ export interface OverviewModalProps {
   refreshing?: boolean;
   /** Start a refresh run; refusals and the outcome are toasts. */
   onRefresh: () => void;
+  /** Why the board can't run Claude here (null when it can). Refresh then greys and shows the command to paste. */
+  manual?: ManualReason | null;
   /** Switches to the all-logs modal; the link shows when given. */
   onOpenLogs?: () => void;
   onClose: () => void;
@@ -48,7 +52,7 @@ function download(filename: string, text: string): void {
 }
 
 /** Project overview (pinned behaviour 17; prototype lines 295-319 and 748-751). */
-export function OverviewModal({ project, pid, name, toast, refreshing = false, onRefresh, onOpenLogs, onClose, now, returnFocus }: OverviewModalProps) {
+export function OverviewModal({ project, pid, name, toast, refreshing = false, onRefresh, manual = null, onOpenLogs, onClose, now, returnFocus }: OverviewModalProps) {
   const c = overviewCounts(project);
   const [tasksOpen, setTasksOpen] = useState(false);
   const tasksId = useId();
@@ -111,16 +115,27 @@ export function OverviewModal({ project, pid, name, toast, refreshing = false, o
             )}
             {updated && <span className="text-[12px] text-fg3">{updated}</span>}
             <span className="flex-1" />
-            <button type="button" className="flex h-[30px] cursor-pointer items-center gap-[7px] rounded-[7px] border border-line bg-card px-[11px] py-0 text-[12.5px] font-medium text-fg enabled:hover:border-line2 disabled:cursor-default" disabled={refreshing} onClick={onRefresh}>
-              {refreshing && <Spinner />}
-              {refreshing ? (
-                'Refreshing'
-              ) : (
-                <>
-                  <RefreshIcon aria-hidden /> Refresh
-                </>
-              )}
-            </button>
+            {manual ? (
+              <NotConnectedTrigger
+                label="Refresh"
+                reason={manual}
+                command="/specboard:refresh-overview"
+                className="inline-flex h-[30px] cursor-pointer items-center gap-[7px] rounded-[7px] border border-line bg-panel px-[11px] py-0 text-[12.5px] font-medium text-fg3 hover:text-fg2 aria-expanded:text-fg2"
+              >
+                <RefreshIcon aria-hidden /> Refresh
+              </NotConnectedTrigger>
+            ) : (
+              <button type="button" className="flex h-[30px] cursor-pointer items-center gap-[7px] rounded-[7px] border border-line bg-card px-[11px] py-0 text-[12.5px] font-medium text-fg enabled:hover:border-line2 disabled:cursor-default" disabled={refreshing} onClick={onRefresh}>
+                {refreshing && <Spinner />}
+                {refreshing ? (
+                  'Refreshing'
+                ) : (
+                  <>
+                    <RefreshIcon aria-hidden /> Refresh
+                  </>
+                )}
+              </button>
+            )}
           </div>
           {refreshing ? (
             <div className="flex flex-col gap-[9px] py-1">
@@ -136,9 +151,20 @@ export function OverviewModal({ project, pid, name, toast, refreshing = false, o
           ) : (
             <div className="flex flex-col items-center gap-2.5 rounded-[10px] border border-dashed border-line2 p-[22px] text-center">
               <span className="text-[14px] text-fg2">No summary yet. Ask Claude to refresh the overview.</span>
-              <button type="button" className="h-8 cursor-pointer rounded-lg border-0 bg-accent px-3.5 py-0 text-[13px] font-semibold text-accent-fg" onClick={onRefresh}>
-                Refresh summary
-              </button>
+              {manual ? (
+                <NotConnectedTrigger
+                  label="Refresh summary"
+                  reason={manual}
+                  command="/specboard:refresh-overview"
+                  className="inline-flex h-8 cursor-pointer items-center rounded-lg border border-line2 bg-panel px-3.5 py-0 text-[13px] font-semibold text-fg3 hover:text-fg2 aria-expanded:text-fg2"
+                >
+                  Refresh summary
+                </NotConnectedTrigger>
+              ) : (
+                <button type="button" className="h-8 cursor-pointer rounded-lg border-0 bg-accent px-3.5 py-0 text-[13px] font-semibold text-accent-fg" onClick={onRefresh}>
+                  Refresh summary
+                </button>
+              )}
             </div>
           )}
         </div>

@@ -57,6 +57,24 @@ describe('OverviewModal', () => {
     expect(p.onRefresh).toHaveBeenCalledOnce();
   });
 
+  it('not connected: Refresh is greyed but enabled, starts nothing, and shows the command to paste', async () => {
+    const p = setup({ manual: 'not-logged-in' });
+    const btn = screen.getByRole('button', { name: 'Refresh' }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+    expect(btn.className).toContain('text-fg3');
+    fireEvent.click(btn);
+    const pop = await screen.findByRole('dialog', { name: "Claude isn't connected" });
+    expect(pop.textContent).toContain('/specboard:refresh-overview');
+    expect(p.onRefresh).not.toHaveBeenCalled();
+  });
+
+  it('the close button is pinned top right and the header keeps clear of it', () => {
+    setup();
+    const close = screen.getByRole('button', { name: 'Close' });
+    expect(close.className).toContain('absolute');
+    expect(screen.getByText('OVERVIEW').parentElement!.className).toContain('pr-[60px]');
+  });
+
   it('the empty state asks for a refresh too', () => {
     const p = setup({ project: { ...recipeProject, overview: null } });
     fireEvent.click(screen.getByRole('button', { name: 'Refresh summary' }));

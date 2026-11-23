@@ -444,6 +444,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
               toast={toast}
               refreshing={isRefreshing(run.run)}
               onRefresh={() => void startRun('refresh-overview')}
+              manual={manual}
               onOpenLogs={() => setModal('logs')}
               onClose={closeModal}
               returnFocus={logoButton}

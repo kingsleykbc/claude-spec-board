@@ -39,6 +39,16 @@ export const Empty: Story = {
   },
 };
 
+/** Claude isn't connected: Refresh is greyed and shows the command to paste. */
+export const NotConnected: Story = {
+  args: { manual: 'not-installed' },
+  play: async ({ canvasElement, userEvent }) => {
+    const dlg = within(canvasElement).getByRole('dialog', { name: 'Overview' });
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Refresh' }));
+    expect(await within(document.body).findByText('/specboard:refresh-overview')).toBeTruthy();
+  },
+};
+
 export const Refreshing: Story = {
   args: { refreshing: true },
   play: async ({ canvasElement }) => {
