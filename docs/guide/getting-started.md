@@ -58,7 +58,7 @@ Git is optional. Without a git repo, or with `commits: false` in `.specboard/con
 
 Everything Spec Board keeps for a project is in `.specboard/`, so delete that folder to remove Spec Board. If you moved old plan files into `.specboard/imported/`, they go with it. Spec Board writes nothing else in your project, with one exception: if you used the terminal route, `init` copies commands into `.claude/skills/`. It also keeps a few things outside the project: the project list and approvals in `~/.specboard/`, and the plugin's token-count data.
 
-To see the structure again later, run `/specboard:structure`. To write up a draft, run `/specboard:create-spec <ID>`.
+To see the structure again later, run `/specboard:structure`. To write up a draft, run `/create-spec <ID>` (the short form works with or without the plugin).
 
 ## Open the board
 

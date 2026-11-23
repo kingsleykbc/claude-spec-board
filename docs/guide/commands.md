@@ -35,6 +35,7 @@ The rows below show `specboard <command>`. With the plugin, that is the command 
 | `specboard allow "<rule>" [path]` | Adds one rule to the actions background runs may use. It always asks you first. |
 | `specboard tree [path]` | Prints the board as a tree. Options: `--spec ID` for one spec, `--milestone NAME` for one milestone. This is what `/specboard:structure` runs. |
 | `specboard archive <ID> [path]` | Archives a spec, the same as **Archive** on the board. It prints `Archived T-002.` This is what Claude runs when you ask it to archive a card in a chat. |
+| `specboard copy-images <from-ID> <to-ID> [path]` | Copies the images of one spec into another's `images/` folder without overwriting (a taken name gets `-2`, `-3`), and prints `images/<old> -> images/<new>` per file. Claude runs it when it merges or splits cards. |
 | `specboard --version` | Prints the version. |
 
 There is also `specboard hook-tokens`. The plugin runs it by itself after Claude writes a subtask log, to count tokens. You never run it yourself.

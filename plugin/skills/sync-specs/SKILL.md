@@ -86,4 +86,4 @@ Without a git repo, write `head: "none"`. Leave out `scope:` for a whole-project
 
 ## In a chat
 
-Show the summary and the tree, and ask for an OK or changes. On the OK, apply the operations as in `--board --apply` step 4. There is no proposal file and no head check. Then, last, run `specboard archive <ID>` for each `Archive <ID>` line (see Archiving in the rules). If that is missing or refused, tell the person to use Archive in the card's ⋯ menu. Finish with what changed, the specs archived, and any the person still needs to archive on the board.
+Show the summary and the tree, and ask for an OK or changes. On the OK, apply the operations as in `--board --apply` step 4. There is no proposal file and no head check. Then, last, run `specboard archive <ID> "<project folder>"` for each `Archive <ID>` line (see Archiving in the rules). If that fails for any reason, tell the person to use Archive in the card's ⋯ menu. Finish with what changed, the specs archived, and any the person still needs to archive on the board.

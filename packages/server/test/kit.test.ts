@@ -187,9 +187,12 @@ describe('kit content', () => {
     expect(text).toContain('Read every image its text links and every attachment in its `images/` folder');
     expect(runningSection(text)).toContain('its images (the linked ones and the attachments');
     expect(text).toContain('## Archiving');
-    expect(text).toContain('Run `specboard archive <ID>` on its own with the Bash tool');
+    expect(text).toContain('Run `specboard archive <ID> "<project folder>"` on its own with the Bash tool');
+    expect(text).toContain('If it fails for any reason, tell the person to use Archive');
+    expect(text).toContain('`specboard copy-images <from ID> <to ID> "<project folder>"`');
+    expect(text).toContain('or archive a spec.');
     expect(text).toContain("tell the person to use Archive in the card's ⋯ menu");
-    expect(text).toMatch(/Four exceptions are optional[^\n]*`specboard tree`, `specboard archive`/);
+    expect(text).toMatch(/Five exceptions are optional[^\n]*`specboard tree`, `specboard archive`[^\n]*`specboard copy-images`/);
   });
 
   it('skills that write or change specs keep To review; reorganize and chat sync archive with specboard archive; next skips review-only specs', async () => {
@@ -201,10 +204,14 @@ describe('kit content', () => {
     expect(text('update-spec')).toContain('Keep `## To review` and its ticks');
     expect(text('refresh-questions')).toContain('Never drop the `## To review` section.');
     expect(text('correct-specs')).toContain('never tick, untick or drop them');
-    expect(text('reorganize')).toContain('archive it with `specboard archive <ID>`');
+    expect(text('reorganize')).toContain('archive it with `specboard archive <ID> "<project folder>"`');
+    expect(text('reorganize')).toContain('specboard copy-images <other ID> <kept ID> "<project folder>"');
+    expect(text('reorganize')).toContain('do not archive the other card');
+    expect(text('reorganize')).toContain('specboard copy-images <original ID> <new ID>');
+    expect(text('move')).toContain('unticked `## To review` items');
     expect(text('reorganize')).not.toContain('A merge archives nothing by itself');
     const chat = text('sync-specs').slice(text('sync-specs').indexOf('## In a chat'));
-    expect(chat).toContain('run `specboard archive <ID>` for each `Archive <ID>` line');
+    expect(chat).toContain('run `specboard archive <ID> "<project folder>"` for each `Archive <ID>` line');
     expect(text('sync-specs')).toContain('the board archives the spec'); // board mode unchanged
     expect(text('next')).toContain("only open work is `## To review` items");
   });

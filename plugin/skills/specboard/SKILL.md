@@ -1,6 +1,6 @@
 ---
 name: specboard
-description: Spec Board file format and working rules. Use whenever you read, create or edit anything under .specboard/ (specs, subtask logs, overview, config), or work through a spec's subtasks.
+description: Spec Board file format and working rules. Use whenever you read, create or edit anything under .specboard/ (specs, subtask logs, overview, config), work through a spec's subtasks, or archive a spec.
 ---
 
 # Spec Board: file format and rules
@@ -218,7 +218,9 @@ Built the time-slot grid. Slots come from the barber's opening hours. Tests adde
 
 ## Archiving
 
-Archive a spec only when the person asks (for example "archive T-002") or has said OK to a change that archives it. Run `specboard archive <ID>` on its own with the Bash tool, from the project folder. It moves the spec to `.specboard/archive/`, the same as Archive on the board; an archived spec counts as done. Never move spec folders yourself. If the command is missing or refused, tell the person to use Archive in the card's ⋯ menu on the board.
+Archive a spec only when the person asks (for example "archive T-002") or has said OK to a change that archives it. Run `specboard archive <ID> "<project folder>"` on its own with the Bash tool (always pass the project folder). It moves the spec to `.specboard/archive/`, the same as Archive on the board; an archived spec counts as done. Never move spec folders yourself. If it fails for any reason, tell the person to use Archive in the card's ⋯ menu on the board.
+
+To carry a card's images to another card (a merge or a split), run `specboard copy-images <from ID> <to ID> "<project folder>"`: it copies every image from the first card's `images/` into the second's, never overwriting, and prints `images/<old> -> images/<new>` per file.
 
 ## Running a spec
 
@@ -260,5 +262,5 @@ Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never s
 5. Edit `.specboard/` only for spec bookkeeping, plus the code the spec needs. Never edit anything under `.claude/`. Never touch files outside the project folder.
 6. Work with the file tools: Read, Edit, Write, Glob and Grep. Do not use shell commands such as `rm`, `mv`, `mkdir` or `echo` for files. Change a spec with small Edit calls so everything else in the file stays exactly as it was (comments, other sections, line endings). Do not rewrite a whole file just to change one line.
 7. Dates are `YYYY-MM-DD`. Take today's date from your context. If you do not have it, read it from the last commit: `git log -1 --format=%cd --date=format:"%Y-%m-%d %H:%M"`. Without git, run `date "+%Y-%m-%d %H:%M"` on its own with the Bash tool.
-8. If a tool call is refused (permission denied), do not look for a way around the refusal. If you only used the wrong tool (for example Bash to read a file), use the right one. If the action itself is needed (a commit, the tests, a command the spec needs, a file outside the project): do not try another way, set `current_subtask: null`, leave the status as `doing`, say which action was refused, and stop. Do not add an open question for it: the board shows the refusal and how to allow it, and an unanswered question would stop the next run after the person has allowed it. Four exceptions are optional and simply skipped when refused: the PR link (`gh`, `glab`), `specboard tree`, `specboard archive` (then tell the person to use Archive in the card's ⋯ menu), and `date` (then use today's date with the time `00:00`).
+8. If a tool call is refused (permission denied), do not look for a way around the refusal. If you only used the wrong tool (for example Bash to read a file), use the right one. If the action itself is needed (a commit, the tests, a command the spec needs, a file outside the project): do not try another way, set `current_subtask: null`, leave the status as `doing`, say which action was refused, and stop. Do not add an open question for it: the board shows the refusal and how to allow it, and an unanswered question would stop the next run after the person has allowed it. Five exceptions are optional and simply skipped when refused: the PR link (`gh`, `glab`), `specboard tree`, `specboard archive` (then tell the person to use Archive in the card's ⋯ menu), `specboard copy-images` (then tell the person which images to move), and `date` (then use today's date with the time `00:00`).
 9. When something is unclear or the files do not match this format, say so in your answer and stop. Do not "fix" the format by inventing new keys.

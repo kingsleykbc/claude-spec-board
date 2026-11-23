@@ -20,6 +20,7 @@ The first word is the spec ID. The second is the column (To-do, Doing, Review or
 3. If the spec is already in that column, say so and stop.
 4. Warn, and still move, in these cases:
    - the new column is Review or Done and the spec has unticked Claude subtasks (not `(you)` ones): name how many;
+   - the new column is Done and the spec has unticked `## To review` items: name how many;
    - the spec is a draft (`draft: true`).
 5. Change only `status` and `updated` (to today), with one Edit. Change nothing else: not the ticks, the subtasks, `current_subtask` or the logs.
 6. Finish with one line, for example `T-104 moved from Doing to Review.`, followed by any warning.
