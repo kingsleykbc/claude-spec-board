@@ -28,7 +28,8 @@ The input is the folder or file to import from. Never edit, move or delete the s
 4. On the OK, first write `.specboard/config.md` with small Edit calls, keeping everything else: `closing_steps`, `test_command`, `commits`, `milestones` (as the answers and phases say) and `references` (the docs above). Then write one spec per card with the Write tool, using the next free IDs, following "Writing a good spec" in the rules:
    - description → `## Spec`, with a first sentence that explains the whole card. End the section with a line naming the source file, for example `Source: specs/003-checkout/spec.md`, so nothing is lost.
    - acceptance criteria or scenarios → `## Done when`, shortened to 2 to 5 plain checks.
-   - task lists → `## Subtasks`: done items stay ticked, items only the person can do become `(you)` subtasks. Add the `closing_steps` from `.specboard/config.md` only to cards that are not already finished, after Claude's work and before any `(you)` checks (the order in the rules).
+   - task lists → `## Subtasks`: done items stay ticked, items the person must do before or during the work become `(you)` subtasks. Add the `closing_steps` from `.specboard/config.md` only to cards that are not already finished, after Claude's work (the order in the rules).
+   - manual test steps, and checks only the person can do once the work is done (including such acceptance criteria) → `## To review`, unticked: plain items for a small card, `###` groups of steps with `  > expected:` lines for a larger one. Never as `(you)` subtasks at the end.
    - open points → `## Open questions`, each with an empty `  > answer:` line.
    - order and "depends on" notes → `depends_on`.
    - status → `status`: not started is `todo`, in progress is `doing`, finished is `review` at most. Never set `status: done`; only a person does.

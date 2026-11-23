@@ -123,9 +123,11 @@ describe('kit content', () => {
       expect(doc.questions[2]!.options).toEqual(['Email', 'SMS', 'Both']);
       expect(doc.questions[1]!.answer).toBe('14');
       expect(doc.questions[0]!.answer).toBeNull();
-      expect(doc.subtasks.map((s) => [s.n, s.done])).toEqual([[1, true], [2, false], [3, false], [4, false]]);
+      expect(doc.subtasks.map((s) => [s.n, s.done])).toEqual([[1, true], [2, false], [3, false]]);
+      expect(doc.subtasks.some((s) => youStep(s.title) !== null)).toBe(false); // after-work checks are To review items now
+      expect(doc.reviews.map((r) => [r.n, r.done, r.group, r.expected !== null])).toEqual([[1, false, null, true], [2, false, null, true]]);
       expect(specBodyMd(sample)).toContain('## Done when');
-      expect(youStep(doc.subtasks[doc.subtasks.length - 1]!.title)).not.toBeNull();
+      expect(specBodyMd(sample)).not.toContain('## To review');
       expect(doc.featuresMd).toContain('- ');
     }
   });
@@ -141,16 +143,70 @@ describe('kit content', () => {
     const skills = await kitSkills();
     const text = (name: string): string => skills.find((s) => s.name === name)!.text;
     expect(text('specboard')).toContain("Subtask order: `(you)` steps needed before the work, then Claude's work, then the `closing_steps`");
-    expect(text('specboard')).toContain('then the `(you)` checks the person does afterwards');
-    expect(text('create-spec')).toContain('then `(you)` checks the person does afterwards');
-    expect(text('import-specs')).toContain('before any `(you)` checks');
+    expect(text('specboard')).toContain('Checks the person does afterwards go in `## To review`, never as `(you)` subtasks at the end.');
+    expect(text('create-spec')).toContain('No `(you)` checks at the end.');
+    expect(text('create-spec')).toContain('`## To review`: the checks the person does once the work is done');
+    expect(text('import-specs')).toContain('→ `## To review`');
+    expect(text('import-specs')).not.toContain('before any `(you)` checks');
   });
 
   it('running stops at a (you) step with Claude work after it, and checks Done when before Review', async () => {
     const section = runningSection((await kitSkills()).find((s) => s.name === 'specboard')!.text);
     expect(section).toContain('(you)');
     expect(section).toContain('Done when');
-    expect(section).toContain('needs your check');
+    expect(section).not.toContain('needs your check');
+    expect(section).toContain('A line you cannot check yourself goes to `## To review` as an item');
+    expect(section).toContain('in an older spec'); // trailing (you) checks still work
+    expect(section).toContain('list the open To review items');
+    expect(section).toContain('Never tick them.');
+  });
+
+  it('the format documents To review: grammar, where after-work checks go, and that Claude never ticks them', async () => {
+    const text = (await kitSkills()).find((s) => s.name === 'specboard')!.text;
+    expect(text).toContain('`## Subtasks`, `## To review`');
+    expect(text).toContain('`## To review` comes after `## Subtasks`');
+    expect(text).toContain('They go here, not as `(you)` subtasks at the end.');
+    expect(text).toContain('Use it only for something the person must do before or during the work.');
+    expect(text).toContain('A small spec has 1 to 3 plain items. A larger spec has groups of steps, each with an `expected` line.');
+    expect(text).toContain('Claude never ticks a To review item.');
+    expect(text).toContain('becomes a `## To review` item instead');
+    expect(text).toContain('Older specs may still end with `(you)` check subtasks.');
+    // The grammar example parses: a group, expected lines, nothing in the editable body.
+    const block = /```\n(## To review\n[\s\S]*?)```/.exec(text)![1]!;
+    const doc = parseSpec(`---\nid: T-001\ntitle: Tasks\nstatus: todo\n---\n\n## Spec\nA list.\n\n${block}`);
+    expect(doc.problems).toEqual([]);
+    expect(doc.reviews.map((r) => [r.group, r.text, r.expected])).toEqual([
+      ['Adding tasks', 'Add a task with the Enter key', 'It appears at the bottom of the list and the box clears.'],
+      ['Adding tasks', 'Reload the page', 'The task is still there.'],
+    ]);
+  });
+
+  it('the rules read linked images and attachments, and archive with specboard archive or the card menu', async () => {
+    const text = (await kitSkills()).find((s) => s.name === 'specboard')!.text;
+    expect(text).toContain('are **attachments**');
+    expect(text).toContain('Read every image its text links and every attachment in its `images/` folder');
+    expect(runningSection(text)).toContain('its images (the linked ones and the attachments');
+    expect(text).toContain('## Archiving');
+    expect(text).toContain('Run `specboard archive <ID>` on its own with the Bash tool');
+    expect(text).toContain("tell the person to use Archive in the card's ⋯ menu");
+    expect(text).toMatch(/Four exceptions are optional[^\n]*`specboard tree`, `specboard archive`/);
+  });
+
+  it('skills that write or change specs keep To review; reorganize and chat sync archive with specboard archive; next skips review-only specs', async () => {
+    const skills = await kitSkills();
+    const text = (name: string): string => skills.find((s) => s.name === name)!.text;
+    for (const name of ['create-spec', 'plan-project', 'import-specs', 'update-spec', 'refresh-questions', 'correct-specs', 'reorganize', 'sync-specs', 'next']) {
+      expect(text(name), name).toContain('## To review');
+    }
+    expect(text('update-spec')).toContain('Keep `## To review` and its ticks');
+    expect(text('refresh-questions')).toContain('Never drop the `## To review` section.');
+    expect(text('correct-specs')).toContain('never tick, untick or drop them');
+    expect(text('reorganize')).toContain('archive it with `specboard archive <ID>`');
+    expect(text('reorganize')).not.toContain('A merge archives nothing by itself');
+    const chat = text('sync-specs').slice(text('sync-specs').indexOf('## In a chat'));
+    expect(chat).toContain('run `specboard archive <ID>` for each `Archive <ID>` line');
+    expect(text('sync-specs')).toContain('the board archives the spec'); // board mode unchanged
+    expect(text('next')).toContain("only open work is `## To review` items");
   });
 
   it('create-spec asks in the chat first unless the board started it; next skips (you) steps', async () => {

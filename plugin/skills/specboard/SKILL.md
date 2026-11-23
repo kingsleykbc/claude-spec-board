@@ -16,7 +16,7 @@ Spec Board is a kanban board over plain Markdown files in `.specboard/`. People 
   settings.md                   # optional, front matter only: track_tokens (true or false); the person sets it on the board
   specs/<ID>-<slug>/spec.md
   specs/<ID>-<slug>/logs/<n>-<slug>.md
-  specs/<ID>-<slug>/images/<name>.png   # pictures the spec shows (png, jpg, gif, webp, svg, avif)
+  specs/<ID>-<slug>/images/<name>.png   # the spec's pictures (png, jpg, gif, webp, svg, avif)
   archive/<ID>-<slug>/...       # archived specs, same layout
   sync-proposal.md              # only between the two steps of a board sync (see /sync-specs)
   imported/<source-name>/...    # old plan files moved here by setup; the board ignores them
@@ -25,6 +25,8 @@ Spec Board is a kanban board over plain Markdown files in `.specboard/`. People 
 - `<ID>` is `T-` plus at least three digits (`T-001`). The next free ID is one more than the highest number in `.specboard/specs/` and `.specboard/archive/` (use Glob to list them).
 - `<slug>` is the title in lowercase ASCII `[a-z0-9-]`, at most 40 characters. If nothing is left, use `spec`.
 - Put a spec's images in its `images/` subfolder and link them relatively in the Markdown, e.g. `![Login screen](images/login.png)`. The board shows them in the spec.
+- Images in `images/` that the spec text does not link are **attachments**: pictures the person added on the board for Claude to look at. The board shows them in their own Attachments section.
+- When you work on a spec (write it up, change it, run it), Read every image its text links and every attachment in its `images/` folder (Glob `images/*`). They are part of what the person asked for.
 - Writing a file with the Write tool creates its folders, so you never need to create a folder yourself.
 
 ## spec.md
@@ -45,7 +47,7 @@ Front matter keys:
 | `created`, `updated` | `YYYY-MM-DD`; set `updated` to today on every edit, never change `created` |
 | `needs_refresh` | `YYYY-MM-DD`; set by the board after a body edit in To-do or Doing. Only /refresh-questions removes it. Never set it yourself |
 
-Body sections, matched case-insensitively: `## Spec`, `## Features`, `## Done when`, `## Open questions`, `## Subtasks`. Any other section is kept untouched.
+Body sections, matched case-insensitively: `## Spec`, `## Features`, `## Done when`, `## Open questions`, `## Subtasks`, `## To review`. Any other section is kept untouched.
 
 Complete example (this is exactly the grammar the board's parser accepts):
 
@@ -88,7 +90,12 @@ Customers pick a barber, a service and a time slot, then confirm.
 - [x] 1. Create the page scaffold
 - [ ] 2. Build the time-slot grid
 - [ ] 3. Wire up confirmation
-- [ ] 4. (you) Try a booking on your phone
+
+## To review
+- [ ] Book a slot on your phone
+  > expected: The confirmation shows the barber, the service and the time.
+- [ ] Try to book the same slot again
+  > expected: The slot shows as taken.
 ```
 
 Question line: `- [ ] Q<k> (<type>): <text>`, then an indented line `  > answer: <value>`.
@@ -100,7 +107,25 @@ Question line: `- [ ] Q<k> (<type>): <text>`, then an indented line `  > answer:
 
 Subtask line: `- [ ] <n>. <title>`, and `- [x] <n>. <title>` when done. Numbers run 1, 2, 3 in order.
 
-A subtask whose title starts with `(you) ` is for the person, not Claude: `- [ ] 3. (you) Add the API key to .env`. Things needed before the work go first; checks the person does afterwards go last. Claude never ticks a `(you)` subtask. The person ticks it on the board. A `(you)` subtask has no commit and needs no log. Use a `(you)` subtask for something the person does, and an open question for a decision.
+A subtask whose title starts with `(you) ` is for the person, not Claude: `- [ ] 1. (you) Add the API key to .env`. Use it only for something the person must do before or during the work. Claude never ticks a `(you)` subtask. The person ticks it on the board. A `(you)` subtask has no commit and needs no log. Use a `(you)` subtask for something the person does, and an open question for a decision.
+
+`## To review` comes after `## Subtasks` and lists the checks the person does once the work is done. They go here, not as `(you)` subtasks at the end. Grammar:
+
+```
+## To review
+### Adding tasks
+- [ ] Add a task with the Enter key
+  > expected: It appears at the bottom of the list and the box clears.
+- [ ] Reload the page
+  > expected: The task is still there.
+```
+
+- An item is `- [ ] <text>` at the start of a line (`- [x]` once checked), with no number. An optional indented `  > expected: <what they should see>` line follows it.
+- Optional `### <group>` headings group the items below them.
+- A small spec has 1 to 3 plain items. A larger spec has groups of steps, each with an `expected` line.
+- The person ticks them on the board. Claude never ticks a To review item. They do not count as subtasks and do not move the card.
+- Never drop the section or its ticks when you change a spec.
+- Older specs may still end with `(you)` check subtasks. Leave them as they are; they still work.
 
 `## Done when` is 2 to 5 plain checks of what the person will see or be able to do. Each line is a result, not a piece of work. It is an ordinary section, so the board shows it as part of the spec.
 
@@ -109,10 +134,10 @@ A subtask whose title starts with `(you) ` is for the person, not Claude: `- [ ]
 ## Writing a good spec
 
 1. The first sentence of `## Spec` explains the whole spec on its own. The card shows only the start of it.
-2. `## Done when` has 2 to 5 observable checks. Prefer checks a test or the code can prove. Something only a person can see (on a phone, in a browser) becomes a `(you)` subtask at the end instead.
+2. `## Done when` has 2 to 5 observable checks. Prefer checks a test or the code can prove. Something only a person can check (on a phone, in a browser) becomes a `## To review` item instead.
 3. Keep subtasks small: each one doable and checkable on its own, with one commit.
-4. Subtask order: `(you)` steps needed before the work, then Claude's work, then the `closing_steps` from config.md in order, then the `(you)` checks the person does afterwards. Leave a closing step out only when the spec plainly does not need it (a docs-only spec needs no "Write tests"), and say so.
-5. Put each `(you)` subtask in its place in that order: before the work if it is needed first, at the very end if it is a check.
+4. Subtask order: `(you)` steps needed before the work, then Claude's work, then the `closing_steps` from config.md in order. Leave a closing step out only when the spec plainly does not need it (a docs-only spec needs no "Write tests"), and say so.
+5. Put each `(you)` subtask where it is needed: before the work, or before the step that needs it. Checks the person does afterwards go in `## To review`, never as `(you)` subtasks at the end.
 6. Ask a question only for a real decision, with a recommendation when you have a view. Do not ask what the spec or the code already answers.
 
 ## Spec or subtask?
@@ -191,11 +216,15 @@ Built the time-slot grid. Slots come from the barber's opening hours. Tests adde
 
 "Blocked" is not a status. A spec is blocked when it has any unanswered required question, or when a spec in `depends_on` is not finished (its `status` is not `done` and it is not in `.specboard/archive/`), or when a `depends_on` ID does not exist.
 
+## Archiving
+
+Archive a spec only when the person asks (for example "archive T-002") or has said OK to a change that archives it. Run `specboard archive <ID>` on its own with the Bash tool, from the project folder. It moves the spec to `.specboard/archive/`, the same as Archive on the board; an archived spec counts as done. Never move spec folders yourself. If the command is missing or refused, tell the person to use Archive in the card's ⋯ menu on the board.
+
 ## Running a spec
 
 Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never start a spec on your own.
 
-1. Find `.specboard/specs/<ID>-*/spec.md` (Glob) and read it, then read its existing logs. Say so and stop if there is no such spec, or if `status` is already `review` or `done` and all of Claude's subtasks (everything except trailing `(you)` steps) are ticked.
+1. Find `.specboard/specs/<ID>-*/spec.md` (Glob) and read it, then its existing logs and its images (the linked ones and the attachments, see Layout). Say so and stop if there is no such spec, or if `status` is already `review` or `done` and all of Claude's subtasks (everything except trailing `(you)` steps in older specs) are ticked. Open `## To review` items never count as Claude's work.
    - If `draft: true`: when the person asked in a chat to run or implement it, say it needs writing up first, Read `../create-spec/SKILL.md` (relative to this skill's base directory) and follow it (its questions are asked in the chat), then continue with the run. In a background run (the board started you, no one is in the chat), say it needs `/create-spec` first and stop.
 2. **Refuse to start** (change nothing, say why, stop) when:
    - any required question under `## Open questions` is unanswered. List them with their numbers; or
@@ -204,7 +233,7 @@ Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never s
    Otherwise read the saved answers and use them as decisions. For an unanswered optional question, go with its recommendation, leave the question unanswered, and say which you assumed in the log of the first subtask it affects. If it has no recommendation, use your best judgment and say so the same way.
 3. Edit the front matter: `status: doing`, and `updated` to today.
 4. For each unticked subtask, in order:
-   1. If it is a `(you)` subtask and Claude subtasks come after it: set `current_subtask: null`, leave the status as `doing`, say exactly what the person needs to do, and **stop**. Never tick it. The person ticks it on the board and runs again. A `(you)` subtask with only `(you)` subtasks after it does not stop the run: go to step 6 of Running a spec (the Done when check).
+   1. If it is a `(you)` subtask and Claude subtasks come after it: set `current_subtask: null`, leave the status as `doing`, say exactly what the person needs to do, and **stop**. Never tick it. The person ticks it on the board and runs again. In an older spec, a `(you)` check with only `(you)` subtasks after it does not stop the run: go to step 6 of Running a spec (the Done when check).
    2. Set `current_subtask: <n>`.
    3. Do the work the subtask describes, using the Spec and Features sections and the answers.
    4. Run the project's tests. Read `test_command` from `.specboard/config.md` (for example `test_command: "npm test"`) and run exactly that command, alone, with the Bash tool. Do not pick another test command and do not chain anything onto it. If it fails, fix the cause. If you cannot, treat it as the decision step (step 5 of Running a spec) and do not commit failing work. If there is no `test_command`, skip the tests: do not run or add tests and do not edit `package.json` to create a test script; write "No test command is set up" in the subtask's log entry and carry on.
@@ -213,12 +242,12 @@ Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never s
    7. Write `.specboard/specs/<ID>-<slug>/logs/<n>-<slug>.md` in the log format: `subtask`, `commit` (empty with no commit), `files`, `pr` (when found; never with no commit), `done_at` (the commit's time, or now with no commit), and a dated entry (`### YYYY-MM-DD HH:mm`) of what you did.
    8. Tick the subtask (`- [x]`) and set `updated`.
 5. When you reach a decision you cannot make from the spec and its answers (or tests cannot be fixed): add a required open question (`- [ ] Q<k> (<type>): <text>` then `  > answer:`, with a recommendation if you have one), set `current_subtask: null`, leave the status as `doing`, say what you need, and **stop**. Do not guess and do not carry on to the next subtask. A refused action is different: see rule 8.
-6. When only `(you)` subtasks (or none) are left unticked, check each line of `## Done when` before moving to Review:
-   - Check it with the code, the tests or a command you may run. Write the result of each line in a log entry: met, not met, or needs your check (when only a person can check it), and how you checked.
+6. When no Claude subtask is left unticked (only trailing `(you)` checks in an older spec, or nothing), check each line of `## Done when` before moving to Review:
+   - Check it with the code, the tests or a command you may run. Write the result of each line in a log entry: met, not met, or in To review (when only a person can check it), and how you checked.
    - Write the results in the log of the last subtask done in this run (or, if none was done this run, as a new dated entry in the log of the last code subtask).
    - A line you checked and found not met: fix it and commit the fix as `<ID> · <n>. <title>` of the last code subtask (no commit when `commits: false` or there is no repo, as in the commit step above), adding a dated entry to its log; or add a required question (step 5) and stop. Do not move to Review.
-   - A line you cannot check yourself is "needs your check". It does not block Review and is not a question.
-   - Otherwise set `current_subtask: null`, `status: review` and `updated` to today, and list the `(you)` subtasks still to do in your summary. Never set `status: done`.
+   - A line you cannot check yourself goes to `## To review` as an item, with an `expected` line, unless an item there already covers it (add the section after `## Subtasks` if it is missing; in an older spec a trailing `(you)` check that covers it is enough). It does not block Review and is not a question.
+   - Otherwise set `current_subtask: null`, `status: review` and `updated` to today, and list the open To review items (and any trailing `(you)` checks) in your summary. Never tick them. Never set `status: done`.
    - A spec without `## Done when` has nothing to check: go straight to Review.
 7. Finish with a short summary: subtasks completed, commits made, anything the reviewer should look at.
 
@@ -231,5 +260,5 @@ Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never s
 5. Edit `.specboard/` only for spec bookkeeping, plus the code the spec needs. Never edit anything under `.claude/`. Never touch files outside the project folder.
 6. Work with the file tools: Read, Edit, Write, Glob and Grep. Do not use shell commands such as `rm`, `mv`, `mkdir` or `echo` for files. Change a spec with small Edit calls so everything else in the file stays exactly as it was (comments, other sections, line endings). Do not rewrite a whole file just to change one line.
 7. Dates are `YYYY-MM-DD`. Take today's date from your context. If you do not have it, read it from the last commit: `git log -1 --format=%cd --date=format:"%Y-%m-%d %H:%M"`. Without git, run `date "+%Y-%m-%d %H:%M"` on its own with the Bash tool.
-8. If a tool call is refused (permission denied), do not look for a way around the refusal. If you only used the wrong tool (for example Bash to read a file), use the right one. If the action itself is needed (a commit, the tests, a command the spec needs, a file outside the project): do not try another way, set `current_subtask: null`, leave the status as `doing`, say which action was refused, and stop. Do not add an open question for it: the board shows the refusal and how to allow it, and an unanswered question would stop the next run after the person has allowed it. Three exceptions are optional and simply skipped when refused: the PR link (`gh`, `glab`), `specboard tree`, and `date` (then use today's date with the time `00:00`).
+8. If a tool call is refused (permission denied), do not look for a way around the refusal. If you only used the wrong tool (for example Bash to read a file), use the right one. If the action itself is needed (a commit, the tests, a command the spec needs, a file outside the project): do not try another way, set `current_subtask: null`, leave the status as `doing`, say which action was refused, and stop. Do not add an open question for it: the board shows the refusal and how to allow it, and an unanswered question would stop the next run after the person has allowed it. Four exceptions are optional and simply skipped when refused: the PR link (`gh`, `glab`), `specboard tree`, `specboard archive` (then tell the person to use Archive in the card's ⋯ menu), and `date` (then use today's date with the time `00:00`).
 9. When something is unclear or the files do not match this format, say so in your answer and stop. Do not "fix" the format by inventing new keys.

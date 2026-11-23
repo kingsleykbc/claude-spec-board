@@ -13,7 +13,7 @@ Optional hint from the user: $ARGUMENTS
 ## Steps
 
 1. Read every `.specboard/specs/*/spec.md` (Glob, then Read). Ignore the archive.
-2. Candidates are specs with `status: todo` and `draft: false` that are not blocked: every required question answered, and every `depends_on` spec finished (status `done` or in the archive). A spec whose first unticked subtask is a `(you)` step is not a candidate: the next step is the person's.
+2. Candidates are specs with `status: todo` and `draft: false` that are not blocked: every required question answered, and every `depends_on` spec finished (status `done` or in the archive). A spec whose first unticked subtask is a `(you)` step is not a candidate: the next step is the person's. Nor is a spec whose only open work is `## To review` items (every subtask ticked): it waits on the person's review.
 3. If the project has milestones, prefer candidates in the current milestone (see Milestones in the rules); take one from a later milestone only when the current one has none, and say so. Then choose by urgency (`urgent`, then `high`, `normal`, `low`). Break ties by the lowest ID.
 4. If there is no candidate, say why (for example: "T-004 waits on question Q2, T-005 waits on T-004, T-006 waits on you for its step 3") and stop.
 5. Otherwise say which spec you chose and why, then follow the steps under "Running a spec" in the rules for that ID.

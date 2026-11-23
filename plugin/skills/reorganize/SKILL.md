@@ -27,11 +27,12 @@ Any input is the person's instructions for what to change.
 4. On the OK, make the changes with small Edit calls, or the Write tool for a new spec, keeping the same safety rules as `/update-spec`:
    - Subtasks that are ticked or have a log keep their numbers and titles; renumber only unticked ones. Logs stay with their spec and keep their numbers.
    - Answers already given are kept, and question numbers are never reused.
-   - Never set `status: done`, and do not move a spec into the archive.
+   - Never set `status: done`, and never move spec folders yourself. The only archiving is a merge's, below.
+   - `## To review` items and their ticks are kept. A split moves each item to the part it checks.
    - A split keeps the original ID on the first part, with every ticked or logged subtask, and gives the next free IDs to the rest. Update `depends_on` across the board so it still points at the right part.
-   - A merge keeps the card with the most finished work (the lower ID if equal). Append the other card's `## Spec`, `## Features` and `## Done when` content to the kept card, its unanswered questions with new numbers, and only its unticked subtasks as new subtasks, placed before the kept card's closing steps and trailing `(you)` steps (renumber unticked subtasks as needed). Drop the other card's duplicate closing steps.
-   - The other card's ticked subtasks, answered questions and logs stay where they are. A merge archives nothing by itself: say that the other card can be archived.
+   - A merge keeps the card with the most finished work (the lower ID if equal). Append the other card's `## Spec`, `## Features` and `## Done when` content to the kept card, its unanswered questions with new numbers, its unticked To review items to the kept card's `## To review`, and only its unticked subtasks as new subtasks, placed before the kept card's closing steps and trailing `(you)` steps (renumber unticked subtasks as needed). Drop the other card's duplicate closing steps. Point any `depends_on` on the other card at the kept card.
+   - The other card's ticked subtasks, answered questions and logs stay with it. Once its content is in the kept card, archive it with `specboard archive <ID>` (see Archiving in the rules). If that is missing or refused, tell the person to use Archive in that card's ⋯ menu.
    - Milestones: create, rename or reorder them in `milestones:` in `.specboard/config.md`, and move a spec by changing its `milestone:`. A rename changes every spec that uses the old name. Removing a milestone moves its specs to another one or to none, as agreed.
    - Set `updated` to today on every spec you change.
 5. If a change would need a decision you cannot make, add an open question to that spec instead of guessing.
-6. Do not change code. Finish with a short list of what changed, per spec, and which cards the person can archive.
+6. Do not change code. Finish with a short list of what changed, per spec, which cards were archived, and any the person still needs to archive on the board.

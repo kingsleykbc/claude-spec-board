@@ -34,7 +34,8 @@ Without a git repo, the evidence is the code only.
 Sync never deletes a spec file or a log, never deletes or rewrites a log entry, and never changes `created`.
 - A tick is like any tick: in the subtask's log write `done_at:` (now) and a dated entry `Ticked by sync: <evidence>`, creating the log in the log format if it is missing.
 - When sync unticks a subtask, archives a spec, or finds a log whose work no longer exists, it marks that log obsolete: add `obsolete: "<YYYY-MM-DD>: <short reason>"` to the log's front matter and a dated entry `Marked obsolete by sync: <reason>`.
-- Sync does not move spec folders itself. After a board apply, the board archives every spec named on an `Archive <ID>` line. In a chat, tell the person to archive those specs with the Archive button on the board.
+- Sync never ticks, unticks or drops `## To review` items: they are the person's, and open ones never hold a card back from Review.
+- Sync does not move spec folders itself. After a board apply, the board archives every spec named on an `Archive <ID>` line. In a chat, Claude runs `specboard archive <ID>` for those lines (see "In a chat").
 
 ## The proposal
 
@@ -85,4 +86,4 @@ Without a git repo, write `head: "none"`. Leave out `scope:` for a whole-project
 
 ## In a chat
 
-Show the summary and the tree, and ask for an OK or changes. On the OK, apply the operations as in `--board --apply` step 4. There is no proposal file and no head check. Finish with what changed and the specs the person should archive on the board.
+Show the summary and the tree, and ask for an OK or changes. On the OK, apply the operations as in `--board --apply` step 4. There is no proposal file and no head check. Then, last, run `specboard archive <ID>` for each `Archive <ID>` line (see Archiving in the rules). If that is missing or refused, tell the person to use Archive in the card's ⋯ menu. Finish with what changed, the specs archived, and any the person still needs to archive on the board.
