@@ -10,7 +10,7 @@ import { pluginVersion } from './paths.js';
 import { runTokenHook } from './hookTokens.js';
 import { initHint } from './prePublish.js';
 import { allowCommand, initCommand, terminalIO } from './setup.js';
-import { isSpecBoard, start, type StartOptions } from './start.js';
+import { boardInfo, isSpecBoard, start, type StartOptions } from './start.js';
 
 export function parseArgs(argv: string[]): { path: string; port: number; open: boolean; detach: boolean } {
   // npm runs root scripts from the repo root; INIT_CWD is where the user typed the command.
@@ -145,19 +145,75 @@ async function portIsFree(port: number): Promise<boolean> {
   });
 }
 
+/** The command that stops whatever listens on `port`, for a board too old to stop itself. */
+export function stopCommand(port: number, platform: string = process.platform): string {
+  return platform === 'win32'
+    ? `Stop-Process -Id (Get-NetTCPConnection -LocalPort ${port} -State Listen).OwningProcess`
+    : `kill $(lsof -ti tcp:${port})`;
+}
+
+type ShutdownAnswer = 'stopping' | 'busy' | 'unsupported';
+
+/** Ask the board on `port` to stop. 'unsupported' covers a board without the route and one that cannot be reached. */
+async function askToShutDown(port: number): Promise<ShutdownAnswer> {
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/api/shutdown`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+      signal: AbortSignal.timeout(3000),
+    });
+    if (res.status === 202) return 'stopping';
+    if (res.status === 409) return 'busy';
+    return 'unsupported';
+  } catch {
+    return 'unsupported';
+  }
+}
+
+async function waitUntilFree(port: number, ms: number): Promise<boolean> {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    if (await portIsFree(port)) return true;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return portIsFree(port);
+}
+
 /**
- * `--detach`: if a board already serves on the port, register the project and open it. Otherwise start a detached
- * copy of ourselves and wait up to `timeoutMs` for it to answer. Returns the exit code.
+ * `--detach`: if a board of this version already serves on the port, register the project and open it. A board of
+ * another version (or one too old to report a version) is asked to stop and replaced, unless Claude is working in it.
+ * Otherwise start a detached copy of ourselves and wait up to `timeoutMs` for it to answer. Returns the exit code.
  */
 export async function runDetached(
   a: Pick<StartOptions, 'path' | 'port' | 'open'>,
   argv: string[],
   deps: { spawn?: (argv: string[]) => { exited(): boolean } | void; timeoutMs?: number } = {},
 ): Promise<number> {
-  if (a.port !== 0 && (await isSpecBoard(a.port))) {
-    const s = await start(a); // registers the project and opens the board; nothing new is served
-    console.log(`Spec Board running at ${s.url}`);
-    return 0;
+  const running = a.port !== 0 ? await boardInfo(a.port) : null;
+  if (running !== null) {
+    const mine = pluginVersion();
+    let reuse = running.version === mine;
+    if (!reuse) {
+      const label = running.version ?? 'no version';
+      const answer = await askToShutDown(a.port);
+      if (answer === 'unsupported') {
+        console.error(`An older Spec Board (${label}) is running on port ${a.port}. Stop it, then run this again: ${stopCommand(a.port)}`);
+        return 1;
+      }
+      if (answer === 'busy') {
+        console.log(`The Spec Board on port ${a.port} (${label}) is busy: Claude is working in this project. Using it as it is; it updates next time it is idle.`);
+        reuse = true;
+      } else if (!(await waitUntilFree(a.port, 8000))) {
+        console.error(`The old Spec Board on port ${a.port} did not stop. Stop it, then run this again: ${stopCommand(a.port)}`);
+        return 1;
+      }
+    }
+    if (reuse) {
+      const s = await start(a); // registers the project and opens the board; nothing new is served
+      console.log(`Spec Board running at ${s.url}`);
+      return 0;
+    }
   }
   if (a.port === 0) throw new Error('--detach needs a fixed port; leave out --port 0.');
   const root = path.resolve(a.path);

@@ -20,6 +20,10 @@ export interface StartOptions {
   /** Browser launcher; defaults to the `open` package. Tests inject one. */
   opener?: (url: string) => Promise<unknown>;
   /** Replaces how `claude` is launched and checked. Tests inject a fake CLI; the real one is never started by tests. */
+  /** Called after the board has closed itself on request (`POST /api/shutdown`); defaults to `process.exit`. */
+  exit?: (code: number) => void;
+  /** What `/api/health` reports as the version; defaults to the plugin version. Tests use it to play an older board. */
+  version?: string;
   claude?: { command?: (args: string[]) => { bin: string; args: string[] }; status?: () => Promise<ClaudeStatus> };
 }
 
@@ -34,16 +38,22 @@ function registryFile(): string {
   return path.join(specboardHome(), 'projects.json');
 }
 
-/** True when a Spec Board server answers on `port` within 500 ms. */
-export async function isSpecBoard(port: number): Promise<boolean> {
+/** What a Spec Board answering on `port` says about itself within 500 ms (version is absent before 0.4.1); null when it is not one. */
+export async function boardInfo(port: number): Promise<{ version?: string } | null> {
   try {
     const res = await fetch(`http://${HOST}:${port}/api/health`, { signal: AbortSignal.timeout(500) });
-    if (!res.ok) return false;
-    const body = (await res.json()) as { app?: unknown };
-    return body.app === 'specboard';
+    if (!res.ok) return null;
+    const body = (await res.json()) as { app?: unknown; version?: unknown };
+    if (body.app !== 'specboard') return null;
+    return typeof body.version === 'string' ? { version: body.version } : {};
   } catch {
-    return false;
+    return null;
   }
+}
+
+/** True when a Spec Board server answers on `port` within 500 ms. */
+export async function isSpecBoard(port: number): Promise<boolean> {
+  return (await boardInfo(port)) !== null;
 }
 
 async function tryOpen(opts: StartOptions, base: string, id: string): Promise<void> {
@@ -75,7 +85,14 @@ export async function start(opts: StartOptions): Promise<Started> {
   const status = opts.claude?.status ?? claudeStatus;
   let rt: Realtime | undefined;
   const runs = new RunManager({ approved, emit: (id, e) => rt?.send(id, e), command: opts.claude?.command, status, roots: () => registry.roots() });
-  const deps = { registry, port: () => bound, webDist: webDistDir(), runs, approved, status };
+  let closeBoard: () => Promise<void> = async () => {};
+  const onShutdown = () => {
+    closeBoard().then(
+      () => (opts.exit ?? process.exit)(0),
+      () => (opts.exit ?? process.exit)(1),
+    );
+  };
+  const deps = { registry, port: () => bound, webDist: webDistDir(), runs, approved, status, onShutdown, version: opts.version };
   const server = createAdaptorServer({ fetch: createApp(deps).fetch }) as Server;
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
@@ -98,6 +115,7 @@ export async function start(opts: StartOptions): Promise<Started> {
     }
   };
 
+  closeBoard = close;
   try {
     const entry = await registry.add(root);
     rt = await attachRealtime(server, deps);

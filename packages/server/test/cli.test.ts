@@ -6,9 +6,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { copyImagesCommand, parseCopyImagesArgs } from '../src/copyImages.js';
-import { archiveCommand, detachArgs, parseArchiveArgs, parseArgs, parseInitArgs, runDetached, shutdown } from '../src/cli.js';
+import { archiveCommand, detachArgs, parseArchiveArgs, parseArgs, parseInitArgs, runDetached, shutdown, stopCommand } from '../src/cli.js';
 import { loadProject } from '@specboard/core';
 import { start } from '../src/start.js';
+import { pluginVersion } from '../src/paths.js';
 
 const SAMPLE = path.resolve(import.meta.dirname, '../../../examples/recipe-box');
 
@@ -116,7 +117,7 @@ describe('detach', () => {
     const proj = await copySample('a');
     const fake = http.createServer((req, res) => {
       res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ ok: true, app: 'specboard' }));
+      res.end(JSON.stringify({ ok: true, app: 'specboard', version: pluginVersion() }));
     });
     await new Promise<void>((r) => fake.listen(0, '127.0.0.1', r));
     blockers.push(fake);
@@ -129,6 +130,109 @@ describe('detach', () => {
     log.mockRestore();
     const registry = JSON.parse(await fs.readFile(path.join(home, 'projects.json'), 'utf8'));
     expect(JSON.stringify(registry)).toContain(path.basename(proj));
+  });
+
+  /** A stand-in board: health says `health`; POST /api/shutdown answers `shutdown` (undefined: no such route). */
+  async function fakeBoard(health: object, shutdown?: { status: number; closes?: boolean }): Promise<{ port: number; posts: string[] }> {
+    const posts: string[] = [];
+    const srv = http.createServer((req, res) => {
+      res.setHeader('content-type', 'application/json');
+      if (req.url === '/api/health') return void res.end(JSON.stringify(health));
+      if (req.method === 'POST' && req.url === '/api/shutdown' && shutdown) {
+        posts.push(`${req.headers.host} ${req.headers['content-type']}`);
+        res.statusCode = shutdown.status;
+        res.end(JSON.stringify(shutdown.status === 202 ? { ok: true } : { error: 'Claude is working in this project' }));
+        if (shutdown.closes) setTimeout(() => { srv.close(); srv.closeAllConnections(); }, 30);
+        return;
+      }
+      res.statusCode = 404;
+      res.end(JSON.stringify({ error: 'Not found' }));
+    });
+    await new Promise<void>((r) => srv.listen(0, '127.0.0.1', r));
+    blockers.push(srv);
+    return { port: (srv.address() as net.AddressInfo).port, posts };
+  }
+
+  it('replaces a board of another version: asks it to stop, then starts the new one', async () => {
+    const proj = await copySample('v');
+    const old = await fakeBoard({ ok: true, app: 'specboard', version: '0.0.1' }, { status: 202, closes: true });
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const spawned = vi.fn(() => ({ exited: () => false }));
+    // The "new board" answers the same port once the old one is gone.
+    const code = runDetached({ path: proj, port: old.port, open: false }, [proj, '--detach'], {
+      spawn: (argv) => {
+        spawned(argv);
+        void start({ path: proj, port: old.port, open: false }).then((s) => closers.push(s.close));
+        return { exited: () => false };
+      },
+      timeoutMs: 8000,
+    });
+    expect(await code).toBe(0);
+    expect(old.posts).toEqual([`127.0.0.1:${old.port} application/json`]);
+    expect(spawned).toHaveBeenCalledTimes(1);
+    const health = (await (await fetch(`http://127.0.0.1:${old.port}/api/health`)).json()) as { version: string };
+    expect(health.version).toBe(pluginVersion());
+    log.mockRestore();
+  });
+
+  it('a board with no version is asked to stop too', async () => {
+    const proj = await copySample('nv');
+    const old = await fakeBoard({ ok: true, app: 'specboard' }, { status: 202, closes: true });
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const code = await runDetached({ path: proj, port: old.port, open: false }, [proj], {
+      spawn: () => {
+        void start({ path: proj, port: old.port, open: false }).then((s) => closers.push(s.close));
+        return { exited: () => false };
+      },
+      timeoutMs: 8000,
+    });
+    expect(code).toBe(0);
+    expect(old.posts).toHaveLength(1);
+    log.mockRestore();
+  });
+
+  it('a real older board shuts itself down on request and the port is freed', async () => {
+    const proj = await copySample('real');
+    const exit = vi.fn();
+    const port = await freePort();
+    const old = await start({ path: proj, port, open: false, version: '0.0.1', exit });
+    closers.push(old.close);
+    const res = await fetch(`http://127.0.0.1:${port}/api/shutdown`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+    expect(res.status).toBe(202);
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+    await expect(fetch(`http://127.0.0.1:${port}/api/health`)).rejects.toThrow();
+  });
+
+  it('refused shutdown (Claude is working): keeps the old board, says so, exits 0', async () => {
+    const proj = await copySample('busy');
+    const old = await fakeBoard({ ok: true, app: 'specboard', version: '0.0.1' }, { status: 409 });
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const spawned = vi.fn();
+    expect(await runDetached({ path: proj, port: old.port, open: false }, [proj], { spawn: spawned })).toBe(0);
+    expect(spawned).not.toHaveBeenCalled();
+    const said = log.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(said).toContain('Claude is working');
+    expect(said).toContain(`http://127.0.0.1:${old.port}`);
+    log.mockRestore();
+  });
+
+  it('a pre-0.4.1 board (no shutdown route): prints how to stop it and exits 1', async () => {
+    const proj = await copySample('pre');
+    const old = await fakeBoard({ ok: true, app: 'specboard' });
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const spawned = vi.fn();
+    expect(await runDetached({ path: proj, port: old.port, open: false }, [proj], { spawn: spawned })).toBe(1);
+    expect(spawned).not.toHaveBeenCalled();
+    const said = err.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(said).toContain(`An older Spec Board (no version) is running on port ${old.port}. Stop it, then run this again:`);
+    expect(said).toContain(stopCommand(old.port));
+    err.mockRestore();
+  });
+
+  it('stopCommand is PowerShell on Windows and kill elsewhere', () => {
+    expect(stopCommand(4949, 'win32')).toBe('Stop-Process -Id (Get-NetTCPConnection -LocalPort 4949 -State Listen).OwningProcess');
+    expect(stopCommand(4949, 'linux')).toBe('kill $(lsof -ti tcp:4949)');
+    expect(stopCommand(4949, 'darwin')).toBe('kill $(lsof -ti tcp:4949)');
   });
 
   it('refuses without spawning when another program holds the port', async () => {
@@ -184,7 +288,7 @@ describe('start', () => {
     closers.push(s.close);
     expect(s.url).toBe(`http://127.0.0.1:${port}`);
     const res = await fetch(`${s.url}/api/health`);
-    expect(await res.json()).toEqual({ ok: true, app: 'specboard', plugin: false });
+    expect(await res.json()).toEqual({ ok: true, app: 'specboard', plugin: false, version: pluginVersion() });
     const projects = (await (await fetch(`${s.url}/api/projects`)).json()) as Array<{ root: string }>;
     expect(projects.map((p) => p.root)).toEqual([path.resolve(proj)]);
   });
