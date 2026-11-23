@@ -23,11 +23,29 @@ export function groupByMilestone<T extends { milestone: string | null }>(specs: 
   return groups;
 }
 
-/** First milestone with a spec that is not done; all done means the last; no milestones means null. */
-export function currentMilestone(specs: { milestone: string | null; status: string }[], milestones: string[]): string | null {
+type Countable = { status: string; archived?: boolean };
+
+/** True when the spec counts toward progress at all: an archived spec counts only if it is done. */
+export function countsInProgress(spec: Countable): boolean {
+  return spec.archived !== true || spec.status === 'done';
+}
+
+/** True when the spec counts as done: status `done` (archived or not). */
+export function countsAsDone(spec: Countable): boolean {
+  return spec.status === 'done';
+}
+
+/** Done and total over active plus archived specs; an archived spec that is not done leaves both counts. */
+export function projectProgress(specs: Countable[], archived: Countable[] = []): { done: number; total: number } {
+  const counted = [...specs, ...archived.map((s) => ({ ...s, archived: true }))].filter(countsInProgress);
+  return { done: counted.filter(countsAsDone).length, total: counted.length };
+}
+
+/** First milestone with a counted spec that is not done; all done means the last; no milestones means null. */
+export function currentMilestone(specs: { milestone: string | null; status: string; archived?: boolean }[], milestones: string[]): string | null {
   if (milestones.length === 0) return null;
   for (const name of milestones) {
-    if (specs.some((s) => milestoneOf(s, milestones) === name && s.status !== 'done')) return name;
+    if (specs.some((s) => countsInProgress(s) && milestoneOf(s, milestones) === name && !countsAsDone(s))) return name;
   }
   return milestones[milestones.length - 1]!;
 }

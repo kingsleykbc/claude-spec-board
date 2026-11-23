@@ -6,7 +6,7 @@ import { parseSpecMeta } from '../src/frontmatter.js';
 import { parseConfig, parseLog } from '../src/parseOther.js';
 import { loadProject } from '../src/project.js';
 import { setMetaField } from '../src/edit.js';
-import { currentMilestone, groupByMilestone, hasMilestones, milestoneOf } from '../src/milestones.js';
+import { countsAsDone, countsInProgress, projectProgress, currentMilestone, groupByMilestone, hasMilestones, milestoneOf } from '../src/milestones.js';
 
 const tmpDirs: string[] = [];
 afterEach(async () => {
@@ -77,6 +77,26 @@ describe('helpers', () => {
     expect(currentMilestone(specs, ['Basics', 'Sharing'])).toBe('Sharing');
     expect(currentMilestone([{ milestone: 'Basics', status: 'done' }, { milestone: 'Sharing', status: 'done' }], ['Basics', 'Sharing'])).toBe('Sharing');
     expect(currentMilestone(specs, [])).toBeNull();
+  });
+});
+
+describe('archived progress counting', () => {
+  it('counts an archived spec only when done', () => {
+    expect(countsInProgress({ status: 'todo', archived: true })).toBe(false);
+    expect(countsInProgress({ status: 'review', archived: true })).toBe(false);
+    expect(countsInProgress({ status: 'done', archived: true })).toBe(true);
+    expect(countsInProgress({ status: 'todo' })).toBe(true);
+    expect(countsAsDone({ status: 'done' })).toBe(true);
+    expect(countsAsDone({ status: 'doing', archived: true })).toBe(false);
+  });
+  it('projectProgress drops archived non-done specs from both counts', () => {
+    expect(projectProgress([{ status: 'done' }, { status: 'todo' }], [{ status: 'done' }, { status: 'todo' }, { status: 'doing' }])).toEqual({ done: 2, total: 3 });
+    expect(projectProgress([], [{ status: 'todo' }])).toEqual({ done: 0, total: 0 });
+  });
+  it('currentMilestone ignores archived non-done specs', () => {
+    const ms = ['Basics', 'Sharing'];
+    expect(currentMilestone([{ milestone: 'Basics', status: 'todo', archived: true }, { milestone: 'Sharing', status: 'todo' }], ms)).toBe('Sharing');
+    expect(currentMilestone([{ milestone: 'Basics', status: 'done', archived: true }, { milestone: 'Sharing', status: 'todo' }], ms)).toBe('Sharing');
   });
 });
 

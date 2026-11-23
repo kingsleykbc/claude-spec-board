@@ -128,6 +128,14 @@ describe('deriveState', () => {
     expect(s.get('T-001')!.blocked).toBe(false);
   });
 
+  it('lists active dependents only, but an archived dependency still unblocks', () => {
+    const s = deriveState([doc('T-001', [], 'done')], [doc('T-002', ['T-001'], 'todo')]);
+    expect(s.get('T-001')!.dependents).toEqual([]);
+    const t = deriveState([doc('T-003', ['T-100'])], [doc('T-100', [], 'todo')]);
+    expect(t.get('T-003')!.blocked).toBe(false);
+    expect(t.get('T-100')!.dependents).toEqual(['T-003']);
+  });
+
   it('sorts dependents by ID', () => {
     const s = deriveState([doc('T-009', ['T-001']), doc('T-003', ['T-001']), doc('T-001')], []);
     expect(s.get('T-001')!.dependents).toEqual(['T-003', 'T-009']);

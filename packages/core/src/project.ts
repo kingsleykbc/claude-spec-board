@@ -59,7 +59,7 @@ const byId = (a: { id: string }, b: { id: string }): number => compareIds(a.id, 
 
 /**
  * Derive dependents and blocked state. Looks at direct dependencies only (no recursion),
- * so self-dependencies and cycles terminate. Archived specs count as done.
+ * so self-dependencies and cycles terminate. Archived specs still unblock what depends on them; `dependents` lists active specs only.
  */
 export function deriveState(active: SpecDoc[], archived: SpecDoc[]): Map<string, DerivedState> {
   const all = new Map<string, SpecDoc>();
@@ -84,7 +84,7 @@ export function deriveState(active: SpecDoc[], archived: SpecDoc[]): Map<string,
         state.blockedReasons.push(`${dep} not found`);
         continue;
       }
-      result.get(dep)!.dependents.push(s.id);
+      if (!archivedIds.has(s.id)) result.get(dep)!.dependents.push(s.id);
       if (!archivedIds.has(dep) && target.status !== 'done') {
         state.blockedReasons.push(`Waiting on ${dep} (${target.status})`);
       }

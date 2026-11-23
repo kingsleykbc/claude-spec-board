@@ -1,4 +1,4 @@
-import { groupByMilestone, hasMilestones } from './milestones.js';
+import { countsAsDone, countsInProgress, groupByMilestone, hasMilestones, milestoneOf, projectProgress } from './milestones.js';
 import type { Project, Spec } from './project.js';
 import { youStep } from './you.js';
 
@@ -41,8 +41,6 @@ function specBlock(specs: Spec[], prefix: string, subtasks: boolean): string[] {
   return out;
 }
 
-const isDone = (s: Spec): boolean => s.status === 'done' || s.archived;
-
 /** Text tree of a project: milestones (when it has them), specs, first sentence and subtasks. Throws on an unknown spec or milestone. */
 export function renderTree(project: Project, opts: TreeOptions = {}): string {
   const subtasks = opts.subtasks ?? true;
@@ -53,9 +51,9 @@ export function renderTree(project: Project, opts: TreeOptions = {}): string {
     return [specLine(s), ...details(s, '  ', subtasks)].join('\n');
   }
 
-  const all = [...project.specs, ...project.archived];
+  const progress = projectProgress(project.specs, project.archived);
   const name = project.config?.name || project.root.split(/[\\/]/).filter(Boolean).pop() || 'Project';
-  const lines = [`${name} · ${all.filter(isDone).length}/${all.length} done`];
+  const lines = [`${name} · ${progress.done}/${progress.total} done`];
 
   if (!hasMilestones(project.config)) {
     if (opts.milestone !== undefined) throw new Error(`Unknown milestone: ${opts.milestone}`);
@@ -69,10 +67,12 @@ export function renderTree(project: Project, opts: TreeOptions = {}): string {
     if (!milestones.includes(opts.milestone)) throw new Error(`Unknown milestone: ${opts.milestone}`);
     groups = groups.filter((g) => g.name === opts.milestone);
   }
+  const counted = [...project.specs, ...project.archived].filter(countsInProgress);
   groups.forEach((g, i) => {
+    const inGroup = counted.filter((s) => milestoneOf(s, milestones) === g.name);
     const last = i === groups.length - 1;
     const branch = last ? '└─' : '├─';
-    lines.push(g.name === null ? `${branch} No milestone` : `${branch} Milestone: ${g.name} · ${g.specs.filter(isDone).length}/${g.specs.length}`);
+    lines.push(g.name === null ? `${branch} No milestone` : `${branch} Milestone: ${g.name} · ${inGroup.filter(countsAsDone).length}/${inGroup.length}`);
     lines.push(...specBlock(g.specs, last ? '   ' : '│  ', subtasks));
   });
   return lines.join('\n');

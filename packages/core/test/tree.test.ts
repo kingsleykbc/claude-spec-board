@@ -120,3 +120,16 @@ describe('renderTree', () => {
     );
   });
 });
+
+describe('renderTree counts with archived specs', () => {
+  it('counts an archived spec only when done, in the first line and milestone counts', async () => {
+    const root = await fixture('---\nname: P\nmilestones: [Basics]\n---\n', [
+      { id: 'T-100', title: 'Old done', status: 'done', milestone: 'Basics', archive: true, spec: 'Old.', subtasks: [] },
+      { id: 'T-101', title: 'Old todo', status: 'todo', milestone: 'Basics', archive: true, spec: 'Old.', subtasks: [] },
+      { id: 'T-102', title: 'Live', status: 'todo', milestone: 'Basics', spec: 'Live.', subtasks: [] },
+    ]);
+    const out = renderTree(await loadProject(root), { subtasks: false });
+    expect(out.split('\n')[0]).toBe('P · 1/2 done');
+    expect(out).toContain('Milestone: Basics · 1/2');
+  });
+});
