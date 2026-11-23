@@ -86,9 +86,9 @@ A project's data:
   overview.md          project summary written by /specboard:refresh-overview
   sync-proposal.md     pending sync plan (written by sync-specs --dry-run, read by the board)
   specs/<ID>-<slug>/
-    spec.md            front matter + ## Spec, ## Features, ## Done when, ## Open questions, ## Subtasks
+    spec.md            front matter + ## Spec, ## Features, ## Done when, ## Open questions, ## Subtasks, ## To review
     logs/<n>-<slug>.md one log per finished subtask (summary, files, commit, PR, tokens)
-    images/            images the spec links to with relative paths (uploaded from the editor)
+    images/            images the spec links to with relative paths, plus attachments (images it doesn't link)
   archive/<ID>-<slug>/ archived specs, same layout
   imported/            old plan files moved in by setup (never deleted)
 ```
@@ -99,12 +99,12 @@ A project's data:
 - `draft`, `current_subtask` and `needs_refresh`;
 - `created` and `updated`.
 
-Open questions are typed (`yesno`, `number`, `text`, `choice`), and answers are written back into the same file. A subtask is a numbered checkbox line; a matching log file means it has been worked.
+Open questions are typed (`yesno`, `number`, `text`, `choice`), and answers are written back into the same file. A subtask is a numbered checkbox line; a matching log file means it has been worked. `## To review` holds the person's after-work checks: unnumbered `- [ ]` lines (`REVIEW_LINE`), each with an optional `  > expected:` line, grouped by optional `### ` headings, parsed into `SpecDoc.reviews`. Only the person ticks them (`setReviewDone`); they don't count toward progress or move the card, and `specBodyMd` leaves them out of the editable body. `Spec.images` lists the image files in `images/`, and `Spec.attachments` the ones spec.md never references (`referencesImage`).
 
 Core is split into the following parts:
 - **Parse:** `frontmatter.ts`, `sections.ts`, `parseSpec.ts` and `parseOther.ts` (config, settings, overview, logs). Parsing never throws on bad input. It collects `problems: string[]`, which the board shows as "file problem" cards.
 - **Load:** `project.ts` `loadProject(root)` reads everything into a `Project`. That covers specs, archived specs, config, settings, overview and derived state such as blocked-by and waiting, and `deriveState` works the derived state out.
-- **Edit:** `edit.ts` makes pure text-to-text changes, such as `setMetaField`, `setSubtaskDone`, `setAnswers`, `replaceSpecBody` and `setNeedsRefresh`. These change only the targeted lines and keep key order, comments and the file's line endings, so files stay diff-friendly and hand-editable.
+- **Edit:** `edit.ts` makes pure text-to-text changes, such as `setMetaField`, `setSubtaskDone`, `setReviewDone`, `setAnswers`, `replaceSpecBody` and `setNeedsRefresh`. These change only the targeted lines and keep key order, comments and the file's line endings, so files stay diff-friendly and hand-editable.
 - **Write:** `write.ts` `writeIfUnchanged(file, baseHash, transform)` does optimistic concurrency. The client sends the hash it last saw; on a mismatch the write is refused (the board shows a conflict dialog). Writes go to a temp file followed by a rename, serialised per file in-process (`lock.ts`), with a retry for Windows file locks (`retry.ts`).
 - **Other:** `tree.ts` (text tree for `specboard tree`), `milestones.ts`, `you.ts` (subtasks tagged `(you)`), `slug.ts` and `hash.ts`.
 
@@ -117,6 +117,7 @@ When a format rule changes, update core, the `specboard` skill's format section 
 - `init` sets up `.specboard/` and the background-run permissions;
 - `allow <rule>` adds an allowed command;
 - `tree` prints the board as a tree;
+- `archive <ID> [folder]` archives a spec from any status through core's `archiveSpec` (skills run it after the person's OK; it has no access to the board's run lock, so only the board's archive route refuses a spec a run is working on);
 - `hook-tokens` is called by the plugin hook;
 - `--detach` re-spawns itself in the background.
 
@@ -130,11 +131,11 @@ When a format rule changes, update core, the `specboard` skill's format section 
 
 | Route file | Covers |
 |---|---|
-| `specs.ts` | meta, subtask ticks, answers, body (sets `needs_refresh` when the text really changed), create, draft copy, archive/unarchive, settings |
+| `specs.ts` | meta, subtask ticks, To review ticks (`PATCH /specs/:id/reviews/:n`), answers, body (sets `needs_refresh` when the text really changed), create, draft copy, archive (any status; 409 while a run works on that spec)/unarchive, settings |
 | `references.ts` | reference docs list, content, link, create, delete, file picker |
 | `files.ts` | open a file in VS Code (`open-file`) |
 | `images.ts` | serve an image from inside the project (`?path=`): extension allowlist, `nosniff`, CSP `sandbox` for SVG |
-| `uploads.ts` | `POST /specs/:id/images`: save a pasted or dropped image (JSON `{ name, data }`, base64) into the spec's `images/` folder: 10 MB limit (413), same extension allowlist (400), slugified name, `-2`, `-3` when taken |
+| `uploads.ts` | `POST /specs/:id/images`: save a pasted or dropped image (JSON `{ name, data }`, base64) into the spec's `images/` folder: 10 MB limit (413), same extension allowlist (400), slugified name, `-2`, `-3` when taken. `DELETE /specs/:id/images/:name` removes an attachment (never touches spec.md; 409 when archived) |
 | `sync.ts` | read/discard `sync-proposal.md` |
 | `runs.ts` | start/stop/dismiss background runs, run + Claude status |
 
@@ -180,7 +181,7 @@ claude -p "<fixed prompt>" --output-format stream-json --verbose --permission-mo
 - **Fixed prompts.** `runPrompt(kind, specId)` builds prompts only from fixed strings and a validated spec ID. The kinds are `run`, `write-up`, `fix-file`, `refresh-overview`, `refresh-questions`, `sync-plan` and `sync-apply`.
 - **One run per project.**
 - **Streaming.** `claude/events.ts` parses the stream-json output into run lines and sends them over the WebSocket. `claude/classify.ts` decides how a run ended (finished, needs you, permission denied, error). For a denial it suggests a safe allow rule, never for interpreters, git config, hooks and so on, nor anything that overlaps a deny rule.
-- **Not installed or not approved.** The board falls back to a "copy chat command" button and a not-connected marker (`web/src/state/runUi.ts` `manualReason`).
+- **Not installed or not approved.** The board shows a not-connected marker (`web/src/state/runUi.ts` `manualReason`), and every button that would start Claude (Run with Claude, Have Claude write this up, Overview Refresh) becomes a greyed `NotConnectedTrigger`: still focusable, it opens a popover with the reason and the chat command to copy.
 
 ### 3. Token counts
 

@@ -12,7 +12,7 @@ Type these in a chat open in your project folder. With the plugin, every command
 | `/specboard:plan-project [notes]` | Sets up a new project or an existing codebase: reads what's there, asks a few questions, writes `config.md` with the closing steps, and suggests the first specs as drafts. It never changes your code. |
 | `/specboard:create-spec <id or idea>` | Turns an idea, or a draft from the board, into a full spec with features, a "Done when" list, questions and subtasks. In a chat it may first ask you a couple of questions. It doesn't start the work. |
 | `/specboard:import-specs <path>` | Turns plans from another tool (Spec Kit, OpenSpec, or your own notes) into cards. It shows you what it will make and waits for your OK. It never edits the files it reads. |
-| `/specboard:reorganize [instructions]` | Tidies the board: splits big specs, merges small ones, reorders, fixes dependencies, and creates, renames or reorders milestones. Without instructions it proposes changes and waits for your OK. |
+| `/specboard:reorganize [instructions]` | Tidies the board: splits big specs, merges small ones, reorders, fixes dependencies, and creates, renames or reorders milestones. Without instructions it proposes changes and waits for your OK. After a merge it archives the card that was merged away. |
 | `/specboard:run-spec <id>` | Works through a spec's subtasks, with a commit and a log for each, then checks "Done when" and moves the card to Review. It stops at a `(you)` step that has work after it. |
 | `/specboard:move <id> <column>` | Moves a spec to To-do, Doing, Review or Done. It warns if Review or Done leaves Claude subtasks unticked, or if the spec is a draft, and still moves it. It changes only the status. |
 | `/specboard:next` | Picks the most urgent spec that isn't blocked (from the current milestone first) and runs it. |
@@ -34,6 +34,7 @@ The rows below show `specboard <command>`. With the plugin, that is the command 
 | `specboard init [path]` | Sets up a project: creates `.specboard/`, copies the commands to `.claude/skills/`, and asks you to approve the actions background runs may use. Options: `--yes` (don't ask questions), `--runs yes` or `--runs no` (answer the runs question), `--no-skills` (don't copy the commands), `--force-skills` (replace copied commands with the current ones). |
 | `specboard allow "<rule>" [path]` | Adds one rule to the actions background runs may use. It always asks you first. |
 | `specboard tree [path]` | Prints the board as a tree. Options: `--spec ID` for one spec, `--milestone NAME` for one milestone. This is what `/specboard:structure` runs. |
+| `specboard archive <ID> [path]` | Archives a spec, the same as **Archive** on the board. It prints `Archived T-002.` This is what Claude runs when you ask it to archive a card in a chat. |
 | `specboard --version` | Prints the version. |
 
 There is also `specboard hook-tokens`. The plugin runs it by itself after Claude writes a subtask log, to count tokens. You never run it yourself.
@@ -54,3 +55,6 @@ There is also `specboard hook-tokens`. The plugin runs it by itself after Claude
 | Switch between board and table | The board and table icons in the filter bar |
 | Add a spec | **Add new spec**, bottom right |
 | Move a card | Drag it, or use its status menu |
+| Archive or unarchive a card | **Archive** or **Unarchive** in the card's ⋯ menu |
+| Tick a check you've done | **To review** in the card's detail |
+| Add an image for Claude to look at | **Attachments** in the card's detail |

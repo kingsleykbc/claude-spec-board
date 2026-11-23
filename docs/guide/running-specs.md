@@ -33,7 +33,7 @@ The approved list is kept in `~/.specboard/`, outside the repo. [Safety](safety.
 
 When background runs can't happen for a project, because Claude Code isn't installed, isn't logged in, is blocked by a setting, or the project hasn't been approved for runs, the board shows a small "not connected" icon in the header. Hover it (or focus it with the keyboard, or tap it on a phone) to see **Claude isn't connected to the board**, the reason, and a link to this page.
 
-The board still works fully as a view of your files. It just can't start Claude, so use the **Copy command** buttons and paste the command into a Claude chat in the project folder.
+The board still works fully as a view of your files. It just can't start Claude. The buttons that would (**Run with Claude**, **Have Claude write this up** and **Refresh** in the overview) look greyed out but still respond: hover, focus or press one to see **Claude isn't connected**, the reason, and the command to paste into a Claude chat in the project folder, with a **Copy command** button. The commands are `/specboard:run-spec T-001`, `/specboard:create-spec T-001` and `/specboard:refresh-overview`.
 
 ## Why the chat is the usual choice
 
@@ -85,7 +85,7 @@ Over time the board can drift from the code: work gets done without a tick, or a
 - **Cards can move back.** If a Claude subtask has no work in the code and the card is in a column ahead of it, sync proposes moving the card back: to To-do when no Claude subtask is ticked, otherwise to Doing. A spec with only `(you)` steps never moves back.
 - **Without git** sync still runs. It can't compare against the git history, and when you confirm, it skips any change that no longer fits the files and tells you.
 - **You see it first.** From the board, Claude writes a proposal and changes nothing else. A dialog shows a warning, the list of changes and the tree. Choose **Confirm** to apply exactly that proposal, or **Cancel** to throw it away. If the code changed between the two steps, the apply stops, the run panel says **Sync stopped**, nothing is archived and the proposal is thrown away: sync again.
-- **Specs to archive** are archived by the board once you confirm and Claude has applied every change. In a chat, sync names them and you archive them on the board.
+- **Specs to archive** are archived by the board once you confirm and Claude has applied every change. In a chat, Claude archives them with `specboard archive` after your OK; if that isn't allowed, it names them and you archive them on the board.
 - **Old logs stay.** When sync unticks a subtask or archives a spec, it marks the matching logs obsolete instead of deleting them.
 - **If the browser closes** before you confirm, a **Sync proposal waiting** item in the logo menu brings the dialog back for a whole-project sync. For one spec, a **Sync proposal waiting** button beside **Sync** in that card does the same.
 - **When Claude isn't connected** the dialog shows the command to copy: `/specboard:sync-specs`, or with a spec ID.
@@ -93,12 +93,18 @@ Over time the board can drift from the code: work gets done without a tick, or a
 ## When Claude stops
 
 - **It needs a decision.** Claude adds a required question and stops. Answer it on the card, then start the spec again and it carries on.
-- **An action was refused in the background.** The card shows what was refused and the rule that would allow it, if it's safe to offer. From a copy of the repo, run the `allow` command it gives you in a terminal, then run again. With the plugin there is no `specboard` in your terminal, so ask Claude to run `/specboard:setup` again to update the allowed commands, or to run `specboard init --yes --no-skills --runs yes "<project folder>"`. Refusals of the pull request lookup (`gh pr view`, `glab mr view`) and of `specboard tree` don't stop a run: Claude skips the link or the tree and carries on.
+- **An action was refused in the background.** The card shows what was refused and the rule that would allow it, if it's safe to offer. From a copy of the repo, run the `allow` command it gives you in a terminal, then run again. With the plugin there is no `specboard` in your terminal, so ask Claude to run `/specboard:setup` again to update the allowed commands, or to run `specboard init --yes --no-skills --runs yes "<project folder>"`. Refusals of the pull request lookup (`gh pr view`, `glab mr view`), `specboard tree` and `specboard archive` don't stop a run: Claude skips the link or the tree and carries on, or asks you to archive the card on the board.
 - **It's waiting on you.** The spec has a `(you)` step before more work, such as adding a file or a key. The run panel says **Waiting on you** and names the step. Do it, tick it on the card, then run again. This is a pause, not an error.
-- **It finished.** The card moves to Review. Only you can move a card to Done.
+- **It finished.** The card moves to Review. Any check Claude couldn't do itself is added to [To review](writing-specs.md#to-review) for you to tick. Only you can move a card to Done.
 
 A blocked spec or a draft can't be started from the card. If you start a draft from a chat, Claude writes it up first (it asks its questions in the chat), then runs it. If you start a blocked spec from a chat, Claude refuses and says why.
 
 ## The other Claude buttons on the board
 
 These run in the background: **Have Claude write this up** on a draft, **Refresh** in the overview, **Ask Claude to fix** on a file with a formatting problem, **Sync with code**, and the automatic question refresh after you edit a spec (only when background runs are approved). To do them in your chat, type `/specboard:create-spec T-001`, `/specboard:refresh-overview`, `/specboard:update-spec T-001 fix the formatting` or `/specboard:sync-specs`. The question refresh is `/specboard:refresh-questions T-001`.
+
+## Archiving a card
+
+Choose **Archive** in a card's ⋯ menu, on the board or in the card's detail, to move it to `.specboard/archive/`. Any card can be archived, whatever its column, and an archived card counts as done. **Show archived** brings archived cards back into view, and **Unarchive** in their ⋯ menu returns them. A card Claude is working on in the background can't be archived until the run ends.
+
+In a chat, ask Claude ("archive T-002"). It runs `specboard archive T-002`, which does the same as the button. `/specboard:reorganize` archives a card it merged into another, once you've said OK. If the command isn't allowed, Claude asks you to use **Archive** on the board instead.

@@ -13,8 +13,10 @@ Following Claude's plans and progress in a terminal, or in raw Markdown, is hard
 - **Your files are the only source of truth.** There is no database. Edit a spec on the board, in your editor or through Claude, and the others catch up within about a second.
 - **Claude asks instead of guessing.** Decisions become open questions that you answer on the card.
 - **Each subtask gets a commit and a log,** with the pull request link and an approximate token count when there is one.
+- **A checklist for your review.** The checks only you can do, such as trying a page on your phone, sit under **To review** on the card for you to tick.
+- **Pictures for Claude.** Drop screenshots or sketches into a card's **Attachments** and Claude looks at them when it works on the spec.
 - **Sync with code.** One button (or `/specboard:sync-specs`) brings the board back in line with the code. It shows what it will change and waits for your OK.
-- **Works without background runs.** If Claude can't run in the background for a project, the board shows that Claude isn't connected to it and gives you copy-and-paste commands instead.
+- **Works without background runs.** If Claude can't run in the background for a project, the board shows that Claude isn't connected to it, and its Claude buttons give you the command to paste into your chat instead.
 
 ## Install as a plugin
 
@@ -56,8 +58,8 @@ Then open a Claude chat in your project folder and type `/plan-project`. Without
 ## Documentation
 
 - [Getting started](docs/guide/getting-started.md): install the plugin, set up a project, and use the board.
-- [Running a spec](docs/guide/running-specs.md): your Claude chat or the background, tokens, pull request links, sync, and how to turn background runs on.
-- [Specs and questions](docs/guide/writing-specs.md): the file format, milestones, "Done when", steps for you, closing steps, and required and optional questions.
+- [Running a spec](docs/guide/running-specs.md): your Claude chat or the background, tokens, pull request links, sync, archiving, and how to turn background runs on.
+- [Specs and questions](docs/guide/writing-specs.md): the file format, milestones, "Done when", steps for you, To review, attachments, closing steps, and required and optional questions.
 - [Commands](docs/guide/commands.md): every Claude command and terminal command.
 - [Safety](docs/guide/safety.md): what a run can and can't do. Read this before running a repo you don't trust.
 

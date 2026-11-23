@@ -10,6 +10,7 @@ Everything lives in `.specboard/` in your project, as files you can read and edi
   specs/T-001-booking-page/
     spec.md                  the spec
     logs/1-page-scaffold.md  one log per subtask
+    images/                  the spec's pictures and attachments
   archive/                   archived specs
 ```
 
@@ -53,7 +54,10 @@ Customers pick a barber, a service and a time slot, then confirm.
 - [ ] 3. Build the time-slot grid
 - [ ] 4. Write tests
 - [ ] 5. Update the docs
-- [ ] 6. (you) Try a booking on your phone
+
+## To review
+- [ ] Book a slot on your phone
+  > expected: The confirmation shows the barber, the service and the time.
 ```
 
 The first sentence under `## Spec` should explain the whole spec on its own, because the card shows the start of the description. `milestone` is optional; see Milestones below. `created` is the day the spec was made, and `updated` changes every time the spec is edited.
@@ -99,13 +103,13 @@ A short list of what you will see or be able to do once the spec is finished, in
 - An empty basket shows "Your basket is empty" and no pay button.
 ```
 
-Two to five lines is plenty. Each one is a result you can check, not a way of building it. Before Claude moves a spec to Review, it checks each line and writes in the log of the last subtask it did whether it was met and how it checked. If a line is not met, the card does not go to Review: Claude fixes it, or adds a required question and stops. A line Claude has no way to check is logged as "needs your check" and doesn't hold the card back. Something only you can see, such as how a page looks on a phone, belongs in a `(you)` step instead.
+Two to five lines is plenty. Each one is a result you can check, not a way of building it. Before Claude moves a spec to Review, it checks each line and writes in the log of the last subtask it did whether it was met and how it checked. If a line is not met, the card does not go to Review: Claude fixes it, or adds a required question and stops. A line Claude has no way to check, such as how a page looks on a phone, becomes a [To review](#to-review) item and doesn't hold the card back.
 
 The section is optional. A spec without one works as before.
 
 ## Steps for you
 
-A subtask that starts with `(you)` is something only you can do, such as adding a design or an API key, or trying the result on your phone:
+A subtask that starts with `(you)` is something only you can do before or during the work, such as adding a design or an API key:
 
 ```
 - [ ] 1. (you) Add the checkout design to designs/
@@ -114,9 +118,28 @@ A subtask that starts with `(you)` is something only you can do, such as adding 
 The card shows a small "you" tag on these. Claude never ticks one for you. Do the step, tick it on the board, then run the spec again.
 
 - **A `(you)` step with work after it** stops the run. The run panel says **Waiting on you**, with the step, and it isn't an error.
-- **A `(you)` step at the end** doesn't stop anything. Claude finishes, checks **Done when**, moves the card to Review and lists the steps still left for you.
+- **A `(you)` step at the end**, in older specs, doesn't stop anything. Claude finishes, checks **Done when**, moves the card to Review and lists the steps still left for you. New specs put these checks in [To review](#to-review) instead.
 
 Use a question for a decision ("Email or SMS?") and a `(you)` step for something you do.
+
+## To review
+
+The checks you do once the work is done, such as trying the page on your phone, go in `## To review`, after the subtasks:
+
+```
+## To review
+### Adding tasks
+- [ ] Add a task with the Enter key
+  > expected: It appears at the bottom of the list and the box clears.
+- [ ] Reload the page
+  > expected: The task is still there.
+```
+
+- Each item is a `- [ ]` line with no number, optionally followed by an `> expected:` line saying what you should see. `###` headings group the items.
+- A small spec has 1 to 3 plain items. A bigger one has groups of steps, each with what to expect.
+- The card detail shows them as a checklist under **To review**. Tick them there as you go. Claude never ticks them.
+- They don't count toward the subtask progress and ticking them doesn't move the card. A card in Review shows how many you've checked ("Reviewed 1/3").
+- A spec without the section has nothing to review. Specs whose checks are trailing `(you)` steps keep working.
 
 ## Closing steps
 
@@ -126,7 +149,7 @@ Some steps belong at the end of every spec, such as writing tests and updating t
 closing_steps: [Write tests, Update the docs]
 ```
 
-`/plan-project` asks you about these and fills them in, and you can edit the line by hand. Every spec Claude writes after that has those subtasks after Claude's work, in order, ahead of any final `(you)` checks. It leaves one out when a spec plainly doesn't need it, a docs-only spec having no "Write tests", and says so. "Write tests" uses the project's `test_command` (see below). "Update the docs" means the documents listed in `references` plus the README.
+`/plan-project` asks you about these and fills them in, and you can edit the line by hand. Every spec Claude writes after that has those subtasks after Claude's work, in order. It leaves one out when a spec plainly doesn't need it, a docs-only spec having no "Write tests", and says so. "Write tests" uses the project's `test_command` (see below). "Update the docs" means the documents listed in `references` plus the README.
 
 ## Tests and commits
 
@@ -163,7 +186,7 @@ A recommendation is only a suggestion: nothing is filled in for you, and a requi
 
 ### Answering and editing
 
-An answered question shows as plain text with an **Edit** button. Press Edit to change the answer, or Cancel to go back to the saved one. Other questions you are still typing are not touched. Once a spec is in Review or Done, its answers are locked.
+An answered question shows its answer in bold with a pen button. Press the pen to change the answer, or Cancel to go back to the saved one. Other questions you are still typing are not touched. Once a spec is in Review or Done, its answers are locked.
 
 ### When the spec text changes
 
@@ -218,6 +241,10 @@ Blocked isn't a status. A spec is blocked when a required question is unanswered
 In the spec editor, paste an image, drop it in, or press **Add image**. The board saves it in the spec's `images/` folder and adds the link to your text. Images can be up to 10 MB. An image stays in the folder even if you cancel the edit, so you may find an unused file there.
 
 You can also put images in a spec's `images/` subfolder yourself and link them relatively, e.g. `![Login screen](images/login.png)`. The board shows them in the spec, and in a reference document when the path is relative to that document (`../img/a.png` works too). PNG, JPG, GIF, WebP, SVG and AVIF files are shown, and only from inside the project.
+
+### Attachments
+
+Images in a spec's `images/` folder that the text doesn't link are attachments: pictures for Claude to look at, such as a screenshot of a bug or a sketch. The card detail shows them under **Attachments**, after the spec. Press **Add image** or drop images on the section to add some; nothing is added to your text. Click one to see it large, or delete it (the board asks first). Claude reads every attachment, as well as the images in the text, when it writes up, changes or runs the spec. An archived spec's attachments are read-only.
 
 ## Editing by hand
 
