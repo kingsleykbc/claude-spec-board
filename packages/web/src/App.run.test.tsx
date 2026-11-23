@@ -20,12 +20,19 @@ vi.mock('./api/live', () => ({
   },
 }));
 
+/**
+ * The sample's T-104 has a chat marker (current_subtask 3), which holds Run with Claude. Most tests here run T-104, so
+ * the board gets it without the marker; the card tests that need the marker put the sample back.
+ */
+const withChat = [...recipeSpecs, fileProblemSpec];
+const noChat = withChat.map((s) => (s.id === 'T-104' ? { ...s, currentSubtask: null } : s));
+
 const project: Project = {
   root: '/x/recipe-box',
   config: { name: 'Recipe Box', description: '', references: [] } as unknown as Project['config'],
   overview: null,
   settings: { trackTokens: true, problems: [] },
-  specs: [...recipeSpecs, fileProblemSpec],
+  specs: noChat,
   archived: recipeArchived,
   problems: [],
 };
@@ -89,7 +96,10 @@ beforeEach(() => {
   vi.mocked(api.dismissRun).mockReset();
   vi.mocked(api.createSpec).mockReset();
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  project.specs = noChat;
+});
 
 describe('toasts come from live run events, once each', () => {
   it('run-started: "Claude started on <ID>" with the title, once even if the event repeats', async () => {
@@ -441,6 +451,9 @@ describe('the Run button, from the run state', () => {
 });
 
 describe('the board cards', () => {
+  beforeEach(() => {
+    project.specs = withChat;
+  });
   const card = (id: string) => within(screen.getByRole('button', { name: new RegExp(`^${id} `) }));
 
   it('a run shows the current subtask on that card only, and clears when it ends', async () => {
@@ -454,6 +467,13 @@ describe('the board cards', () => {
     // The run is over, but the spec still has a current step: the card says it is in a chat.
     expect(card('T-104').queryByText(`· ${title}`)).toBeNull();
     expect(card('T-104').getByText(`Claude is working on step ${spec.currentSubtask} in a chat`)).toBeTruthy();
+  });
+
+  it('with no run, the chat marker holds Run with Claude in the detail', async () => {
+    await mount(null, '/?project=p1&spec=T-104');
+    const dlg = within(screen.getByRole('dialog'));
+    expect(dlg.queryByRole('button', { name: /Run with Claude/ })).toBeNull();
+    expect(dlg.getByText('Claude is working on this in a chat.')).toBeTruthy();
   });
 
   it('runActive feeds the subtask pill in the detail', async () => {

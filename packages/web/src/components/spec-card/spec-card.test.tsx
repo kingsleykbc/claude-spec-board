@@ -16,6 +16,7 @@ const {
   Writing,
   InReview,
   Draft,
+  DraftInDone,
   DraftNotConnected,
   DraftStatusUnknown,
   FileProblem,
@@ -234,6 +235,34 @@ describe('SpecCard', () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
+  it('a blocked draft in Done keeps the Draft tag, but shows no Blocked badge, no write-up button and no red need', () => {
+    const { light } = setup(DraftInDone);
+    expect(light.getByText('Draft')).toBeTruthy();
+    expect(light.queryByText('Blocked')).toBeNull();
+    expect(light.queryByRole('button', { name: /Why is T-107 blocked/ })).toBeNull();
+    expect(light.queryByRole('button', { name: /Have Claude write this up/ })).toBeNull();
+    const need = light.getByText('T-104');
+    expect(need.className).not.toMatch(/\btext-block-ink\b/);
+    expect(need.className).toMatch(/\btext-fg3\b/);
+  });
+
+  it('the same draft in Review: Draft tag only, nothing blocking', () => {
+    const patch = { ...DraftInDone.args.patch, status: 'review' as const };
+    const { light } = setup(DraftInDone, { patch });
+    expect(light.getByText('Draft')).toBeTruthy();
+    expect(light.queryByText('Blocked')).toBeNull();
+    expect(light.queryByRole('button', { name: /Have Claude write this up/ })).toBeNull();
+    expect(light.getByText('T-104').className).not.toMatch(/\btext-block-ink\b/);
+  });
+
+  it('the same draft in To-do still shows Blocked, the red need and the write-up button', () => {
+    const patch = { ...DraftInDone.args.patch, status: 'todo' as const };
+    const { light } = setup(DraftInDone, { patch });
+    expect(light.getByText('Blocked')).toBeTruthy();
+    expect(light.getByRole('button', { name: /Have Claude write this up/ })).toBeTruthy();
+    expect(light.getByText('T-104').className).toMatch(/\btext-block-ink\b/);
+  });
+
   it('shows progress as done/total, green when complete', () => {
     let { light } = setup(Running, { running: null });
     expect(light.getByText('2/5')).toBeTruthy();
@@ -356,6 +385,16 @@ describe('SpecCard in Simple mode', () => {
     expect(screen.getByTestId('card-details')).toBeTruthy();
     await userEvent.click(screen.getByRole('menuitem', { name: 'Archive' }));
     expect(onArchive).toHaveBeenCalled();
+  });
+
+  it('a blocked spec in Review or Done gets no dot and no Blocked row in the menu', async () => {
+    const patch = { ...DraftInDone.args.patch, status: 'review' as const };
+    const { light } = setup(SimpleBlocked, { id: 'T-107', patch });
+    expect(light.queryByTestId('card-attention')).toBeNull();
+    await userEvent.click(light.getByRole('button', { name: 'More about T-107' }));
+    const d = within(screen.getByTestId('card-details'));
+    expect(d.queryByText('Blocked')).toBeNull();
+    expect(d.getByText('T-104').className).not.toMatch(/\btext-block-ink\b/);
   });
 
   it('a draft keeps "Have Claude write this up"', () => {

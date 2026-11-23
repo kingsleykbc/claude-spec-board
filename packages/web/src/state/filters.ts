@@ -1,7 +1,7 @@
 import type { Question, Spec, Urgency } from '@specboard/core';
 import { groupByMilestone, milestoneOf, projectProgress } from '@specboard/core/milestones';
 import { firstOpenYouStep } from '@specboard/core/you';
-import { ORDER, URG } from '../lib/vm';
+import { isBlocked, ORDER, URG } from '../lib/vm';
 
 // Board filters, sort and "waiting" items (pinned behaviours 1, 3, 4), copied from the prototype's renderVals.
 
@@ -27,7 +27,7 @@ export function filterSpecs(specs: Spec[], f: Filters, milestones: string[] = []
     (s) =>
       (f.cats.length === 0 || s.categories.some((c) => f.cats.includes(c))) &&
       (f.urg.length === 0 || f.urg.includes(s.urgency)) &&
-      (!f.blocked || s.blocked) &&
+      (!f.blocked || isBlocked(s)) &&
       (ms === undefined || (milestoneOf(s, milestones) ?? NO_MILESTONE) === ms),
   );
 }
@@ -114,7 +114,7 @@ export function waitItems(specs: Spec[]): WaitItem[] {
   const review = live.filter((s) => s.status === 'review');
   const qN = live.reduce((n, s) => n + openQuestions(s).length, 0);
   const firstQ = live.find((s) => openQuestions(s).length > 0);
-  const blockedN = live.filter((s) => s.status !== 'done' && s.blocked).length;
+  const blockedN = live.filter(isBlocked).length;
   const out: WaitItem[] = [];
   if (review.length) out.push({ kind: 'review', text: `${review.length} to review`, target: review[0]!.id });
   if (qN) out.push({ kind: 'questions', text: `${qN} question${qN > 1 ? 's' : ''} for you`, target: firstQ?.id ?? null });

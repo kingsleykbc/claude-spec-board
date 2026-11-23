@@ -1,7 +1,7 @@
 import type { DragEvent, HTMLAttributes, KeyboardEvent, MouseEvent, PointerEvent, ReactNode } from 'react';
 import type { Spec } from '@specboard/core';
 import { MoreIcon, NeededByIcon, NeedsIcon, ReviewIcon, WarnIcon } from '@/lib/icons';
-import { firstParagraph, statusMeta } from '@/lib/vm';
+import { blockedReasons, canWriteUp, firstParagraph, isBlocked, needBlocks, statusMeta } from '@/lib/vm';
 import { cn } from '@/lib/utils';
 import { useSimple } from '@/state/simpleMode';
 import { CategoryTag } from '@/components/ui/category-tag/category-tag';
@@ -124,8 +124,8 @@ export function SpecCard({
   const needs = spec.dependsOn;
   const neededBy = spec.dependents;
   const depItem = (id: string) => {
-    const d = find(id);
-    const open = !d || d.status !== 'done';
+    // A Review or Done spec draws no need as blocking.
+    const open = needBlocks(spec, find(id));
     return { id, open, className: open ? 'font-semibold text-block-ink' : 'text-fg3' };
   };
   const anyNeedOpen = needs.some((id) => depItem(id).open);
@@ -153,10 +153,14 @@ export function SpecCard({
     .join(' · ');
 
   const isDraft = spec.draft && !writing;
+  /** The write-up button: a draft before Review (in Review or Done it keeps only its Draft badge). */
+  const writeUp = isDraft && canWriteUp(spec);
+  const blocked = isBlocked(spec);
+  const reasons = blockedReasons(spec).join(' · ');
   const isRunning = running !== null && running !== undefined;
   const fileProblem = spec.problems[0];
   /** Simple mode hides these, so the ⋯ button carries a dot to say something needs a look. */
-  const attention = spec.blocked || fileProblem !== undefined;
+  const attention = blocked || fileProblem !== undefined;
   const menuLabel = simple ? `More about ${spec.id}` : 'Card actions';
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -233,7 +237,7 @@ export function SpecCard({
             {fileProblem}
           </CardInfo>
         )}
-        {!simple && spec.blocked && (
+        {!simple && blocked && (
           <CardInfo
             label={`Why is ${spec.id} blocked?`}
             title="Blocked"
@@ -243,7 +247,7 @@ export function SpecCard({
               </span>
             }
           >
-            {spec.blockedReasons.join(' · ')}
+            {reasons}
           </CardInfo>
         )}
         {/* A control of its own: pressing it (or anything in its portalled menu or drawer) never drags or opens the card. */}
@@ -269,9 +273,9 @@ export function SpecCard({
             >
               {simple && (
                 <span className="flex flex-col gap-2 px-2 pt-1.5 pb-2" data-testid="card-details">
-                  {spec.blocked && (
+                  {blocked && (
                     <Detail label="Blocked" ink="text-block-ink">
-                      {spec.blockedReasons.join(' · ')}
+                      {reasons}
                     </Detail>
                   )}
                   {fileProblem !== undefined && (
@@ -401,7 +405,7 @@ export function SpecCard({
       )}
 
       <div className="flex min-h-6 items-center gap-2.5">
-        {isDraft && (
+        {writeUp && (
           // A control of its own (its popover is portalled): pressing it never drags or opens the card.
           <span {...{ [CONTROL]: '' }} className="inline-flex" onClick={(e) => e.stopPropagation()}>
             <WriteUpButton id={spec.id} manual={manual} statusKnown={statusKnown} onWriteUp={onWriteUp} />

@@ -11,7 +11,7 @@ import { interceptPop } from '@/lib/popGuard';
 import { datesLine, type CardDetailProps, type DetailClient } from './card-detail';
 import * as stories from './card-detail.stories';
 
-const { ReadMode, WorkingInChat, ObsoleteLog, Simple, NarrowStatus } = composeStories(stories);
+const { ReadMode, WorkingInChat, ObsoleteLog, Simple, NarrowStatus, DraftInDone } = composeStories(stories);
 
 const ROOT = 'examples/recipe-box';
 
@@ -310,6 +310,45 @@ describe('CardDetail', () => {
     const { onRun } = setup('T-104');
     fireEvent.click(screen.getByRole('button', { name: /Run with Claude/ }));
     expect(onRun).toHaveBeenCalledOnce();
+  });
+
+  it('a Review card holds Run with Claude with the Review note', () => {
+    const { onRun } = setup('T-103');
+    expect(screen.queryByRole('button', { name: /Run with Claude/ })).toBeNull();
+    expect(screen.getByText('In Review: check the work, then move the card to Done.')).toBeTruthy();
+    const copy = screen.getByRole('button', { name: /Copy run command/ }) as HTMLButtonElement;
+    expect(copy.disabled).toBe(true);
+    fireEvent.click(copy);
+    expect(onRun).not.toHaveBeenCalled();
+  });
+
+  it('a Done card holds Run with Claude as Already done', () => {
+    setup('T-101');
+    expect(screen.queryByRole('button', { name: /Run with Claude/ })).toBeNull();
+    expect(screen.getByText('Already done.')).toBeTruthy();
+  });
+
+  it('a blocked draft in Done keeps the Draft badge, without the write-up button or the blocked banner', () => {
+    const onWriteUp = vi.fn();
+    render(<DraftInDone onWriteUp={onWriteUp} />);
+    expect(screen.getByText('Draft')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Have Claude write this up/ })).toBeNull();
+    expect(screen.queryByText('Blocked.')).toBeNull();
+    expect(screen.queryByText('Not done')).toBeNull();
+    expect(screen.getByText('Already done.')).toBeTruthy();
+  });
+
+  it('the same draft in Review: no write-up button either; in To-do it has one and the banner', () => {
+    const patched = (status: Status) => recipeSpecs.map((s) => (s.id === 'T-107' ? { ...s, status, dependsOn: ['T-104'], blocked: true } : s));
+    render(<DraftInDone specs={patched('review')} />);
+    expect(screen.getByText('Draft')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Have Claude write this up/ })).toBeNull();
+    expect(screen.getByText('In Review: check the work, then move the card to Done.')).toBeTruthy();
+    cleanup();
+    render(<DraftInDone specs={patched('todo')} />);
+    expect(screen.getByRole('button', { name: /Have Claude write this up/ })).toBeTruthy();
+    expect(screen.getByText('Blocked.')).toBeTruthy();
+    expect(screen.getByText('Draft. Have Claude write this up first.')).toBeTruthy();
   });
 
   it('Esc closes the innermost layer first: dialog, then category input, then status menu, then modal', async () => {
@@ -877,6 +916,12 @@ describe('working in a chat', () => {
     expect(client.setMeta).not.toHaveBeenCalled();
     fireEvent.click(within(screen.getByRole('alertdialog', { name: 'Clear the working step?' })).getByRole('button', { name: 'Clear' }));
     await waitFor(() => expect(client.setMeta).toHaveBeenCalledWith('p1', 'T-104', recipeSpec('T-104').hash, 'current_subtask', null));
+  });
+
+  it('holds Run with Claude with the chat note', () => {
+    setupChat();
+    expect(screen.queryByRole('button', { name: /Run with Claude/ })).toBeNull();
+    expect(screen.getByText('Claude is working on this in a chat.')).toBeTruthy();
   });
 
   it('cancelling writes nothing', async () => {

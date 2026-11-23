@@ -93,6 +93,58 @@ describe('runTokenHook', () => {
     expect(await fs.readFile(logFile, 'utf8')).toBe('no front matter\n');
   });
 
+  it('a spec file write moves the checkpoint to the current total and writes nothing', async () => {
+    const spec = path.join(tmp, '.specboard', 'specs', 'A-1-x', 'spec.md');
+    const text = '---\nid: A-1\ncurrent_subtask: 2\n---\n\n# X\n';
+    await fs.writeFile(spec, text);
+    expect(await runTokenHook(input({ tool_input: { file_path: spec } }), { dataDir })).toEqual({ wrote: 0 });
+    expect(await fs.readFile(spec, 'utf8')).toBe(text);
+    expect(await fs.readFile(logFile, 'utf8')).not.toContain('tokens');
+    expect(JSON.parse(await fs.readFile(path.join(dataDir, 'tokens', 's1.json'), 'utf8'))).toEqual({ total: 60 });
+  });
+
+  it('after a spec file write, the next log write gets only the tokens since then', async () => {
+    const spec = path.join(tmp, '.specboard', 'specs', 'A-1-x', 'spec.md');
+    await fs.writeFile(spec, '---\nid: A-1\n---\n');
+    await runTokenHook(input({ tool_input: { file_path: spec } }), { dataDir });
+    await fs.appendFile(transcript, line('m2', [1, 0, 0, 9]) + '\n');
+    expect(await runTokenHook(input(), { dataDir })).toEqual({ wrote: 10 });
+    expect(await fs.readFile(logFile, 'utf8')).toContain('tokens: 10\n');
+  });
+
+  it('a log that says "Ticked by sync" gets no tokens, but the checkpoint still moves', async () => {
+    const text = '---\nsubtask: 2\ndone_at: 2026-11-23 19:45\n---\n\n### 2026-11-23 19:45\nTicked by sync: commit 42f13a0 added src/menu-db.js\n';
+    await fs.writeFile(logFile, text);
+    expect(await runTokenHook(input(), { dataDir })).toEqual({ wrote: 0 });
+    expect(await fs.readFile(logFile, 'utf8')).toBe(text);
+    expect(JSON.parse(await fs.readFile(path.join(dataDir, 'tokens', 's1.json'), 'utf8'))).toEqual({ total: 60 });
+  });
+
+  it('a normal log write after a sync tick still gets its delta', async () => {
+    const synced = path.join(path.dirname(logFile), '1-synced.md');
+    await fs.writeFile(synced, '---\nsubtask: 1\n---\n\n### 2026-11-23 19:45\nTicked by sync: evidence\n');
+    await runTokenHook(input({ tool_input: { file_path: synced } }), { dataDir });
+    await fs.appendFile(transcript, line('m2', [1, 0, 0, 9]) + '\n');
+    expect(await runTokenHook(input(), { dataDir })).toEqual({ wrote: 10 });
+    expect(await fs.readFile(logFile, 'utf8')).toContain('tokens: 10\n');
+    expect(await fs.readFile(synced, 'utf8')).not.toContain('tokens');
+  });
+
+  it('a spec file write does nothing when track_tokens is false', async () => {
+    await fs.writeFile(path.join(tmp, '.specboard', 'settings.md'), '---\ntrack_tokens: false\n---\n');
+    const spec = path.join(tmp, '.specboard', 'specs', 'A-1-x', 'spec.md');
+    await fs.writeFile(spec, '---\nid: A-1\n---\n');
+    expect(await runTokenHook(input({ tool_input: { file_path: spec } }), { dataDir })).toBeNull();
+    await expect(fs.access(path.join(dataDir, 'tokens', 's1.json'))).rejects.toThrow();
+  });
+
+  it('ignores a spec.md outside a spec folder', async () => {
+    const stray = path.join(tmp, '.specboard', 'spec.md');
+    await fs.writeFile(stray, 'x');
+    expect(await runTokenHook(input({ tool_input: { file_path: stray } }), { dataDir })).toBeNull();
+    await expect(fs.access(path.join(dataDir, 'tokens', 's1.json'))).rejects.toThrow();
+  });
+
   it.runIf(process.platform === 'win32')('matches a backslash path', async () => {
     const win = logFile.split(path.sep).join('\\');
     expect(await runTokenHook(input({ tool_input: { file_path: win } }), { dataDir })).toEqual({ wrote: 60 });

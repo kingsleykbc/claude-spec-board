@@ -39,7 +39,7 @@ Sync never deletes a spec file or a log, never deletes or rewrites a log entry, 
 
 ## The proposal
 
-Make a summary (one line per spec that changes), the tree with `+`, `~` and `→` marks (see "Proposing changes" in the rules; with an ID, just that spec), and a numbered list of exact operations, one per line. Write `Archive <ID>` with the ID straight after the word. For example:
+Run `specboard tree` first (with the ID when there is one) and build the tree on its output, so the counts match the board. Make a summary (one line per spec that changes), the tree with `+`, `~` and `→` marks (see "Proposing changes" in the rules; with an ID, just that spec), and a numbered list of exact operations, one per line. Write `Archive <ID>` with the ID straight after the word. For example:
 
 ```
 1. Tick T-104 subtask 2 (commit a1b2c3d)

@@ -3,7 +3,7 @@ import { groupByMilestone, projectProgress } from '@specboard/core/milestones';
 import { projectTokens } from '../state/allLogs';
 import { orderSpecs } from '../state/filters';
 import { formatTokens } from './formatTokens';
-import { ST } from './vm';
+import { isBlocked, ST } from './vm';
 
 // The Overview's numbers and its Markdown export (pinned behaviour 17, Ruling 4).
 
@@ -28,7 +28,7 @@ export function overviewCounts(project: Pick<Project, 'specs' | 'archived'>): Ov
     doing: n('doing'),
     review: n('review'),
     done: progress.done,
-    blocked: live.filter((s) => s.status !== 'done' && s.blocked).length,
+    blocked: live.filter(isBlocked).length,
     total: progress.total,
   };
 }

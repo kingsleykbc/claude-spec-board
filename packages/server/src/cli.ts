@@ -199,6 +199,8 @@ export async function runDetached(
   deps: { spawn?: (argv: string[]) => { exited(): boolean } | void; timeoutMs?: number } = {},
 ): Promise<number> {
   const running = a.port !== 0 ? await boardInfo(a.port) : null;
+  /** Set once an older board has stopped, so the success line can say it was replaced. */
+  let replaced: string | null = null;
   if (running !== null) {
     const mine = pluginVersion();
     let reuse = running.version === mine;
@@ -219,6 +221,8 @@ export async function runDetached(
       } else if (!(await waitUntilFree(a.port, 8000))) {
         console.error(`The old Spec Board on port ${a.port} did not stop. Stop it, then run this again: ${stopCommand(a.port)}`);
         return 1;
+      } else {
+        replaced = ` (replaced the older board, ${label}, with ${mine})`;
       }
     }
     if (reuse) {
@@ -236,7 +240,7 @@ export async function runDetached(
   while (Date.now() < deadline) {
     if (child?.exited()) break;
     if (await isSpecBoard(a.port)) {
-      console.log(`Spec Board running at http://127.0.0.1:${a.port}`);
+      console.log(`Spec Board running at http://127.0.0.1:${a.port}${replaced ?? ''}`);
       return 0;
     }
     await new Promise((r) => setTimeout(r, 200));

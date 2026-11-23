@@ -122,6 +122,24 @@ export const Draft: Story = {
   },
 };
 
+/**
+ * A blocked draft dragged to Done before it was built: it keeps its Draft badge, but shows no Blocked badge, no
+ * write-up button, and its unfinished need (T-104, Doing) is not drawn red.
+ */
+export const DraftInDone: Story = {
+  args: {
+    id: 'T-107',
+    patch: { status: 'done', dependsOn: ['T-104'], blocked: true, blockedReasons: ['Waiting on T-104 (doing)'] },
+  },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    expect(c.getAllByText('Draft')).toHaveLength(2);
+    expect(c.queryByText('Blocked')).toBeNull();
+    expect(c.queryByRole('button', { name: /Have Claude write this up/ })).toBeNull();
+    for (const id of c.getAllByText('T-104')) expect(id.className).not.toMatch(/\btext-block-ink\b/);
+  },
+};
+
 /** Claude isn’t connected: the write-up button is greyed; hover, focus or a click shows the command to paste. */
 export const DraftNotConnected: Story = {
   args: { id: 'T-107', manual: 'not-installed' },

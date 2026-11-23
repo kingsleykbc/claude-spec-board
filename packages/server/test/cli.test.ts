@@ -127,6 +127,7 @@ describe('detach', () => {
     expect(await runDetached({ path: proj, port, open: false }, [proj, '--detach'], { spawn: spawned })).toBe(0);
     expect(spawned).not.toHaveBeenCalled();
     expect(log).toHaveBeenCalledWith(`Spec Board running at http://127.0.0.1:${port}`);
+    expect(log).toHaveBeenCalledTimes(1);
     log.mockRestore();
     const registry = JSON.parse(await fs.readFile(path.join(home, 'projects.json'), 'utf8'));
     expect(JSON.stringify(registry)).toContain(path.basename(proj));
@@ -172,6 +173,7 @@ describe('detach', () => {
     expect(spawned).toHaveBeenCalledTimes(1);
     const health = (await (await fetch(`http://127.0.0.1:${old.port}/api/health`)).json()) as { version: string };
     expect(health.version).toBe(pluginVersion());
+    expect(log).toHaveBeenCalledWith(`Spec Board running at http://127.0.0.1:${old.port} (replaced the older board, 0.0.1, with ${pluginVersion()})`);
     log.mockRestore();
   });
 
@@ -188,6 +190,7 @@ describe('detach', () => {
     });
     expect(code).toBe(0);
     expect(old.posts).toHaveLength(1);
+    expect(log).toHaveBeenCalledWith(`Spec Board running at http://127.0.0.1:${old.port} (replaced the older board, no version, with ${pluginVersion()})`);
     log.mockRestore();
   });
 
@@ -222,6 +225,7 @@ describe('detach', () => {
     const said = log.mock.calls.map((c) => String(c[0])).join('\n');
     expect(said).toContain('Claude is working');
     expect(said).toContain(`http://127.0.0.1:${old.port}`);
+    expect(said).not.toContain('replaced the older board');
     log.mockRestore();
   });
 

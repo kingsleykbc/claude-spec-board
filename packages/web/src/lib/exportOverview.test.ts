@@ -69,6 +69,11 @@ describe('exportOverview', () => {
     expect(overviewCounts({ ...p, archived: [blockedArchived, archivedTodo] })).toEqual({ todo: 4, doing: 1, review: 1, done: 3, blocked: 2, total: 9 });
   });
 
+  it('a blocked spec in Review is not counted as blocked', () => {
+    const specs = recipeProject.specs.map((s) => (s.status === 'review' ? { ...s, blocked: true } : s));
+    expect(overviewCounts({ ...recipeProject, specs }).blocked).toBe(2);
+  });
+
   it('copes with a project without config or overview, and leaves out Tasks when there are no active specs', () => {
     const p = { ...recipeProject, config: null, overview: null, specs: [], archived: [] };
     expect(exportOverview(p, 'Café & Co')).toEqual({

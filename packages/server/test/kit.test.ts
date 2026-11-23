@@ -289,6 +289,18 @@ describe('kit content', () => {
     expect(text).toContain('about 6 or more specs');
     expect(text).toContain('the person should not have to bring up phases');
     expect(text).toContain('Small project, so no phases.');
+    expect(text).toContain('Each message asks exactly one question.');
+  });
+
+  it('scenario 2 fixes: drafts run on after write-up, required questions in the chat, PR lookup only with a remote, sync counts, upgrade note', async () => {
+    const skills = await kitSkills();
+    const get = (name: string) => skills.find((s) => s.name === name)!.text;
+    expect(get('create-spec')).toContain('go straight back to the run now, in the same reply');
+    expect(get('create-spec')).toContain('A spec written in a chat should not leave required questions on the board.');
+    expect(get('specboard')).toContain('continue with the run in the same reply, without waiting for the request again');
+    expect(get('specboard')).toMatch(/only when it has a `github\.com` remote, try `gh pr view/);
+    expect(get('sync-specs')).toContain('Run `specboard tree` first');
+    expect(get('setup')).toContain('Your board was updated to <new version>.');
   });
 
   it('reorganize keeps the numbers of ticked or logged subtasks', async () => {

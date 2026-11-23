@@ -35,6 +35,49 @@ describe('createSpecActions', () => {
     expect(toast).toHaveBeenCalledWith('ok', 'T-103 approved', 'Moved to Done.');
   });
 
+  it('a draft moved to Done still moves, with a warning toast', async () => {
+    const { c, toast, actions } = setup();
+    await actions.move(recipeSpec('T-107'), 'done');
+    expect(c.setMeta).toHaveBeenCalledWith('p1', 'T-107', recipeSpec('T-107').hash, 'status', 'done');
+    expect(toast).toHaveBeenCalledWith('warn', 'T-107 moved to Done', 'It is a draft, so nothing was built. Run Sync to check it.');
+    expect(toast).toHaveBeenCalledTimes(1);
+  });
+
+  it('a draft with unticked subtasks gets the draft warning', async () => {
+    const { toast, actions } = setup();
+    await actions.move({ ...recipeSpec('T-104'), draft: true }, 'done');
+    expect(toast).toHaveBeenCalledWith('warn', 'T-104 moved to Done', 'It is a draft, so nothing was built. Run Sync to check it.');
+  });
+
+  it('unticked subtasks moved to Done still move, with a warning that counts them', async () => {
+    const { c, toast, actions } = setup();
+    const t104 = recipeSpec('T-104');
+    const open = t104.subtasks.filter((t) => !t.done).length;
+    await actions.move(t104, 'done');
+    expect(c.setMeta).toHaveBeenCalledWith('p1', 'T-104', t104.hash, 'status', 'done');
+    expect(toast).toHaveBeenCalledWith('warn', 'T-104 moved to Done', `${open} of ${t104.subtasks.length} subtasks aren't ticked. Run Sync to check it.`);
+  });
+
+  it('one unticked subtask out of two', async () => {
+    const { toast, actions } = setup();
+    const t103 = recipeSpec('T-103');
+    const subtasks = [{ ...t103.subtasks[0]!, done: true }, { ...t103.subtasks[1]!, done: false }];
+    await actions.move({ ...t103, subtasks }, 'done');
+    expect(toast).toHaveBeenCalledWith('warn', 'T-103 moved to Done', "1 of 2 subtasks aren't ticked. Run Sync to check it.");
+  });
+
+  it('a spec with no subtasks that is not a draft gets the plain approved toast', async () => {
+    const { toast, actions } = setup();
+    await actions.move({ ...recipeSpec('T-103'), subtasks: [] }, 'done');
+    expect(toast).toHaveBeenCalledWith('ok', 'T-103 approved', 'Moved to Done.');
+  });
+
+  it('a draft moved anywhere but Done gets the usual toast', async () => {
+    const { toast, actions } = setup();
+    await actions.move(recipeSpec('T-107'), 'doing');
+    expect(toast).toHaveBeenCalledWith('ok', 'T-107 moved to Doing', recipeSpec('T-107').title);
+  });
+
   it('move to the same status does nothing', async () => {
     const { c, actions } = setup();
     await actions.move(recipeSpec('T-104'), 'doing');

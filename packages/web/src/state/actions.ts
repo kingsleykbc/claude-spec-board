@@ -22,6 +22,16 @@ export const OFFLINE_TOAST = ['Disconnected from the local server.', 'Edits wonâ
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+/**
+ * Why a spec moved to Done may not be finished, or null: a draft (nothing was built) or unticked subtasks. The move
+ * still happens; the toast warns instead of saying "approved".
+ */
+export function doneWarning(spec: Spec): string | null {
+  if (spec.draft) return 'It is a draft, so nothing was built. Run Sync to check it.';
+  const open = spec.subtasks.filter((t) => !t.done).length;
+  return open > 0 ? `${open} of ${spec.subtasks.length} subtasks aren't ticked. Run Sync to check it.` : null;
+}
+
 /** Thrown inside the op of a move queued behind a conflicted one: it is dropped without a request. */
 class Superseded extends Error {}
 
@@ -57,7 +67,9 @@ export function createSpecActions({ pid, client = api, mutate, refresh, toast }:
         return;
       }
       await refresh();
-      toast('ok', status === 'done' ? `${id} approved` : `${id} moved to ${ST[status].label}`, status === 'done' ? 'Moved to Done.' : spec.title);
+      const warning = status === 'done' ? doneWarning(spec) : null;
+      if (warning !== null) toast('warn', `${id} moved to Done`, warning);
+      else toast('ok', status === 'done' ? `${id} approved` : `${id} moved to ${ST[status].label}`, status === 'done' ? 'Moved to Done.' : spec.title);
     },
 
     async archive(spec: Spec): Promise<void> {

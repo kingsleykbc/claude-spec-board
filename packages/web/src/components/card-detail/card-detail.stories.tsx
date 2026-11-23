@@ -131,7 +131,44 @@ export const WorkingInChat: Story = {
   name: 'Working in a chat',
   args: { chat: 2 },
   play: async ({ canvasElement }) => {
-    expect(within(canvasElement).getByRole('button', { name: 'Not running? Clear' })).toBeTruthy();
+    const c = within(canvasElement);
+    expect(c.getByRole('button', { name: 'Not running? Clear' })).toBeTruthy();
+    // Run with Claude is held while Claude works in a chat.
+    expect(c.getAllByText('Claude is working on this in a chat.').length).toBeGreaterThan(0);
+    expect(c.queryByRole('button', { name: 'Run with Claude' })).toBeNull();
+  },
+};
+
+/** T-103 in Review: Run with Claude is held with a note saying what to do instead. */
+export const RunInReview: Story = {
+  name: 'Run: in Review',
+  args: { specId: 'T-103' },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    expect(c.getByText('In Review: check the work, then move the card to Done.')).toBeTruthy();
+    expect(c.queryByRole('button', { name: 'Run with Claude' })).toBeNull();
+  },
+};
+
+/**
+ * A blocked draft dragged to Done before it was built (T-107, needing T-104): it keeps its Draft badge, but has no
+ * write-up button, no blocked banner, and Run with Claude is held as Already done.
+ */
+export const DraftInDone: Story = {
+  args: {
+    specId: 'T-107',
+    specs: recipeSpecs.map((s) =>
+      s.id === 'T-107' ? { ...s, status: 'done' as const, dependsOn: ['T-104'], blocked: true, blockedReasons: ['Waiting on T-104 (doing)'] } : s,
+    ),
+    onWriteUp: fn(),
+  },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    expect(c.getByText('Draft')).toBeTruthy();
+    expect(c.queryByRole('button', { name: /Have Claude write this up/ })).toBeNull();
+    expect(c.queryByText('Blocked.')).toBeNull();
+    expect(c.getByText('Already done.')).toBeTruthy();
+    expect(c.queryByRole('button', { name: 'Run with Claude' })).toBeNull();
   },
 };
 

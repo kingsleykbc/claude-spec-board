@@ -1,7 +1,7 @@
 import { useId, type Ref } from 'react';
 import type { Spec } from '@specboard/core';
 import { NeededByIcon, NeedsIcon } from '@/lib/icons';
-import { ST } from '@/lib/vm';
+import { needBlocks, ST } from '@/lib/vm';
 import { cn } from '@/lib/utils';
 import { section, sectionHead, sectionLabel } from '../section';
 
@@ -26,6 +26,8 @@ const row = 'flex w-[calc(100%+16px)] min-w-0 items-center gap-2 rounded-[7px] b
 const depId = 'font-mono text-[12px] text-fg2';
 const depTitle = 'min-w-0 flex-1 overflow-hidden text-[13.5px] text-ellipsis whitespace-nowrap';
 const flag = 'text-[11.5px] font-semibold whitespace-nowrap text-block-ink';
+/** The Not found note on a spec in Review or Done, where nothing it needs blocks it. */
+const mutedFlag = 'text-[11.5px] font-semibold whitespace-nowrap text-fg3';
 const list = 'm-0 flex list-none flex-col gap-1.5 p-0';
 const head = 'inline-flex items-center gap-[5px] text-[12px] font-medium text-fg3';
 const empty = 'text-[13px] text-fg3';
@@ -81,13 +83,13 @@ export function Dependencies({ spec, all, onOpen, sectionRef, highlight = false,
             <ul className={list} aria-labelledby={needsId}>
               {needs.map((d) =>
                 d.spec ? (
-                  <DepItem key={d.id} spec={d.spec} onOpen={onOpen} showNotDone />
+                  <DepItem key={d.id} spec={d.spec} onOpen={onOpen} showNotDone={needBlocks(spec, d.spec)} />
                 ) : (
                   <li key={d.id}>
                     <span className={cn(row, 'cursor-default')}>
                       <span className={depId}>{d.id}</span>
                       <span className={depTitle} />
-                      <span className={flag}>Not found</span>
+                      <span className={needBlocks(spec, undefined) ? flag : mutedFlag}>Not found</span>
                     </span>
                   </li>
                 ),

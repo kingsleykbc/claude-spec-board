@@ -206,7 +206,7 @@ Built the time-slot grid. Slots come from the barber's opening hours. Tests adde
 ```
 
 - `commit` is the short hash of the subtask's commit. It is empty when there is no commit (`commits: false` or no git repo); then `files` lists the files changed for that subtask and there is no `pr`. Otherwise `files` lists the files that commit changed.
-- `pr: <url>` (optional) links the open pull or merge request for the commit's branch. After the commit, try `gh pr view --json url -q .url`, then `glab mr view -F json` (take its `web_url`). If neither works or there is none, leave `pr:` out and say nothing. If you opened the PR yourself, use its link.
+- `pr: <url>` (optional) links the open pull or merge request for the commit's branch. After the commit, Read the repo's `.git/config` (in the project folder or the parent that holds `.git`): only when it has a `github.com` remote, try `gh pr view --json url -q .url`; only when it has a `gitlab` remote, try `glab mr view -F json` (take its `web_url`). With neither remote, do not run them. If the lookup fails or there is no PR, leave `pr:` out and say nothing. If you opened the PR yourself, use its link.
 - `done_at: YYYY-MM-DD HH:mm` (local time) is written when the subtask is ticked.
 - `obsolete: "<YYYY-MM-DD>: <reason>"` marks a log whose work no longer exists. Only sync sets it (see /sync-specs).
 - Each entry is headed `### YYYY-MM-DD HH:mm`, followed by free text on what changed and any notes. Add a new entry to an existing log instead of replacing it. Never delete or rewrite an entry.
@@ -227,7 +227,7 @@ To carry a card's images to another card (a merge or a split), run `specboard co
 Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never start a spec on your own.
 
 1. Find `.specboard/specs/<ID>-*/spec.md` (Glob) and read it, then its existing logs and its images (the linked ones and the attachments, see Layout). Say so and stop if there is no such spec, or if `status` is already `review` or `done` and all of Claude's subtasks (everything except trailing `(you)` steps in older specs) are ticked. Open `## To review` items never count as Claude's work.
-   - If `draft: true`: when the person asked in a chat to run or implement it, say it needs writing up first, Read `../create-spec/SKILL.md` (relative to this skill's base directory) and follow it (its questions are asked in the chat), then continue with the run. In a background run (the board started you, no one is in the chat), say it needs `/create-spec` first and stop.
+   - If `draft: true`: when the person asked in a chat to run or implement it, say it needs writing up first, Read `../create-spec/SKILL.md` (relative to this skill's base directory) and follow it (its questions are asked in the chat), then continue with the run in the same reply, without waiting for the request again. In a background run (the board started you, no one is in the chat), say it needs `/create-spec` first and stop.
 2. **Refuse to start** (change nothing, say why, stop) when:
    - any required question under `## Open questions` is unanswered. List them with their numbers; or
    - a spec in `depends_on` is not finished, or does not exist. Name it.

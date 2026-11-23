@@ -426,7 +426,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
                         onAction={(a) => {
                           if (a === 'question') goToQuestions();
                           else if (a === 'rerun') {
-                            const hold = shownRun.kind === 'run' && openDoc ? runHold(openDoc, [...specs, ...archived]) : null;
+                            const hold = shownRun.kind === 'run' && openDoc ? runHold(openDoc, [...specs, ...archived], cardRun(run.run, openDoc).chat) : null;
                             if (hold) toast('warn', `${openId} can’t start yet`, hold);
                             else void startRun(shownRun.kind, openId);
                           }

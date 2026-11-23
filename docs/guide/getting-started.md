@@ -54,6 +54,10 @@ If Claude is in plan mode, it puts the tree in the plan and writes nothing until
 
 Git is optional. Without a git repo, or with `commits: false` in `.specboard/config.md`, a run makes no commits. Each log lists the files changed instead of a commit. Sync still works. It just can't use the git history.
 
+### .specboard and git
+
+Claude's commits hold only the code; it never adds `.specboard/` to them. Your own commits are up to you. Keeping `.specboard/` in git shares the specs with your team, but every board change then shows up in `git status`. To keep it out, add `.specboard/` to `.gitignore`, or commit with `git add -- . ":!.specboard"`.
+
 ### Removing Spec Board
 
 Everything Spec Board keeps for a project is in `.specboard/`, so delete that folder to remove Spec Board. If you moved old plan files into `.specboard/imported/`, they go with it. Spec Board writes nothing else in your project, with one exception: if you used the terminal route, `init` copies commands into `.claude/skills/`. It also keeps a few things outside the project: the project list and approvals in `~/.specboard/`, and the plugin's token-count data.

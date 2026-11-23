@@ -159,7 +159,8 @@ describe('App', () => {
     // The second finishes; the refreshed data (the fixture still says doing) wins.
     await waitFor(() => expect(pendings).toHaveLength(2));
     await act(async () => pendings[1]!());
-    await screen.findByText('T-104 approved');
+    // T-104 has unticked subtasks: the move to Done warns instead of saying approved.
+    await screen.findByText('T-104 moved to Done');
     await waitFor(() => expect(colOf()).toBe('Doing'));
   });
 

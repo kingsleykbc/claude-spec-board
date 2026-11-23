@@ -143,9 +143,38 @@ export interface BlockText {
   section: 'questions' | 'dependencies';
 }
 
+/**
+ * A spec in Review or Done is past waiting on anything: it never shows as blocked, whatever the core's `blocked` says.
+ * The card, the detail, the filters and the counts all decide through the helpers below, so they agree.
+ */
+function pastBlocking(spec: Pick<Spec, 'status'>): boolean {
+  return spec.status === 'review' || spec.status === 'done';
+}
+
+/** Whether the board shows the spec as Blocked. */
+export function isBlocked(spec: Spec): boolean {
+  return spec.blocked && !pastBlocking(spec);
+}
+
+/** The core's short blocked reasons, or none when the board doesn't show the spec as blocked. */
+export function blockedReasons(spec: Spec): string[] {
+  return isBlocked(spec) ? spec.blockedReasons : [];
+}
+
+/** Whether one of the spec's "needs" (`dep`, undefined when not found) is drawn as blocking it. */
+export function needBlocks(spec: Spec, dep: Spec | undefined): boolean {
+  return !pastBlocking(spec) && (!dep || dep.status !== 'done');
+}
+
+/** A draft shows "Have Claude write this up" until it reaches Review or Done; the Draft badge stays either way. */
+export function canWriteUp(spec: Spec): boolean {
+  return spec.draft && !pastBlocking(spec);
+}
+
 /** The reasons a spec is blocked, as its banner words them (pinned behaviour 8). `all` includes archived specs. */
 export function blockTexts(spec: Spec, all: Spec[]): BlockText[] {
   const reasons: BlockText[] = [];
+  if (pastBlocking(spec)) return reasons;
   const open = spec.questions.filter((q) => q.required && (q.answer === null || q.answer === ''));
   if (open.length > 0) {
     reasons.push({ key: 'q', text: `Awaiting answers on: ${open.map((q) => truncate(q.text, 40)).join(', ')}`, section: 'questions' });
@@ -162,8 +191,14 @@ export function blockTexts(spec: Spec, all: Spec[]): BlockText[] {
   return reasons;
 }
 
-/** Why Run shouldn't start this spec yet, or null. Only the board holds back: the server would still start it. */
-export function runHold(spec: Spec, all: Spec[]): string | null {
+/**
+ * Why Run shouldn't start this spec, or null. Only the board holds back: the server would still start it.
+ * `chat` is the step Claude is working on from a chat (the card's "working on step N in a chat" marker), or null.
+ */
+export function runHold(spec: Spec, all: Spec[], chat: number | null = null): string | null {
+  if (spec.status === 'review') return 'In Review: check the work, then move the card to Done.';
+  if (spec.status === 'done') return 'Already done.';
+  if (chat !== null) return 'Claude is working on this in a chat.';
   if (spec.draft) return 'Draft. Have Claude write this up first.';
   const first = blockTexts(spec, all)[0];
   return first ? `Blocked. ${first.text}` : null;

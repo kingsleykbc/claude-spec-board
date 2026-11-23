@@ -12877,6 +12877,8 @@ function webDistDir() {
 import fs5 from "node:fs/promises";
 import path6 from "node:path";
 var LOG_PATH = /^(.*)\/\.specboard\/specs\/[^/]+\/logs\/\d+-[^/]*\.md$/;
+var SPEC_PATH = /^(.*)\/\.specboard\/specs\/[^/]+\/spec\.md$/;
+var SYNC_TICK = "Ticked by sync";
 function transcriptTotal(text2) {
   const seen = /* @__PURE__ */ new Set();
   let total = 0;
@@ -12917,6 +12919,9 @@ function addTokens(text2, delta) {
 function logFileRoot(abs) {
   return LOG_PATH.exec(abs.replace(/\\/g, "/"))?.[1] ?? null;
 }
+function specFileRoot(abs) {
+  return SPEC_PATH.exec(abs.replace(/\\/g, "/"))?.[1] ?? null;
+}
 async function trackTokensOn(root) {
   const settings = await readIfExists2(path6.join(root, ".specboard", "settings.md"));
   return settings === null || parseSettings(settings).trackTokens;
@@ -12947,12 +12952,23 @@ async function runTokenHook(input, opts) {
     const target = input.tool_input?.file_path;
     if (typeof target !== "string" || !input.transcript_path || !input.session_id) return null;
     const abs = path6.resolve(input.cwd ?? process.cwd(), target);
-    const root = logFileRoot(abs);
+    const logRoot = logFileRoot(abs);
+    const specRoot = logRoot === null ? specFileRoot(abs) : null;
+    const root = logRoot ?? specRoot;
     if (root === null || !await trackTokensOn(root)) return null;
     const transcript = await readIfExists2(input.transcript_path);
     if (transcript === null) return null;
     const total = transcriptTotal(transcript);
     const checkpoint = path6.join(opts.dataDir, "tokens", `${path6.basename(input.session_id)}.json`);
+    if (specRoot !== null) {
+      await saveCheckpoint(checkpoint, total);
+      return { wrote: 0 };
+    }
+    const log = await readIfExists2(abs);
+    if (log?.includes(SYNC_TICK)) {
+      await saveCheckpoint(checkpoint, total);
+      return { wrote: 0 };
+    }
     let prev = 0;
     const saved = await readIfExists2(checkpoint);
     if (saved !== null) {
@@ -20708,6 +20724,7 @@ async function waitUntilFree(port, ms) {
 }
 async function runDetached(a, argv, deps = {}) {
   const running = a.port !== 0 ? await boardInfo(a.port) : null;
+  let replaced = null;
   if (running !== null) {
     const mine = pluginVersion();
     let reuse = running.version === mine;
@@ -20727,6 +20744,8 @@ async function runDetached(a, argv, deps = {}) {
       } else if (!await waitUntilFree(a.port, 8e3)) {
         console.error(`The old Spec Board on port ${a.port} did not stop. Stop it, then run this again: ${stopCommand(a.port)}`);
         return 1;
+      } else {
+        replaced = ` (replaced the older board, ${label}, with ${mine})`;
       }
     }
     if (reuse) {
@@ -20744,7 +20763,7 @@ async function runDetached(a, argv, deps = {}) {
   while (Date.now() < deadline) {
     if (child?.exited()) break;
     if (await isSpecBoard(a.port)) {
-      console.log(`Spec Board running at http://127.0.0.1:${a.port}`);
+      console.log(`Spec Board running at http://127.0.0.1:${a.port}${replaced ?? ""}`);
       return 0;
     }
     await new Promise((r) => setTimeout(r, 200));

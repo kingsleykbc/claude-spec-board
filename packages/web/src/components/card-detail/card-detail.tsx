@@ -5,7 +5,7 @@ import { OFFLINE_TOAST, type Mutate } from '@/state/actions';
 import { useSimple } from '@/state/simpleMode';
 import type { PushToast } from '@/state/toasts';
 import type { ManualReason } from '@/state/runUi';
-import { blockTexts, relPath, runHold } from '@/lib/vm';
+import { blockTexts, canWriteUp, relPath, runHold } from '@/lib/vm';
 import { cn } from '@/lib/utils';
 import { ConflictDialog } from '@/components/conflict-dialog/conflict-dialog';
 import { Modal } from '@/components/ui/modal/modal';
@@ -380,7 +380,7 @@ function SpecDetail({
           runBusyNote={runBusyNote}
           manual={manual}
           statusKnown={statusKnown}
-          runHold={runHold(spec, all)}
+          runHold={runHold(spec, all, chat)}
           onRun={onRun}
           onStop={onStop}
           {...(onSync ? { onSync } : {})}
@@ -393,7 +393,8 @@ function SpecDetail({
           onClose={requestClose}
           draft={spec.draft}
           archived={spec.archived}
-          {...(onWriteUp ? { onWriteUp } : {})}
+          /* A draft in Review or Done keeps its Draft badge but has nothing to write up. */
+          {...(onWriteUp && canWriteUp(spec) ? { onWriteUp } : {})}
           {...(onArchive ? { onArchive } : {})}
           {...(onUnarchive ? { onUnarchive } : {})}
           simple={simple}

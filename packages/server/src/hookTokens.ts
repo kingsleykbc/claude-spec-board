@@ -10,6 +10,9 @@ export interface TokenHookInput {
 }
 
 const LOG_PATH = /^(.*)\/\.specboard\/specs\/[^/]+\/logs\/\d+-[^/]*\.md$/;
+const SPEC_PATH = /^(.*)\/\.specboard\/specs\/[^/]+\/spec\.md$/;
+/** The entry sync writes when it ticks a subtask: the work was not done in this session. */
+const SYNC_TICK = 'Ticked by sync';
 
 /** Total tokens in a Claude Code transcript; each `message.id` is counted once. */
 export function transcriptTotal(text: string): number {
@@ -57,6 +60,11 @@ export function logFileRoot(abs: string): string | null {
   return LOG_PATH.exec(abs.replace(/\\/g, '/'))?.[1] ?? null;
 }
 
+/** The project root of a spec file (`<root>/.specboard/specs/<spec>/spec.md`), with forward slashes; null for any other file. */
+export function specFileRoot(abs: string): string | null {
+  return SPEC_PATH.exec(abs.replace(/\\/g, '/'))?.[1] ?? null;
+}
+
 /** Whether the project's `track_tokens` is on (it is when settings.md or the key is missing). */
 export async function trackTokensOn(root: string): Promise<boolean> {
   const settings = await readIfExists(path.join(root, '.specboard', 'settings.md'));
@@ -88,13 +96,19 @@ async function saveCheckpoint(file: string, total: number): Promise<void> {
   await fs.rename(tmp, file);
 }
 
-/** PostToolUse hook: add the tokens spent since the last checkpoint to the subtask log just written. */
+/**
+ * PostToolUse hook: add the tokens spent since the last checkpoint to the subtask log just written.
+ * A spec file write (for example setting `current_subtask`) only moves the checkpoint, so chat and planning before the
+ * work are not counted on the next log. A log ticked by sync gets nothing either: that work was not done in this session.
+ */
 export async function runTokenHook(input: TokenHookInput, opts: { dataDir: string }): Promise<{ wrote: number } | null> {
   try {
     const target = input.tool_input?.file_path;
     if (typeof target !== 'string' || !input.transcript_path || !input.session_id) return null;
     const abs = path.resolve(input.cwd ?? process.cwd(), target);
-    const root = logFileRoot(abs);
+    const logRoot = logFileRoot(abs);
+    const specRoot = logRoot === null ? specFileRoot(abs) : null;
+    const root = logRoot ?? specRoot;
     if (root === null || !(await trackTokensOn(root))) return null;
 
     const transcript = await readIfExists(input.transcript_path);
@@ -102,6 +116,16 @@ export async function runTokenHook(input: TokenHookInput, opts: { dataDir: strin
     const total = transcriptTotal(transcript);
 
     const checkpoint = path.join(opts.dataDir, 'tokens', `${path.basename(input.session_id)}.json`);
+    if (specRoot !== null) {
+      await saveCheckpoint(checkpoint, total);
+      return { wrote: 0 };
+    }
+    const log = await readIfExists(abs);
+    if (log?.includes(SYNC_TICK)) {
+      await saveCheckpoint(checkpoint, total);
+      return { wrote: 0 };
+    }
+
     let prev = 0;
     const saved = await readIfExists(checkpoint);
     if (saved !== null) {

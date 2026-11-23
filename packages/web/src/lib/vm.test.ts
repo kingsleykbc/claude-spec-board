@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Spec } from '@specboard/core';
 import { recipeSpec, recipeSpecs } from '../fixtures/recipeBox';
 import { ReviewIcon, TodoIcon } from './icons';
-import { catColor, firstParagraph, fmtLogTime, relPath, relTime, runHold, statusMeta, tokensUsed, truncate, urgVm } from './vm';
+import { blockedReasons, blockTexts, canWriteUp, catColor, firstParagraph, fmtLogTime, isBlocked, needBlocks, relPath, relTime, runHold, statusMeta, tokensUsed, truncate, urgVm } from './vm';
 
 // The prototype's hue(), copied as-is, to pin catColor to it.
 const hue = (n: string) => {
@@ -107,6 +107,59 @@ describe('runHold', () => {
     expect(runHold(spec({ dependsOn: ['T-104'] }), all)).toBe('Blocked. Depends on itself');
     expect(runHold(spec({ dependsOn: ['T-120'] }), [{ ...dep, status: 'done' }])).toBeNull();
     expect(runHold(spec({ dependsOn: ['T-120'] }), [{ ...dep, archived: true }])).toBeNull();
+  });
+  it('a Review or Done card, and one Claude is working on in a chat, in the brief’s wording', () => {
+    expect(runHold(spec({ status: 'review' }), all)).toBe('In Review: check the work, then move the card to Done.');
+    expect(runHold(spec({ status: 'done' }), all)).toBe('Already done.');
+    expect(runHold(spec({}), all, 2)).toBe('Claude is working on this in a chat.');
+    expect(runHold(spec({}), all, null)).toBeNull();
+  });
+  it('Review and Done win over a draft or a block', () => {
+    const blocked = { draft: true, dependsOn: ['T-120'], blocked: true, blockedReasons: ['T-120 not found'] };
+    expect(runHold(spec({ ...blocked, status: 'review' }), [])).toBe('In Review: check the work, then move the card to Done.');
+    expect(runHold(spec({ ...blocked, status: 'done' }), [])).toBe('Already done.');
+    expect(runHold(spec({ ...blocked }), [], 1)).toBe('Claude is working on this in a chat.');
+  });
+});
+
+describe('blocked state for Review and Done', () => {
+  const dep = { ...recipeSpec('T-104'), id: 'T-120', title: 'Dep', status: 'doing' as const, archived: false };
+  const spec = (over: Partial<Spec>): Spec => ({
+    ...recipeSpec('T-104'),
+    questions: [{ ...recipeSpec('T-105').questions[0]!, text: 'No. of versions', answer: null, required: true }],
+    dependsOn: ['T-120'],
+    blocked: true,
+    blockedReasons: ['1 open question', 'Waiting on T-120 (doing)'],
+    ...over,
+  });
+
+  it('a To-do or Doing spec is blocked as the core says', () => {
+    for (const status of ['todo', 'doing'] as const) {
+      expect(isBlocked(spec({ status }))).toBe(true);
+      expect(blockedReasons(spec({ status }))).toEqual(['1 open question', 'Waiting on T-120 (doing)']);
+      expect(blockTexts(spec({ status }), [dep]).map((r) => r.key)).toEqual(['q', 'dep:T-120']);
+      expect(needBlocks(spec({ status }), undefined)).toBe(true);
+      expect(needBlocks(spec({ status }), dep)).toBe(true);
+      expect(needBlocks(spec({ status }), { ...dep, status: 'done' })).toBe(false);
+    }
+  });
+
+  it('a Review or Done spec is never blocked, and its needs never draw as blocking', () => {
+    for (const status of ['review', 'done'] as const) {
+      expect(isBlocked(spec({ status }))).toBe(false);
+      expect(blockedReasons(spec({ status }))).toEqual([]);
+      expect(blockTexts(spec({ status }), [dep])).toEqual([]);
+      expect(needBlocks(spec({ status }), undefined)).toBe(false);
+      expect(needBlocks(spec({ status }), dep)).toBe(false);
+    }
+  });
+
+  it('a draft can be written up only before Review', () => {
+    expect(canWriteUp(spec({ draft: true, status: 'todo' }))).toBe(true);
+    expect(canWriteUp(spec({ draft: true, status: 'doing' }))).toBe(true);
+    expect(canWriteUp(spec({ draft: true, status: 'review' }))).toBe(false);
+    expect(canWriteUp(spec({ draft: true, status: 'done' }))).toBe(false);
+    expect(canWriteUp(spec({ draft: false, status: 'todo' }))).toBe(false);
   });
 });
 

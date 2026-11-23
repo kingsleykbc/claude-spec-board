@@ -33,6 +33,17 @@ export const BothLists: Story = {
   },
 };
 
+/** The same lists on a spec in Done: nothing it needs is flagged as blocking (no red Not done; Not found is muted). */
+export const InDone: Story = {
+  name: 'In Done',
+  args: { spec: { ...recipeSpec('T-104'), status: 'done', dependsOn: ['T-101', 'T-106', 'T-404'] } },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    expect(c.queryByText('Not done')).toBeNull();
+    expect(c.getByText('Not found').className).not.toMatch(/text-block-ink/);
+  },
+};
+
 export const Empty: Story = {
   args: { spec: recipeSpec('T-107') },
   play: async ({ canvasElement }) => {

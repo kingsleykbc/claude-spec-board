@@ -36,6 +36,11 @@ describe('filterSpecs (pinned behaviour 4)', () => {
   it('Blocked only → T-105 and T-108', () => {
     expect(ids(filterSpecs(recipeSpecs, { cats: [], urg: [], blocked: true, milestone: null }))).toEqual(['T-105', 'T-108']);
   });
+
+  it('Blocked only leaves out a blocked spec in Review or Done', () => {
+    const moved = recipeSpecs.map((s) => (s.id === 'T-105' ? { ...s, status: 'review' as const } : s.id === 'T-108' ? { ...s, status: 'done' as const } : s));
+    expect(ids(filterSpecs(moved, { ...NO_FILTERS, blocked: true }))).toEqual([]);
+  });
 });
 
 describe('waitItems (pinned behaviour 3)', () => {
@@ -52,6 +57,11 @@ describe('waitItems (pinned behaviour 3)', () => {
     const one = { ...t105, status: 'done' as const, blocked: false, questions: t105.questions.slice(0, 1) };
     expect(waitItems([one]).map((x) => x.text)).toEqual(['1 question for you']);
     expect(waitItems([])).toEqual([]);
+  });
+
+  it('does not count a blocked spec in Review as blocked', () => {
+    const moved = recipeSpecs.map((s) => (s.id === 'T-108' ? { ...s, status: 'review' as const } : s));
+    expect(waitItems(moved).find((x) => x.kind === 'blocked')?.text).toBe('1 blocked');
   });
 
   it('ignores archived specs', () => {

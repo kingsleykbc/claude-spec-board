@@ -56,4 +56,17 @@ describe('Dependencies', () => {
     expect(within(needs).getByText('Not found').className).toMatch(/text-block-ink/);
     expect(screen.queryByText('Nothing. This spec can start any time.')).toBeNull();
   });
+
+  it('a spec in Review or Done flags none of its needs as blocking', () => {
+    for (const status of ['review', 'done'] as const) {
+      setup({ ...recipeSpec('T-105'), status, dependsOn: ['T-104', 'T-404'] });
+      const needs = list('Depends on');
+      expect(within(needs).getByRole('button').textContent).toBe('T-104Meal planner calendar Doing');
+      expect(within(needs).queryByText('Not done')).toBeNull();
+      const missing = within(needs).getByText('Not found');
+      expect(missing.className).not.toMatch(/text-block-ink/);
+      expect(missing.className).toMatch(/text-fg3/);
+      cleanup();
+    }
+  });
 });
