@@ -4,7 +4,7 @@ import { api } from '@/api/client';
 import { OFFLINE_TOAST } from '@/state/actions';
 import type { PushToast } from '@/state/toasts';
 import { ImageIcon, TrashIcon } from '@/lib/icons';
-import { imageSrc, specImageDir } from '@/lib/image-src';
+import { specImageDir } from '@/lib/image-src';
 import { cn } from '@/lib/utils';
 import { Modal, ModalClose } from '@/components/ui/modal/modal';
 import { section, sectionHead, sectionLabel } from '../section';
@@ -39,7 +39,8 @@ export function Attachments({ pid, spec, client = api, refresh, toast, down = fa
   if (readOnly && spec.attachments.length === 0) return null;
 
   const dir = specImageDir(spec.dir);
-  const url = (name: string) => imageSrc(pid, `images/${name}`, dir).url;
+  // The name is a raw file name (it may hold %, # or ?), so encode the whole project-relative path.
+  const url = (name: string) => (dir === undefined ? `images/${name}` : `/api/projects/${encodeURIComponent(pid)}/image?path=${encodeURIComponent(`${dir}/images/${name}`)}`);
 
   const upload = async (all: File[]) => {
     if (all.length === 0) return;

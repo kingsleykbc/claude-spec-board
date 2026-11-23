@@ -84,6 +84,7 @@ export function ToReview({ pid, spec, client = api, mutate, refresh, toast, down
                     type="checkbox"
                     id={inputId}
                     className="m-0 mt-[3px] size-[17px] flex-none cursor-pointer p-0 disabled:cursor-default"
+                    aria-describedby={r.expected !== null ? `${inputId}-exp` : undefined}
                     checked={r.done}
                     disabled={readOnly}
                     onChange={() => void toggle(r.n, !r.done)}
@@ -92,7 +93,7 @@ export function ToReview({ pid, spec, client = api, mutate, refresh, toast, down
                     <label htmlFor={inputId} className={cn('block text-[14px]', readOnly ? 'cursor-default' : 'cursor-pointer', r.done ? 'text-fg2' : 'text-fg')}>
                       {r.text}
                     </label>
-                    {r.expected !== null && <p className="m-0 mt-0.5 text-[12.5px] text-fg3">Expected: {r.expected}</p>}
+                    {r.expected !== null && <p id={`${inputId}-exp`} className="m-0 mt-0.5 text-[12.5px] text-fg3">Expected: {r.expected}</p>}
                   </div>
                 </div>
               );

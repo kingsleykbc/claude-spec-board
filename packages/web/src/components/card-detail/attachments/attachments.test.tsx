@@ -31,6 +31,16 @@ describe('Attachments', () => {
     expect(img.getAttribute('src')).toBe(`/api/projects/p1/image?path=${encodeURIComponent(`${dir}/images/wireframe.svg`)}`);
   });
 
+  it('encodes the raw file name, so %, # and ? names load the right file', () => {
+    const names = ['a%20b.png', '100%.png', 'c#1.png', 'q?.png'];
+    setup({ ...recipeSpec('T-104'), attachments: names });
+    const dir = recipeSpec('T-104').dir.replace(/^.*?(\.specboard\/)/, '$1');
+    for (const n of names) {
+      const img = screen.getByRole('button', { name: `View ${n}` }).querySelector('img')!;
+      expect(img.getAttribute('src')).toBe(`/api/projects/p1/image?path=${encodeURIComponent(`${dir}/images/${n}`)}`);
+    }
+  });
+
   it('shows the empty state for an active spec with none', () => {
     setup({ ...recipeSpec('T-105'), attachments: [] });
     expect(screen.getByText('No attachments. Add images Claude should look at.')).toBeTruthy();
