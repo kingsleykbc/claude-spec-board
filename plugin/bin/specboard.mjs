@@ -12314,7 +12314,7 @@ function deriveState(active, archived) {
         state.blockedReasons.push(`${dep} not found`);
         continue;
       }
-      result.get(dep).dependents.push(s.id);
+      if (!archivedIds.has(s.id)) result.get(dep).dependents.push(s.id);
       if (!archivedIds.has(dep) && target.status !== "done") {
         state.blockedReasons.push(`Waiting on ${dep} (${target.status})`);
       }
@@ -12728,6 +12728,16 @@ function groupByMilestone(specs, milestones) {
   if (none.length > 0) groups.push({ name: null, specs: none });
   return groups;
 }
+function countsInProgress(spec) {
+  return spec.archived !== true || spec.status === "done";
+}
+function countsAsDone(spec) {
+  return spec.status === "done";
+}
+function projectProgress(specs, archived = []) {
+  const counted = [...specs, ...archived.map((s) => ({ ...s, archived: true }))].filter(countsInProgress);
+  return { done: counted.filter(countsAsDone).length, total: counted.length };
+}
 
 // packages/core/src/tree.ts
 var MAX_LEN = 70;
@@ -12760,7 +12770,6 @@ function specBlock(specs, prefix, subtasks) {
   });
   return out;
 }
-var isDone = (s) => s.status === "done" || s.archived;
 function renderTree(project, opts = {}) {
   const subtasks = opts.subtasks ?? true;
   if (opts.spec !== void 0) {
@@ -12768,9 +12777,9 @@ function renderTree(project, opts = {}) {
     if (!s) throw new Error(`Unknown spec: ${opts.spec}`);
     return [specLine(s), ...details(s, "  ", subtasks)].join("\n");
   }
-  const all = [...project.specs, ...project.archived];
+  const progress = projectProgress(project.specs, project.archived);
   const name = project.config?.name || project.root.split(/[\\/]/).filter(Boolean).pop() || "Project";
-  const lines = [`${name} \xB7 ${all.filter(isDone).length}/${all.length} done`];
+  const lines = [`${name} \xB7 ${progress.done}/${progress.total} done`];
   if (!hasMilestones(project.config)) {
     if (opts.milestone !== void 0) throw new Error(`Unknown milestone: ${opts.milestone}`);
     lines.push(...specBlock(project.specs, "", subtasks));
@@ -12782,10 +12791,12 @@ function renderTree(project, opts = {}) {
     if (!milestones.includes(opts.milestone)) throw new Error(`Unknown milestone: ${opts.milestone}`);
     groups = groups.filter((g) => g.name === opts.milestone);
   }
+  const counted = [...project.specs, ...project.archived].filter(countsInProgress);
   groups.forEach((g, i) => {
+    const inGroup = counted.filter((s) => milestoneOf(s, milestones) === g.name);
     const last = i === groups.length - 1;
     const branch = last ? "\u2514\u2500" : "\u251C\u2500";
-    lines.push(g.name === null ? `${branch} No milestone` : `${branch} Milestone: ${g.name} \xB7 ${g.specs.filter(isDone).length}/${g.specs.length}`);
+    lines.push(g.name === null ? `${branch} No milestone` : `${branch} Milestone: ${g.name} \xB7 ${inGroup.filter(countsAsDone).length}/${inGroup.length}`);
     lines.push(...specBlock(g.specs, last ? "   " : "\u2502  ", subtasks));
   });
   return lines.join("\n");
@@ -12848,6 +12859,14 @@ var isBundled = () => BUNDLED;
 var HERE = import.meta.dirname;
 function pluginDir() {
   return BUNDLED ? path5.resolve(HERE, "..") : path5.resolve(HERE, "..", "..", "..", "plugin");
+}
+function pluginVersion() {
+  try {
+    const manifest = JSON.parse(fs4.readFileSync(path5.join(pluginDir(), ".claude-plugin", "plugin.json"), "utf8"));
+    return manifest.version ?? "unknown";
+  } catch {
+    return "unknown";
+  }
 }
 function webDistDir() {
   const dir = BUNDLED ? path5.resolve(HERE, "..", "web") : path5.resolve(HERE, "..", "..", "web", "dist");
@@ -13574,11 +13593,6 @@ var BASE_ALLOW = [
   "Read(./**)",
   "Edit(./**)",
   "Write(./**)",
-  "Bash(git status:*)",
-  "Bash(git diff:*)",
-  "Bash(git log:*)",
-  "Bash(git add:*)",
-  "Bash(git commit:*)",
   "Bash(specboard tree:*)",
   "Bash(specboard archive:*)",
   "Bash(specboard copy-images:*)",
@@ -13586,6 +13600,7 @@ var BASE_ALLOW = [
   "Bash(glab mr view:*)",
   "Bash(date:*)"
 ];
+var GIT_ALLOW = ["Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git add:*)", "Bash(git commit:*)"];
 var DENY = [
   "Bash(git push:*)",
   "Bash(git reset:*)",
@@ -13606,8 +13621,18 @@ async function exists(file) {
     return false;
   }
 }
+async function hasGitRepo(root) {
+  let dir = path10.resolve(root);
+  for (; ; ) {
+    if (await exists(path10.join(dir, ".git"))) return true;
+    const up = path10.dirname(dir);
+    if (up === dir) return false;
+    dir = up;
+  }
+}
 async function defaultAllowList(root) {
   const allow = [...BASE_ALLOW];
+  if (await hasGitRepo(root)) allow.splice(3, 0, ...GIT_ALLOW);
   try {
     const pkg = JSON.parse(await fs9.readFile(path10.join(root, "package.json"), "utf8"));
     if (typeof pkg?.scripts?.test === "string") allow.push("Bash(npm test:*)", "Bash(npm run test:*)");
@@ -13756,28 +13781,10 @@ async function initCommand(opts, io) {
   const id = (await new Registry(path10.join(specboardHome(), "projects.json")).add(root)).id;
   for (const s of skills) io.log(`skill ${s.name}: ${s.action}`);
   if (skills.some((s) => s.action === "skipped-modified")) io.log("Some skills were edited and kept. Use --force-skills to replace them.");
-  if (!await exists(path10.join(root, ".git"))) io.log(`No git repo here: tasks won't be committed unless you \`git init\`.`);
-  const defaults = await defaultAllowList(root);
-  const testCommand = parseConfig(await fs9.readFile(path10.join(root, ".specboard", "config.md"), "utf8").catch(() => "")).testCommand;
-  if (testCommand !== null) {
-    const rule = `Bash(${testCommand})`;
-    if (isValidRule(rule) && !matchesDeny(rule, defaults.deny)) defaults.allow.push(rule);
-    else io.log(`Not allowing test_command ${testCommand}: it doesn't pass the rule checks.`);
-  }
+  if (!await hasGitRepo(root)) io.log(`No git repo here: tasks won't be committed unless you \`git init\`.`);
   const store = approvedStore();
   const previous = await store.stored(id, root);
-  const keptDeny = [];
-  for (const r of previous?.deny ?? []) {
-    if (isPlainRuleText(r)) keptDeny.push(r);
-    else io.log(`Dropping earlier deny rule ${r}: it no longer passes the rule checks.`);
-  }
-  const deny = unique([...keptDeny, ...defaults.deny]);
-  const kept = [];
-  for (const r of previous?.allow ?? []) {
-    if (isValidRule(r) && !matchesDeny(r, deny)) kept.push(r);
-    else io.log(`Dropping earlier rule ${r}: it no longer passes the rule checks.`);
-  }
-  const allow = unique([...defaults.allow, ...kept]);
+  const { allow, deny } = await planPermissions(root, id, io, previous);
   io.log("Headless runs may use:");
   for (const r of allow) io.log(`  allow  ${r}`);
   for (const r of deny) io.log(`  deny   ${r}`);
@@ -13794,6 +13801,37 @@ async function initCommand(opts, io) {
   io.log("Approved. Runs use only this list.");
   io.log(nextLine(root));
   return { approved: true, id };
+}
+async function planPermissions(root, id, io, previous) {
+  const defaults = await defaultAllowList(root);
+  const testCommand = parseConfig(await fs9.readFile(path10.join(root, ".specboard", "config.md"), "utf8").catch(() => "")).testCommand;
+  if (testCommand !== null) {
+    const rule = `Bash(${testCommand})`;
+    if (isValidRule(rule) && !matchesDeny(rule, defaults.deny)) defaults.allow.push(rule);
+    else io.log(`Not allowing test_command ${testCommand}: it doesn't pass the rule checks.`);
+  }
+  const keptDeny = [];
+  for (const r of previous?.deny ?? []) {
+    if (isPlainRuleText(r)) keptDeny.push(r);
+    else io.log(`Dropping earlier deny rule ${r}: it no longer passes the rule checks.`);
+  }
+  const deny = unique([...keptDeny, ...defaults.deny]);
+  const kept = [];
+  for (const r of previous?.allow ?? []) {
+    if (isValidRule(r) && !matchesDeny(r, deny)) kept.push(r);
+    else io.log(`Dropping earlier rule ${r}: it no longer passes the rule checks.`);
+  }
+  return { allow: unique([...defaults.allow, ...kept]), deny };
+}
+async function rulesCommand(opts, io) {
+  const root = path10.resolve(opts.root);
+  if (!(await fs9.stat(root).catch(() => null))?.isDirectory()) throw new Error(`${root} is not a folder.`);
+  const id = projectId(root);
+  const { allow, deny } = await planPermissions(root, id, io, await approvedStore().stored(id, root).catch(() => null));
+  if (!await hasGitRepo(root)) io.log("No git repo here, so the git rules are left out (tasks won't be committed unless you `git init`).");
+  io.log("Headless runs may use:");
+  for (const r of allow) io.log(`  allow  ${r}`);
+  for (const r of deny) io.log(`  deny   ${r}`);
 }
 async function allowCommand(opts, io) {
   const root = path10.resolve(opts.root);
@@ -19789,6 +19827,10 @@ var RunManager = class {
     }
     await run.finished;
   }
+  /** True while any project has a run going (including one still being prepared). */
+  busy() {
+    return this.active.size > 0;
+  }
   current(pid) {
     const run = this.last.get(pid);
     return run ? copy(run.snap) : null;
@@ -20326,15 +20368,21 @@ async function readFileIn(root, urlPath) {
 function createApp(deps) {
   const app = new Hono3();
   app.use("*", guard(deps.port));
-  app.get("/api/health", (c) => c.json({ ok: true, app: "specboard", plugin: isBundled() }));
+  const version = deps.version ?? pluginVersion();
+  app.get("/api/health", (c) => c.json({ ok: true, app: "specboard", plugin: isBundled(), version }));
+  app.post("/api/shutdown", (c) => {
+    if (deps.runs.busy()) return c.json({ error: "Claude is working in this project" }, 409);
+    setTimeout(() => deps.onShutdown?.(), 50);
+    return c.json({ ok: true }, 202);
+  });
   app.get("/api/projects", async (c) => {
     const entries = await deps.registry.list();
     const all = await Promise.all(
       entries.map(async (entry) => {
         const p = await loadProject(entry.root);
-        const done = p.archived.length + p.specs.filter((s) => s.status === "done").length;
+        const progress = projectProgress(p.specs, p.archived);
         const available = await fs22.access(path21.join(entry.root, ".specboard", "config.md")).then(() => true, () => false);
-        return { ...entry, available, progress: { done, total: p.specs.length + p.archived.length } };
+        return { ...entry, available, progress };
       })
     );
     return c.json(all.filter((p) => p.available));
@@ -20423,15 +20471,19 @@ var HOST = "127.0.0.1";
 function registryFile() {
   return path22.join(specboardHome(), "projects.json");
 }
-async function isSpecBoard(port) {
+async function boardInfo(port) {
   try {
     const res = await fetch(`http://${HOST}:${port}/api/health`, { signal: AbortSignal.timeout(500) });
-    if (!res.ok) return false;
+    if (!res.ok) return null;
     const body = await res.json();
-    return body.app === "specboard";
+    if (body.app !== "specboard") return null;
+    return typeof body.version === "string" ? { version: body.version } : {};
   } catch {
-    return false;
+    return null;
   }
+}
+async function isSpecBoard(port) {
+  return await boardInfo(port) !== null;
 }
 async function tryOpen(opts, base, id) {
   if (!opts.open) return;
@@ -20460,7 +20512,15 @@ async function start(opts) {
   const status = opts.claude?.status ?? claudeStatus;
   let rt;
   const runs = new RunManager({ approved, emit: (id, e) => rt?.send(id, e), command: opts.claude?.command, status, roots: () => registry.roots() });
-  const deps = { registry, port: () => bound, webDist: webDistDir(), runs, approved, status };
+  let closeBoard = async () => {
+  };
+  const onShutdown = () => {
+    closeBoard().then(
+      () => (opts.exit ?? process.exit)(0),
+      () => (opts.exit ?? process.exit)(1)
+    );
+  };
+  const deps = { registry, port: () => bound, webDist: webDistDir(), runs, approved, status, onShutdown, version: opts.version };
   const server = createAdaptorServer({ fetch: createApp(deps).fetch });
   await new Promise((resolve3, reject) => {
     server.once("error", reject);
@@ -20482,6 +20542,7 @@ async function start(opts) {
       }
     }
   };
+  closeBoard = close;
   try {
     const entry = await registry.add(root);
     rt = await attachRealtime(server, deps);
@@ -20539,6 +20600,13 @@ function parseInitArgs(argv) {
   }
   return { path: dir, yes, forceSkills, noSkills, runs };
 }
+function parseRulesArgs(argv) {
+  const base = process.env.INIT_CWD || process.cwd();
+  const bad = argv.find((a) => a.startsWith("--"));
+  if (bad) throw new Error(`Unknown option: ${bad}`);
+  if (argv.length > 1) throw new Error("Usage: specboard rules [project folder]");
+  return { path: argv[0] ? path23.resolve(base, argv[0]) : base };
+}
 function parseAllowArgs(argv) {
   const base = process.env.INIT_CWD || process.cwd();
   const rest = argv.filter((a) => !a.startsWith("--"));
@@ -20592,10 +20660,6 @@ async function archiveCommand(a, log = console.log, err = console.error) {
 function detachArgs(argv) {
   return [...argv.filter((a) => a !== "--detach" && a !== "--no-detach"), "--no-detach"];
 }
-function pluginVersion() {
-  const manifest = JSON.parse(fs24.readFileSync(path23.join(pluginDir(), ".claude-plugin", "plugin.json"), "utf8"));
-  return manifest.version ?? "unknown";
-}
 function spawnDetached(argv) {
   const child = spawn5(process.execPath, [...process.execArgv, process.argv[1], ...detachArgs(argv)], {
     detached: true,
@@ -20616,11 +20680,60 @@ async function portIsFree(port) {
     s.listen(port, "127.0.0.1", () => s.close(() => resolve3(true)));
   });
 }
+function stopCommand(port, platform2 = process.platform) {
+  return platform2 === "win32" ? `Stop-Process -Id (Get-NetTCPConnection -LocalPort ${port} -State Listen).OwningProcess` : `kill $(lsof -ti tcp:${port})`;
+}
+async function askToShutDown(port) {
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/api/shutdown`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+      signal: AbortSignal.timeout(3e3)
+    });
+    if (res.status === 202) return "stopping";
+    if (res.status === 409) return "busy";
+    return "unsupported";
+  } catch {
+    return "unsupported";
+  }
+}
+async function waitUntilFree(port, ms) {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    if (await portIsFree(port)) return true;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return portIsFree(port);
+}
 async function runDetached(a, argv, deps = {}) {
-  if (a.port !== 0 && await isSpecBoard(a.port)) {
-    const s = await start(a);
-    console.log(`Spec Board running at ${s.url}`);
-    return 0;
+  const running = a.port !== 0 ? await boardInfo(a.port) : null;
+  if (running !== null) {
+    const mine = pluginVersion();
+    let reuse = running.version === mine;
+    if (!reuse) {
+      const root2 = path23.resolve(a.path);
+      if (!fs24.existsSync(path23.join(root2, ".specboard", "config.md"))) throw new Error(`No .specboard folder in ${root2}. ${initHint(root2)}`);
+      const label = running.version ?? "no version";
+      const answer = await askToShutDown(a.port);
+      if (answer === "unsupported") {
+        const which = running.version === void 0 ? "An older" : "Another";
+        console.error(`${which} Spec Board (${label}) is running on port ${a.port} and can't be replaced from here. Stop it, then run this again: ${stopCommand(a.port)}`);
+        return 1;
+      }
+      if (answer === "busy") {
+        console.log(`The Spec Board on port ${a.port} (${label}) is busy: Claude is working in this project. Using it as it is; it updates next time it is idle.`);
+        reuse = true;
+      } else if (!await waitUntilFree(a.port, 8e3)) {
+        console.error(`The old Spec Board on port ${a.port} did not stop. Stop it, then run this again: ${stopCommand(a.port)}`);
+        return 1;
+      }
+    }
+    if (reuse) {
+      const s = await start(a);
+      console.log(`Spec Board running at ${s.url}`);
+      return 0;
+    }
   }
   if (a.port === 0) throw new Error("--detach needs a fixed port; leave out --port 0.");
   const root = path23.resolve(a.path);
@@ -20681,6 +20794,10 @@ async function main() {
     await initCommand({ root: a.path, yes: a.yes, forceSkills: a.forceSkills, noSkills: a.noSkills, runs: a.runs }, terminalIO());
     return;
   }
+  if (cmd === "rules") {
+    await rulesCommand({ root: parseRulesArgs(rest).path }, terminalIO());
+    return;
+  }
   if (cmd === "allow") {
     const a = parseAllowArgs(rest);
     await allowCommand({ rule: a.rule, root: a.path }, terminalIO());
@@ -20722,10 +20839,12 @@ export {
   parseArchiveArgs,
   parseArgs,
   parseInitArgs,
+  parseRulesArgs,
   parseTreeArgs,
   pluginVersion,
   runDetached,
-  shutdown
+  shutdown,
+  stopCommand
 };
 /*! Bundled license information:
 
