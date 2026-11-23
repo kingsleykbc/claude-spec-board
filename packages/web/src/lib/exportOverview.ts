@@ -1,5 +1,5 @@
 import type { Project, Spec } from '@specboard/core';
-import { groupByMilestone } from '@specboard/core/milestones';
+import { groupByMilestone, projectProgress } from '@specboard/core/milestones';
 import { projectTokens } from '../state/allLogs';
 import { orderSpecs } from '../state/filters';
 import { formatTokens } from './formatTokens';
@@ -11,24 +11,25 @@ export interface OverviewCounts {
   todo: number;
   doing: number;
   review: number;
-  /** Active specs in Done plus every archived spec. */
+  /** Done specs, active or archived (an archived spec that isn't done leaves the count). */
   done: number;
   /** Active, non-done specs that are blocked. */
   blocked: number;
-  /** Active plus archived. */
+  /** Active specs plus archived done ones. */
   total: number;
 }
 
 export function overviewCounts(project: Pick<Project, 'specs' | 'archived'>): OverviewCounts {
   const live = project.specs;
   const n = (k: string) => live.filter((s) => s.status === k).length;
+  const progress = projectProgress(live, project.archived);
   return {
     todo: n('todo'),
     doing: n('doing'),
     review: n('review'),
-    done: n('done') + project.archived.length,
+    done: progress.done,
     blocked: live.filter((s) => s.status !== 'done' && s.blocked).length,
-    total: live.length + project.archived.length,
+    total: progress.total,
   };
 }
 

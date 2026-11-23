@@ -1,5 +1,5 @@
 import type { Question, Spec, Urgency } from '@specboard/core';
-import { groupByMilestone, milestoneOf } from '@specboard/core/milestones';
+import { groupByMilestone, milestoneOf, projectProgress } from '@specboard/core/milestones';
 import { firstOpenYouStep } from '@specboard/core/you';
 import { ORDER, URG } from '../lib/vm';
 
@@ -48,19 +48,15 @@ export interface MilestoneOption {
   total: number;
 }
 
-/** Done/total over specs, archived ones counted as done (like the project progress). */
-function doneTotal(live: Spec[], archived: Spec[]): { done: number; total: number } {
-  return { done: live.filter((s) => s.status === 'done').length + archived.length, total: live.length + archived.length };
-}
 
-/** Each listed milestone with done/total (archived counted done), then "No milestone" when any spec has none. */
+/** Each listed milestone with done/total (an archived spec counts only when done), then "No milestone" when any spec has none. */
 export function milestoneOptions(live: Spec[], archived: Spec[], milestones: string[]): MilestoneOption[] {
   if (milestones.length === 0) return [];
   const arch = new Set(archived);
   return groupByMilestone([...live, ...archived], milestones).map((g) => ({
     value: g.name ?? NO_MILESTONE,
     label: g.name ?? 'No milestone',
-    ...doneTotal(
+    ...projectProgress(
       g.specs.filter((s) => !arch.has(s)),
       g.specs.filter((s) => arch.has(s)),
     ),

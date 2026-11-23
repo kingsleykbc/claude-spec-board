@@ -183,3 +183,12 @@ describe('archivedShown (the Done column\'s "Show archived (N)")', () => {
     expect(ids(archivedShown(recipeArchived, { ...NO_FILTERS, blocked: true, milestone: 'Basics' }, SAMPLE_MS))).toEqual(['T-100']);
   });
 });
+
+describe('archived non-done specs leave the milestone counts', () => {
+  it('an archived to-do spec counts in neither done nor total; an archived done one counts in both', () => {
+    const archivedTodo = { ...arch[0]!, id: 'T-900', status: 'todo' as const, archived: true, milestone: 'Basics' };
+    const before = milestoneOptions(live, arch, MS).find((o) => o.value === 'Basics')!;
+    const after = milestoneOptions(live, [...arch, archivedTodo], MS).find((o) => o.value === 'Basics')!;
+    expect(after).toEqual(before);
+  });
+});

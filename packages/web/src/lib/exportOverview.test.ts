@@ -60,11 +60,13 @@ describe('exportOverview', () => {
     );
   });
 
-  it('counts archived as done, and blocked only for active, non-done specs', () => {
+  it('counts archived done specs, leaves archived non-done ones out, and blocked only for active, non-done specs', () => {
     const blockedDone = { ...recipeProject.specs[0]!, blocked: true };
     const blockedArchived = { ...recipeProject.archived[0]!, blocked: true };
     const p = { ...recipeProject, specs: [blockedDone, ...recipeProject.specs.slice(1)], archived: [blockedArchived] };
     expect(overviewCounts(p)).toEqual({ todo: 4, doing: 1, review: 1, done: 3, blocked: 2, total: 9 });
+    const archivedTodo = { ...blockedArchived, id: 'T-901', status: 'todo' as const };
+    expect(overviewCounts({ ...p, archived: [blockedArchived, archivedTodo] })).toEqual({ todo: 4, doing: 1, review: 1, done: 3, blocked: 2, total: 9 });
   });
 
   it('copes with a project without config or overview, and leaves out Tasks when there are no active specs', () => {
