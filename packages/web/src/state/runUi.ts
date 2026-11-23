@@ -161,12 +161,29 @@ export function useRunToasts({ onEvent }: Pick<UseRun, 'onEvent'>, specs: Spec[]
   );
 }
 
-function refusalToast(r: Extract<StartResult, { ok: false }>, specId: string | undefined, root: string | undefined): ToastArgs {
+/** What to paste into a Claude chat in place of a run the board can't start; null for runs with no chat command. */
+export function pasteCommand(kind: RunKind, specId: string | undefined): string | null {
+  switch (kind) {
+    case 'run':
+      return specId ? `/run-spec ${specId}` : null;
+    case 'write-up':
+      return specId ? `/specboard:create-spec ${specId}` : null;
+    case 'refresh-overview':
+      return '/specboard:refresh-overview';
+    default:
+      return null;
+  }
+}
+
+function refusalToast(r: Extract<StartResult, { ok: false }>, kind: RunKind, specId: string | undefined, root: string | undefined): ToastArgs {
   switch (r.reason) {
     case 'offline':
       return ['err', ...OFFLINE_TOAST];
     case 'not-approved':
-      return ['err', 'This project isn’t set up for runs', initHint(root)];
+    {
+      const cmd = pasteCommand(kind, specId);
+      return ['err', 'Claude isn’t connected', cmd ? `Paste ${cmd} into a Claude chat in this project, or ${initHint(root)}` : initHint(root)];
+    }
     case 'logged-out':
       return ['err', 'Claude Code isn’t logged in', 'Run `claude` in a terminal and log in.'];
     case 'not-installed': {
@@ -194,7 +211,7 @@ export function useRunActions({ run, start, stop, dismiss }: Pick<UseRun, 'run' 
       starting.current = true;
       try {
         const result = await start(kind, specId);
-        if (!result.ok) toast(...refusalToast(result, specId, root));
+        if (!result.ok) toast(...refusalToast(result, kind, specId, root));
         return result.ok;
       } finally {
         starting.current = false;

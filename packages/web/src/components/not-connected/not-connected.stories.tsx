@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, within } from 'storybook/test';
-import { NotConnected } from './not-connected';
+import { NotConnected, NotConnectedTrigger } from './not-connected';
 
 const meta = { title: 'Shell/NotConnected', component: NotConnected, args: { reason: 'not-approved' } } satisfies Meta<typeof NotConnected>;
 export default meta;
@@ -38,3 +38,21 @@ export const NotLoggedIn: Story = { args: { reason: 'not-logged-in' }, decorator
 export const Blocked: Story = { args: { reason: 'blocked' }, decorators: [frame], play: opens('Claude Code is blocked by a setting.') };
 export const NotApproved: Story = { args: { reason: 'not-approved' }, decorators: [frame], play: opens("This project isn't set up for background runs.") };
 export const NoReason: Story = { args: { reason: null }, decorators: [frame] };
+
+/** The greyed button behind Have Claude write this up and Refresh: not disabled, with the command to paste. */
+export const Trigger: Story = {
+  render: () => (
+    <NotConnectedTrigger label="Refresh" reason="not-logged-in" command="/specboard:refresh-overview">
+      Refresh
+    </NotConnectedTrigger>
+  ),
+  decorators: [frame],
+  play: async ({ canvasElement }) => {
+    const btn = within(canvasElement).getByRole('button', { name: 'Refresh' }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+    await userEvent.click(btn);
+    const pop = await within(document.body).findByRole('dialog', { name: "Claude isn't connected" });
+    expect(within(pop).getByText('/specboard:refresh-overview')).toBeTruthy();
+    await userEvent.keyboard('{Escape}');
+  },
+};

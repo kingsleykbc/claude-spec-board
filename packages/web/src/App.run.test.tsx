@@ -228,7 +228,7 @@ describe('refusals', () => {
   };
 
   it.each([
-    ['not-approved', new ApiError(412, 'x', { setup: 'not-approved' }), 'This project isn’t set up for runs', initHint('/x/recipe-box')],
+    ['not-approved', new ApiError(412, 'x', { setup: 'not-approved' }), 'Claude isn’t connected', `Paste /run-spec T-104 into a Claude chat in this project, or ${initHint('/x/recipe-box')}`],
     ['logged-out', new ApiError(503, 'x', { claude: 'logged-out' }), 'Claude Code isn’t logged in', 'Run `claude` in a terminal and log in.'],
     ['not-installed', new ApiError(503, 'x', { claude: 'not-installed' }), 'Claude Code isn’t installed', 'Install Claude Code, then run again.'],
     ['blocked', new ApiError(503, 'x', { claude: 'not-installed', blockedBy: 'C:\\p\\claude.cmd' }), 'Claude Code isn’t available', 'Claude Code is inside a registered project (C:\\p\\claude.cmd), so runs won’t use it.'],

@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { composeStories } from '@storybook/react-vite';
 import * as stories from './run-button.stories';
-import { NOT_CONNECTED_TITLE } from '@/components/not-connected/not-connected';
+import { NOT_CONNECTED_SHORT } from '@/components/not-connected/not-connected';
 
 const { Ready } = composeStories(stories);
 const base = { id: 'T-104', manual: null, statusKnown: true, onRun: vi.fn(), onStop: vi.fn() } as const;
@@ -31,10 +31,28 @@ describe('RunButton', () => {
     render(<Ready {...base} state="ready" manual="not-approved" onRun={onRun} />);
     await user.click(screen.getByRole('button', { name: 'Run with Claude' }));
     expect(onRun).not.toHaveBeenCalled();
-    const notice = await screen.findByRole('dialog', { name: NOT_CONNECTED_TITLE });
-    expect(notice.textContent).toMatch(NOT_CONNECTED_TITLE);
+    const notice = await screen.findByRole('dialog', { name: NOT_CONNECTED_SHORT });
+    expect(notice.textContent).toMatch(NOT_CONNECTED_SHORT);
     expect(notice.textContent).toMatch("This project isn't set up for background runs.");
     expect(screen.getByRole('button', { name: 'Copy run command' })).toBeTruthy();
+  });
+
+  it('not connected: Run with Claude looks greyed but is not disabled, and the popover carries the command to paste', async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    render(<Ready {...base} id="T-104" state="ready" manual="not-installed" />);
+    const run = screen.getByRole('button', { name: 'Run with Claude' }) as HTMLButtonElement;
+    expect(run.disabled).toBe(false);
+    expect(run.className).not.toMatch(/bg-accent/);
+    expect(run.className).toMatch(/text-fg3/);
+    run.focus();
+    await user.click(run);
+    const notice = await screen.findByRole('dialog', { name: NOT_CONNECTED_SHORT });
+    expect(notice.textContent).toMatch('/run-spec T-104');
+    await user.click(within(notice).getByRole('button', { name: 'Copy command' }));
+    expect(writeText).toHaveBeenCalledWith('/run-spec T-104');
+    expect(await within(notice).findByRole('button', { name: 'Copied' })).toBeTruthy();
   });
 
   it('status unknown: a click starts nothing and opens nothing', async () => {
@@ -50,7 +68,7 @@ describe('RunButton', () => {
     const user = userEvent.setup();
     render(<Ready {...base} state="fallback" manual="not-installed" />);
     await user.click(screen.getByRole('button', { name: 'Run with Claude' }));
-    expect((await screen.findByRole('dialog', { name: NOT_CONNECTED_TITLE })).textContent).toMatch("Claude Code isn't installed on this computer.");
+    expect((await screen.findByRole('dialog', { name: NOT_CONNECTED_SHORT })).textContent).toMatch("Claude Code isn't installed on this computer.");
   });
 
   it('ready: Copy run command copies the command and starts nothing', async () => {
@@ -65,7 +83,7 @@ describe('RunButton', () => {
     });
     expect(writeText).toHaveBeenCalledWith('/run-spec T-104');
     expect(onRun).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Copied: paste it into your Claude chat' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Copied' })).toBeTruthy();
   });
 
   it('ready: both are explained, in tooltips and in the docs', async () => {
@@ -128,9 +146,9 @@ describe('RunButton', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Copy run command' }));
     });
     expect(writeText).toHaveBeenCalledWith('/run-spec T-104');
-    expect(screen.getByRole('button', { name: 'Copied: paste it into your Claude chat' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Copied' })).toBeTruthy();
     act(() => vi.advanceTimersByTime(2599));
-    expect(screen.getByRole('button', { name: 'Copied: paste it into your Claude chat' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Copied' })).toBeTruthy();
     act(() => vi.advanceTimersByTime(1));
     expect(screen.getByRole('button', { name: 'Copy run command' })).toBeTruthy();
   });
@@ -151,7 +169,7 @@ describe('RunButton', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Copy run command' }));
     expect(failedNote().textContent).toBe('Copy failed: paste /run-spec T-104 into your Claude chat');
     expect(screen.getByText('/run-spec T-104').className).toMatch(/select-all/);
-    expect(screen.queryByText('Copied: paste it into your Claude chat')).toBeNull();
+    expect(screen.queryByText('Copied')).toBeNull();
     expect(screen.queryByText('Claude Code not found')).toBeNull();
     act(() => vi.advanceTimersByTime(5999));
     expect(failedNote()).toBeTruthy();
@@ -170,7 +188,7 @@ describe('RunButton', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Copy run command' }));
     });
     expect(failedNote().textContent).toBe('Copy failed: paste /run-spec T-104 into your Claude chat');
-    expect(screen.queryByText('Copied: paste it into your Claude chat')).toBeNull();
+    expect(screen.queryByText('Copied')).toBeNull();
   });
 
   it('no clipboard API at all shows "Copy failed"', () => {

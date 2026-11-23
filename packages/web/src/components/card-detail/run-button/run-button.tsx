@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
 import { docsPath } from '@/lib/docsPages';
 import { CheckIcon, CopyIcon, HelpIcon, PlayIcon } from '@/lib/icons';
 import { Hint } from '@/components/ui/hint/hint';
-import { InfoPopover } from '@/components/ui/info-popover/info-popover';
-import { NOT_CONNECTED_TITLE, NotConnectedBody } from '@/components/not-connected/not-connected';
+import { NotConnectedTrigger } from '@/components/not-connected/not-connected';
+import { COPIED_MS, COPY_FAILED_MS, useCopyCommand } from '@/lib/useCopyCommand';
 import type { ManualReason } from '@/state/runUi';
 import { cn } from '@/lib/utils';
 
@@ -28,9 +27,7 @@ export interface RunButtonProps {
   onStop: () => void;
 }
 
-export const COPIED_MS = 2600;
-/** How long "Copy failed: paste …" stays, so the command can be selected by hand. */
-export const COPY_FAILED_MS = 6000;
+export { COPIED_MS, COPY_FAILED_MS };
 
 export const CHAT_TITLE = 'Copies the command to paste into a Claude chat open in this project. You see all the work in that chat, and this card follows along. It uses your normal Claude settings and approvals.';
 export const BACKGROUND_TITLE =
@@ -57,46 +54,8 @@ const note = 'min-w-0 flex-[0_1_auto] overflow-hidden text-[12px] text-ellipsis 
  * docs/guide/running-specs.md says when to use which.
  */
 export function RunButton({ id, state, runningId, hold, blockedNote, busyNote, manual, statusKnown, onRun, onStop }: RunButtonProps) {
-  const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle');
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const alive = useRef(true);
-  useEffect(() => {
-    alive.current = true;
-    return () => {
-      alive.current = false;
-      if (timer.current !== null) clearTimeout(timer.current);
-    };
-  }, []);
-
   const command = `/run-spec ${id}`;
-  const show = (next: 'copied' | 'failed') => {
-    if (!alive.current) return;
-    setCopy(next);
-    if (timer.current !== null) clearTimeout(timer.current);
-    timer.current = setTimeout(
-      () => {
-        timer.current = null;
-        setCopy('idle');
-      },
-      next === 'copied' ? COPIED_MS : COPY_FAILED_MS,
-    );
-  };
-  const doCopy = () => {
-    let p: Promise<void>;
-    try {
-      const clip = typeof navigator !== 'undefined' ? navigator.clipboard : undefined;
-      if (!clip) throw new Error('No clipboard');
-      p = clip.writeText(command);
-    } catch {
-      show('failed');
-      return;
-    }
-    // Confirm only once the browser says the text is on the clipboard.
-    Promise.resolve(p).then(
-      () => show('copied'),
-      () => show('failed'),
-    );
-  };
+  const { state: copy, copy: doCopy } = useCopyCommand(command);
 
   if (state === 'running') {
     return (
@@ -134,9 +93,9 @@ export function RunButton({ id, state, runningId, hold, blockedNote, busyNote, m
   // started or explained wrongly.
   const runWithClaude =
     manual && statusKnown ? (
-      <InfoPopover label="Run with Claude" title={NOT_CONNECTED_TITLE} triggerClassName={primaryButton} trigger={runLabel}>
-        <NotConnectedBody reason={manual} />
-      </InfoPopover>
+      <NotConnectedTrigger label="Run with Claude" reason={manual} command={command}>
+        {runLabel}
+      </NotConnectedTrigger>
     ) : (
       <Hint label={BACKGROUND_TITLE}>
         <button type="button" className={primaryButton} aria-label="Run with Claude" aria-disabled={!statusKnown} onClick={statusKnown ? onRun : undefined}>
@@ -150,7 +109,7 @@ export function RunButton({ id, state, runningId, hold, blockedNote, busyNote, m
       Copy failed: paste <span className="font-mono select-all">{command}</span> into your Claude chat
     </span>
   );
-  const copyName = copied ? 'Copied: paste it into your Claude chat' : 'Copy run command';
+  const copyName = copied ? 'Copied' : 'Copy run command';
   const copyButton = (
     <Hint label={CHAT_TITLE}>
       <button type="button" className={secondaryButton} data-copied={copied} aria-label={copyName} onClick={doCopy}>

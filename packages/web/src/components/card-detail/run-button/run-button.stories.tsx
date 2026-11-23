@@ -24,11 +24,15 @@ export const Ready: Story = {
   },
 };
 
+/** Greyed, but not disabled: hover, focus or a click opens why Claude isn't connected and the command to paste. */
 export const NotConnected: Story = {
   args: { manual: 'not-approved' },
   play: async ({ canvasElement, args }) => {
-    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Run with Claude' }));
+    const run = within(canvasElement).getByRole('button', { name: 'Run with Claude' }) as HTMLButtonElement;
+    expect(run.disabled).toBe(false);
+    await userEvent.click(run);
     expect(await within(document.body).findByText("This project isn't set up for background runs.")).toBeTruthy();
+    expect(within(document.body).getByText('/run-spec T-104')).toBeTruthy();
     expect(args.onRun).not.toHaveBeenCalled();
   },
 };
@@ -69,7 +73,7 @@ export const Fallback: Story = {
     const c = within(canvasElement);
     expect(c.getByText('Claude Code not found')).toBeTruthy();
     await userEvent.click(c.getByRole('button', { name: 'Copy run command' }));
-    expect(await c.findByRole('button', { name: 'Copied: paste it into your Claude chat' })).toBeTruthy();
+    expect(await c.findByRole('button', { name: 'Copied' })).toBeTruthy();
   },
 };
 

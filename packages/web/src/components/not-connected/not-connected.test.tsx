@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { composeStories } from '@storybook/react-vite';
 import * as stories from './not-connected.stories';
 
-const { NotInstalled, NotLoggedIn, Blocked, NotApproved, NoReason } = composeStories(stories);
+const { NotInstalled, NotLoggedIn, Blocked, NotApproved, NoReason, Trigger } = composeStories(stories);
 
 afterEach(cleanup);
 
@@ -64,6 +64,20 @@ describe('NotConnected', () => {
     await user.click(btn);
     await screen.findByRole('dialog');
     await user.click(btn);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('the trigger is a greyed, enabled button; it opens the popover with the command and a Copy button', async () => {
+    const user = userEvent.setup();
+    render(<Trigger />);
+    const btn = screen.getByRole('button', { name: 'Refresh' }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+    await user.click(btn);
+    const pop = await screen.findByRole('dialog', { name: "Claude isn't connected" });
+    expect(within(pop).getByText('/specboard:refresh-overview')).toBeTruthy();
+    expect(within(pop).getByText("Claude Code isn't logged in.")).toBeTruthy();
+    expect(within(pop).getByRole('button', { name: 'Copy command' })).toBeTruthy();
+    await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 });
