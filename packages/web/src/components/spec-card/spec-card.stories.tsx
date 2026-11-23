@@ -231,17 +231,15 @@ export const SimpleRunning: Story = {
   decorators: [(Story) => <SimpleMode value>{Story()}</SimpleMode>],
 };
 
-/** Claude's status isn't known yet: the write-up button is neutral (no accent fill, not greyed) and a click waits. */
+/** Claude's status isn't known yet: the write-up button is neutral (no accent fill, not greyed); the unit test checks a click waits. */
 export const DraftStatusUnknown: Story = {
   args: { id: 'T-107', statusKnown: false },
-  play: async ({ canvasElement, args }) => {
+  play: async ({ canvasElement }) => {
     const buttons = within(canvasElement).getAllByRole('button', { name: 'Have Claude write this up' });
     expect(buttons).toHaveLength(2);
     for (const b of buttons) {
       expect(b.className).not.toMatch(/bg-accent/);
       expect(b.className).toMatch(/bg-card/);
     }
-    await userEvent.click(buttons[0]!);
-    expect(args.onWriteUp).not.toHaveBeenCalled();
   },
 };
