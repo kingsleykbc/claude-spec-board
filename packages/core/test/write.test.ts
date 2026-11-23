@@ -163,6 +163,16 @@ describe('archive / unarchive', () => {
     await expect(unarchiveSpec(root, 'T-999')).rejects.toThrow('Spec T-999 not found');
     expect((await loadProject(root)).specs).toHaveLength(1);
   });
+
+  it('archives a spec in any status with { anyStatus: true }', async () => {
+    const root = await tmp();
+    await initProject(root, 'p');
+    const s = await createSpec(root, { title: 'x', description: '', draft: false });
+    await archiveSpec(root, s.id, { anyStatus: true });
+    const p = await loadProject(root);
+    expect(p.specs).toHaveLength(0);
+    expect(p.archived.map((a) => a.id)).toEqual([s.id]);
+  });
 });
 
 describe('initProject', () => {

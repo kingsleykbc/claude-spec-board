@@ -14,5 +14,7 @@ export interface Question {
   recommendation: string | null;
 }
 export interface Subtask { n: number; title: string; done: boolean; line: number; hasLog: boolean }
+/** A person-only check in `## To review`. `n` is its 1-based position in the section; `line` is the 0-based line of the checkbox. */
+export interface ReviewItem { n: number; text: string; expected: string | null; group: string | null; done: boolean; line: number }
 export interface SpecMeta { id: string; title: string; status: Status; urgency: Urgency; categories: string[]; dependsOn: string[]; draft: boolean; milestone: string | null; currentSubtask: number | null; created: string | null; updated: string | null; needsRefresh: string | null }
-export interface SpecDoc extends SpecMeta { specMd: string; featuresMd: string; questions: Question[]; subtasks: Subtask[]; problems: string[] }
+export interface SpecDoc extends SpecMeta { specMd: string; featuresMd: string; questions: Question[]; subtasks: Subtask[]; reviews: ReviewItem[]; problems: string[] }

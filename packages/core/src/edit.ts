@@ -17,6 +17,7 @@ export type MetaKey = keyof MetaValues;
 
 const QUESTION = /^- \[([ xX])\]([ \t]+)(Q\d+)([ \t]*\([^)]*\)[ \t]*:.*)$/;
 const ANSWER = /^[ \t]+>[ \t]*answer[ \t]*:/i;
+const REVIEW = /^(- \[)([ xX])(\][ \t]+\S.*)$/;
 const SUBTASK = /^(- \[)([ xX])(\][ \t]+(\d+)\.[ \t]+.*)$/;
 
 export function detectEol(text: string): '\n' | '\r\n' {
@@ -172,6 +173,25 @@ export function setSubtaskDone(text: string, n: number, done: boolean): string {
   throw new Error(`Subtask ${n} not found`);
 }
 
+/** Tick or untick the n-th (1-based) item of `## To review`. Throws when there is no such item. */
+export function setReviewDone(text: string, n: number, done: boolean): string {
+  const ls = toLines(text);
+  const lines = textsOf(ls);
+  const range = findSections(lines, splitFrontMatter(text).bodyStartLine).get('to review');
+  if (range) {
+    let count = 0;
+    for (let i = range.start; i < range.end; i++) {
+      const m = REVIEW.exec(lines[i]!);
+      if (!m) continue;
+      if (++count === n) {
+        ls[i]!.text = `${m[1]}${done ? 'x' : ' '}${m[3]}`;
+        return fromLines(ls);
+      }
+    }
+  }
+  throw new Error(`Review item ${n} not found`);
+}
+
 export function setAnswers(text: string, answers: Record<string, string>): string {
   const ls = toLines(text);
   const lines = textsOf(ls);
@@ -218,10 +238,10 @@ export function replaceSection(text: string, heading: string, newBody: string): 
   return fromLines(ls);
 }
 
-// ---- Spec body: everything except front matter, the Spec heading, Open questions and Subtasks ----
+// ---- Spec body: everything except front matter, the Spec heading, Open questions, Subtasks and To review ----
 
 const FENCE_LINE = /^[ \t]*(```|~~~)/;
-const KEPT_HEADING = /^##[ \t]+(spec|open questions|subtasks)[ \t]*#*[ \t]*$/i;
+const KEPT_HEADING = /^##[ \t]+(spec|open questions|subtasks|to review)[ \t]*#*[ \t]*$/i;
 const HEADING_LINE = /^##[ \t]+(.+?)[ \t]*#*[ \t]*$/;
 const isBlank = (l: Line): boolean => l.text.trim() === '';
 
@@ -267,7 +287,7 @@ function splitBody(text: string): BodySplit {
   if (endsNl) ls = ls.slice(0, -1);
   const bodyStart = Math.min(splitFrontMatter(text).bodyStartLine, ls.length);
   const sections = findSections(textsOf(ls), bodyStart);
-  const ranges = ['open questions', 'subtasks']
+  const ranges = ['open questions', 'subtasks', 'to review']
     .map((k) => sections.get(k))
     .filter((r): r is NonNullable<typeof r> => r !== undefined)
     .sort((x, y) => x.headingLine - y.headingLine);
@@ -308,7 +328,7 @@ function trimTrailingBlank(ls: Line[]): Line[] {
 
 /**
  * The editable body of a spec: everything after the front matter except the `## Spec` heading line
- * and the `## Open questions` / `## Subtasks` sections. Other sections keep their headings.
+ * and the `## Open questions` / `## Subtasks` / `## To review` sections. Other sections keep their headings.
  * Leading and trailing blank lines are dropped.
  */
 export function specBodyMd(text: string): string {

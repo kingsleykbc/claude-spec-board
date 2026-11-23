@@ -1,6 +1,6 @@
 import { parseSpecMeta, splitFrontMatter } from './frontmatter.js';
 import { findSections, type SectionRange } from './sections.js';
-import type { Question, QuestionType, SpecDoc, Subtask } from './types.js';
+import type { Question, QuestionType, ReviewItem, SpecDoc, Subtask } from './types.js';
 
 const QUESTION = /^- \[([ xX])\][ \t]+(Q\d+)[ \t]*\(([^)]*)\)[ \t]*:[ \t]*(.*?)[ \t]*$/;
 const ANSWER = /^[ \t]+>[ \t]*answer[ \t]*:[ \t]*(.*?)[ \t]*$/i;
@@ -9,6 +9,9 @@ const PRIORITY = /^[ \t]*(optional|required)[ \t]+/i;
 /** `Text? (recommended: Yes)`. Needs some text before it and a value inside. */
 const RECOMMENDED = /^(.*?\S)[ \t]*\(recommended[ \t]*:[ \t]*(.*\S)[ \t]*\)$/i;
 const SUBTASK = /^- \[([ xX])\][ \t]+(\d+)\.[ \t]+(.*?)[ \t]*$/;
+const REVIEW = /^- \[([ xX])\][ \t]+(.*?)[ \t]*$/;
+const EXPECTED = /^[ \t]+>[ \t]*expected[ \t]*:[ \t]*(.*?)[ \t]*$/i;
+const GROUP = /^###[ \t]+(.*?)[ \t]*#*[ \t]*$/;
 // Only column-0 list items can be questions or subtasks; indented bullets are free-form detail.
 const LIST_ITEM = /^[-*+][ \t]/;
 const TYPES: readonly QuestionType[] = ['yesno', 'number', 'text', 'choice'];
@@ -73,6 +76,33 @@ function parseSubtasks(lines: string[], range: SectionRange | undefined, problem
   return subtasks;
 }
 
+function parseReviews(lines: string[], range: SectionRange | undefined, problems: string[]): ReviewItem[] {
+  const reviews: ReviewItem[] = [];
+  if (!range) return reviews;
+  let group: string | null = null;
+  for (let i = range.start; i < range.end; i++) {
+    const line = lines[i]!;
+    const g = GROUP.exec(line);
+    if (g) {
+      group = g[1]! === '' ? null : g[1]!;
+      continue;
+    }
+    const m = REVIEW.exec(line);
+    if (!m) {
+      if (LIST_ITEM.test(line)) problems.push(`Unrecognised review line ${i + 1}`);
+      continue;
+    }
+    let expected: string | null = null;
+    const e = i + 1 < range.end ? EXPECTED.exec(lines[i + 1]!) : null;
+    if (e) {
+      if (e[1]! !== '') expected = e[1]!;
+      i++;
+    }
+    reviews.push({ n: reviews.length + 1, text: m[2]!, expected, group, done: m[1] !== ' ', line: i - (e ? 1 : 0) });
+  }
+  return reviews;
+}
+
 /** Parse a spec.md file. Never throws; issues are reported in `problems`. */
 export function parseSpec(text: string): SpecDoc {
   const { yaml, bodyStartLine } = splitFrontMatter(text);
@@ -85,6 +115,7 @@ export function parseSpec(text: string): SpecDoc {
     featuresMd: sectionText(lines, sections.get('features')),
     questions: parseQuestions(lines, sections.get('open questions'), problems),
     subtasks: parseSubtasks(lines, sections.get('subtasks'), problems),
+    reviews: parseReviews(lines, sections.get('to review'), problems),
     problems,
   };
 }

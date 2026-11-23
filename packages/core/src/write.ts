@@ -132,18 +132,19 @@ function specTemplate(id: string, input: { title: string; description: string; d
   ].join('\n');
 }
 
-async function move(root: string, id: string, from: 'specs' | 'archive', to: 'specs' | 'archive'): Promise<void> {
+async function move(root: string, id: string, from: 'specs' | 'archive', to: 'specs' | 'archive', anyStatus = false): Promise<void> {
   const p = await loadProject(root);
   const spec = (from === 'specs' ? p.specs : p.archived).find((s) => s.id === id);
   if (!spec) throw new Error(`Spec ${id} not found`);
-  if (from === 'specs' && spec.status !== 'done') throw new Error('Only done specs can be archived');
+  if (from === 'specs' && !anyStatus && spec.status !== 'done') throw new Error('Only done specs can be archived');
   const dest = path.join(root, '.specboard', to, path.basename(spec.dir));
   await fs.mkdir(path.dirname(dest), { recursive: true });
   await withRetry(() => fs.rename(spec.dir, dest));
 }
 
-export async function archiveSpec(root: string, id: string): Promise<void> {
-  await move(root, id, 'specs', 'archive');
+/** Archive a spec. Only done specs unless `anyStatus` (the board and `specboard archive` archive from any column). */
+export async function archiveSpec(root: string, id: string, opts: { anyStatus?: boolean } = {}): Promise<void> {
+  await move(root, id, 'specs', 'archive', opts.anyStatus === true);
 }
 
 export async function unarchiveSpec(root: string, id: string): Promise<void> {

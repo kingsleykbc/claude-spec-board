@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { hashText } from './hash.js';
 import { specBodyMd } from './edit.js';
+import { isImageName } from './images.js';
 import { withRetry } from './retry.js';
 import { parseSpec } from './parseSpec.js';
 import { parseConfig, parseLog, parseOverview, parseSettings, type Overview, type ProjectConfig, type ProjectSettings, type SubtaskLog } from './parseOther.js';
@@ -20,7 +21,11 @@ export interface Spec extends SpecDoc {
   blockedReasons: string[];
   progress: { done: number; total: number };
   logs: Record<number, SubtaskLog>;
-  /** Body Markdown without Open questions and Subtasks; what the SPEC panel shows and edits. */
+  /** Image files in the spec's `images/` folder, sorted. */
+  images: string[];
+  /** The images that spec.md does not link as `images/<name>`: added on the board for Claude to look at. */
+  attachments: string[];
+  /** Body Markdown without Open questions, Subtasks and To review; what the SPEC panel shows and edits. */
   bodyMd: string;
   /** `hashText(bodyMd)`: changes only when the editable body changes, not front matter, questions or subtasks. */
   bodyHash: string;
@@ -110,6 +115,15 @@ async function listDirs(dir: string): Promise<string[]> {
 
 const FOLDER_ID = /^([A-Za-z]+-\d+)(?:-(.*))?$/;
 
+async function loadImages(dir: string): Promise<string[]> {
+  try {
+    const entries = await fs.readdir(path.join(dir, 'images'), { withFileTypes: true });
+    return entries.filter((e) => e.isFile() && isImageName(e.name)).map((e) => e.name).sort();
+  } catch {
+    return [];
+  }
+}
+
 async function loadLogs(dir: string, problems: string[]): Promise<Record<number, SubtaskLog>> {
   const logs: Record<number, SubtaskLog> = {};
   let names: string[];
@@ -150,6 +164,8 @@ async function loadSpecFolder(root: string, kind: 'specs' | 'archive', folder: s
     const logs = await loadLogs(dir, doc.problems);
     for (const st of doc.subtasks) st.hasLog = logs[st.n] !== undefined;
     const bodyMd = specBodyMd(text);
+    const images = await loadImages(dir);
+    const linked = (name: string): boolean => text.includes(`images/${name}`) || text.includes(`images/${encodeURI(name)}`);
     return {
       ...doc,
       dir,
@@ -159,6 +175,8 @@ async function loadSpecFolder(root: string, kind: 'specs' | 'archive', folder: s
       slug,
       progress: { done: doc.subtasks.filter((s) => s.done).length, total: doc.subtasks.length },
       logs,
+      images,
+      attachments: images.filter((n) => !linked(n)),
       bodyMd,
       bodyHash: hashText(bodyMd),
     };
