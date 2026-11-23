@@ -215,11 +215,7 @@ describe('spec mutations', () => {
     expect((await send('POST', '/specs', { title: 'x' })).status).toBe(400);
   });
 
-  it('archives done specs only, unarchives, and 404s unknown ids', async () => {
-    const open = (await loadProject(proj)).specs.find((s) => s.status !== 'done')!;
-    const no = await send('POST', `/specs/${open.id}/archive`);
-    expect(no.status).toBe(400);
-    expect(await no.json()).toEqual({ error: 'Only done specs can be archived' });
+  it('archives, unarchives, and 404s unknown ids', async () => {
     const done = (await loadProject(proj)).specs.find((s) => s.status === 'done')!;
     expect((await send('POST', `/specs/${done.id}/archive`)).status).toBe(204);
     expect((await get(done.id)).archived).toBe(true);
@@ -331,5 +327,56 @@ describe('body save flags needs_refresh', () => {
     const res = await send('PATCH', '/specs/T-105/body', { hash: now.hash, bodyHash: s.bodyHash, md: s.bodyMd + '\nMine.\n' });
     expect(res.status).toBe(409);
     expect(await fs.readFile(file, 'utf8')).toBe(claude);
+  });
+});
+
+describe('review items and archive guard', () => {
+  const REVIEW = '\n## To review\n### Group\n- [ ] Check one\n  > expected: It works.\n- [ ] Check two\n';
+
+  it('toggles a review item and answers like the subtask route', async () => {
+    const file = specFile('T-101');
+    await fs.writeFile(file, (await fs.readFile(file, 'utf8')).replace(/\s*$/, '\n') + REVIEW);
+    const s = await get('T-101');
+    expect(s.reviews).toHaveLength(2);
+    const res = await send('PATCH', '/specs/T-101/reviews/2', { hash: s.hash, done: true });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { hash: string; spec: Spec };
+    expect(body.spec.reviews.map((r) => r.done)).toEqual([false, true]);
+    expect(body.hash).toBe(hashText(await fs.readFile(file, 'utf8')));
+    expect(body.spec.subtasks).toEqual(s.subtasks);
+  });
+
+  it('review route: 409 on a stale hash, 400 on a bad item or body, 404 on an unknown spec', async () => {
+    const file = specFile('T-101');
+    await fs.writeFile(file, (await fs.readFile(file, 'utf8')).replace(/\s*$/, '\n') + REVIEW);
+    const s = await get('T-101');
+    const before = await fs.readFile(file, 'utf8');
+    expect((await send('PATCH', '/specs/T-101/reviews/1', { hash: 'stale', done: true })).status).toBe(409);
+    expect((await send('PATCH', '/specs/T-101/reviews/9', { hash: s.hash, done: true })).status).toBe(400);
+    expect((await send('PATCH', '/specs/T-101/reviews/x', { hash: s.hash, done: true })).status).toBe(400);
+    expect((await send('PATCH', '/specs/T-101/reviews/1', { hash: s.hash, done: 'yes' })).status).toBe(400);
+    expect((await send('PATCH', '/specs/T-999/reviews/1', { hash: s.hash, done: true })).status).toBe(404);
+    expect(await fs.readFile(file, 'utf8')).toBe(before);
+  });
+
+  it('archives a to-do spec (any status)', async () => {
+    const open = (await loadProject(proj)).specs.find((s) => s.status === 'todo')!;
+    expect((await send('POST', `/specs/${open.id}/archive`)).status).toBe(204);
+    expect((await get(open.id)).archived).toBe(true);
+  });
+
+  it('refuses to archive the spec a run is working on, but not another', async () => {
+    const running = { id: 'r1', pid, kind: 'run', specId: 'T-102', status: 'running', lines: [], end: null, startedAt: '', dismissed: false };
+    const runs = fakeRuns({ current: vi.fn(() => running) });
+    const reg = new Registry(path.join(tmp, 'projects.json'));
+    const app2 = createApp({ registry: reg, port: () => 4949, webDist: null, runs, approved: tempApproved(tmp) });
+    const post = (id: string) => app2.request(`/api/projects/${pid}/specs/${id}/archive`, { method: 'POST', headers: HEADERS });
+    const no = await post('T-102');
+    expect(no.status).toBe(409);
+    expect(await no.json()).toEqual({ error: 'Claude is working on it' });
+    expect((await get('T-102')).archived).toBe(false);
+    expect((await post('T-103')).status).toBe(204);
+    running.status = 'finished';
+    expect((await post('T-102')).status).toBe(204);
   });
 });

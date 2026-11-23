@@ -111,3 +111,41 @@ describe('POST /api/projects/:pid/specs/:id/images', () => {
     expect(res.status).toBe(415);
   });
 });
+
+describe('DELETE /api/projects/:pid/specs/:id/images/:name', () => {
+  const del = (name: string, id = 'T-101') =>
+    app.request(`/api/projects/${pid}/specs/${id}/images/${encodeURIComponent(name)}`, { method: 'DELETE', headers: HEADERS });
+  const file = (n: string) => path.join(specDir(), 'images', n);
+
+  it('deletes the image and leaves spec.md alone', async () => {
+    await post('shot.png', b64(PNG));
+    const specMd = await fs.readFile(path.join(specDir(), 'spec.md'), 'utf8');
+    expect((await del('shot.png')).status).toBe(204);
+    await expect(fs.access(file('shot.png'))).rejects.toThrow();
+    expect(await fs.readFile(path.join(specDir(), 'spec.md'), 'utf8')).toBe(specMd);
+  });
+
+  it('404s an unknown file or spec', async () => {
+    expect((await del('nope.png')).status).toBe(404);
+    expect((await del('shot.png', 'T-999')).status).toBe(404);
+  });
+
+  it('409s an archived spec and keeps the file', async () => {
+    await post('shot.png', b64(PNG));
+    const { archiveSpec } = await import('@specboard/core');
+    await archiveSpec(proj, 'T-101', { anyStatus: true });
+    expect((await del('shot.png')).status).toBe(409);
+    await fs.access(path.join(proj, '.specboard', 'archive', 'T-101-recipe-list-page', 'images', 'shot.png'));
+  });
+
+  it.each([['a/b.png'], [`a${BS}b.png`], ['../spec.md'], ['..png'], ['notes.txt'], ['spec.md'], ['noext']])('400s the name %j', async (name) => {
+    const res = await del(name);
+    expect(res.status).toBe(400);
+  });
+
+  it('never deletes a file outside images/', async () => {
+    const res = await app.request(`/api/projects/${pid}/specs/T-101/images/..%2Fspec.md`, { method: 'DELETE', headers: HEADERS });
+    expect([400, 404]).toContain(res.status);
+    await fs.access(path.join(specDir(), 'spec.md'));
+  });
+});

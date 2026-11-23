@@ -91,7 +91,7 @@ export function createApp(deps: AppDeps): Hono {
     return c.json({ entry, project, nextId: await nextId(entry.root) });
   });
 
-  app.route('/', specRoutes(deps.registry));
+  app.route('/', specRoutes(deps.registry, deps.runs));
   app.route('/', referenceRoutes(deps.registry));
   app.route('/', fileRoutes(deps.registry, deps.openFile));
   app.route('/', imageRoutes(deps.registry));

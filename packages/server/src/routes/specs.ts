@@ -13,6 +13,7 @@ import {
   setAnswers,
   setMetaField,
   setNeedsRefresh,
+  setReviewDone,
   setSubtaskDone,
   splitFrontMatter,
   unarchiveSpec,
@@ -22,6 +23,7 @@ import {
 } from '@specboard/core';
 import type { Spec } from '@specboard/core';
 import type { Registry, ProjectEntry } from '../registry.js';
+import type { RunManager } from '../claude/runs.js';
 import { HttpError, onError, readJson, requireString } from '../http.js';
 
 const META_KEYS = ['status', 'urgency', 'categories', 'title', 'draft', 'current_subtask'] as const;
@@ -44,7 +46,7 @@ function findSpec(p: { specs: Spec[]; archived: Spec[] }, id: string): Spec | un
   return p.specs.find((s) => s.id === id) ?? p.archived.find((s) => s.id === id);
 }
 
-export function specRoutes(registry: Registry): Hono {
+export function specRoutes(registry: Registry, runs?: RunManager): Hono {
   const app = new Hono();
 
   const project = async (c: Context): Promise<ProjectEntry> => {
@@ -109,6 +111,15 @@ export function specRoutes(registry: Registry): Hono {
     return mutate(c, (text) => setSubtaskDone(text, n, b.done as boolean), hash);
   });
 
+  app.patch('/api/projects/:pid/specs/:id/reviews/:n', async (c) => {
+    const b = await readJson(c);
+    const hash = requireString(b, 'hash', false);
+    if (typeof b.done !== 'boolean') throw new HttpError(400, 'Missing or invalid "done"');
+    const n = Number(c.req.param('n'));
+    if (!Number.isInteger(n)) throw new HttpError(400, 'Invalid review item number');
+    return mutate(c, (text) => setReviewDone(text, n, b.done as boolean), hash);
+  });
+
   app.patch('/api/projects/:pid/specs/:id/answers', async (c) => {
     const b = await readJson(c);
     const hash = requireString(b, 'hash', false);
@@ -161,7 +172,10 @@ export function specRoutes(registry: Registry): Hono {
 
   app.post('/api/projects/:pid/specs/:id/archive', async (c) => {
     const entry = await project(c);
-    await archiveSpec(entry.root, c.req.param('id') ?? '');
+    const id = c.req.param('id') ?? '';
+    const run = runs?.current(entry.id);
+    if (run && run.status === 'running' && run.specId === id) throw new HttpError(409, 'Claude is working on it');
+    await archiveSpec(entry.root, id, { anyStatus: true });
     return c.body(null, 204);
   });
 

@@ -16,8 +16,8 @@ export const IMAGE_TYPES: Record<string, string> = {
   '.avif': 'image/avif',
 };
 
-/** The file extensions an image may have. */
-export const IMAGE_EXTS = Object.keys(IMAGE_TYPES);
+/** The file extensions an image may have (shared with core, which lists a spec's images). */
+export { IMAGE_EXTS } from '@specboard/core';
 
 /** Shows an image that a spec or reference links to, from anywhere inside its project. */
 export function imageRoutes(registry: Registry): Hono {

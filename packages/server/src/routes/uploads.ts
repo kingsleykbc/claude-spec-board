@@ -2,11 +2,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
-import { loadProject, slugify } from '@specboard/core';
+import { IMAGE_EXTS, isImageName, loadProject, slugify } from '@specboard/core';
 import { HttpError, onError, readJson, requireString } from '../http.js';
 import type { Registry } from '../registry.js';
 import { PathError, safeProjectFile } from '../safePath.js';
-import { IMAGE_EXTS } from './images.js';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 /** Base64 is 4/3 the size of the bytes; the slack covers the JSON around it. */
@@ -86,6 +85,40 @@ export function uploadRoutes(registry: Registry): Hono {
       }
     },
   );
+
+  app.delete('/api/projects/:pid/specs/:id/images/:name', async (c) => {
+    const entry = await registry.get(c.req.param('pid') ?? '');
+    if (!entry) throw new HttpError(404, 'Unknown project');
+    let name = c.req.param('name') ?? '';
+    // Some encodings (%5C) can arrive still encoded; check the decoded name.
+    if (name.includes('%')) {
+      try {
+        name = decodeURIComponent(name);
+      } catch {
+        throw new HttpError(400, 'Invalid image name');
+      }
+    }
+    // A bare file name only: no separators, no "..", and an image extension.
+    if (name === '' || name.includes('/') || name.includes(String.fromCharCode(92)) || name.includes('..') || !isImageName(name)) throw new HttpError(400, 'Invalid image name');
+    const id = c.req.param('id') ?? '';
+    const project = await loadProject(entry.root);
+    const spec = project.specs.find((s) => s.id === id);
+    if (!spec) {
+      if (project.archived.some((s) => s.id === id)) throw new HttpError(409, `Spec ${id} is archived`);
+      throw new HttpError(404, `Spec ${id} not found`);
+    }
+    const dir = path.join(path.dirname(spec.path), 'images');
+    const rel = `${path.relative(entry.root, dir).split(path.sep).join('/')}/${name}`;
+    try {
+      const file = safeProjectFile(entry.root, rel);
+      await fs.unlink(file);
+    } catch (e) {
+      if (e instanceof PathError) throw new HttpError(400, e.message);
+      if ((e as NodeJS.ErrnoException).code === 'ENOENT') throw new HttpError(404, `Image ${name} not found`);
+      throw e;
+    }
+    return c.body(null, 204);
+  });
 
   app.onError(onError);
   return app;
