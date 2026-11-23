@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { api, ConflictError, type ReferenceDoc } from '@/api/client';
 import { ESC, useEscape } from '@/lib/escape';
-import { CaretLeftIcon, CaretRightIcon, CloseIcon, EditIcon, PlusIcon } from '@/lib/icons';
+import { CaretLeftIcon, CaretRightIcon, EditIcon, PlusIcon } from '@/lib/icons';
 import { OFFLINE_TOAST } from '@/state/actions';
 import { FileLink } from '@/state/fileLinks';
 import type { PushToast } from '@/state/toasts';
 import { ConflictDialog } from '@/components/conflict-dialog/conflict-dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog/confirm-dialog';
 import { Markdown } from '@/components/ui/markdown/markdown';
-import { Modal } from '@/components/ui/modal/modal';
+import { Modal, ModalClose } from '@/components/ui/modal/modal';
 import { DocSkeleton } from '@/components/ui/skeleton/skeleton';
 import { useDiscardGuard } from '@/lib/use-discard-guard';
 import { dirOf } from '@/lib/image-src';
@@ -291,7 +291,8 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
 
   return (
     <Modal label="Reference documents" width="min(820px, 100%)" height="min(680px, calc(100vh - 64px))" onClose={requestClose} returnFocus={returnFocus}>
-      <div className="flex items-center gap-2.5 pt-[18px] pr-5 pb-3.5 pl-7">
+      <ModalClose onClick={requestClose} />
+      <div className="flex items-center gap-2.5 pt-[18px] pr-[60px] pb-3.5 pl-7">
         <span className="text-[15px] font-semibold tracking-[0.06em]">REFERENCE DOCUMENTS</span>
         <span className="flex-1" />
         <div className="relative">
@@ -380,16 +381,6 @@ export function ReferencesModal({ pid, client = api, toast, down = false, stamp,
             </div>
           )}
         </div>
-        <Hint label="Close">
-          <button
-            type="button"
-            className="flex size-[34px] cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 text-[18px] text-fg2 hover:bg-panel"
-            aria-label="Close"
-            onClick={requestClose}
-          >
-            <CloseIcon aria-hidden />
-          </button>
-        </Hint>
       </div>
       <div className="relative mx-7 flex items-stretch border-b border-line">
         {arrows.l && (

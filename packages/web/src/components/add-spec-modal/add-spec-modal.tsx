@@ -3,10 +3,9 @@ import type { Spec } from '@specboard/core';
 import { api } from '@/api/client';
 import { OFFLINE_TOAST } from '@/state/actions';
 import type { PushToast } from '@/state/toasts';
-import { CloseIcon, PlayIcon } from '@/lib/icons';
-import { Modal } from '@/components/ui/modal/modal';
+import { PlayIcon } from '@/lib/icons';
+import { Modal, ModalClose } from '@/components/ui/modal/modal';
 import { useDiscardGuard } from '@/lib/use-discard-guard';
-import { Hint } from '@/components/ui/hint/hint';
 import { cn } from '@/lib/utils';
 
 export interface AddSpecModalProps {
@@ -76,20 +75,11 @@ export function AddSpecModal({ pid, nextId, client = api, toast, down = false, r
 
   return (
     <Modal label="New spec" width="min(600px, 100%)" height="auto" onClose={requestClose}>
-      <div className="flex items-center pt-[18px] pr-5 pb-1 pl-7">
+      <ModalClose onClick={requestClose} />
+      <div className="flex items-center pt-[18px] pr-[60px] pb-1 pl-7">
         <span className="text-[18px] font-semibold">New spec</span>
         <span className="ml-2.5 font-mono text-[12px] text-fg3">{nextId}</span>
         <span className="flex-1" />
-        <Hint label="Close">
-          <button
-            type="button"
-            className="flex size-[34px] cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 text-[18px] text-fg2 hover:bg-panel"
-            aria-label="Close"
-            onClick={requestClose}
-          >
-            <CloseIcon aria-hidden />
-          </button>
-        </Hint>
       </div>
       <div className="flex flex-col gap-4 px-7 pt-3 pb-2">
         <div className="flex flex-col gap-1.5">

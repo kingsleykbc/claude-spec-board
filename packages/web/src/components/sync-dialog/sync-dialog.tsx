@@ -1,10 +1,9 @@
 import type { RunLine, SyncProposal } from '@/api/client';
-import { CloseIcon, CopyIcon, WarnIcon } from '@/lib/icons';
+import { CopyIcon, WarnIcon } from '@/lib/icons';
 import type { PushToast } from '@/state/toasts';
 import { Spinner } from '@/components/connection-banner/connection-banner';
 import { Markdown } from '@/components/ui/markdown/markdown';
-import { Modal } from '@/components/ui/modal/modal';
-import { Hint } from '@/components/ui/hint/hint';
+import { Modal, ModalClose } from '@/components/ui/modal/modal';
 import { cn } from '@/lib/utils';
 
 // Sync with code (design sections 10 and 11): the manual-mode command, the plan and apply runs' progress, and the
@@ -51,19 +50,10 @@ export function SyncDialog({ scope, view, toast, onStop, onDiscard, onConfirm, o
   const title = view.kind === 'manual' ? 'Sync needs Claude' : syncTitle(scope);
   return (
     <Modal label={title} width="min(620px, 100%)" height="auto" onClose={onClose} returnFocus={returnFocus}>
+      <ModalClose onClick={onClose} label="Close dialog" />
       <div className="flex max-h-[calc(100vh-64px)] flex-col gap-3.5 overflow-auto pt-[18px] pr-5 pb-5 pl-6">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 pr-10">
           <h2 className="m-0 flex-1 text-[18px] font-semibold tracking-[-0.01em]">{title}</h2>
-          <Hint label="Close dialog">
-            <button
-              type="button"
-              className="flex size-[34px] cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 text-[18px] text-fg2 hover:bg-panel"
-              aria-label="Close dialog"
-              onClick={onClose}
-            >
-              <CloseIcon aria-hidden />
-            </button>
-          </Hint>
         </div>
         {view.kind === 'manual' && <Manual scope={scope} toast={toast} onClose={onClose} />}
         {view.kind === 'running' && <Running phase={view.phase} lines={view.lines} onStop={onStop} />}

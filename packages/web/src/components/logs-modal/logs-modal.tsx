@@ -1,13 +1,13 @@
 import { useId, useMemo, useState } from 'react';
 import type { Project } from '@specboard/core';
 import { formatLogTime } from '@/lib/format-log-time';
-import { CloseIcon, WarnIcon } from '@/lib/icons';
+import { WarnIcon } from '@/lib/icons';
 import { allLogEntries, filterLogs, type LogItem } from '@/state/allLogs';
 import { LogMeta } from '@/components/log-meta/log-meta';
 import { Hint } from '@/components/ui/hint/hint';
 import { InfoPopover } from '@/components/ui/info-popover/info-popover';
 import { Markdown } from '@/components/ui/markdown/markdown';
-import { Modal } from '@/components/ui/modal/modal';
+import { Modal, ModalClose } from '@/components/ui/modal/modal';
 
 export interface LogsModalProps {
   project: Pick<Project, 'specs' | 'archived'>;
@@ -43,7 +43,8 @@ export function LogsModal({ project, onOpenSpec, onOpenOverview, onClose, now, r
   const query = q.trim();
   return (
     <Modal label="Logs" width="min(760px, 100%)" onClose={onClose} {...(returnFocus ? { returnFocus } : {})}>
-      <div className="flex items-center gap-2 pt-[18px] pr-5 pb-1.5 pl-7">
+      <ModalClose onClick={onClose} />
+      <div className="flex items-center gap-2 pt-[18px] pr-[60px] pb-1.5 pl-7">
         <h1 className="m-0 text-[15px] font-semibold tracking-[0.06em]">Logs</h1>
         <span className="flex-1" />
         <button
@@ -53,16 +54,6 @@ export function LogsModal({ project, onOpenSpec, onOpenOverview, onClose, now, r
         >
           Open overview
         </button>
-        <Hint label="Close">
-          <button
-            type="button"
-            className="flex size-[34px] cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 text-[18px] text-fg2 hover:bg-panel"
-            aria-label="Close"
-            onClick={onClose}
-          >
-            <CloseIcon aria-hidden />
-          </button>
-        </Hint>
       </div>
       <div className="px-7 pt-2 pb-3">
         <input

@@ -1,9 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { api } from '@/api/client';
-import { CloseIcon } from '@/lib/icons';
 import type { PushToast } from '@/state/toasts';
-import { Modal } from '@/components/ui/modal/modal';
-import { Hint } from '@/components/ui/hint/hint';
+import { Modal, ModalClose } from '@/components/ui/modal/modal';
 import { Switch } from '@/components/ui/switch/switch';
 
 export interface SettingsModalProps {
@@ -48,19 +46,10 @@ export function SettingsModal({ pid, trackTokens, client = api, toast, onClose, 
 
   return (
     <Modal label="Settings" width="min(520px, 100%)" height="auto" onClose={onClose} returnFocus={returnFocus}>
-      <div className="flex items-center pt-[18px] pr-5 pb-1.5 pl-7">
+      <ModalClose onClick={onClose} />
+      <div className="flex items-center pt-[18px] pr-[60px] pb-1.5 pl-7">
         <h1 className="m-0 text-[15px] font-semibold tracking-[0.06em]">Settings</h1>
         <span className="flex-1" />
-        <Hint label="Close">
-          <button
-            type="button"
-            className="flex size-[34px] cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 text-[18px] text-fg2 hover:bg-panel"
-            aria-label="Close"
-            onClick={onClose}
-          >
-            <CloseIcon aria-hidden />
-          </button>
-        </Hint>
       </div>
       <div className="flex items-center gap-[18px] px-7 pt-3.5 pb-[26px]">
         <div className="flex min-w-0 flex-1 flex-col gap-1">

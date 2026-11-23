@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, within } from 'storybook/test';
-import { Modal } from './modal';
+import { Modal, ModalClose } from './modal';
 import { ConflictDialog } from '@/components/conflict-dialog/conflict-dialog';
 import { useDiscardGuard } from '@/lib/use-discard-guard';
 
@@ -31,6 +31,30 @@ export const Empty: Story = {
     expect(args.onClose).not.toHaveBeenCalled();
     await userEvent.keyboard('{Escape}');
     expect(args.onClose).toHaveBeenCalledTimes(1);
+  },
+};
+
+/** The shared close button: pinned top right, so a long scrolling body never moves it. */
+export const WithClose: Story = {
+  args: {
+    height: '300px',
+    children: (
+      <>
+        <ModalClose onClick={() => undefined} />
+        <div className="h-full overflow-auto p-7 pr-[60px]">
+          {Array.from({ length: 30 }, (_, i) => (
+            <p key={i}>Line {i + 1}</p>
+          ))}
+        </div>
+      </>
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const dlg = within(canvasElement).getByRole('dialog', { name: 'Example' });
+    const close = within(dlg).getByRole('button', { name: 'Close' });
+    const before = close.getBoundingClientRect().top;
+    dlg.querySelector('.overflow-auto')!.scrollTop = 200;
+    expect(close.getBoundingClientRect().top).toBe(before);
   },
 };
 

@@ -4,11 +4,19 @@ import userEvent from '@testing-library/user-event';
 import { composeStories } from '@storybook/react-vite';
 import * as stories from './modal.stories';
 
-const { Empty, WithOpener, DirtyGuard } = composeStories(stories);
+const { Empty, WithOpener, DirtyGuard, WithClose } = composeStories(stories);
 
 afterEach(cleanup);
 
 describe('Modal', () => {
+  it('ModalClose is a Close button pinned to the top right of the dialog', () => {
+    render(<WithClose />);
+    const close = screen.getByRole('button', { name: 'Close' });
+    expect(close.className).toContain('absolute');
+    expect(close.className).toContain('right-4');
+    expect(screen.getByRole('dialog', { name: 'Example' }).contains(close)).toBe(true);
+  });
+
   it('is a labelled modal dialog; scrim click closes it, a click inside does not', () => {
     const onClose = vi.fn();
     render(<WithOpener onClose={onClose} />);

@@ -2,15 +2,14 @@ import { useId, useState } from 'react';
 import type { Project } from '@specboard/core';
 import { exportOverview, overviewCounts } from '@/lib/exportOverview';
 import { formatTokens } from '@/lib/formatTokens';
-import { CaretIcon, CaretRightIcon, CloseIcon, ErrorIcon, ExportIcon, RefreshIcon } from '@/lib/icons';
+import { CaretIcon, CaretRightIcon, ErrorIcon, ExportIcon, RefreshIcon } from '@/lib/icons';
 import { ORDER, relTime, ST } from '@/lib/vm';
 import { projectTokens } from '@/state/allLogs';
 import type { PushToast } from '@/state/toasts';
 import { Spinner } from '@/components/connection-banner/connection-banner';
 import { Markdown } from '@/components/ui/markdown/markdown';
-import { Modal } from '@/components/ui/modal/modal';
+import { Modal, ModalClose } from '@/components/ui/modal/modal';
 import { TableView } from '@/components/table-view/table-view';
-import { Hint } from '@/components/ui/hint/hint';
 
 export interface OverviewModalProps {
   project: Project;
@@ -71,20 +70,11 @@ export function OverviewModal({ project, pid, name, toast, refreshing = false, o
 
   return (
     <Modal label="Overview" width="min(760px, 100%)" height="auto" onClose={onClose} returnFocus={returnFocus}>
+      <ModalClose onClick={onClose} />
       <div className="flex max-h-[calc(100vh-64px)] flex-col overflow-auto">
-        <div className="flex items-center pt-[18px] pr-5 pl-7">
+        <div className="flex items-center pt-[18px] pr-[60px] pl-7">
           <span className="text-[11.5px] font-semibold tracking-[0.1em] text-fg3">OVERVIEW</span>
           <span className="flex-1" />
-          <Hint label="Close">
-            <button
-              type="button"
-              className="flex size-[34px] cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 text-[18px] text-fg2 hover:bg-panel"
-              aria-label="Close"
-              onClick={onClose}
-            >
-              <CloseIcon aria-hidden />
-            </button>
-          </Hint>
         </div>
         <div className="flex items-start gap-7 px-7 pt-1 pb-[22px]">
           <div className="flex min-w-0 flex-1 flex-col gap-2.5">

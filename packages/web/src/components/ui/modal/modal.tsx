@@ -4,6 +4,8 @@ import { Dialog } from '@/components/ui/dialog/dialog';
 import { ESC, runEscape, useEscape } from '@/lib/escape';
 import { useFocusTrap } from '@/lib/focusTrap';
 import { layerOpen } from '@/lib/openLayer';
+import { CloseIcon } from '@/lib/icons';
+import { Hint } from '@/components/ui/hint/hint';
 
 export interface ModalProps {
   /** Accessible name of the dialog. */
@@ -84,5 +86,25 @@ export function Modal({ label, width, height = 'min(900px, calc(100vh - 64px))',
         </DialogPrimitive.Content>
       </div>
     </Dialog>
+  );
+}
+
+/**
+ * The close button every modal shares: pinned to the top right of the dialog box, so it stays put whatever the
+ * content does (a long header, a scroll, a narrow screen). Put it inside `Modal`; the header leaves 60px free
+ * on its right (`pr-[60px]`) so nothing sits under it.
+ */
+export function ModalClose({ onClick, label = 'Close' }: { onClick: () => void; label?: string }) {
+  return (
+    <Hint label={label}>
+      <button
+        type="button"
+        className="absolute top-[18px] right-4 z-10 flex size-[34px] cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 text-[18px] leading-none text-fg2 hover:bg-panel"
+        aria-label={label}
+        onClick={onClick}
+      >
+        <CloseIcon aria-hidden />
+      </button>
+    </Hint>
   );
 }
