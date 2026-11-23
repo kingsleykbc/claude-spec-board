@@ -175,6 +175,8 @@ export const api = {
     request<SpecWrite>('PATCH', `${spec(pid, id)}/meta`, { hash, key, value }),
   setSubtask: (pid: string, id: string, n: number, hash: string, done: boolean) =>
     request<SpecWrite>('PATCH', `${spec(pid, id)}/subtasks/${n}`, { hash, done }),
+  setReview: (pid: string, id: string, n: number, hash: string, done: boolean) =>
+    request<SpecWrite>('PATCH', `${spec(pid, id)}/reviews/${n}`, { hash, done }),
   setAnswers: (pid: string, id: string, hash: string, answers: Record<string, string>) =>
     request<SpecWrite>('PATCH', `${spec(pid, id)}/answers`, { hash, answers }),
   /** `bodyHash` is `spec.bodyHash` from when editing began: the server 409s if the body changed since. */
@@ -191,6 +193,8 @@ export const api = {
   /** `opened: false` gives the full path to copy instead. */
   openFile: (pid: string, path: string) =>
     request<{ opened: boolean; path: string; reason?: 'missing' | 'no-editor' }>('POST', `${proj(pid)}/open-file`, { path }),
+  /** Deletes one file from the spec's images/ folder. spec.md is untouched. */
+  deleteImage: (pid: string, id: string, name: string) => request<void>('DELETE', `${spec(pid, id)}/images/${enc(name)}`),
   archive: (pid: string, id: string) => request<void>('POST', `${spec(pid, id)}/archive`),
   unarchive: (pid: string, id: string) => request<void>('POST', `${spec(pid, id)}/unarchive`),
 

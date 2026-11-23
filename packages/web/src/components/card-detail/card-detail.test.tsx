@@ -125,6 +125,19 @@ describe('CardDetail', () => {
     expect(screen.getByText('0 of 5 done')).toBeTruthy();
   });
 
+  it('orders the sections: Spec, Attachments, Open questions, Subtasks, To review', () => {
+    setup('T-103');
+    const labels = [...document.querySelectorAll('[data-detail-scroll] > section')].map((x) => x.getAttribute('aria-label'));
+    const want = ['Spec', 'Attachments', 'Subtasks', 'To review'];
+    expect(labels.filter((l) => want.includes(l ?? ''))).toEqual(want);
+  });
+
+  it('hides To review without items and shows Attachments for an active spec', () => {
+    setup('T-104');
+    expect(screen.queryByRole('region', { name: 'To review' })).toBeNull();
+    expect(screen.getByRole('region', { name: 'Attachments' })).toBeTruthy();
+  });
+
   it('opens archived specs', () => {
     setup('T-100');
     expect(screen.getByRole('dialog', { name: 'Project scaffold' })).toBeTruthy();

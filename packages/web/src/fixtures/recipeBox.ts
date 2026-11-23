@@ -196,7 +196,11 @@ export const recipeSpecs: Spec[] = [
   },
   {
     "id": "T-103",
-    "reviews": [],
+    "reviews": [
+      { "n": 1, "text": "Type a few letters into the search box", "expected": "The list narrows as you type and shows the match count.", "group": "Searching", "done": true, "line": 50 },
+      { "n": 2, "text": "Clear the search box", "expected": "All recipes come back.", "group": "Searching", "done": false, "line": 52 },
+      { "n": 3, "text": "Pick a cook time filter, then reload the page", "expected": "The filter is still applied after the reload.", "group": "Filters", "done": false, "line": 55 }
+    ],
     "images": [],
     "attachments": [],
     "title": "Search & filters",
@@ -282,8 +286,8 @@ export const recipeSpecs: Spec[] = [
   {
     "id": "T-104",
     "reviews": [],
-    "images": [],
-    "attachments": [],
+    "images": ["wireframe.svg", "search-bar.svg"],
+    "attachments": ["wireframe.svg", "search-bar.svg"],
     "title": "Meal planner calendar",
     "status": "doing",
     "urgency": "high",

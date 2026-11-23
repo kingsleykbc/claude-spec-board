@@ -37,6 +37,7 @@ export {
   LuScrollText as LogIcon,
   LuSquare as StopIcon,
   LuTable2 as TableIcon,
+  LuTrash2 as TrashIcon,
   LuTerminal as CommandIcon,
   LuTriangleAlert as WarnIcon,
   LuX as CloseIcon,

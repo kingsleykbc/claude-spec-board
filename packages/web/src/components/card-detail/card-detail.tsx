@@ -21,6 +21,8 @@ import { RefreshWarning } from './refresh-warning/refresh-warning';
 import { SpecSection } from './spec-section/spec-section';
 import { specImageDir } from '@/lib/image-src';
 import { Subtasks } from './subtasks/subtasks';
+import { Attachments } from './attachments/attachments';
+import { ToReview } from './to-review/to-review';
 
 /** The detail footer: 'Created <date> · Updated <date>', leaving out what the spec lacks; null when it has neither. */
 export function datesLine(created: string | null, updated: string | null): string | null {
@@ -28,7 +30,7 @@ export function datesLine(created: string | null, updated: string | null): strin
   return parts.length > 0 ? parts.join(' · ') : null;
 }
 
-export type DetailClient = Pick<typeof api, 'setMeta' | 'setBody' | 'specDraftCopy' | 'setAnswers' | 'setSubtask'> & Partial<Pick<typeof api, 'uploadImage'>>;
+export type DetailClient = Pick<typeof api, 'setMeta' | 'setBody' | 'specDraftCopy' | 'setAnswers' | 'setSubtask'> & Partial<Pick<typeof api, 'uploadImage' | 'deleteImage' | 'setReview'>>;
 
 export interface CardDetailProps {
   pid: string;
@@ -426,6 +428,14 @@ function SpecDetail({
                 onUpload={(file) => (client.uploadImage ?? api.uploadImage)(pid, id, file).then((r) => r.path)}
                 onUploadError={(m) => toast('err', 'Couldn’t add the image', m)}
               />
+              <Attachments
+                pid={pid}
+                spec={spec}
+                client={{ uploadImage: client.uploadImage ?? api.uploadImage, deleteImage: client.deleteImage ?? api.deleteImage }}
+                refresh={refresh}
+                toast={toast}
+                down={down}
+              />
               <Questions
                 pid={pid}
                 spec={spec}
@@ -464,6 +474,15 @@ function SpecDetail({
                 runActive={runActive}
                 chat={chat}
                 warning={subtasksWarning}
+              />
+              <ToReview
+                pid={pid}
+                spec={spec}
+                client={{ setReview: client.setReview ?? api.setReview }}
+                mutate={mutate}
+                refresh={refresh}
+                toast={toast}
+                down={down}
               />
               {dates !== null && <p className="m-0 text-[12px] text-fg3">{dates}</p>}
             </div>
