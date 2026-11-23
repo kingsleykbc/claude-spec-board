@@ -6,7 +6,7 @@ import os from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { archiveSpec, loadProject, renderTree } from '@specboard/core';
 import { copyImagesCommand, parseCopyImagesArgs } from './copyImages.js';
-import { pluginDir } from './paths.js';
+import { pluginVersion } from './paths.js';
 import { runTokenHook } from './hookTokens.js';
 import { initHint } from './prePublish.js';
 import { allowCommand, initCommand, terminalIO } from './setup.js';
@@ -121,11 +121,7 @@ export function detachArgs(argv: string[]): string[] {
   return [...argv.filter((a) => a !== '--detach' && a !== '--no-detach'), '--no-detach'];
 }
 
-/** Version of the Spec Board plugin, read from its manifest. */
-export function pluginVersion(): string {
-  const manifest = JSON.parse(fs.readFileSync(path.join(pluginDir(), '.claude-plugin', 'plugin.json'), 'utf8')) as { version?: string };
-  return manifest.version ?? 'unknown';
-}
+export { pluginVersion };
 
 /** Start the child that keeps serving after this process exits. */
 function spawnDetached(argv: string[]): { exited(): boolean } {

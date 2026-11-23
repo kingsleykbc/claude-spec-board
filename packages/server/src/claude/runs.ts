@@ -311,6 +311,11 @@ export class RunManager {
     await run.finished;
   }
 
+  /** True while any project has a run going (including one still being prepared). */
+  busy(): boolean {
+    return this.active.size > 0;
+  }
+
   current(pid: string): RunSnapshot | null {
     const run = this.last.get(pid);
     return run ? copy(run.snap) : null;

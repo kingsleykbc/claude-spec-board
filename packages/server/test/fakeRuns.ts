@@ -14,6 +14,7 @@ export function fakeRuns(over: Partial<Record<keyof RunManager, unknown>> = {}) 
     current: vi.fn((): RunSnapshot | null => null),
     projectChanged: vi.fn(async (_entry: ProjectEntry) => {}),
     close: vi.fn(async () => {}),
+    busy: vi.fn(() => false),
   };
   return Object.assign(runs, over) as unknown as typeof runs & RunManager;
 }

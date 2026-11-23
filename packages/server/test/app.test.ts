@@ -1,8 +1,9 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../src/app.js';
+import { pluginVersion } from '../src/paths.js';
 import { isAllowedRequest } from '../src/security.js';
 import { fakeRuns, tempApproved } from './fakeRuns.js';
 import { Registry } from '../src/registry.js';
@@ -25,20 +26,60 @@ afterEach(async () => {
   await fs.rm(tmp, { recursive: true, force: true });
 });
 
+describe('POST /api/shutdown', () => {
+  const POST = { ...HOST, 'content-type': 'application/json' };
+  it('answers 202 and then asks the host to stop', async () => {
+    const onShutdown = vi.fn();
+    const a = createApp({ registry: reg, port: () => 4949, webDist: null, runs: fakeRuns(), approved: tempApproved(tmp), onShutdown });
+    const res = await a.request('/api/shutdown', { method: 'POST', headers: POST, body: '{}' });
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ ok: true });
+    await vi.waitFor(() => expect(onShutdown).toHaveBeenCalledTimes(1));
+  });
+  it('answers 409 and keeps running while Claude is working', async () => {
+    const onShutdown = vi.fn();
+    const a = createApp({ registry: reg, port: () => 4949, webDist: null, runs: fakeRuns({ busy: () => true }), approved: tempApproved(tmp), onShutdown });
+    const res = await a.request('/api/shutdown', { method: 'POST', headers: POST, body: '{}' });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'Claude is working in this project' });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(onShutdown).not.toHaveBeenCalled();
+  });
+  it('goes through the security checks: wrong origin, wrong host, not JSON', async () => {
+    const onShutdown = vi.fn();
+    const a = createApp({ registry: reg, port: () => 4949, webDist: null, runs: fakeRuns(), approved: tempApproved(tmp), onShutdown });
+    expect((await a.request('/api/shutdown', { method: 'POST', headers: { ...POST, Origin: 'http://evil.example' }, body: '{}' })).status).toBe(403);
+    expect((await a.request('/api/shutdown', { method: 'POST', headers: { Host: 'evil.example', 'content-type': 'application/json' }, body: '{}' })).status).toBe(403);
+    expect((await a.request('/api/shutdown', { method: 'POST', headers: { ...HOST, 'content-type': 'text/plain' }, body: '{}' })).status).toBe(415);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(onShutdown).not.toHaveBeenCalled();
+  });
+});
+
 describe('read endpoints', () => {
   it('health', async () => {
     const res = await app.request('/api/health', { headers: HOST });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, app: 'specboard', plugin: false });
+    expect(await res.json()).toEqual({ ok: true, app: 'specboard', plugin: false, version: pluginVersion() });
   });
 
-  it('lists projects with progress counting archived as done', async () => {
+  it('lists projects with progress counting archived done specs', async () => {
     const entry = await reg.add(proj);
     const res = await app.request('/api/projects', { headers: HOST });
     expect(res.status).toBe(200);
     const body = (await res.json()) as Array<Record<string, unknown>>;
     expect(body).toHaveLength(1);
     expect(body[0]).toMatchObject({ id: entry.id, name: entry.name, root: entry.root, progress: { done: 3, total: 9 } });
+  });
+
+  it('project progress leaves out archived specs that are not done', async () => {
+    const entry = await reg.add(proj);
+    const dir = path.join(proj, '.specboard', 'archive', 'T-190-old-todo');
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, 'spec.md'), ['---', 'id: T-190', 'title: Old todo', 'status: todo', '---', '', '## Spec', '', 'x', ''].join('\n'));
+    const res = await app.request('/api/projects', { headers: HOST });
+    const body = (await res.json()) as Array<Record<string, unknown>>;
+    expect(body.find((p) => p.id === entry.id)!.progress).toEqual({ done: 3, total: 9 });
   });
 
   it('returns a project with sorted specs and nextId, 404 for unknown', async () => {

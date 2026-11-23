@@ -16,6 +16,16 @@ export function pluginDir(): string {
   return BUNDLED ? path.resolve(HERE, '..') : path.resolve(HERE, '..', '..', '..', 'plugin');
 }
 
+/** Version of the Spec Board plugin, read from its manifest ('unknown' when unreadable). */
+export function pluginVersion(): string {
+  try {
+    const manifest = JSON.parse(fs.readFileSync(path.join(pluginDir(), '.claude-plugin', 'plugin.json'), 'utf8')) as { version?: string };
+    return manifest.version ?? 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
 /** The built web app, or null when it has not been built. */
 export function webDistDir(): string | null {
   const dir = BUNDLED ? path.resolve(HERE, '..', 'web') : path.resolve(HERE, '..', '..', 'web', 'dist');

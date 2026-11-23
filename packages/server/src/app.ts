@@ -2,13 +2,13 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { Server } from 'node:http';
 import { Hono } from 'hono';
-import { compareIds, loadProject, nextId } from '@specboard/core';
+import { compareIds, loadProject, nextId, projectProgress } from '@specboard/core';
 import type { ProjectEntry, Registry } from './registry.js';
 import { Hub } from './hub.js';
 import { PathError, safeProjectPath } from './safePath.js';
 import { watchProject } from './watch.js';
 import { guard } from './security.js';
-import { isBundled } from './paths.js';
+import { isBundled, pluginVersion } from './paths.js';
 import { specRoutes } from './routes/specs.js';
 import { referenceRoutes } from './routes/references.js';
 import { runRoutes } from './routes/runs.js';
@@ -30,6 +30,10 @@ export interface AppDeps {
   status?: () => Promise<ClaudeStatus>;
   /** What a click on a file path does; defaults to VS Code. */
   openFile?: FileOpener;
+  /** Reported by /api/health; defaults to the plugin version. */
+  version?: string;
+  /** Called after `POST /api/shutdown` has been answered 202; the host closes the board. */
+  onShutdown?: () => void;
 }
 
 const TYPES: Record<string, string> = {
@@ -66,17 +70,24 @@ export function createApp(deps: AppDeps): Hono {
   const app = new Hono();
   app.use('*', guard(deps.port));
 
-  app.get('/api/health', (c) => c.json({ ok: true, app: 'specboard', plugin: isBundled() }));
+  const version = deps.version ?? pluginVersion();
+  app.get('/api/health', (c) => c.json({ ok: true, app: 'specboard', plugin: isBundled(), version }));
+
+  // Lets a newer `specboard --detach` replace this board. Refused while any run is going.
+  app.post('/api/shutdown', (c) => {
+    if (deps.runs.busy()) return c.json({ error: 'Claude is working in this project' }, 409);
+    setTimeout(() => deps.onShutdown?.(), 50); // after the 202 has gone out
+    return c.json({ ok: true }, 202);
+  });
 
   app.get('/api/projects', async (c) => {
     const entries = await deps.registry.list();
     const all = await Promise.all(
       entries.map(async (entry) => {
         const p = await loadProject(entry.root);
-        // Archived specs count as done.
-        const done = p.archived.length + p.specs.filter((s) => s.status === 'done').length;
+        const progress = projectProgress(p.specs, p.archived);
         const available = await fs.access(path.join(entry.root, '.specboard', 'config.md')).then(() => true, () => false);
-        return { ...entry, available, progress: { done, total: p.specs.length + p.archived.length } };
+        return { ...entry, available, progress };
       }),
     );
     return c.json(all.filter((p) => p.available));
