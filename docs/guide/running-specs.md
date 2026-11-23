@@ -107,6 +107,6 @@ These run in the background: **Have Claude write this up** on a draft, **Refresh
 
 ## Archiving a card
 
-Choose **Archive** in a card's ⋯ menu, on the board or in the card's detail, to move it to `.specboard/archive/`. Any card can be archived, whatever its column, and an archived card counts as done. **Show archived** brings archived cards back into view, and **Unarchive** in their ⋯ menu returns them. A card Claude is working on in the background can't be archived until the run ends.
+Choose **Archive** in a card's ⋯ menu, on the board or in the card's detail, to move it to `.specboard/archive/`. Any card can be archived, whatever its column. An archived card no longer blocks the cards that depend on it, and it counts toward progress only if it was in Done. **Show archived** brings archived cards back into view, and **Unarchive** in their ⋯ menu returns them. A card Claude is working on in the background can't be archived until the run ends.
 
 In a chat, ask Claude ("archive T-002"). It runs `specboard archive T-002`, which does the same as the button. `/specboard:reorganize` archives a card it merged into another, once you've said OK. If the command isn't allowed, Claude asks you to use **Archive** on the board instead. When it merges or splits cards, Claude first copies the images with `specboard copy-images` and fixes the image links.

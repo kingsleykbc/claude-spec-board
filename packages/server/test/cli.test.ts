@@ -191,6 +191,15 @@ describe('detach', () => {
     log.mockRestore();
   });
 
+  it('a folder without .specboard never stops the old board', async () => {
+    const empty = await fs.mkdtemp(path.join(os.tmpdir(), 'sb-nofolder-'));
+    const old = await fakeBoard({ ok: true, app: 'specboard', version: '0.0.1' }, { status: 202, closes: true });
+    const spawned = vi.fn();
+    await expect(runDetached({ path: empty, port: old.port, open: false }, [empty], { spawn: spawned })).rejects.toThrow('No .specboard folder');
+    expect(old.posts).toHaveLength(0);
+    expect(spawned).not.toHaveBeenCalled();
+  });
+
   it('a real older board shuts itself down on request and the port is freed', async () => {
     const proj = await copySample('real');
     const exit = vi.fn();
@@ -224,7 +233,7 @@ describe('detach', () => {
     expect(await runDetached({ path: proj, port: old.port, open: false }, [proj], { spawn: spawned })).toBe(1);
     expect(spawned).not.toHaveBeenCalled();
     const said = err.mock.calls.map((c) => String(c[0])).join('\n');
-    expect(said).toContain(`An older Spec Board (no version) is running on port ${old.port}. Stop it, then run this again:`);
+    expect(said).toContain(`An older Spec Board (no version) is running on port ${old.port} and can't be replaced from here. Stop it, then run this again:`);
     expect(said).toContain(stopCommand(old.port));
     err.mockRestore();
   });

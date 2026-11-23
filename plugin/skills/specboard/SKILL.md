@@ -187,7 +187,7 @@ Recipe Box · 1/4 done
         Let people rate a recipe from one to five stars.
 ```
 
-- Get the current tree with `specboard tree [--spec <ID>] [--milestone <name>] [<project folder>]` and build the proposal on it. If that command is missing or refused, build the tree from the files by the rules above: the first line is `<name> · <done>/<total> done` (the total includes archived specs, counted as done), a `(you) ` subtask shows as `you: <title>`, and archived specs are not listed.
+- Get the current tree with `specboard tree [--spec <ID>] [--milestone <name>] [<project folder>]` and build the proposal on it. If that command is missing or refused, build the tree from the files by the rules above: the first line is `<name> · <done>/<total> done` (an archived spec that was in the Done column counts in both numbers; other archived specs count in neither), a `(you) ` subtask shows as `you: <title>`, and archived specs are not listed.
 - In plan mode, put the tree and the list of files you will write or change in the plan, and write nothing until the plan is approved.
 
 ## Logs: logs/<n>-<slug>.md
@@ -218,7 +218,7 @@ Built the time-slot grid. Slots come from the barber's opening hours. Tests adde
 
 ## Archiving
 
-Archive a spec only when the person asks (for example "archive T-002") or has said OK to a change that archives it. Run `specboard archive <ID> "<project folder>"` on its own with the Bash tool (always pass the project folder). It moves the spec to `.specboard/archive/`, the same as Archive on the board; an archived spec counts as done. Never move spec folders yourself. If it fails for any reason, tell the person to use Archive in the card's ⋯ menu on the board.
+Archive a spec only when the person asks (for example "archive T-002") or has said OK to a change that archives it. Run `specboard archive <ID> "<project folder>"` on its own with the Bash tool (always pass the project folder). It moves the spec to `.specboard/archive/`, the same as Archive on the board; an archived spec no longer blocks the specs that depend on it. Never move spec folders yourself. If it fails for any reason, tell the person to use Archive in the card's ⋯ menu on the board.
 
 To carry a card's images to another card (a merge or a split), run `specboard copy-images <from ID> <to ID> "<project folder>"`: it copies every image from the first card's `images/` into the second's, never overwriting, and prints `images/<old> -> images/<new>` per file.
 

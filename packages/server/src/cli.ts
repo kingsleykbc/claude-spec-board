@@ -203,10 +203,14 @@ export async function runDetached(
     const mine = pluginVersion();
     let reuse = running.version === mine;
     if (!reuse) {
+      // Check the folder before stopping anything: a bad path must never leave the port without a board.
+      const root = path.resolve(a.path);
+      if (!fs.existsSync(path.join(root, '.specboard', 'config.md'))) throw new Error(`No .specboard folder in ${root}. ${initHint(root)}`);
       const label = running.version ?? 'no version';
       const answer = await askToShutDown(a.port);
       if (answer === 'unsupported') {
-        console.error(`An older Spec Board (${label}) is running on port ${a.port}. Stop it, then run this again: ${stopCommand(a.port)}`);
+        const which = running.version === undefined ? 'An older' : 'Another';
+        console.error(`${which} Spec Board (${label}) is running on port ${a.port} and can't be replaced from here. Stop it, then run this again: ${stopCommand(a.port)}`);
         return 1;
       }
       if (answer === 'busy') {
