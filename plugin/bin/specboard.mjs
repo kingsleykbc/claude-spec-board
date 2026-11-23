@@ -11793,6 +11793,9 @@ var ANSWER = /^[ \t]+>[ \t]*answer[ \t]*:[ \t]*(.*?)[ \t]*$/i;
 var PRIORITY = /^[ \t]*(optional|required)[ \t]+/i;
 var RECOMMENDED = /^(.*?\S)[ \t]*\(recommended[ \t]*:[ \t]*(.*\S)[ \t]*\)$/i;
 var SUBTASK = /^- \[([ xX])\][ \t]+(\d+)\.[ \t]+(.*?)[ \t]*$/;
+var REVIEW_LINE = /^- \[([ xX])\][ \t]+(\S.*?)[ \t]*$/;
+var EXPECTED = /^[ \t]+>[ \t]*expected[ \t]*:[ \t]*(.*?)[ \t]*$/i;
+var GROUP = /^###[ \t]+(.*?)[ \t]*#*[ \t]*$/;
 var LIST_ITEM = /^[-*+][ \t]/;
 var TYPES = ["yesno", "number", "text", "choice"];
 function sectionText(lines, range) {
@@ -11849,6 +11852,32 @@ function parseSubtasks(lines, range, problems) {
   }
   return subtasks;
 }
+function parseReviews(lines, range, problems) {
+  const reviews = [];
+  if (!range) return reviews;
+  let group = null;
+  for (let i = range.start; i < range.end; i++) {
+    const line = lines[i];
+    const g = GROUP.exec(line);
+    if (g) {
+      group = g[1] === "" ? null : g[1];
+      continue;
+    }
+    const m = REVIEW_LINE.exec(line);
+    if (!m) {
+      if (LIST_ITEM.test(line)) problems.push(`Unrecognised review line ${i + 1}`);
+      continue;
+    }
+    let expected = null;
+    const e = i + 1 < range.end ? EXPECTED.exec(lines[i + 1]) : null;
+    if (e) {
+      if (e[1] !== "") expected = e[1];
+      i++;
+    }
+    reviews.push({ n: reviews.length + 1, text: m[2], expected, group, done: m[1] !== " ", line: i - (e ? 1 : 0) });
+  }
+  return reviews;
+}
 function parseSpec(text2) {
   const { yaml, bodyStartLine } = splitFrontMatter(text2);
   const { meta, problems } = parseSpecMeta(yaml);
@@ -11860,6 +11889,7 @@ function parseSpec(text2) {
     featuresMd: sectionText(lines, sections.get("features")),
     questions: parseQuestions(lines, sections.get("open questions"), problems),
     subtasks: parseSubtasks(lines, sections.get("subtasks"), problems),
+    reviews: parseReviews(lines, sections.get("to review"), problems),
     problems
   };
 }
@@ -11979,12 +12009,28 @@ function setSubtaskDone(text2, n, done) {
     for (let i = range.start; i < range.end; i++) {
       const m = SUBTASK2.exec(lines[i]);
       if (m && Number(m[4]) === n) {
-        ls[i].text = `${m[1]}${done ? "x" : " "}${m[3]}`;
+        ls[i].text = lines[i].replace(/^- \[[ xX]\]/, `- [${done ? "x" : " "}]`);
         return fromLines(ls);
       }
     }
   }
   throw new Error(`Subtask ${n} not found`);
+}
+function setReviewDone(text2, n, done) {
+  const ls = toLines(text2);
+  const lines = textsOf(ls);
+  const range = findSections(lines, splitFrontMatter(text2).bodyStartLine).get("to review");
+  if (range) {
+    let count2 = 0;
+    for (let i = range.start; i < range.end; i++) {
+      if (!REVIEW_LINE.test(lines[i])) continue;
+      if (++count2 === n) {
+        ls[i].text = lines[i].replace(/^- \[[ xX]\]/, `- [${done ? "x" : " "}]`);
+        return fromLines(ls);
+      }
+    }
+  }
+  throw new Error(`Review item ${n} not found`);
 }
 function setAnswers(text2, answers) {
   const ls = toLines(text2);
@@ -12012,7 +12058,7 @@ function setAnswers(text2, answers) {
   return fromLines(ls);
 }
 var FENCE_LINE = /^[ \t]*(```|~~~)/;
-var KEPT_HEADING = /^##[ \t]+(spec|open questions|subtasks)[ \t]*#*[ \t]*$/i;
+var KEPT_HEADING = /^##[ \t]+(spec|open questions|subtasks|to review)[ \t]*#*[ \t]*$/i;
 var HEADING_LINE = /^##[ \t]+(.+?)[ \t]*#*[ \t]*$/;
 var isBlank = (l) => l.text.trim() === "";
 function sanitizeBodyMd(md, eol) {
@@ -12036,7 +12082,7 @@ function splitBody(text2) {
   if (endsNl) ls = ls.slice(0, -1);
   const bodyStart = Math.min(splitFrontMatter(text2).bodyStartLine, ls.length);
   const sections = findSections(textsOf(ls), bodyStart);
-  const ranges = ["open questions", "subtasks"].map((k) => sections.get(k)).filter((r) => r !== void 0).sort((x, y) => x.headingLine - y.headingLine);
+  const ranges = ["open questions", "subtasks", "to review"].map((k) => sections.get(k)).filter((r) => r !== void 0).sort((x, y) => x.headingLine - y.headingLine);
   const kept = [];
   const inKept = /* @__PURE__ */ new Set();
   for (const r of ranges) {
@@ -12214,6 +12260,13 @@ function hashText(text2) {
 import fs from "node:fs/promises";
 import path from "node:path";
 
+// packages/core/src/images.ts
+var IMAGE_EXTS = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".avif"];
+function isImageName(name) {
+  const dot = name.lastIndexOf(".");
+  return dot > 0 && IMAGE_EXTS.includes(name.slice(dot).toLowerCase());
+}
+
 // packages/core/src/retry.ts
 var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function withRetry(op) {
@@ -12288,6 +12341,21 @@ async function listDirs(dir) {
   }
 }
 var FOLDER_ID = /^([A-Za-z]+-\d+)(?:-(.*))?$/;
+var escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function referencesImage(text2, name) {
+  for (const n of /* @__PURE__ */ new Set([name, encodeURI(name), encodeURIComponent(name)])) {
+    if (new RegExp("(?<![\\w%-])images/" + escapeRe(n) + "(?![\\w%-]|\\.\\w)").test(text2)) return true;
+  }
+  return false;
+}
+async function loadImages(dir) {
+  try {
+    const entries = await fs.readdir(path.join(dir, "images"), { withFileTypes: true });
+    return entries.filter((e) => e.isFile() && isImageName(e.name)).map((e) => e.name).sort();
+  } catch {
+    return [];
+  }
+}
 async function loadLogs(dir, problems) {
   const logs = {};
   let names;
@@ -12325,6 +12393,8 @@ async function loadSpecFolder(root, kind, folder, archived, projectProblems) {
     const logs = await loadLogs(dir, doc.problems);
     for (const st of doc.subtasks) st.hasLog = logs[st.n] !== void 0;
     const bodyMd = specBodyMd(text2);
+    const images = await loadImages(dir);
+    const linked = (name) => referencesImage(text2, name);
     return {
       ...doc,
       dir,
@@ -12334,6 +12404,8 @@ async function loadSpecFolder(root, kind, folder, archived, projectProblems) {
       slug,
       progress: { done: doc.subtasks.filter((s) => s.done).length, total: doc.subtasks.length },
       logs,
+      images,
+      attachments: images.filter((n) => !linked(n)),
       bodyMd,
       bodyHash: hashText(bodyMd)
     };
@@ -12537,17 +12609,17 @@ function specTemplate(id, input) {
     ""
   ].join("\n");
 }
-async function move(root, id, from, to) {
+async function move(root, id, from, to, anyStatus = false) {
   const p = await loadProject(root);
   const spec = (from === "specs" ? p.specs : p.archived).find((s) => s.id === id);
   if (!spec) throw new Error(`Spec ${id} not found`);
-  if (from === "specs" && spec.status !== "done") throw new Error("Only done specs can be archived");
+  if (from === "specs" && !anyStatus && spec.status !== "done") throw new Error("Only done specs can be archived");
   const dest = path3.join(root, ".specboard", to, path3.basename(spec.dir));
   await fs2.mkdir(path3.dirname(dest), { recursive: true });
   await withRetry(() => fs2.rename(spec.dir, dest));
 }
-async function archiveSpec(root, id) {
-  await move(root, id, "specs", "archive");
+async function archiveSpec(root, id, opts = {}) {
+  await move(root, id, "specs", "archive", opts.anyStatus === true);
 }
 async function unarchiveSpec(root, id) {
   await move(root, id, "archive", "specs");
@@ -13116,7 +13188,7 @@ function withRefusals(info, denials) {
   const line = `Claude was refused ${denials.length === 1 ? "1 action" : `${denials.length} actions`} on the way. Check the result before moving this to Done.`;
   return { ...info, denied: denials.map(forWire), text: info.text ? `${info.text} ${line}` : line };
 }
-var OPTIONAL_COMMAND = /^(?:gh\s+pr\s+view|glab\s+mr\s+view|specboard\s+tree|date)(?:\s|$)/;
+var OPTIONAL_COMMAND = /^(?:gh\s+pr\s+view|glab\s+mr\s+view|specboard\s+tree|specboard\s+archive|date)(?:\s|$)/;
 function optionalRefusal(d) {
   const command = d.input?.command;
   return SHELL_TOOLS.has(d.tool) && typeof command === "string" && OPTIONAL_COMMAND.test(command.trim());
@@ -13459,6 +13531,7 @@ var BASE_ALLOW = [
   "Bash(git add:*)",
   "Bash(git commit:*)",
   "Bash(specboard tree:*)",
+  "Bash(specboard archive:*)",
   "Bash(gh pr view:*)",
   "Bash(glab mr view:*)",
   "Bash(date:*)"
@@ -18646,7 +18719,7 @@ async function watchProject(entry, refs, onChange) {
 import path12 from "node:path";
 
 // packages/server/src/http.ts
-var CORE_400 = [/^Invalid value for /, /^Invalid key /, /^Cannot edit /, /^Only done specs can be archived/, /^(Subtask|Question) .+ not found$/];
+var CORE_400 = [/^Invalid value for /, /^Invalid key /, /^Cannot edit /, /^Only done specs can be archived/, /^(Subtask|Question|Review item) .+ not found$/];
 var CORE_422 = [/^No front matter$/, /^Front matter is not valid YAML/];
 var HttpError = class extends Error {
   constructor(status, message) {
@@ -18696,7 +18769,7 @@ var BodyConflict = class extends Error {
 function findSpec(p, id) {
   return p.specs.find((s) => s.id === id) ?? p.archived.find((s) => s.id === id);
 }
-function specRoutes(registry) {
+function specRoutes(registry, runs) {
   const app = new Hono3();
   const project = async (c) => {
     const entry = await registry.get(c.req.param("pid") ?? "");
@@ -18748,6 +18821,14 @@ function specRoutes(registry) {
     if (!Number.isInteger(n)) throw new HttpError(400, "Invalid subtask number");
     return mutate(c, (text2) => setSubtaskDone(text2, n, b.done), hash);
   });
+  app.patch("/api/projects/:pid/specs/:id/reviews/:n", async (c) => {
+    const b = await readJson(c);
+    const hash = requireString(b, "hash", false);
+    if (typeof b.done !== "boolean") throw new HttpError(400, 'Missing or invalid "done"');
+    const n = Number(c.req.param("n"));
+    if (!Number.isInteger(n)) throw new HttpError(400, "Invalid review item number");
+    return mutate(c, (text2) => setReviewDone(text2, n, b.done), hash);
+  });
   app.patch("/api/projects/:pid/specs/:id/answers", async (c) => {
     const b = await readJson(c);
     const hash = requireString(b, "hash", false);
@@ -18792,7 +18873,10 @@ function specRoutes(registry) {
   });
   app.post("/api/projects/:pid/specs/:id/archive", async (c) => {
     const entry = await project(c);
-    await archiveSpec(entry.root, c.req.param("id") ?? "");
+    const id = c.req.param("id") ?? "";
+    const run = runs?.current(entry.id);
+    if (run && run.status === "running" && run.specId === id) throw new HttpError(409, "Claude is working on it");
+    await archiveSpec(entry.root, id, { anyStatus: true });
     return c.body(null, 204);
   });
   app.post("/api/projects/:pid/specs/:id/unarchive", async (c) => {
@@ -19999,7 +20083,6 @@ var IMAGE_TYPES = {
   ".svg": "image/svg+xml",
   ".avif": "image/avif"
 };
-var IMAGE_EXTS = Object.keys(IMAGE_TYPES);
 function imageRoutes(registry) {
   const app = new Hono3();
   app.get("/api/projects/:pid/image", async (c) => {
@@ -20131,6 +20214,30 @@ function uploadRoutes(registry) {
       }
     }
   );
+  app.delete("/api/projects/:pid/specs/:id/images/:name", async (c) => {
+    const entry = await registry.get(c.req.param("pid") ?? "");
+    if (!entry) throw new HttpError(404, "Unknown project");
+    const name = c.req.param("name") ?? "";
+    if (name === "" || name.includes("/") || name.includes(String.fromCharCode(92)) || name.includes("..") || !isImageName(name)) throw new HttpError(400, "Invalid image name");
+    const id = c.req.param("id") ?? "";
+    const project = await loadProject(entry.root);
+    const spec = project.specs.find((s) => s.id === id);
+    if (!spec) {
+      if (project.archived.some((s) => s.id === id)) throw new HttpError(409, `Spec ${id} is archived`);
+      throw new HttpError(404, `Spec ${id} not found`);
+    }
+    const dir = path19.join(path19.dirname(spec.path), "images");
+    const rel = `${path19.relative(entry.root, dir).split(path19.sep).join("/")}/${name}`;
+    try {
+      const file = safeProjectFile(entry.root, rel);
+      await fs20.unlink(file);
+    } catch (e) {
+      if (e instanceof PathError) throw new HttpError(400, e.message);
+      if (e.code === "ENOENT") throw new HttpError(404, `Image ${name} not found`);
+      throw e;
+    }
+    return c.body(null, 204);
+  });
   app.onError(onError);
   return app;
 }
@@ -20188,7 +20295,7 @@ function createApp(deps) {
     project.archived.sort((a, b) => compareIds(a.id, b.id));
     return c.json({ entry, project, nextId: await nextId(entry.root) });
   });
-  app.route("/", specRoutes(deps.registry));
+  app.route("/", specRoutes(deps.registry, deps.runs));
   app.route("/", referenceRoutes(deps.registry));
   app.route("/", fileRoutes(deps.registry, deps.openFile));
   app.route("/", imageRoutes(deps.registry));
@@ -20405,6 +20512,31 @@ function parseTreeArgs(argv) {
   }
   return { path: dir, spec, milestone };
 }
+function parseArchiveArgs(argv) {
+  const base = process.env.INIT_CWD || process.cwd();
+  const bad = argv.find((a) => a.startsWith("--"));
+  if (bad) throw new Error(`Unknown option: ${bad}`);
+  if (argv.length < 1 || argv.length > 2) throw new Error("Usage: specboard archive <ID> [project folder]");
+  return { id: argv[0], path: argv[1] ? path22.resolve(base, argv[1]) : base };
+}
+async function archiveCommand(a, log = console.log, err = console.error) {
+  const project = await loadProject(a.path);
+  if (project.config === null && project.specs.length === 0 && project.problems[0] === "No .specboard folder") {
+    err(`No .specboard folder in ${a.path}`);
+    return 1;
+  }
+  if (project.archived.some((s) => s.id === a.id) && !project.specs.some((s) => s.id === a.id)) {
+    log(`${a.id} is already archived.`);
+    return 0;
+  }
+  if (!project.specs.some((s) => s.id === a.id)) {
+    err(`No spec ${a.id} in ${a.path}`);
+    return 1;
+  }
+  await archiveSpec(a.path, a.id, { anyStatus: true });
+  log(`Archived ${a.id}.`);
+  return 0;
+}
 function detachArgs(argv) {
   return [...argv.filter((a) => a !== "--detach" && a !== "--no-detach"), "--no-detach"];
 }
@@ -20509,6 +20641,9 @@ async function main() {
     console.log(renderTree(project, { spec: a.spec, milestone: a.milestone }));
     return;
   }
+  if (cmd === "archive") {
+    process.exit(await archiveCommand(parseArchiveArgs(rest)));
+  }
   const args = parseArgs(process.argv.slice(2));
   if (args.detach) {
     process.exit(await runDetached(args, process.argv.slice(2)));
@@ -20526,8 +20661,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   });
 }
 export {
+  archiveCommand,
   detachArgs,
   parseAllowArgs,
+  parseArchiveArgs,
   parseArgs,
   parseInitArgs,
   parseTreeArgs,
