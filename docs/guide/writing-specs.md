@@ -103,7 +103,7 @@ A short list of what you will see or be able to do once the spec is finished, in
 - An empty basket shows "Your basket is empty" and no pay button.
 ```
 
-Two to five lines is plenty. Each one is a result you can check, not a way of building it. Before Claude moves a spec to Review, it checks each line and writes in the log of the last subtask it did whether it was met and how it checked. If a line is not met, the card does not go to Review: Claude fixes it, or adds a required question and stops. A line Claude has no way to check, such as how a page looks on a phone, becomes a [To review](#to-review) item and doesn't hold the card back.
+Two to five lines is plenty. Each one is a result you can check, not a way of building it. Before Claude moves a spec to Review, it checks each line and writes in the log of the last subtask it did whether it was met and how it checked. If a line is not met, the card does not go to Review: Claude fixes it, or adds a required question and stops. A line Claude has no way to check, such as how a page looks on a phone, becomes a [To review](writing-specs.md#to-review) item and doesn't hold the card back.
 
 The section is optional. A spec without one works as before.
 
@@ -118,7 +118,7 @@ A subtask that starts with `(you)` is something only you can do before or during
 The card shows a small "you" tag on these. Claude never ticks one for you. Do the step, tick it on the board, then run the spec again.
 
 - **A `(you)` step with work after it** stops the run. The run panel says **Waiting on you**, with the step, and it isn't an error.
-- **A `(you)` step at the end**, in older specs, doesn't stop anything. Claude finishes, checks **Done when**, moves the card to Review and lists the steps still left for you. New specs put these checks in [To review](#to-review) instead.
+- **A `(you)` step at the end**, in older specs, doesn't stop anything. Claude finishes, checks **Done when**, moves the card to Review and lists the steps still left for you. New specs put these checks in [To review](writing-specs.md#to-review) instead.
 
 Use a question for a decision ("Email or SMS?") and a `(you)` step for something you do.
 
