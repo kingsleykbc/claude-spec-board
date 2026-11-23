@@ -243,6 +243,12 @@ describe('kit content', () => {
     expect(text).toContain('specboard init --yes --no-skills --runs');
     expect(text).toContain('.specboard/imported/<source-name>/');
     expect(text).toContain('specboard --detach');
+    const step7 = text.split('\n').find((l) => l.startsWith('7. **Background runs.**'))!;
+    expect(step7).toContain('specboard rules "<folder>"');
+    expect(step7).toContain('specboard init --yes --no-skills --runs yes "<folder>"');
+    expect(step7).not.toContain('--runs no');
+    expect(text.split('\n').find((l) => l.startsWith('1. **Where.**'))).not.toContain('--runs no');
+    expect(text).toContain('If it prints that an older board is running');
   });
 
   it('structure prints the tree read-only; sync-specs uses the proposal file and checks head and scope', async () => {

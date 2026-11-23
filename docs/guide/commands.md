@@ -30,8 +30,9 @@ The rows below show `specboard <command>`. With the plugin, that is the command 
 
 | Command | What it does |
 |---|---|
-| `specboard [path]` | Opens the board for a project (the current folder if you give no path). Options: `--port N` to choose the port, `--no-open` to skip opening the browser, `--detach` to start it in the background and return. |
+| `specboard [path]` | Opens the board for a project (the current folder if you give no path). Options: `--port N` to choose the port, `--no-open` to skip opening the browser, `--detach` to start it in the background and return. With `--detach`, a board of another version (after a plugin update) is asked to stop and is replaced; if Claude is working in it, the old board is kept. |
 | `specboard init [path]` | Sets up a project: creates `.specboard/`, copies the commands to `.claude/skills/`, and asks you to approve the actions background runs may use. Options: `--yes` (don't ask questions), `--runs yes` or `--runs no` (answer the runs question), `--no-skills` (don't copy the commands), `--force-skills` (replace copied commands with the current ones). |
+| `specboard rules [path]` | Prints the actions background runs would be allowed (and the ones always refused), and changes nothing. With no git repo in the folder or above it, the git rules are left out. `/specboard:setup` shows this before it asks. |
 | `specboard allow "<rule>" [path]` | Adds one rule to the actions background runs may use. It always asks you first. |
 | `specboard tree [path]` | Prints the board as a tree. Options: `--spec ID` for one spec, `--milestone NAME` for one milestone. This is what `/specboard:structure` runs. |
 | `specboard archive <ID> [path]` | Archives a spec, the same as **Archive** on the board. It prints `Archived T-002.` This is what Claude runs when you ask it to archive a card in a chat. |

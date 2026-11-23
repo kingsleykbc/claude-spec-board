@@ -27,6 +27,8 @@ Background runs need two things: Claude Code installed and logged in, and your a
 - **With the plugin:** run `/specboard:setup`. When it asks about background runs, it shows the actions and writes them once you say yes. In a project that already has `.specboard/`, ask Claude to turn runs on. It runs `specboard init --yes --no-skills --runs yes "<project folder>"` for you (`--no-skills` keeps `init` from copying commands that the plugin already has).
 - **From a terminal, without the plugin:** run `npm run specboard -- init "<project folder>"` from a copy of the repo. It shows the list of actions and asks you to approve it.
 
+In a folder with no git repo (none here or in a parent folder) the git actions (`git status`, `diff`, `log`, `add`, `commit`) are left out of the list. `specboard rules` prints the list without changing anything.
+
 The approved list is kept in `~/.specboard/`, outside the repo. [Safety](safety.md) explains what it lets a run do.
 
 ## When Claude isn't connected

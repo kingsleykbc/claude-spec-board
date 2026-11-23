@@ -122,7 +122,7 @@ When a format rule changes, update core, the `specboard` skill's format section 
 - `--detach` re-spawns itself in the background.
 
 `start.ts`:
-- If a Spec Board already answers on the port (`/api/health` says `app: specboard`), it registers the project with it and opens the browser.
+- If a Spec Board already answers on the port (`/api/health` says `app: specboard`), it registers the project with it and opens the browser. `/api/health` also reports `version` (the plugin version). With `--detach`, a board of another or no version is asked to stop through `POST /api/shutdown` (same security checks; 409 while a run is going, 202 then it closes) and replaced; a 409 keeps the old board, a board without the route gets a message with the command that stops it.
 - Otherwise it starts a new server. It binds `127.0.0.1` only.
 
 **Projects.** `registry.ts` keeps known projects in `~/.specboard/projects.json` (or `$SPECBOARD_HOME`). A project's id is the first 8 hex characters of the sha1 of its lowercased path. One server serves many projects; the board picks one with `?project=<id>`.
