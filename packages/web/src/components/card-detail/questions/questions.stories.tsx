@@ -83,7 +83,7 @@ export const TextAnswer: Story = {
     const c = within(canvasElement);
     expect(c.queryByRole('textbox')).toBeNull();
     expect(c.getByText('Google and GitHub')).toBeTruthy();
-    await userEvent.click(c.getByRole('button', { name: 'Edit' }));
+    await userEvent.click(c.getByRole('button', { name: 'Edit answer' }));
     expect((c.getByRole('textbox') as HTMLTextAreaElement).value).toBe('Google and GitHub');
     await userEvent.click(c.getByRole('button', { name: 'Cancel' }));
     expect(c.queryByRole('textbox')).toBeNull();

@@ -3,7 +3,7 @@ import type { Question, Spec } from '@specboard/core';
 import { api, ConflictError } from '@/api/client';
 import { OFFLINE_TOAST, type Mutate } from '@/state/actions';
 import type { PushToast } from '@/state/toasts';
-import { CheckIcon, DotIcon } from '@/lib/icons';
+import { CheckIcon, DotIcon, EditIcon } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import { section, sectionHead, sectionLabel } from '../section';
 
@@ -214,12 +214,18 @@ export function Questions({
                     </label>
                     {viewing && (
                       <div className="flex items-center gap-3">
-                        <span data-answer="" className="text-[13.5px] leading-[1.5] whitespace-pre-wrap text-fg">
+                        <span data-answer="" className="text-[13.5px] leading-[1.5] font-semibold whitespace-pre-wrap text-fg">
                           {q.answer}
                         </span>
                         {!readOnly && (
-                          <button type="button" className={smallBtn} onClick={() => startEdit(q.id)}>
-                            Edit
+                          <button
+                            type="button"
+                            aria-label="Edit answer"
+                            title="Edit answer"
+                            className="inline-flex size-7 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-0 text-[14px] text-fg3 hover:bg-panel hover:text-fg"
+                            onClick={() => startEdit(q.id)}
+                          >
+                            <EditIcon aria-hidden />
                           </button>
                         )}
                       </div>

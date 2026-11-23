@@ -83,11 +83,21 @@ describe('Questions', () => {
     expect(row('Q1').getAttribute('data-attention')).toBe('true');
   });
 
+  it('an answered question shows its answer in bold and a pen button, with no "Edit" text button', () => {
+    setup(recipeSpec('T-106'));
+    const answer = within(row('Q1')).getByText('Google and GitHub');
+    expect(answer.className).toContain('font-semibold');
+    const pen = within(row('Q1')).getByRole('button', { name: 'Edit answer' });
+    expect(pen.textContent).toBe('');
+    expect(pen.querySelector('svg')).toBeTruthy();
+    expect(within(row('Q1')).queryByRole('button', { name: 'Edit' })).toBeNull();
+  });
+
   it('a saved text answer reads as text, and Edit shows the textarea with it', () => {
     setup(recipeSpec('T-106'));
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(within(row('Q1')).getByText('Google and GitHub')).toBeTruthy();
-    fireEvent.click(within(row('Q1')).getByRole('button', { name: 'Edit' }));
+    fireEvent.click(within(row('Q1')).getByRole('button', { name: 'Edit answer' }));
     const ta = screen.getByRole('textbox', { name: 'Which OAuth providers should come later?' }) as HTMLTextAreaElement;
     expect(ta.value).toBe('Google and GitHub');
     expect(state('Q1')).toBe('Answered');
@@ -139,7 +149,7 @@ describe('Questions', () => {
   it('clearing an answer sends an empty string; unchanged answers are not sent', async () => {
     const sp = recipeSpec('T-106');
     const { client } = setup(sp);
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit answer' }));
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '' } });
     expect(state('Q1')).toBe('Unsaved');
     fireEvent.click(save());
@@ -268,7 +278,7 @@ describe('answered questions as text', () => {
     expect(within(row('Q1')).queryByRole('radio')).toBeNull();
     expect(within(row('Q3')).getByText('CSV')).toBeTruthy();
     expect(within(row('Q3')).queryByRole('radio')).toBeNull();
-    fireEvent.click(within(row('Q3')).getByRole('button', { name: 'Edit' }));
+    fireEvent.click(within(row('Q3')).getByRole('button', { name: 'Edit answer' }));
     expect(within(row('Q3')).getAllByRole('radio')).toHaveLength(3);
     expect((within(row('Q3')).getByRole('radio', { name: 'CSV' }) as HTMLInputElement).checked).toBe(true);
   });
@@ -276,13 +286,13 @@ describe('answered questions as text', () => {
   it('an unanswered question shows its input', () => {
     setup(two());
     expect(screen.getByRole('spinbutton')).toBeTruthy();
-    expect(within(row('Q2')).queryByRole('button', { name: 'Edit' })).toBeNull();
+    expect(within(row('Q2')).queryByRole('button', { name: 'Edit answer' })).toBeNull();
   });
 
   it('Cancel restores the saved answer and leaves another question’s draft alone', () => {
     setup(two());
     fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '4' } });
-    fireEvent.click(within(row('Q3')).getByRole('button', { name: 'Edit' }));
+    fireEvent.click(within(row('Q3')).getByRole('button', { name: 'Edit answer' }));
     fireEvent.click(within(row('Q3')).getByRole('radio', { name: 'PDF' }));
     expect(state('Q3')).toBe('Unsaved');
     fireEvent.click(within(row('Q3')).getByRole('button', { name: 'Cancel' }));
@@ -296,12 +306,12 @@ describe('answered questions as text', () => {
   it('after a save the edited question is text again', async () => {
     const sp = two();
     setup(sp, { after: answered(sp, { Q3: 'PDF' }) });
-    fireEvent.click(within(row('Q3')).getByRole('button', { name: 'Edit' }));
+    fireEvent.click(within(row('Q3')).getByRole('button', { name: 'Edit answer' }));
     fireEvent.click(within(row('Q3')).getByRole('radio', { name: 'PDF' }));
     fireEvent.click(save());
     await waitFor(() => expect(within(row('Q3')).queryByRole('radio')).toBeNull());
     expect(within(row('Q3')).getByText('PDF')).toBeTruthy();
-    expect(within(row('Q3')).getByRole('button', { name: 'Edit' })).toBeTruthy();
+    expect(within(row('Q3')).getByRole('button', { name: 'Edit answer' })).toBeTruthy();
   });
 
   it('a failed save keeps the edit open with the input, the draft and Cancel', async () => {
@@ -310,7 +320,7 @@ describe('answered questions as text', () => {
         throw new Error('boom');
       },
     });
-    fireEvent.click(within(row('Q3')).getByRole('button', { name: 'Edit' }));
+    fireEvent.click(within(row('Q3')).getByRole('button', { name: 'Edit answer' }));
     fireEvent.click(within(row('Q3')).getByRole('radio', { name: 'PDF' }));
     fireEvent.click(save());
     await waitFor(() => expect(screen.getByText('Unsaved answers')).toBeTruthy());
