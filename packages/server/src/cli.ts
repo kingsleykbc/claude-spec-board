@@ -5,6 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { archiveSpec, loadProject, renderTree } from '@specboard/core';
+import { copyImagesCommand, parseCopyImagesArgs } from './copyImages.js';
 import { pluginDir } from './paths.js';
 import { runTokenHook } from './hookTokens.js';
 import { initHint } from './prePublish.js';
@@ -241,6 +242,9 @@ async function main(): Promise<void> {
   }
   if (cmd === 'archive') {
     process.exit(await archiveCommand(parseArchiveArgs(rest)));
+  }
+  if (cmd === 'copy-images') {
+    process.exit(await copyImagesCommand(parseCopyImagesArgs(rest)));
   }
   const args = parseArgs(process.argv.slice(2));
   if (args.detach) {

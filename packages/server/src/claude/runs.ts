@@ -196,7 +196,9 @@ function endLine(kind: RunKind, end: EndInfo, before: Spec | null, after: Spec |
       if (kind !== 'run') return { k: 'done', text: FINISHED_TEXT[kind] };
       const commit = [...(after?.subtasks ?? [])].reverse().map((t) => after?.logs[t.n]?.commit).find(Boolean);
       const left = (after?.subtasks ?? []).filter((t) => !t.done && youStep(t.title) !== null).length;
-      const text = left > 0 ? `Claude's subtasks done · ${left} left for you` : 'All subtasks done';
+      const toReview = (after?.reviews ?? []).filter((r) => !r.done).length;
+      const base = left > 0 ? `Claude's subtasks done · ${left} left for you` : 'All subtasks done';
+      const text = toReview > 0 ? `${base} · ${toReview} to review` : base;
       return commit ? { k: 'done', text: `${text} · committed`, code: commit } : { k: 'done', text };
     }
     case 'stopped':

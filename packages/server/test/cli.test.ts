@@ -5,6 +5,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { copyImagesCommand, parseCopyImagesArgs } from '../src/copyImages.js';
 import { archiveCommand, detachArgs, parseArchiveArgs, parseArgs, parseInitArgs, runDetached, shutdown } from '../src/cli.js';
 import { loadProject } from '@specboard/core';
 import { start } from '../src/start.js';
@@ -339,4 +340,64 @@ describe('archive command', () => {
     expect(out).toEqual(['Archived T-101.']);
     expect(errs).toEqual([`No spec T-nope in ${dir}`]);
   });
+});
+
+describe('copy-images command', () => {
+  const cli = path.resolve(import.meta.dirname, '../src/cli.ts');
+  const run = (...args: string[]) =>
+    spawnSync(process.execPath, ['--import', 'tsx', cli, 'copy-images', ...args], { encoding: 'utf8', cwd: path.resolve(import.meta.dirname, '..') });
+  const specDir = async (dir: string, id: string) => path.dirname((await loadProject(dir)).specs.find((s) => s.id === id)!.path);
+
+  it('parses two IDs and an optional folder', () => {
+    expect(parseCopyImagesArgs(['T-1', 'T-2', '/some/dir'])).toEqual({ from: 'T-1', to: 'T-2', path: path.resolve('/some/dir') });
+    expect(() => parseCopyImagesArgs(['T-1'])).toThrow(/Usage/);
+    expect(() => parseCopyImagesArgs(['a', 'b', 'c', 'd'])).toThrow(/Usage/);
+    expect(() => parseCopyImagesArgs(['a', 'b', '--x'])).toThrow('Unknown option: --x');
+  });
+
+  it('copies images, renames on a clash, ignores other files, and reports one line per file', async () => {
+    const dir = await copySample('copy-images');
+    const [from, to] = (await loadProject(dir)).specs.slice(0, 2).map((s) => s.id) as [string, string];
+    const src = path.join(await specDir(dir, from), 'images');
+    const dst = path.join(await specDir(dir, to), 'images');
+    await fs.mkdir(src, { recursive: true });
+    await fs.mkdir(dst, { recursive: true });
+    await fs.writeFile(path.join(src, 'shot.png'), 'new');
+    await fs.writeFile(path.join(src, 'other.jpg'), 'jpg');
+    await fs.writeFile(path.join(src, 'notes.txt'), 'text');
+    await fs.writeFile(path.join(dst, 'shot.png'), 'old');
+    await fs.writeFile(path.join(dst, 'shot-2.png'), 'old2');
+    const r = run(from, to, dir);
+    expect(r.stderr).toBe('');
+    expect(r.status).toBe(0);
+    expect(r.stdout.trim().split(/\r?\n/)).toEqual(['images/other.jpg -> images/other.jpg', 'images/shot.png -> images/shot-3.png']);
+    expect(await fs.readFile(path.join(dst, 'shot.png'), 'utf8')).toBe('old');
+    expect(await fs.readFile(path.join(dst, 'shot-3.png'), 'utf8')).toBe('new');
+    expect(await fs.readFile(path.join(dst, 'other.jpg'), 'utf8')).toBe('jpg');
+    await expect(fs.access(path.join(dst, 'notes.txt'))).rejects.toThrow();
+    expect(await fs.readFile(path.join(src, 'shot.png'), 'utf8')).toBe('new'); // the source is left as it was
+  }, 30000);
+
+  it('says so when there are no images, creates the target folder, and exits 1 for an unknown or archived ID', async () => {
+    const dir = await copySample('copy-images-2');
+    const specs = (await loadProject(dir)).specs;
+    const [from, to] = [specs[0]!.id, specs[1]!.id];
+    const out: string[] = [];
+    const errs: string[] = [];
+    expect(await copyImagesCommand({ from, to, path: dir }, (m) => out.push(m), (m) => errs.push(m))).toBe(0);
+    expect(out).toEqual([`No images in ${from}.`]);
+    const src = path.join(await specDir(dir, from), 'images');
+    await fs.mkdir(src, { recursive: true });
+    await fs.writeFile(path.join(src, 'a.png'), 'x');
+    expect(await copyImagesCommand({ from, to, path: dir }, (m) => out.push(m), (m) => errs.push(m))).toBe(0);
+    expect(await fs.readFile(path.join(await specDir(dir, to), 'images', 'a.png'), 'utf8')).toBe('x');
+    expect(await copyImagesCommand({ from, to: 'T-nope', path: dir }, (m) => out.push(m), (m) => errs.push(m))).toBe(1);
+    expect(errs).toEqual([`No spec T-nope in ${dir}`]);
+    await archiveCommand({ id: to, path: dir }, () => {}, () => {});
+    errs.length = 0;
+    expect(await copyImagesCommand({ from, to, path: dir }, () => {}, (m) => errs.push(m))).toBe(1);
+    expect(errs).toEqual([`Spec ${to} is archived in ${dir}`]);
+    const none = run(from, to, path.join(tmp, 'empty'));
+    expect(none.status).toBe(1);
+  }, 30000);
 });

@@ -62,6 +62,12 @@ const scenarios = {
     writeLog(1, 'first', 'aaa1111');
     result();
   },
+  'review-final'() {
+    const reviews = ['', '## To review', '- [ ] Open the page', '  > expected: it loads', '- [ ] Check the footer', '- [x] Done already', ''].join('\n');
+    editSpec((t) => t.replace(/^status: .*$/m, 'status: review').replace(/^- \[ \] (\d+)\./gm, '- [x] $1.') + reviews);
+    writeLog(1, 'first', 'aaa1111');
+    result();
+  },
   // 10000 + 8000 + 30000 + 210 = 48210 tokens
   tokens: () => result({ total_cost_usd: 0.5, usage: { input_tokens: 10000, output_tokens: 8000, cache_read_input_tokens: 30000, cache_creation_input_tokens: 210 } }),
   'sync-plan'() {

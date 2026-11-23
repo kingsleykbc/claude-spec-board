@@ -75,7 +75,7 @@ export async function archiveProposed(root: string, ids: string[]): Promise<stri
   for (const id of ids) {
     if (!active.has(id)) continue;
     try {
-      await archiveSpec(root, id);
+      await archiveSpec(root, id, { anyStatus: true });
     } catch (e) {
       failures.push(`Could not archive ${id}: ${(e as Error).message}`);
     }

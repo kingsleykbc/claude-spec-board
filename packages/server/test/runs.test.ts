@@ -213,6 +213,16 @@ describe('a run that reaches Review with (you) checks left', () => {
   });
 });
 
+describe('a run that finishes with To review items unticked', () => {
+  it('ends with the number of checks waiting in To review', async () => {
+    const entry = await makeProject();
+    const { m } = manager('review-final');
+    const run = await ended((await m.start(entry, 'run', 'T-001')).id);
+    expect(run.status).toBe('finished');
+    expect(run.lines.at(-1)).toMatchObject({ k: 'done', text: 'All subtasks done · 2 to review · committed', code: 'aaa1111' });
+  });
+});
+
 describe('a run that succeeds', () => {
   it('goes running to finished, in order, with the spec in Review', async () => {
     const entry = await makeProject();
@@ -917,14 +927,26 @@ describe('sync runs', () => {
     expect(run.lines.some((l) => l.k === 'warn')).toBe(false);
   });
 
+  it('a To-do spec on an Archive line is archived, whatever its status', async () => {
+    const entry = await makeProject();
+    await fs.writeFile(proposal(entry.root), BODY);
+    const { m } = manager('applied'); // T-001 stays To do
+    const run = await ended((await m.start(entry, 'sync-apply', null)).id);
+    expect(run.status).toBe('finished');
+    expect(run.lines.some((l) => l.k === 'warn')).toBe(false);
+    expect((await loadProject(entry.root)).archived.map((s) => s.id)).toEqual(['T-001']);
+  });
+
   it('an archive that fails is a warn line, and the run still finishes', async () => {
     const entry = await makeProject();
     await fs.writeFile(proposal(entry.root), BODY.replace('2. Archive T-001 (gone)', '2. Archive T-001 (gone)\n3. Archive T-404\n4. Archive T-001'));
-    const { m } = manager('applied'); // T-001 is not done, so it cannot be archived
+    // Make the move fail: a file where the archive folder should be blocks the rename.
+    await fs.writeFile(path.join(entry.root, '.specboard', 'archive'), 'not a folder');
+    const { m } = manager('applied');
     const run = await ended((await m.start(entry, 'sync-apply', null)).id);
     expect(run.status).toBe('finished');
     const warns = run.lines.filter((l) => l.k === 'warn');
-    expect(warns).toEqual([expect.objectContaining({ text: 'Could not archive T-001: Only done specs can be archived' })]);
+    expect(warns).toEqual([expect.objectContaining({ text: expect.stringMatching(/^Could not archive T-001: /) })]);
     expect(run.lines.at(-1)!.k).toBe('done');
     expect((await loadProject(entry.root)).specs.map((s) => s.id)).toEqual(['T-001']);
     await expect(fs.access(proposal(entry.root))).rejects.toThrow();

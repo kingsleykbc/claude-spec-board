@@ -105,7 +105,7 @@ describe('defaultAllowList', () => {
       ]),
     );
     expect(a.allow).toEqual(expect.arrayContaining(['Read(./**)', 'Edit(./**)', 'Write(./**)', 'Bash(git commit:*)', 'Bash(date:*)']));
-    expect(a.allow).toEqual(expect.arrayContaining(['Bash(specboard tree:*)', 'Bash(specboard archive:*)', 'Bash(gh pr view:*)', 'Bash(glab mr view:*)']));
+    expect(a.allow).toEqual(expect.arrayContaining(['Bash(specboard tree:*)', 'Bash(specboard archive:*)', 'Bash(specboard copy-images:*)', 'Bash(gh pr view:*)', 'Bash(glab mr view:*)']));
     expect(a.allow).not.toContain('Bash(npm test:*)');
     const b = await defaultAllowList(await project('b', { scripts: { test: 'vitest' } }));
     expect(b.allow).toEqual(expect.arrayContaining(['Bash(npm test:*)', 'Bash(npm run test:*)']));
