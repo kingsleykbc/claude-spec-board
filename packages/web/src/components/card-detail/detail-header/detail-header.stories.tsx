@@ -62,7 +62,7 @@ export const Draft: Story = {
   },
 };
 
-/** Claude isn't connected: Run with Claude and Have Claude write this up are greyed, each with its own command. */
+/** Claude isn’t connected: Run with Claude and Have Claude write this up are greyed, each with its own command. */
 export const NotConnectedDraft: Story = {
   args: { draft: true, onWriteUp: fn(), manual: 'not-logged-in', status: 'todo' },
   play: async ({ canvasElement }) => {

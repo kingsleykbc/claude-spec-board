@@ -99,8 +99,9 @@ describe('DetailHeader', () => {
     const btn = screen.getByRole('button', { name: 'Have Claude write this up' }) as HTMLButtonElement;
     expect(btn.disabled).toBe(false);
     expect(btn.className).not.toContain('bg-accent');
+    expect(btn.getAttribute('aria-description')).toBe('Claude isn’t connected');
     await user.click(btn);
-    const pop = await screen.findByRole('dialog', { name: "Claude isn't connected" });
+    const pop = await screen.findByRole('dialog', { name: "Claude isn’t connected" });
     expect(pop.textContent).toContain('/specboard:create-spec T-103');
     expect(onWriteUp).not.toHaveBeenCalled();
   });

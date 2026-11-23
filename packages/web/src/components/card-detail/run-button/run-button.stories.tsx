@@ -24,7 +24,7 @@ export const Ready: Story = {
   },
 };
 
-/** Greyed, but not disabled: hover, focus or a click opens why Claude isn't connected and the command to paste. */
+/** Greyed, but not disabled: hover, focus or a click opens why Claude isn’t connected and the command to paste. */
 export const NotConnected: Story = {
   args: { manual: 'not-approved' },
   play: async ({ canvasElement, args }) => {

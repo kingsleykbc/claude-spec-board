@@ -99,7 +99,7 @@ export function ModalClose({ onClick, label = 'Close' }: { onClick: () => void; 
     <Hint label={label}>
       <button
         type="button"
-        className="absolute top-[18px] right-4 z-10 flex size-[34px] cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 text-[18px] leading-none text-fg2 hover:bg-panel"
+        className="absolute top-[18px] right-4 z-10 flex size-[34px] cursor-pointer items-center justify-center rounded-lg border-0 bg-card p-0 text-[18px] leading-none text-fg2 hover:bg-panel"
         aria-label={label}
         onClick={onClick}
       >

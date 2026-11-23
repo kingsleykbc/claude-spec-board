@@ -11,6 +11,8 @@ export interface InfoPopoverProps {
   label: string;
   /** Replaces the trigger's icon look, for a trigger that is a labelled button. */
   triggerClassName?: string;
+  /** Extra spoken description of the trigger (aria-description), e.g. that it is unavailable. */
+  description?: string;
 }
 
 /** How long the pointer may be away from the trigger and the content before the popover closes. */
@@ -34,7 +36,7 @@ function focusVisible(el: Element): boolean {
  * (a tooltip would never show on touch). Leaving the trigger and the content closes it after a short grace so a
  * link inside can be reached. Esc and a click outside close it.
  */
-export function InfoPopover({ trigger, title, children, label, triggerClassName }: InfoPopoverProps) {
+export function InfoPopover({ trigger, title, children, label, triggerClassName, description }: InfoPopoverProps) {
   const [open, setOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   /** Opened by hover or focus rather than a click: focus stays where it was. */
@@ -89,6 +91,7 @@ export function InfoPopover({ trigger, title, children, label, triggerClassName 
     >
       <PopoverTrigger
         aria-label={label}
+        {...(description ? { 'aria-description': description } : {})}
         className={triggerClassName ?? 'inline-flex cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-0 font-[inherit] text-inherit'}
         onPointerEnter={(e) => {
           if (e.pointerType !== 'touch' && canHover()) openPassive();

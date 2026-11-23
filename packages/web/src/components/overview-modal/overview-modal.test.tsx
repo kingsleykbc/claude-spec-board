@@ -62,8 +62,9 @@ describe('OverviewModal', () => {
     const btn = screen.getByRole('button', { name: 'Refresh' }) as HTMLButtonElement;
     expect(btn.disabled).toBe(false);
     expect(btn.className).toContain('text-fg3');
+    expect(btn.getAttribute('aria-description')).toBe('Claude isn’t connected');
     fireEvent.click(btn);
-    const pop = await screen.findByRole('dialog', { name: "Claude isn't connected" });
+    const pop = await screen.findByRole('dialog', { name: "Claude isn’t connected" });
     expect(pop.textContent).toContain('/specboard:refresh-overview');
     expect(p.onRefresh).not.toHaveBeenCalled();
   });
@@ -72,6 +73,7 @@ describe('OverviewModal', () => {
     setup();
     const close = screen.getByRole('button', { name: 'Close' });
     expect(close.className).toContain('absolute');
+    expect(close.className).toContain('bg-card');
     expect(screen.getByText('OVERVIEW').parentElement!.className).toContain('pr-[60px]');
   });
 

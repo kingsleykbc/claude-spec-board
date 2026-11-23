@@ -39,7 +39,7 @@ export const Empty: Story = {
   },
 };
 
-/** Claude isn't connected: Refresh is greyed and shows the command to paste. */
+/** Claude isn’t connected: Refresh is greyed and shows the command to paste. */
 export const NotConnected: Story = {
   args: { manual: 'not-installed' },
   play: async ({ canvasElement, userEvent }) => {

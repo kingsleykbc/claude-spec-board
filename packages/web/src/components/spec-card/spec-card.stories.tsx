@@ -122,7 +122,7 @@ export const Draft: Story = {
   },
 };
 
-/** Claude isn't connected: the write-up button is greyed; hover, focus or a click shows the command to paste. */
+/** Claude isn’t connected: the write-up button is greyed; hover, focus or a click shows the command to paste. */
 export const DraftNotConnected: Story = {
   args: { id: 'T-107', manual: 'not-installed' },
   play: async ({ canvasElement }) => {

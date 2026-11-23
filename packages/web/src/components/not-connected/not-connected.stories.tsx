@@ -7,7 +7,7 @@ const meta = { title: 'Shell/NotConnected', component: NotConnected, args: { rea
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const TITLE = "Claude isn't connected to the board";
+const TITLE = "Claude isn’t connected to the board";
 
 /** Opens the popover and checks its title, reason line and docs link. */
 const opens =
@@ -51,7 +51,7 @@ export const Trigger: Story = {
     const btn = within(canvasElement).getByRole('button', { name: 'Refresh' }) as HTMLButtonElement;
     expect(btn.disabled).toBe(false);
     await userEvent.click(btn);
-    const pop = await within(document.body).findByRole('dialog', { name: "Claude isn't connected" });
+    const pop = await within(document.body).findByRole('dialog', { name: "Claude isn’t connected" });
     expect(within(pop).getByText('/specboard:refresh-overview')).toBeTruthy();
     await userEvent.keyboard('{Escape}');
   },

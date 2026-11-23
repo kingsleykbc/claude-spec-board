@@ -25,7 +25,7 @@ describe('the header', () => {
     render(<NotConnected />);
     const header = screen.getByRole('banner');
     const els = [
-      within(header).getByRole('button', { name: "Claude isn't connected to the board" }),
+      within(header).getByRole('button', { name: "Claude isn’t connected to the board" }),
       within(header).getByRole('button', { name: 'References' }),
       within(header).getByRole('button', { name: 'Overview' }),
       within(header).getByRole('switch', { name: 'Simple mode' }),
@@ -177,7 +177,7 @@ describe('Simple mode', () => {
     const onOpenRefs = vi.fn();
     const onOpenOverview = vi.fn();
     render(<Simple onOpenRefs={onOpenRefs} onOpenOverview={onOpenOverview} />);
-    expect(headerButtons()).toEqual(['Spec Board', 'Recipe Box3/9 done', "Claude isn't connected to the board", 'Logs']);
+    expect(headerButtons()).toEqual(['Spec Board', 'Recipe Box3/9 done', "Claude isn’t connected to the board", 'Logs']);
     const menu = await openLogoMenu(user);
     expect(within(menu).getAllByRole('menuitem').map((m) => m.textContent?.trim())).toEqual([
       'Documentation',
@@ -200,10 +200,10 @@ describe('Simple mode', () => {
 describe('the not-connected icon', () => {
   it('shows only when runs are off, before References, as the not-connected picture', () => {
     render(<Live />);
-    expect(screen.queryByRole('button', { name: "Claude isn't connected to the board" })).toBeNull();
+    expect(screen.queryByRole('button', { name: "Claude isn’t connected to the board" })).toBeNull();
     cleanup();
     render(<NotConnected />);
-    const btn = screen.getByRole('button', { name: "Claude isn't connected to the board" });
+    const btn = screen.getByRole('button', { name: "Claude isn’t connected to the board" });
     expect(btn.querySelector('img')!.getAttribute('src')).toMatch(/not-connected/);
     expect(btn.compareDocumentPosition(screen.getByRole('button', { name: 'References' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -211,9 +211,9 @@ describe('the not-connected icon', () => {
   it('opens a popover with the exact title', async () => {
     const user = userEvent.setup();
     render(<NotConnected />);
-    await user.click(screen.getByRole('button', { name: "Claude isn't connected to the board" }));
-    const pop = await screen.findByRole('dialog', { name: "Claude isn't connected to the board" });
-    expect(within(pop).getByText("Claude isn't connected to the board")).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: "Claude isn’t connected to the board" }));
+    const pop = await screen.findByRole('dialog', { name: "Claude isn’t connected to the board" });
+    expect(within(pop).getByText("Claude isn’t connected to the board")).toBeTruthy();
     expect(within(pop).getByText("This project isn't set up for background runs.")).toBeTruthy();
   });
 
@@ -225,7 +225,7 @@ describe('the not-connected icon', () => {
     for (const el of screen.getByRole('banner').querySelectorAll('[aria-label],[title]')) {
       expect(`${el.getAttribute('aria-label') ?? ''} ${el.getAttribute('title') ?? ''}`).not.toMatch(bad);
     }
-    await user.click(screen.getByRole('button', { name: "Claude isn't connected to the board" }));
+    await user.click(screen.getByRole('button', { name: "Claude isn’t connected to the board" }));
     expect((await screen.findByRole('dialog')).textContent).not.toMatch(bad);
     await user.keyboard('{Escape}');
     const menu = await openLogoMenu(user);
@@ -267,7 +267,7 @@ describe('small screens', () => {
 
   it('the not-connected icon stays in the header', () => {
     render(<Narrow />);
-    expect(screen.getByRole('button', { name: "Claude isn't connected to the board" })).toBeTruthy();
+    expect(screen.getByRole('button', { name: "Claude isn’t connected to the board" })).toBeTruthy();
   });
 
   it('the switcher keeps its dot but drops the progress text', () => {

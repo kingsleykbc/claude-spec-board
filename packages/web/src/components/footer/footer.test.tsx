@@ -12,7 +12,7 @@ describe('Footer', () => {
   it('reads "Spec Board · made by Kingsleykbc", with the name linking to the author', () => {
     render(<Default />);
     const footer = screen.getByRole('contentinfo');
-    expect(footer.textContent).toMatch(/^Spec Boards*·s*made by Kingsleykbc/);
+    expect(footer.textContent).toBe('Spec Board · made by Kingsleykbc · GitHub');
     const author = screen.getByRole('link', { name: 'Kingsleykbc' });
     expect(author.getAttribute('href')).toBe('https://github.com/kingsleykbc');
     expect(author.getAttribute('target')).toBe('_blank');

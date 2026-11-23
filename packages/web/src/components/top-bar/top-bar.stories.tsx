@@ -173,8 +173,8 @@ export const NotConnected: Story = {
   args: { manual: 'not-approved' },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
-    await userEvent.click(c.getByRole('button', { name: "Claude isn't connected to the board" }));
-    expect(await within(document.body).findByRole('dialog', { name: "Claude isn't connected to the board" })).toBeTruthy();
+    await userEvent.click(c.getByRole('button', { name: "Claude isn’t connected to the board" }));
+    expect(await within(document.body).findByRole('dialog', { name: "Claude isn’t connected to the board" })).toBeTruthy();
   },
 };
 

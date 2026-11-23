@@ -44,6 +44,7 @@ describe('RunButton', () => {
     render(<Ready {...base} id="T-104" state="ready" manual="not-installed" />);
     const run = screen.getByRole('button', { name: 'Run with Claude' }) as HTMLButtonElement;
     expect(run.disabled).toBe(false);
+    expect(run.getAttribute('aria-description')).toBe(NOT_CONNECTED_SHORT);
     expect(run.className).not.toMatch(/bg-accent/);
     expect(run.className).toMatch(/text-fg3/);
     run.focus();

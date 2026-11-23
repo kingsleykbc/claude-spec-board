@@ -6,9 +6,9 @@ import { useCopyCommand } from '@/lib/useCopyCommand';
 import type { ManualReason } from '@/state/runUi';
 
 /** The header icon's title, and its accessible name. */
-export const NOT_CONNECTED_TITLE = "Claude isn't connected to the board";
+export const NOT_CONNECTED_TITLE = "Claude isn’t connected to the board";
 /** The title of the popover on a button that needs Claude (Run with Claude, Have Claude write this up, Refresh). */
-export const NOT_CONNECTED_SHORT = "Claude isn't connected";
+export const NOT_CONNECTED_SHORT = "Claude isn’t connected";
 
 const REASON: Record<ManualReason, string> = {
   'not-installed': "Claude Code isn't installed on this computer.",
@@ -108,7 +108,7 @@ export function NotConnectedTrigger({
   className?: string;
 }) {
   return (
-    <InfoPopover label={label} title={NOT_CONNECTED_SHORT} triggerClassName={className} trigger={children}>
+    <InfoPopover label={label} title={NOT_CONNECTED_SHORT} triggerClassName={className} description={NOT_CONNECTED_SHORT} trigger={children}>
       <NotConnectedBody reason={reason} command={command} />
     </InfoPopover>
   );

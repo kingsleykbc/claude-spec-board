@@ -14,7 +14,7 @@ export function Footer() {
     <footer className="flex flex-wrap items-center justify-center gap-2.5 border-t border-line px-[200px] pt-3 pb-4 text-[12.5px] text-fg3 [@media(max-width:640px)]:px-5 [@media(max-width:640px)]:pb-[84px]">
       <span>Spec Board</span>
       <span className="text-line2" aria-hidden>
-        ·
+        {' · '}
       </span>
       <span>
         made by{' '}
@@ -23,10 +23,10 @@ export function Footer() {
         </a>
       </span>
       <span className="text-line2" aria-hidden>
-        ·
+        {' · '}
       </span>
       <a className={link} href={REPO_URL} target="_blank" rel="noopener noreferrer">
-        <GithubIcon aria-hidden /> GitHub
+        <GithubIcon aria-hidden />GitHub
       </a>
     </footer>
   );
