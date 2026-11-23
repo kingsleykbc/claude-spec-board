@@ -6,6 +6,9 @@ import type { Project, Spec } from '@specboard/core';
 export const recipeSpecs: Spec[] = [
   {
     "id": "T-101",
+    "reviews": [],
+    "images": [],
+    "attachments": [],
     "title": "Recipe list page",
     "status": "done",
     "urgency": "normal",
@@ -116,6 +119,9 @@ export const recipeSpecs: Spec[] = [
   },
   {
     "id": "T-102",
+    "reviews": [],
+    "images": [],
+    "attachments": [],
     "title": "Add recipe form",
     "status": "done",
     "urgency": "normal",
@@ -190,6 +196,9 @@ export const recipeSpecs: Spec[] = [
   },
   {
     "id": "T-103",
+    "reviews": [],
+    "images": [],
+    "attachments": [],
     "title": "Search & filters",
     "status": "review",
     "urgency": "high",
@@ -272,6 +281,9 @@ export const recipeSpecs: Spec[] = [
   },
   {
     "id": "T-104",
+    "reviews": [],
+    "images": [],
+    "attachments": [],
     "title": "Meal planner calendar",
     "status": "doing",
     "urgency": "high",
@@ -395,6 +407,9 @@ export const recipeSpecs: Spec[] = [
   },
   {
     "id": "T-105",
+    "reviews": [],
+    "images": [],
+    "attachments": [],
     "title": "Shopping list export",
     "status": "todo",
     "urgency": "normal",
@@ -507,6 +522,9 @@ export const recipeSpecs: Spec[] = [
   },
   {
     "id": "T-106",
+    "reviews": [],
+    "images": [],
+    "attachments": [],
     "title": "User accounts",
     "status": "todo",
     "urgency": "urgent",
@@ -607,6 +625,9 @@ export const recipeSpecs: Spec[] = [
   },
   {
     "id": "T-107",
+    "reviews": [],
+    "images": [],
+    "attachments": [],
     "title": "Dark mode",
     "status": "todo",
     "urgency": "low",
@@ -643,6 +664,9 @@ export const recipeSpecs: Spec[] = [
   },
   {
     "id": "T-108",
+    "reviews": [],
+    "images": [],
+    "attachments": [],
     "title": "Share recipe link",
     "status": "todo",
     "urgency": "normal",
@@ -722,6 +746,9 @@ export const recipeSpecs: Spec[] = [
 export const recipeArchived: Spec[] = [
   {
     "id": "T-100",
+    "reviews": [],
+    "images": [],
+    "attachments": [],
     "title": "Project scaffold",
     "status": "done",
     "urgency": "normal",
@@ -790,6 +817,9 @@ export const recipeArchived: Spec[] = [
 /** A to-do spec whose file has a problem (File problem card state). */
 export const fileProblemSpec: Spec = {
   "id": "T-109",
+  "reviews": [],
+  "images": [],
+  "attachments": [],
   "title": "Import recipes from a file",
   "status": "todo",
   "urgency": "low",
