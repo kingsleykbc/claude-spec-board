@@ -89,15 +89,8 @@ export function uploadRoutes(registry: Registry): Hono {
   app.delete('/api/projects/:pid/specs/:id/images/:name', async (c) => {
     const entry = await registry.get(c.req.param('pid') ?? '');
     if (!entry) throw new HttpError(404, 'Unknown project');
-    let name = c.req.param('name') ?? '';
-    // Some encodings (%5C) can arrive still encoded; check the decoded name.
-    if (name.includes('%')) {
-      try {
-        name = decodeURIComponent(name);
-      } catch {
-        throw new HttpError(400, 'Invalid image name');
-      }
-    }
+    // Hono has already decoded the parameter; decoding again would turn a literal % into something else.
+    const name = c.req.param('name') ?? '';
     // A bare file name only: no separators, no "..", and an image extension.
     if (name === '' || name.includes('/') || name.includes(String.fromCharCode(92)) || name.includes('..') || !isImageName(name)) throw new HttpError(400, 'Invalid image name');
     const id = c.req.param('id') ?? '';

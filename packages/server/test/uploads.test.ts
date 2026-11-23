@@ -125,6 +125,19 @@ describe('DELETE /api/projects/:pid/specs/:id/images/:name', () => {
     expect(await fs.readFile(path.join(specDir(), 'spec.md'), 'utf8')).toBe(specMd);
   });
 
+  it('deletes a name with a space and a percent sign exactly once-decoded', async () => {
+    const dir = path.join(specDir(), 'images');
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, 'a b.png'), 'x');
+    await fs.writeFile(path.join(dir, '50%.png'), 'x');
+    await fs.writeFile(path.join(dir, 'a%20b.png'), 'x');
+    expect((await del('a b.png')).status).toBe(204);
+    expect((await del('50%.png')).status).toBe(204);
+    await fs.access(file('a%20b.png'));
+    expect((await del('a b.png')).status).toBe(404);
+    expect((await del('a%20b.png')).status).toBe(204);
+  });
+
   it('404s an unknown file or spec', async () => {
     expect((await del('nope.png')).status).toBe(404);
     expect((await del('shot.png', 'T-999')).status).toBe(404);

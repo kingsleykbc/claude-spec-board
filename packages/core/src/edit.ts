@@ -1,5 +1,6 @@
 import { Document, parseDocument, visit } from 'yaml';
 import { STATUSES, URGENCIES, splitFrontMatter } from './frontmatter.js';
+import { REVIEW_LINE } from './parseSpec.js';
 import { demoteH2, findSections } from './sections.js';
 import type { Status, Urgency } from './types.js';
 
@@ -17,7 +18,6 @@ export type MetaKey = keyof MetaValues;
 
 const QUESTION = /^- \[([ xX])\]([ \t]+)(Q\d+)([ \t]*\([^)]*\)[ \t]*:.*)$/;
 const ANSWER = /^[ \t]+>[ \t]*answer[ \t]*:/i;
-const REVIEW = /^(- \[)([ xX])(\][ \t]+\S.*)$/;
 const SUBTASK = /^(- \[)([ xX])(\][ \t]+(\d+)\.[ \t]+.*)$/;
 
 export function detectEol(text: string): '\n' | '\r\n' {
@@ -165,7 +165,7 @@ export function setSubtaskDone(text: string, n: number, done: boolean): string {
     for (let i = range.start; i < range.end; i++) {
       const m = SUBTASK.exec(lines[i]!);
       if (m && Number(m[4]) === n) {
-        ls[i]!.text = `${m[1]}${done ? 'x' : ' '}${m[3]}`;
+        ls[i]!.text = lines[i]!.replace(/^- \[[ xX]\]/, `- [${done ? 'x' : ' '}]`);
         return fromLines(ls);
       }
     }
@@ -181,10 +181,9 @@ export function setReviewDone(text: string, n: number, done: boolean): string {
   if (range) {
     let count = 0;
     for (let i = range.start; i < range.end; i++) {
-      const m = REVIEW.exec(lines[i]!);
-      if (!m) continue;
+      if (!REVIEW_LINE.test(lines[i]!)) continue;
       if (++count === n) {
-        ls[i]!.text = `${m[1]}${done ? 'x' : ' '}${m[3]}`;
+        ls[i]!.text = lines[i]!.replace(/^- \[[ xX]\]/, `- [${done ? 'x' : ' '}]`);
         return fromLines(ls);
       }
     }

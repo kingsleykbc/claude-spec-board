@@ -86,6 +86,16 @@ describe('setReviewDone', () => {
     expect(out).toContain('- [ ] Reload the page\r\n');
     expect(out.length).toBe(crlf.length);
   });
+  it('an empty-text item is not an item: ticking item 3 ticks the third real line', () => {
+    const t = HEAD + '\n## To review\n- [ ] One\n- [ ]\n- [ ] Two\n- [ ] Three\n';
+    const d = parseSpec(t);
+    expect(d.reviews.map((r) => r.text)).toEqual(['One', 'Two', 'Three']);
+    expect(d.problems).toEqual([expect.stringMatching(/Unrecognised review line/)]);
+    const out = setReviewDone(t, 3, true);
+    expect(out).toContain('- [x] Three');
+    expect(out).toContain('- [ ] Two');
+    expect(out).toContain('- [ ]\n- [ ] Two');
+  });
   it('throws on an unknown n and never touches subtasks', () => {
     expect(() => setReviewDone(text, 9, true)).toThrow('Review item 9 not found');
     expect(() => setReviewDone(HEAD, 1, true)).toThrow('Review item 1 not found');
@@ -114,6 +124,12 @@ describe('images and attachments', () => {
     const s = (await loadProject(root)).specs[0]!;
     expect(s.images).toEqual(['a.webp', 'b.png', 'z.JPG']);
     expect(s.attachments).toEqual(['a.webp', 'z.JPG']);
+  });
+  it('matches whole path tokens only', async () => {
+    const t = HEAD.replace('Body text.', 'A ![x](./images/x.png) and ![s](images/a%20b.png) and images/a.png.bak and images/c.png.') + '\n## To review\n- [ ] Look at images/r.png\n';
+    const root = await project(t, ['x.png', 'a b.png', 'a.png', 'c.png', 'r.png', 'd.png']);
+    const s = (await loadProject(root)).specs[0]!;
+    expect(s.attachments).toEqual(['a.png', 'd.png']);
   });
   it('has empty lists with no images folder, and works for archived specs', async () => {
     const root = await project(HEAD, [], 'archive');

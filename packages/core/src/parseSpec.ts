@@ -9,7 +9,8 @@ const PRIORITY = /^[ \t]*(optional|required)[ \t]+/i;
 /** `Text? (recommended: Yes)`. Needs some text before it and a value inside. */
 const RECOMMENDED = /^(.*?\S)[ \t]*\(recommended[ \t]*:[ \t]*(.*\S)[ \t]*\)$/i;
 const SUBTASK = /^- \[([ xX])\][ \t]+(\d+)\.[ \t]+(.*?)[ \t]*$/;
-const REVIEW = /^- \[([ xX])\][ \t]+(.*?)[ \t]*$/;
+/** A To review item: the text must not be empty, so parsing and ticking count the same lines. */
+export const REVIEW_LINE = /^- \[([ xX])\][ \t]+(\S.*?)[ \t]*$/;
 const EXPECTED = /^[ \t]+>[ \t]*expected[ \t]*:[ \t]*(.*?)[ \t]*$/i;
 const GROUP = /^###[ \t]+(.*?)[ \t]*#*[ \t]*$/;
 // Only column-0 list items can be questions or subtasks; indented bullets are free-form detail.
@@ -87,7 +88,7 @@ function parseReviews(lines: string[], range: SectionRange | undefined, problems
       group = g[1]! === '' ? null : g[1]!;
       continue;
     }
-    const m = REVIEW.exec(line);
+    const m = REVIEW_LINE.exec(line);
     if (!m) {
       if (LIST_ITEM.test(line)) problems.push(`Unrecognised review line ${i + 1}`);
       continue;

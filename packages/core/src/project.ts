@@ -115,6 +115,16 @@ async function listDirs(dir: string): Promise<string[]> {
 
 const FOLDER_ID = /^([A-Za-z]+-\d+)(?:-(.*))?$/;
 
+const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** True when the text names `images/<name>` (also as `./images/<name>`, or URL-encoded) as a whole path token, not a prefix of a longer name. */
+export function referencesImage(text: string, name: string): boolean {
+  for (const n of new Set([name, encodeURI(name), encodeURIComponent(name)])) {
+    if (new RegExp('(?<![\\w%-])images/' + escapeRe(n) + '(?![\\w%-]|\\.\\w)').test(text)) return true;
+  }
+  return false;
+}
+
 async function loadImages(dir: string): Promise<string[]> {
   try {
     const entries = await fs.readdir(path.join(dir, 'images'), { withFileTypes: true });
@@ -165,7 +175,7 @@ async function loadSpecFolder(root: string, kind: 'specs' | 'archive', folder: s
     for (const st of doc.subtasks) st.hasLog = logs[st.n] !== undefined;
     const bodyMd = specBodyMd(text);
     const images = await loadImages(dir);
-    const linked = (name: string): boolean => text.includes(`images/${name}`) || text.includes(`images/${encodeURI(name)}`);
+    const linked = (name: string): boolean => referencesImage(text, name);
     return {
       ...doc,
       dir,
