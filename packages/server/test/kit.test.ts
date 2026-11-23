@@ -284,6 +284,13 @@ describe('kit content', () => {
     expect(text).toContain('specboard init');
   });
 
+  it('plan-project sizes up the work and offers phases without being asked', async () => {
+    const text = (await kitSkills()).find((s) => s.name === 'plan-project')!.text;
+    expect(text).toContain('about 6 or more specs');
+    expect(text).toContain('the person should not have to bring up phases');
+    expect(text).toContain('Small project, so no phases.');
+  });
+
   it('reorganize keeps the numbers of ticked or logged subtasks', async () => {
     const text = (await kitSkills()).find((s) => s.name === 'reorganize')!.text;
     expect(text).toContain('keep their numbers');

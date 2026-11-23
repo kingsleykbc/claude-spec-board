@@ -25,9 +25,11 @@ Any input is the person's notes about the project. Use them, and do not ask what
    | 2 | Stack? | the project files, else a simple default for that kind of app | `## Stack` in the `config.md` body |
    | 3 | Must-have features for the first version? | the input | the specs |
    | 4 | Any design references (links, image paths, or none)? | none | links and image or other design file paths go under `## Design` in the `config.md` body; only `.md` files inside the project go in `references` |
-   | 5 | Split into phases (milestones, see the rules)? | by size: yes for more than about 12 pieces of work or plans already in phases, else no | `milestones` |
+   | 5 | Split into phases (milestones, see the rules)? | yes when the work comes to about 6 or more specs, or falls into a first usable version plus later parts (for example the customer side first, the admin side later), or plans already in phases; else no. With yes, name each phase and what goes in it | `milestones` |
    | 6 | After each spec: run tests (which command)? Update docs? | the command you detect; "update the README" only if one exists | `closing_steps`, `test_command` |
    | 7 | Commit after each task? | yes; only asked when there is a git repo (the folder or a parent has `.git`) | `commits` |
+
+   Size up the work from the answers so far before asking 5; the person should not have to bring up phases. Leave 5 out only when the person already said whether to use phases, or when the work is a few small specs with no later part: then say "Small project, so no phases."
 
    With no git repo, do not ask 7: write `commits: false` and say "No git repo found, so tasks won't be committed."
 4. Write `.specboard/config.md`: `name`, `references` (existing `.md` docs inside the project worth reading, as repo-relative paths), `closing_steps` (from the answers, for example `[Write tests, Update the docs]`), `test_command` (the tests command, as a quoted string like `"npm test"`; leave it out when there are no tests), `commits` (`true` or `false`), `milestones` (large projects only, in order), and the body: the description, then `## Stack` and `## Design` (the links and design file paths, or "none"). Keep `created`. `specboard init` leaves a bare file (only `name` and empty `references`): fill that in. If it already holds more than that, show the person exactly what would change and ask first. Change it with small Edit calls and keep everything else.
