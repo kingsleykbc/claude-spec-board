@@ -69,6 +69,25 @@ describe('OverviewModal', () => {
     expect(p.onRefresh).not.toHaveBeenCalled();
   });
 
+  it('shows only the description before the first ## heading, with inline Markdown', () => {
+    const description = 'A **web app** to save recipes.\n\n## Stack\nReact and Postgres\n\n## Design\nWarm and simple';
+    setup({ project: { ...recipeProject, config: { ...recipeProject.config!, description } } });
+    const dlg = screen.getByRole('dialog', { name: 'Overview' });
+    expect(within(dlg).getByText('web app').tagName).toBe('STRONG');
+    expect(within(dlg).getByText(/to save recipes/)).toBeTruthy();
+    expect(within(dlg).queryByText(/React and Postgres/)).toBeNull();
+    expect(within(dlg).queryByText(/Warm and simple/)).toBeNull();
+    expect(within(dlg).queryByText(/## Stack/)).toBeNull();
+  });
+
+  it('status unknown: Refresh summary is neutral, starts nothing', () => {
+    const p = setup({ statusKnown: false, project: { ...recipeProject, overview: null } });
+    const btn = screen.getByRole('button', { name: 'Refresh summary' });
+    expect(btn.className).not.toMatch(/bg-accent/);
+    fireEvent.click(btn);
+    expect(p.onRefresh).not.toHaveBeenCalled();
+  });
+
   it('the close button is pinned top right and the header keeps clear of it', () => {
     setup();
     const close = screen.getByRole('button', { name: 'Close' });

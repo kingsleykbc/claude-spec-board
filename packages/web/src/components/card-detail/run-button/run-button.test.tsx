@@ -56,6 +56,18 @@ describe('RunButton', () => {
     expect(await within(notice).findByRole('button', { name: 'Copied' })).toBeTruthy();
   });
 
+  it('status unknown: neutral secondary style (no accent fill, not greyed) and no hover text', async () => {
+    const user = userEvent.setup();
+    render(<Ready {...base} state="ready" statusKnown={false} />);
+    const run = screen.getByRole('button', { name: 'Run with Claude' });
+    expect(run.className).not.toMatch(/bg-accent/);
+    expect(run.className).not.toMatch(/text-fg3|bg-panel/);
+    expect(run.className).toMatch(/bg-card/);
+    await user.hover(run);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    expect(screen.queryByText(/separate Claude/)).toBeNull();
+  });
+
   it('status unknown: a click starts nothing and opens nothing', async () => {
     const user = userEvent.setup();
     const onRun = vi.fn();

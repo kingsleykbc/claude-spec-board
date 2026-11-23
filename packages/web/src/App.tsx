@@ -8,7 +8,7 @@ import { PlusIcon } from './lib/icons';
 import { runHold } from './lib/vm';
 import { loadMode } from './lib/mode';
 import { startTour, tourSeen } from './lib/tour';
-import { currentMilestone } from '@specboard/core/milestones';
+import { currentMilestone, projectProgress } from '@specboard/core/milestones';
 import { categoryOptions, effectiveMilestone, milestoneOptions, NO_FILTERS, waitItems, type Filters, type WaitItem } from './state/filters';
 import { createMutator } from './state/mutate';
 import { FileLinks, FileLinksHost } from './state/fileLinks';
@@ -220,9 +220,9 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
   );
   const archived = project?.archived ?? [];
   const milestones = project?.config?.milestones ?? [];
-  // The milestone filter starts at the current milestone once per project load (archived counted as done);
+  // The milestone filter starts at the current milestone once per project load (an archived spec counts only when done);
   // after that it is the person's choice until the project changes (ProjectView is keyed by project).
-  const current = project ? currentMilestone([...project.specs, ...project.archived.map((x) => ({ ...x, status: 'done' as const }))], milestones) : null;
+  const current = project ? currentMilestone([...project.specs, ...project.archived], milestones) : null;
   const [milestoneSet, setMilestoneSet] = useState(false);
   if (project && !milestoneSet) {
     setMilestoneSet(true);
@@ -234,10 +234,11 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
   useRunToasts(run, specs, toast);
   const { startRun, stopRun, dismissRun } = useRunActions(run, toast, project?.root);
   const manual = manualReason(run.claude, run.approved);
+  const statusKnown = run.claude !== null && run.approved !== null;
   const sync = useSync({ pid, stamp: loads, run: run.run, manual: manual !== null, startRun, stopRun: () => void stopRun(), toast });
   const name = project?.config?.name || data?.entry.name || summary?.name || pid;
   const progress = project
-    ? { done: archived.length + project.specs.filter((x) => x.status === 'done').length, total: project.specs.length + archived.length }
+    ? projectProgress(project.specs, archived)
     : (summary?.progress ?? { done: 0, total: 0 });
 
   const openSpec = (id: string) => navigate({ project: pid, spec: id });
@@ -362,6 +363,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
             onUnarchive={(s) => (down ? offline() : void actions.unarchive(s))}
             onWriteUp={(s) => void startRun('write-up', s.id)}
             manual={manual}
+            statusKnown={statusKnown}
             onAdd={openAdd}
           />
           )}
@@ -397,7 +399,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
               down={down}
               {...runButtonState(run.run, openId, run.claude)}
               manual={manual}
-              statusKnown={run.claude !== null && run.approved !== null}
+              statusKnown={statusKnown}
               runActive={openDoc ? cardRun(run.run, openDoc).runActive : false}
               chat={openDoc ? cardRun(run.run, openDoc).chat : null}
               onRun={() => void startRun('run', openId)}
@@ -445,6 +447,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
               refreshing={isRefreshing(run.run)}
               onRefresh={() => void startRun('refresh-overview')}
               manual={manual}
+              statusKnown={statusKnown}
               onOpenLogs={() => setModal('logs')}
               onClose={closeModal}
               returnFocus={logoButton}

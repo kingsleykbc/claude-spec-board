@@ -17,6 +17,7 @@ const {
   InReview,
   Draft,
   DraftNotConnected,
+  DraftStatusUnknown,
   FileProblem,
   ManyNeeds,
   Archived,
@@ -186,6 +187,17 @@ describe('SpecCard', () => {
     await userEvent.click(btn);
     const pop = await screen.findByRole('dialog', { name: "Claude isn’t connected" });
     expect(pop.textContent).toMatch('/create-spec T-107');
+    expect(onWriteUp).not.toHaveBeenCalled();
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('status unknown: the write-up button is neutral, starts nothing, opens nothing and does not open the card', async () => {
+    const { light, onWriteUp, onOpen } = setup(DraftStatusUnknown);
+    const btn = light.getByRole('button', { name: 'Have Claude write this up' });
+    expect(btn.className).not.toMatch(/bg-accent/);
+    expect(btn.className).not.toMatch(/bg-panel|text-fg3/);
+    await userEvent.click(btn);
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(onWriteUp).not.toHaveBeenCalled();
     expect(onOpen).not.toHaveBeenCalled();
   });

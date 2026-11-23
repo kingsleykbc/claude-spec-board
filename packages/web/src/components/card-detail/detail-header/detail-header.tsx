@@ -200,7 +200,7 @@ export function DetailHeader(p: DetailHeaderProps) {
         {p.draft && (
           <>
             <span className="rounded-[5px] border border-dashed border-line2 px-[7px] py-px text-[11px] font-semibold text-fg2">Draft</span>
-            {p.runState !== 'running' && p.onWriteUp && <WriteUpButton id={p.id} manual={p.manual ?? null} onWriteUp={p.onWriteUp} size="md" />}
+            {p.runState !== 'running' && p.onWriteUp && <WriteUpButton id={p.id} manual={p.manual ?? null} statusKnown={p.statusKnown ?? true} onWriteUp={p.onWriteUp} size="md" />}
           </>
         )}
       </div>

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import { recipeProject } from '@/fixtures/recipeBox';
 import { OverviewModal } from './overview-modal';
 
@@ -65,5 +65,30 @@ export const TasksExpanded: Story = {
     expect(within(dlg).getByText('SUMMARY')).toBeTruthy();
     await userEvent.click(within(dlg).getByRole('button', { name: 'Tasks' }));
     expect(within(dlg).getAllByRole('table')[0]).toBeTruthy();
+  },
+};
+
+/** The config body has Stack and Design sections: only the description before the first ## heading shows. */
+export const DescriptionOnly: Story = {
+  args: {
+    project: { ...recipeProject, config: { ...recipeProject.config!, description: 'A **web app** to save recipes.\n\n## Stack\nReact and Postgres\n\n## Design\nWarm and simple' } },
+  },
+  play: async ({ canvasElement }) => {
+    const dlg = within(canvasElement).getByRole('dialog', { name: 'Overview' });
+    expect(within(dlg).getByText('web app').tagName).toBe('STRONG');
+    expect(within(dlg).queryByText(/React and Postgres/)).toBeNull();
+    expect(within(dlg).queryByText(/Warm and simple/)).toBeNull();
+  },
+};
+
+/** Claude's status isn't known yet: Refresh summary is neutral (no accent fill) and a click waits. */
+export const StatusUnknown: Story = {
+  args: { statusKnown: false, project: { ...recipeProject, overview: null } },
+  play: async ({ canvasElement, args }) => {
+    const dlg = within(canvasElement).getByRole('dialog', { name: 'Overview' });
+    const btn = within(dlg).getByRole('button', { name: 'Refresh summary' });
+    expect(btn.className).not.toMatch(/bg-accent/);
+    await userEvent.click(btn);
+    expect(args.onRefresh).not.toHaveBeenCalled();
   },
 };

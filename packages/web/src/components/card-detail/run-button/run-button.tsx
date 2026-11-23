@@ -96,12 +96,17 @@ export function RunButton({ id, state, runningId, hold, blockedNote, busyNote, m
       <NotConnectedTrigger label="Run with Claude" reason={manual} command={command}>
         {runLabel}
       </NotConnectedTrigger>
-    ) : (
+    ) : statusKnown ? (
       <Hint label={BACKGROUND_TITLE}>
-        <button type="button" className={primaryButton} aria-label="Run with Claude" aria-disabled={!statusKnown} onClick={statusKnown ? onRun : undefined}>
+        <button type="button" className={primaryButton} aria-label="Run with Claude" onClick={onRun}>
           {runLabel}
         </button>
       </Hint>
+    ) : (
+      // Status not loaded: the neutral secondary style (no accent flash), nothing opens on hover, a click waits.
+      <button type="button" className={secondaryButton} aria-label="Run with Claude" aria-disabled>
+        {runLabel}
+      </button>
     );
   const copied = copy === 'copied';
   const failedNote = copy === 'failed' && (

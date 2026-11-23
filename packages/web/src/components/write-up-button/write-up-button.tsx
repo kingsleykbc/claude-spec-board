@@ -7,6 +7,8 @@ export interface WriteUpButtonProps {
   id: string;
   /** Why the board can't run Claude here (null when it can). The button then greys and shows the command to paste. */
   manual: ManualReason | null;
+  /** Claude's status and the project's approval have loaded; until then the button is neutral and waits. */
+  statusKnown?: boolean;
   onWriteUp: () => void;
   /** `sm` on a card, `md` in the card detail's header. */
   size?: 'sm' | 'md';
@@ -20,10 +22,19 @@ export const writeUpCommand = (id: string) => `/create-spec ${id}`;
 
 /**
  * "Have Claude write this up" on a draft. Starts a write-up run; while the board isn't connected to Claude it is
- * greyed and a hover, focus or click explains why and offers the command to paste.
+ * greyed and a hover, focus or click explains why and offers the command to paste. While Claude's status isn't known
+ * yet it uses the neutral secondary style (no accent fill, not greyed), opens nothing, and a click waits.
  */
-export function WriteUpButton({ id, manual, onWriteUp, size = 'sm' }: WriteUpButtonProps) {
+export function WriteUpButton({ id, manual, statusKnown = true, onWriteUp, size = 'sm' }: WriteUpButtonProps) {
   const icon = <PlayIcon aria-hidden className={size === 'sm' ? 'text-[11px]' : 'text-[12px]'} />;
+  if (!statusKnown) {
+    return (
+      <button type="button" className={cn(FIT, SIZE[size], 'border border-line2 bg-card text-fg hover:border-fg3 hover:bg-raise')} aria-disabled>
+        {icon}
+        Have Claude write this up
+      </button>
+    );
+  }
   if (manual) {
     return (
       <NotConnectedTrigger

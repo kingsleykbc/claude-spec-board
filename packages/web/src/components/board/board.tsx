@@ -47,6 +47,8 @@ export interface BoardProps {
   onWriteUp: (spec: Spec) => void;
   /** Why the board can't run Claude here (null when it can). */
   manual?: ManualReason | null;
+  /** Claude's status has loaded; until then Have Claude write this up waits, in the neutral style. */
+  statusKnown?: boolean;
   onAdd: () => void;
 }
 
@@ -105,6 +107,7 @@ function DraggableCard({ spec, all, canDrag, flash, p }: CardProps) {
       onUnarchive={() => p.onUnarchive(spec)}
       onWriteUp={() => p.onWriteUp(spec)}
       manual={p.manual ?? null}
+      statusKnown={p.statusKnown ?? true}
     />
   );
 }

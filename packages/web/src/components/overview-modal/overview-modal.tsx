@@ -2,11 +2,14 @@ import { useId, useState } from 'react';
 import type { Project } from '@specboard/core';
 import { exportOverview, overviewCounts } from '@/lib/exportOverview';
 import { formatTokens } from '@/lib/formatTokens';
+import { projectDescription } from '@/lib/projectDescription';
 import { CaretIcon, CaretRightIcon, ErrorIcon, ExportIcon, RefreshIcon } from '@/lib/icons';
 import { ORDER, relTime, ST } from '@/lib/vm';
 import { projectTokens } from '@/state/allLogs';
 import type { PushToast } from '@/state/toasts';
+import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/connection-banner/connection-banner';
+import { InlineMarkdown } from '@/components/ui/inline-markdown/inline-markdown';
 import { Markdown } from '@/components/ui/markdown/markdown';
 import { Modal, ModalClose } from '@/components/ui/modal/modal';
 import { NotConnectedTrigger } from '@/components/not-connected/not-connected';
@@ -26,6 +29,8 @@ export interface OverviewModalProps {
   onRefresh: () => void;
   /** Why the board can't run Claude here (null when it can). Refresh then greys and shows the command to paste. */
   manual?: ManualReason | null;
+  /** Claude's status has loaded; until then Refresh is neutral and a click waits. */
+  statusKnown?: boolean;
   /** Switches to the all-logs modal; the link shows when given. */
   onOpenLogs?: () => void;
   onClose: () => void;
@@ -52,8 +57,9 @@ function download(filename: string, text: string): void {
 }
 
 /** Project overview (pinned behaviour 17; prototype lines 295-319 and 748-751). */
-export function OverviewModal({ project, pid, name, toast, refreshing = false, onRefresh, manual = null, onOpenLogs, onClose, now, returnFocus }: OverviewModalProps) {
+export function OverviewModal({ project, pid, name, toast, refreshing = false, onRefresh, manual = null, statusKnown = true, onOpenLogs, onClose, now, returnFocus }: OverviewModalProps) {
   const c = overviewCounts(project);
+  const description = projectDescription(project.config?.description ?? '');
   const [tasksOpen, setTasksOpen] = useState(false);
   const tasksId = useId();
   const deg = c.total ? Math.round((c.done / c.total) * 360) : 0;
@@ -83,7 +89,11 @@ export function OverviewModal({ project, pid, name, toast, refreshing = false, o
         <div className="flex items-start gap-7 px-7 pt-1 pb-[22px]">
           <div className="flex min-w-0 flex-1 flex-col gap-2.5">
             <h1 className="m-0 text-[34px] leading-[1.1] font-semibold tracking-[-0.025em]">{name}</h1>
-            {project.config?.description && <p className="m-0 max-w-[58ch] text-[15px] leading-[1.6] text-pretty text-fg2">{project.config.description}</p>}
+            {description && (
+              <p className="m-0 max-w-[58ch] text-[15px] leading-[1.6] text-pretty text-fg2">
+                <InlineMarkdown md={description} />
+              </p>
+            )}
           </div>
           <div className="flex flex-none flex-col items-center gap-1.5">
             <div className="flex size-[88px] items-center justify-center rounded-full" style={{ background: `conic-gradient(var(--done) ${deg}deg, var(--line) 0)` }}>
@@ -125,7 +135,7 @@ export function OverviewModal({ project, pid, name, toast, refreshing = false, o
                 <RefreshIcon aria-hidden /> Refresh
               </NotConnectedTrigger>
             ) : (
-              <button type="button" className="flex h-[30px] cursor-pointer items-center gap-[7px] rounded-[7px] border border-line bg-card px-[11px] py-0 text-[12.5px] font-medium text-fg enabled:hover:border-line2 disabled:cursor-default" disabled={refreshing} onClick={onRefresh}>
+              <button type="button" className="flex h-[30px] cursor-pointer items-center gap-[7px] rounded-[7px] border border-line bg-card px-[11px] py-0 text-[12.5px] font-medium text-fg enabled:hover:border-line2 disabled:cursor-default" disabled={refreshing} aria-disabled={!statusKnown || undefined} onClick={statusKnown ? onRefresh : undefined}>
                 {refreshing && <Spinner />}
                 {refreshing ? (
                   'Refreshing'
@@ -161,7 +171,15 @@ export function OverviewModal({ project, pid, name, toast, refreshing = false, o
                   Refresh summary
                 </NotConnectedTrigger>
               ) : (
-                <button type="button" className="h-8 cursor-pointer rounded-lg border-0 bg-accent px-3.5 py-0 text-[13px] font-semibold text-accent-fg" onClick={onRefresh}>
+                <button
+                  type="button"
+                  className={cn(
+                    'h-8 cursor-pointer rounded-lg px-3.5 py-0 text-[13px] font-semibold',
+                    statusKnown ? 'border-0 bg-accent text-accent-fg' : 'border border-line2 bg-card text-fg hover:border-fg3 hover:bg-raise',
+                  )}
+                  aria-disabled={!statusKnown || undefined}
+                  onClick={statusKnown ? onRefresh : undefined}
+                >
                   Refresh summary
                 </button>
               )}
