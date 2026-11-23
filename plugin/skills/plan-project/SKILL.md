@@ -26,7 +26,7 @@ Any input is the person's notes about the project. Use them, and do not ask what
    | 3 | Must-have features for the first version? | the input | the specs |
    | 4 | Any design references (links, image paths, or none)? | none | links and image or other design file paths go under `## Design` in the `config.md` body; only `.md` files inside the project go in `references` |
    | 5 | Split into phases (milestones, see the rules)? | yes when the work comes to about 6 or more specs, or falls into a first usable version plus later parts (for example the customer side first, the admin side later), or plans already in phases; else no. With yes, name each phase and what goes in it | `milestones` |
-   | 6 | Run tests after each spec? Which command? | the command you detect, else one that fits the stack | `closing_steps`, `test_command` |
+   | 6 | Run tests after each spec? Which command? | the command you detect, else the package manager's test script for the stack (for example `npm test`), never an interpreter with flags like `node --test`, which background runs can't be allowed to run | `closing_steps`, `test_command` |
    | 7 | Update the README after each spec? | yes; only asked when a README exists | `closing_steps` |
    | 8 | Commit after each task? | yes; only asked when there is a git repo (the folder or a parent has `.git`) | `commits` |
 

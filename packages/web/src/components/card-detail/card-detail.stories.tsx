@@ -135,7 +135,8 @@ export const WorkingInChat: Story = {
     expect(c.getByRole('button', { name: 'Not running? Clear' })).toBeTruthy();
     // Run with Claude is held while Claude works in a chat.
     expect(c.getAllByText('Claude is working on this in a chat.').length).toBeGreaterThan(0);
-    expect(c.queryByRole('button', { name: 'Run with Claude' })).toBeNull();
+    expect((c.getByRole('button', { name: 'Run with Claude' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(c.queryByRole('button', { name: 'Copy run command' })).toBeNull();
   },
 };
 
@@ -146,7 +147,8 @@ export const RunInReview: Story = {
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     expect(c.getByText('In Review: check the work, then move the card to Done.')).toBeTruthy();
-    expect(c.queryByRole('button', { name: 'Run with Claude' })).toBeNull();
+    expect((c.getByRole('button', { name: 'Run with Claude' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(c.queryByRole('button', { name: 'Copy run command' })).toBeNull();
   },
 };
 
@@ -168,7 +170,8 @@ export const DraftInDone: Story = {
     expect(c.queryByRole('button', { name: /Have Claude write this up/ })).toBeNull();
     expect(c.queryByText('Blocked.')).toBeNull();
     expect(c.getByText('Already done.')).toBeTruthy();
-    expect(c.queryByRole('button', { name: 'Run with Claude' })).toBeNull();
+    expect((c.getByRole('button', { name: 'Run with Claude' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(c.queryByRole('button', { name: 'Copy run command' })).toBeNull();
   },
 };
 

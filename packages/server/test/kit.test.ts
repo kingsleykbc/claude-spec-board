@@ -303,6 +303,14 @@ describe('kit content', () => {
     expect(get('setup')).toContain('Your board was updated to <new version>.');
   });
 
+  it('recheck fixes: a test command background runs can allow, and running a draft asks only the required questions', async () => {
+    const skills = await kitSkills();
+    const get = (name: string) => skills.find((s) => s.name === name)!.text;
+    expect(get('plan-project')).toContain('never an interpreter with flags like `node --test`');
+    expect(get('setup')).toContain('If it says it is not allowing the `test_command`');
+    expect(get('create-spec')).toContain('ask only the required ones: take the recommendation for every optional one');
+  });
+
   it('reorganize keeps the numbers of ticked or logged subtasks', async () => {
     const text = (await kitSkills()).find((s) => s.name === 'reorganize')!.text;
     expect(text).toContain('keep their numbers');

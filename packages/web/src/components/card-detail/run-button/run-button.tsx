@@ -134,8 +134,7 @@ export function RunButton({ id, state, runningId, hold, blockedNote, busyNote, m
           {off}
         </span>
         <button type="button" className={offButton} disabled title={off}>
-          <CopyIcon aria-hidden />
-          Copy run command
+          {runLabel}
         </button>
       </>
     );

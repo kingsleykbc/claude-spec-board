@@ -124,7 +124,8 @@ describe('RunButton', () => {
     const onRun = vi.fn();
     render(<Ready {...base} id="T-104" state="ready" hold="Draft. Have Claude write this up first." onRun={onRun} onStop={vi.fn()} />);
     expect(screen.getByText('Draft. Have Claude write this up first.')).toBeTruthy();
-    const button = screen.getByRole('button', { name: /Copy run command/ }) as HTMLButtonElement;
+    const button = screen.getByRole('button', { name: /Run with Claude/ }) as HTMLButtonElement;
+    expect(screen.queryByRole('button', { name: /Copy run command/ })).toBeNull();
     expect(button.disabled).toBe(true);
     fireEvent.click(button);
     expect(onRun).not.toHaveBeenCalled();
@@ -139,7 +140,8 @@ describe('RunButton', () => {
   it('disabled: says which spec Claude is working on', () => {
     render(<Ready {...base} id="T-104" state="disabled" runningId="T-103" onRun={vi.fn()} onStop={vi.fn()} />);
     expect(screen.getByText('Claude is already working on T-103')).toBeTruthy();
-    expect((screen.getByRole('button', { name: /Copy run command/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: /Run with Claude/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: /Copy run command/ })).toBeNull();
   });
 
   it('fallback with a note shows it in place of "not found"', () => {

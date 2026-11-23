@@ -87,7 +87,6 @@ async function mount(first: RunSnapshot | null = null, url = '/?project=p1', ove
 const named = (text: string) => screen.queryAllByText(text);
 const panel = () => screen.queryByRole('complementary', { name: 'Run output' });
 const runBtn = () => screen.getByRole('button', { name: /Run with Claude/ });
-const chatBtn = () => screen.getByRole('button', { name: /Copy run command/ });
 
 beforeEach(() => {
   vi.mocked(api.getRun).mockReset();
@@ -372,7 +371,7 @@ describe('the actions start the right kind', () => {
       render(<App />);
       await screen.findByText('Claude is already working on the overview');
       expect(panel()).toBeNull();
-      expect(chatBtn()).toHaveProperty('disabled', true);
+      expect(runBtn()).toHaveProperty('disabled', true);
     });
 
     it('while disconnected: the offline toast and no request', async () => {
@@ -397,7 +396,7 @@ describe('the Run button, from the run state', () => {
     await mount(null, '/?project=p1&spec=T-104');
     send({ type: 'run-started', run: run({ id: 'r2', specId: 'T-103' }) });
     expect(screen.getByText('Claude is already working on T-103')).toBeTruthy();
-    expect(chatBtn()).toHaveProperty('disabled', true);
+    expect(runBtn()).toHaveProperty('disabled', true);
   });
 
   it('Claude Code not installed: the copy fallback', async () => {
@@ -472,7 +471,8 @@ describe('the board cards', () => {
   it('with no run, the chat marker holds Run with Claude in the detail', async () => {
     await mount(null, '/?project=p1&spec=T-104');
     const dlg = within(screen.getByRole('dialog'));
-    expect(dlg.queryByRole('button', { name: /Run with Claude/ })).toBeNull();
+    expect((dlg.getByRole('button', { name: /Run with Claude/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(dlg.queryByRole('button', { name: /Copy run command/ })).toBeNull();
     expect(dlg.getByText('Claude is working on this in a chat.')).toBeTruthy();
   });
 
@@ -537,15 +537,15 @@ describe('the run panel in the detail', () => {
 
   it('a blocked spec or a draft says why and cannot start', async () => {
     await mount(null, '/?project=p1&spec=T-105');
-    expect((chatBtn() as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.queryByRole('button', { name: /Run with Claude/ })).toBeNull();
+    expect((runBtn() as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: /Copy run command/ })).toBeNull();
     expect(screen.getByText(/^Blocked\. Awaiting answers on:/)).toBeTruthy();
-    fireEvent.click(chatBtn());
+    fireEvent.click(runBtn());
     await flush();
     expect(api.startRun).not.toHaveBeenCalled();
     cleanup();
     await mount(null, '/?project=p1&spec=T-107');
-    expect((chatBtn() as HTMLButtonElement).disabled).toBe(true);
+    expect((runBtn() as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText('Draft. Have Claude write this up first.')).toBeTruthy();
   });
 

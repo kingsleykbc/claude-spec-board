@@ -314,9 +314,9 @@ describe('CardDetail', () => {
 
   it('a Review card holds Run with Claude with the Review note', () => {
     const { onRun } = setup('T-103');
-    expect(screen.queryByRole('button', { name: /Run with Claude/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Copy run command/ })).toBeNull();
     expect(screen.getByText('In Review: check the work, then move the card to Done.')).toBeTruthy();
-    const copy = screen.getByRole('button', { name: /Copy run command/ }) as HTMLButtonElement;
+    const copy = screen.getByRole('button', { name: /Run with Claude/ }) as HTMLButtonElement;
     expect(copy.disabled).toBe(true);
     fireEvent.click(copy);
     expect(onRun).not.toHaveBeenCalled();
@@ -324,7 +324,8 @@ describe('CardDetail', () => {
 
   it('a Done card holds Run with Claude as Already done', () => {
     setup('T-101');
-    expect(screen.queryByRole('button', { name: /Run with Claude/ })).toBeNull();
+    expect((screen.getByRole('button', { name: /Run with Claude/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: /Copy run command/ })).toBeNull();
     expect(screen.getByText('Already done.')).toBeTruthy();
   });
 
@@ -860,7 +861,7 @@ describe('CardDetail in Simple mode', () => {
     expect(screen.queryByText('Backend')).toBeNull();
     // The rest of the detail is unchanged.
     expect(screen.getByRole('heading', { level: 1, name: 'Shopping list export' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Copy run command/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Run with Claude/ })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'More details' }));
     const menu = within(screen.getByRole('dialog', { name: 'More details' }));
@@ -920,7 +921,8 @@ describe('working in a chat', () => {
 
   it('holds Run with Claude with the chat note', () => {
     setupChat();
-    expect(screen.queryByRole('button', { name: /Run with Claude/ })).toBeNull();
+    expect((screen.getByRole('button', { name: /Run with Claude/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: /Copy run command/ })).toBeNull();
     expect(screen.getByText('Claude is working on this in a chat.')).toBeTruthy();
   });
 
