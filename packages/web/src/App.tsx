@@ -279,6 +279,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
   // The run panel of the open spec. Refresh-overview runs have no spec, so no panel: the Overview modal shows them.
   const shownRun = run.run && run.run.specId === openId && !run.run.dismissed ? run.run : null;
   const openDoc = specs.find((x) => x.id === openId);
+  const openAny = openDoc ?? archived.find((x) => x.id === openId);
 
   return (
     <>
@@ -401,6 +402,8 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
               chat={openDoc ? cardRun(run.run, openDoc).chat : null}
               onRun={() => void startRun('run', openId)}
               onStop={() => void stopRun()}
+              onWriteUp={() => void startRun('write-up', openId)}
+              {...(openAny ? { onArchive: () => (down ? offline() : void actions.archive(openAny)), onUnarchive: () => (down ? offline() : void actions.unarchive(openAny)) } : {})}
               onFixFile={() => void startRun('fix-file', openId)}
               canAutoRun={run.claude !== null && manual === null}
               startRun={run.start}

@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { composeStories } from '@storybook/react-vite';
 import * as stories from './detail-header.stories';
 
-const { Default, WithSync, Simple } = composeStories(stories);
+const { Default, WithSync, Simple, Draft, NotConnectedDraft, Narrow, WithArchive } = composeStories(stories);
 
 afterEach(cleanup);
 
@@ -59,5 +59,67 @@ describe('DetailHeader', () => {
     expect(pop.getByRole('radiogroup', { name: 'Urgency' })).toBeTruthy();
     expect(pop.getByText('Backend')).toBeTruthy();
     expect(pop.getByText('Dependencies go here.')).toBeTruthy();
+  });
+
+  it('the close button is pinned to the top right (absolute), and the first row keeps clear of it', () => {
+    render(<Default />);
+    const close = screen.getByRole('button', { name: 'Close' });
+    expect(close.className).toContain('absolute');
+    expect(screen.getByText('T-103').parentElement!.className).toContain('pr-[44px]');
+  });
+
+  it('the actions are a second, wrapping row under the identity row', () => {
+    render(<Narrow />);
+    const actions = screen.getByTestId('detail-actions');
+    expect(actions.className).toContain('flex-wrap');
+    expect(within(actions).getByRole('button', { name: 'Run with Claude' })).toBeTruthy();
+    expect(within(actions).getByRole('button', { name: 'Sync' })).toBeTruthy();
+    // Status and the ID are in the first row, not here.
+    expect(within(actions).queryByText('T-103')).toBeNull();
+  });
+
+  it('a draft shows the Draft badge and Have Claude write this up, which calls onWriteUp', async () => {
+    const user = userEvent.setup();
+    const onWriteUp = vi.fn();
+    render(<Draft onWriteUp={onWriteUp} />);
+    expect(screen.getByText('Draft')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Have Claude write this up' }));
+    expect(onWriteUp).toHaveBeenCalledOnce();
+  });
+
+  it('a spec that is not a draft has no write-up button', () => {
+    render(<Default />);
+    expect(screen.queryByRole('button', { name: 'Have Claude write this up' })).toBeNull();
+  });
+
+  it('not connected: the write-up button is greyed, not disabled, and shows the command to paste', async () => {
+    const user = userEvent.setup();
+    const onWriteUp = vi.fn();
+    render(<NotConnectedDraft onWriteUp={onWriteUp} />);
+    const btn = screen.getByRole('button', { name: 'Have Claude write this up' }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+    expect(btn.className).not.toContain('bg-accent');
+    await user.click(btn);
+    const pop = await screen.findByRole('dialog', { name: "Claude isn't connected" });
+    expect(pop.textContent).toContain('/specboard:create-spec T-103');
+    expect(onWriteUp).not.toHaveBeenCalled();
+  });
+
+  it('Archive is in the ⋯ menu for a spec in any column', async () => {
+    const user = userEvent.setup();
+    const onArchive = vi.fn();
+    render(<WithArchive onArchive={onArchive} />);
+    await user.click(screen.getByRole('button', { name: 'Card actions' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Archive' }));
+    expect(onArchive).toHaveBeenCalledOnce();
+  });
+
+  it('an archived spec offers Unarchive', async () => {
+    const user = userEvent.setup();
+    const onUnarchive = vi.fn();
+    render(<WithArchive archived onUnarchive={onUnarchive} />);
+    await user.click(screen.getByRole('button', { name: 'Card actions' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Unarchive' }));
+    expect(onUnarchive).toHaveBeenCalledOnce();
   });
 });

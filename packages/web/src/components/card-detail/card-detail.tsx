@@ -66,6 +66,11 @@ export interface CardDetailProps {
   chat?: number | null;
   onRun?: () => void;
   onStop?: () => void;
+  /** "Have Claude write this up" on a draft. */
+  onWriteUp?: () => void;
+  /** Archive (or, for an archived spec, Unarchive) from the card's ⋯ menu; no menu item without them. */
+  onArchive?: () => void;
+  onUnarchive?: () => void;
   /** "Ask Claude to fix" on a file problem. */
   onFixFile?: () => void;
   /** The header's Sync (this spec against the code); no button without it. */
@@ -145,6 +150,9 @@ function SpecDetail({
   chat = null,
   onRun = () => undefined,
   onStop = () => undefined,
+  onWriteUp,
+  onArchive,
+  onUnarchive,
   onFixFile = () => undefined,
   onSync,
   syncWaiting = false,
@@ -381,6 +389,11 @@ function SpecDetail({
           onAddCategory={(c) => setCategories([...categories, c])}
           onRemoveCategory={(c) => setCategories(categories.filter((x) => x !== c))}
           onClose={requestClose}
+          draft={spec.draft}
+          archived={spec.archived}
+          {...(onWriteUp ? { onWriteUp } : {})}
+          {...(onArchive ? { onArchive } : {})}
+          {...(onUnarchive ? { onUnarchive } : {})}
           simple={simple}
           detailsOpen={detailsOpen}
           onDetails={setDetailsOpen}
