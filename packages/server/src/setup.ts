@@ -113,9 +113,10 @@ function assertAllowable(rule: string, deny: string[]): void {
 
 const BASE_ALLOW = [
   'Read(./**)', 'Edit(./**)', 'Write(./**)',
-  'Bash(git status:*)', 'Bash(git diff:*)', 'Bash(git log:*)', 'Bash(git add:*)', 'Bash(git commit:*)',
   'Bash(specboard tree:*)', 'Bash(specboard archive:*)', 'Bash(specboard copy-images:*)', 'Bash(gh pr view:*)', 'Bash(glab mr view:*)', 'Bash(date:*)',
 ];
+/** Left out of the default list when the project has no git repo: there is nothing for them to act on. */
+const GIT_ALLOW = ['Bash(git status:*)', 'Bash(git diff:*)', 'Bash(git log:*)', 'Bash(git add:*)', 'Bash(git commit:*)'];
 const DENY = [
   'Bash(git push:*)', 'Bash(git reset:*)', 'Bash(rm -rf:*)',
   'PowerShell(git push:*)', 'PowerShell(git reset:*)',
@@ -132,9 +133,21 @@ async function exists(file: string): Promise<boolean> {
   }
 }
 
-/** The conservative default rules, plus the test commands this project appears to use. */
+/** True when `root` or a parent folder holds a `.git` (a folder, or a file in a worktree or submodule). */
+export async function hasGitRepo(root: string): Promise<boolean> {
+  let dir = path.resolve(root);
+  for (;;) {
+    if (await exists(path.join(dir, '.git'))) return true;
+    const up = path.dirname(dir);
+    if (up === dir) return false;
+    dir = up;
+  }
+}
+
+/** The conservative default rules, plus the test commands this project appears to use. Git rules only when there is a repo. */
 export async function defaultAllowList(root: string): Promise<Permissions> {
   const allow = [...BASE_ALLOW];
+  if (await hasGitRepo(root)) allow.splice(3, 0, ...GIT_ALLOW);
   try {
     const pkg = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8')) as { scripts?: Record<string, unknown> };
     if (typeof pkg?.scripts?.test === 'string') allow.push('Bash(npm test:*)', 'Bash(npm run test:*)');
@@ -325,31 +338,11 @@ export async function initCommand(
 
   for (const s of skills) io.log(`skill ${s.name}: ${s.action}`);
   if (skills.some((s) => s.action === 'skipped-modified')) io.log('Some skills were edited and kept. Use --force-skills to replace them.');
-  if (!(await exists(path.join(root, '.git')))) io.log(`No git repo here: tasks won't be committed unless you \`git init\`.`);
+  if (!(await hasGitRepo(root))) io.log(`No git repo here: tasks won't be committed unless you \`git init\`.`);
 
-  const defaults = await defaultAllowList(root);
-  const testCommand = parseConfig(await fs.readFile(path.join(root, '.specboard', 'config.md'), 'utf8').catch(() => '')).testCommand;
-  if (testCommand !== null) {
-    const rule = `Bash(${testCommand})`;
-    if (isValidRule(rule) && !matchesDeny(rule, defaults.deny)) defaults.allow.push(rule);
-    else io.log(`Not allowing test_command ${testCommand}: it doesn't pass the rule checks.`);
-  }
   const store = approvedStore();
   const previous = await store.stored(id, root);
-  const keptDeny: string[] = [];
-  for (const r of previous?.deny ?? []) {
-    if (isPlainRuleText(r)) keptDeny.push(r);
-    else io.log(`Dropping earlier deny rule ${r}: it no longer passes the rule checks.`);
-  }
-  // Keep rules added earlier with `specboard allow`, unless the deny list now covers them.
-  const deny = unique([...keptDeny, ...defaults.deny]);
-  const kept: string[] = [];
-  for (const r of previous?.allow ?? []) {
-    if (isValidRule(r) && !matchesDeny(r, deny)) kept.push(r);
-    else io.log(`Dropping earlier rule ${r}: it no longer passes the rule checks.`);
-  }
-  const allow = unique([...defaults.allow, ...kept]);
-
+  const { allow, deny } = await planPermissions(root, id, io, previous);
   io.log('Headless runs may use:');
   for (const r of allow) io.log(`  allow  ${r}`);
   for (const r of deny) io.log(`  deny   ${r}`);
@@ -366,6 +359,45 @@ export async function initCommand(
   io.log('Approved. Runs use only this list.');
   io.log(nextLine(root));
   return { approved: true, id };
+}
+
+/**
+ * The lists `init` would write for this folder: the defaults, the project's test command, and the rules approved
+ * earlier that still pass the checks. Reads only; logs what it drops.
+ */
+async function planPermissions(root: string, id: string, io: SetupIO, previous: Permissions | null): Promise<Permissions> {
+  const defaults = await defaultAllowList(root);
+  const testCommand = parseConfig(await fs.readFile(path.join(root, '.specboard', 'config.md'), 'utf8').catch(() => '')).testCommand;
+  if (testCommand !== null) {
+    const rule = `Bash(${testCommand})`;
+    if (isValidRule(rule) && !matchesDeny(rule, defaults.deny)) defaults.allow.push(rule);
+    else io.log(`Not allowing test_command ${testCommand}: it doesn't pass the rule checks.`);
+  }
+  const keptDeny: string[] = [];
+  for (const r of previous?.deny ?? []) {
+    if (isPlainRuleText(r)) keptDeny.push(r);
+    else io.log(`Dropping earlier deny rule ${r}: it no longer passes the rule checks.`);
+  }
+  // Keep rules added earlier with `specboard allow`, unless the deny list now covers them.
+  const deny = unique([...keptDeny, ...defaults.deny]);
+  const kept: string[] = [];
+  for (const r of previous?.allow ?? []) {
+    if (isValidRule(r) && !matchesDeny(r, deny)) kept.push(r);
+    else io.log(`Dropping earlier rule ${r}: it no longer passes the rule checks.`);
+  }
+  return { allow: unique([...defaults.allow, ...kept]), deny };
+}
+
+/** `specboard rules`: print the lists `init` would write for this folder, and change nothing. */
+export async function rulesCommand(opts: { root: string }, io: SetupIO): Promise<void> {
+  const root = path.resolve(opts.root);
+  if (!(await fs.stat(root).catch(() => null))?.isDirectory()) throw new Error(`${root} is not a folder.`);
+  const id = projectId(root);
+  const { allow, deny } = await planPermissions(root, id, io, await approvedStore().stored(id, root).catch(() => null));
+  if (!(await hasGitRepo(root))) io.log("No git repo here, so the git rules are left out (tasks won't be committed unless you `git init`).");
+  io.log('Headless runs may use:');
+  for (const r of allow) io.log(`  allow  ${r}`);
+  for (const r of deny) io.log(`  deny   ${r}`);
 }
 
 export async function allowCommand(opts: { rule: string; root: string }, io: SetupIO): Promise<void> {

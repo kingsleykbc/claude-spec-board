@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { parseAllowArgs, parseInitArgs } from '../src/cli.js';
+import { parseAllowArgs, parseInitArgs, parseRulesArgs } from '../src/cli.js';
 import { projectId } from '../src/registry.js';
 import {
   allowCommand,
@@ -13,6 +13,7 @@ import {
   initCommand,
   InvalidApprovalError,
   isValidRule,
+  rulesCommand,
   specboardHome,
   type SetupIO,
 } from '../src/setup.js';
@@ -94,7 +95,9 @@ describe('isValidRule', () => {
 
 describe('defaultAllowList', () => {
   it('has no git push allow, and detects npm test only when the script exists', async () => {
-    const a = await defaultAllowList(await project('a'));
+    const aDir = await project('a');
+    await fs.mkdir(path.join(aDir, '.git'));
+    const a = await defaultAllowList(aDir);
     expect(a.allow.some((r) => r.includes('git push'))).toBe(false);
     expect(a.allow).not.toContain('Glob');
     expect(a.allow).not.toContain('Grep');
@@ -111,6 +114,22 @@ describe('defaultAllowList', () => {
     expect(b.allow).toEqual(expect.arrayContaining(['Bash(npm test:*)', 'Bash(npm run test:*)']));
     const c = await defaultAllowList(await project('c', { scripts: { build: 'x' } }));
     expect(c.allow).not.toContain('Bash(npm test:*)');
+  });
+  it('leaves out the git rules when there is no git repo, here or in a parent', async () => {
+    const a = await defaultAllowList(await project('nogit'));
+    for (const r of ['status', 'diff', 'log', 'add', 'commit']) expect(a.allow).not.toContain(`Bash(git ${r}:*)`);
+    expect(a.allow).toEqual(expect.arrayContaining(['Read(./**)', 'Bash(specboard tree:*)', 'Bash(date:*)']));
+    expect(a.deny).toContain('Bash(git push:*)');
+  });
+  it('keeps the git rules when a parent folder has the repo, or .git is a file', async () => {
+    const parent = await project('mono');
+    await fs.mkdir(path.join(parent, '.git'));
+    const child = path.join(parent, 'sub');
+    await fs.mkdir(child);
+    expect((await defaultAllowList(child)).allow).toEqual(expect.arrayContaining(['Bash(git status:*)', 'Bash(git commit:*)']));
+    const wt = await project('wt');
+    await fs.writeFile(path.join(wt, '.git'), 'gitdir: elsewhere');
+    expect((await defaultAllowList(wt)).allow).toContain('Bash(git add:*)');
   });
   it('detects pytest, cargo and go', async () => {
     const d = await project('d');
@@ -221,6 +240,43 @@ describe('ApprovedPermissions', () => {
   it('leaves no temp files behind', async () => {
     await new ApprovedPermissions(approvedFile()).set('aaaaaaaa', tmp, p);
     expect(await fs.readdir(home)).toEqual(['permissions.json']);
+  });
+});
+
+describe('rulesCommand', () => {
+  it('prints the lists init would write and changes nothing', async () => {
+    const root = await project('r');
+    const i = io();
+    await rulesCommand({ root }, i);
+    expect(i.out[0]).toMatch(/^No git repo here/);
+    expect(i.out).toContain('Headless runs may use:');
+    expect(i.out).toContain('  allow  Read(./**)');
+    expect(i.out).toContain('  deny   Bash(git push:*)');
+    expect(i.out.some((l) => l.includes('git commit'))).toBe(false);
+    expect(i.asked).toEqual([]);
+    expect(await fs.readdir(root)).toEqual([]); // no .specboard, no skills
+    await expect(fs.stat(home)).rejects.toThrow(); // nothing approved or registered
+  });
+  it('matches what init then prints, and includes git rules in a repo', async () => {
+    const root = await project('r2', { scripts: { test: 'vitest' } });
+    await fs.mkdir(path.join(root, '.git'));
+    const r = io();
+    await rulesCommand({ root }, r);
+    const i = io();
+    await initCommand({ root, yes: true, forceSkills: false, noSkills: true }, i);
+    const lists = (out: string[]) => out.filter((l) => /^  (allow|deny)  /.test(l));
+    expect(lists(r.out)).toEqual(lists(i.out));
+    expect(r.out).toContain('  allow  Bash(git commit:*)');
+    expect(r.out).toContain('  allow  Bash(npm test:*)');
+  });
+  it('rejects a path that is not a folder', async () => {
+    await expect(rulesCommand({ root: path.join(tmp, 'nope') }, io())).rejects.toThrow('is not a folder');
+  });
+  it('parseRulesArgs takes an optional folder and no options', () => {
+    expect(parseRulesArgs([]).path).toBeTruthy();
+    expect(parseRulesArgs(['x']).path.endsWith('x')).toBe(true);
+    expect(() => parseRulesArgs(['--yes'])).toThrow('Unknown option');
+    expect(() => parseRulesArgs(['a', 'b'])).toThrow('Usage');
   });
 });
 

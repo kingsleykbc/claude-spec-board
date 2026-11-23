@@ -157,7 +157,7 @@ describe('detach', () => {
     const proj = await copySample('v');
     const old = await fakeBoard({ ok: true, app: 'specboard', version: '0.0.1' }, { status: 202, closes: true });
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
-    const spawned = vi.fn(() => ({ exited: () => false }));
+    const spawned = vi.fn((_argv: string[]) => ({ exited: () => false }));
     // The "new board" answers the same port once the old one is gone.
     const code = runDetached({ path: proj, port: old.port, open: false }, [proj, '--detach'], {
       spawn: (argv) => {

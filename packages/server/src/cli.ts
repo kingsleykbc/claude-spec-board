@@ -9,7 +9,7 @@ import { copyImagesCommand, parseCopyImagesArgs } from './copyImages.js';
 import { pluginVersion } from './paths.js';
 import { runTokenHook } from './hookTokens.js';
 import { initHint } from './prePublish.js';
-import { allowCommand, initCommand, terminalIO } from './setup.js';
+import { allowCommand, initCommand, rulesCommand, terminalIO } from './setup.js';
 import { boardInfo, isSpecBoard, start, type StartOptions } from './start.js';
 
 export function parseArgs(argv: string[]): { path: string; port: number; open: boolean; detach: boolean } {
@@ -55,6 +55,14 @@ export function parseInitArgs(argv: string[]): { path: string; yes: boolean; for
     else dir = path.resolve(base, a);
   }
   return { path: dir, yes, forceSkills, noSkills, runs };
+}
+
+export function parseRulesArgs(argv: string[]): { path: string } {
+  const base = process.env.INIT_CWD || process.cwd();
+  const bad = argv.find((a) => a.startsWith('--'));
+  if (bad) throw new Error(`Unknown option: ${bad}`);
+  if (argv.length > 1) throw new Error('Usage: specboard rules [project folder]');
+  return { path: argv[0] ? path.resolve(base, argv[0]) : base };
 }
 
 export function parseAllowArgs(argv: string[]): { rule: string; path: string } {
@@ -278,6 +286,10 @@ async function main(): Promise<void> {
   if (cmd === 'init') {
     const a = parseInitArgs(rest);
     await initCommand({ root: a.path, yes: a.yes, forceSkills: a.forceSkills, noSkills: a.noSkills, runs: a.runs }, terminalIO());
+    return;
+  }
+  if (cmd === 'rules') {
+    await rulesCommand({ root: parseRulesArgs(rest).path }, terminalIO());
     return;
   }
   if (cmd === 'allow') {
