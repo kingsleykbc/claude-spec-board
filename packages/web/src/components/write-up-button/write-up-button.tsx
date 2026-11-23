@@ -1,0 +1,46 @@
+import { PlayIcon } from '@/lib/icons';
+import { cn } from '@/lib/utils';
+import { NotConnectedTrigger } from '@/components/not-connected/not-connected';
+import type { ManualReason } from '@/state/runUi';
+
+export interface WriteUpButtonProps {
+  id: string;
+  /** Why the board can't run Claude here (null when it can). The button then greys and shows the command to paste. */
+  manual: ManualReason | null;
+  onWriteUp: () => void;
+  /** `sm` on a card, `md` in the card detail's header. */
+  size?: 'sm' | 'md';
+}
+
+const SIZE = { sm: 'h-6 gap-1.5 rounded-md px-[9px] text-xs', md: 'h-[34px] gap-2 rounded-lg px-3 text-[13px]' } as const;
+const FIT = 'inline-flex cursor-pointer items-center border-0 py-0 font-semibold whitespace-nowrap';
+
+/** The command that does the same as the button, for a Claude chat. */
+export const writeUpCommand = (id: string) => `/specboard:create-spec ${id}`;
+
+/**
+ * "Have Claude write this up" on a draft. Starts a write-up run; while the board isn't connected to Claude it is
+ * greyed and a hover, focus or click explains why and offers the command to paste.
+ */
+export function WriteUpButton({ id, manual, onWriteUp, size = 'sm' }: WriteUpButtonProps) {
+  const icon = <PlayIcon aria-hidden className={size === 'sm' ? 'text-[11px]' : 'text-[12px]'} />;
+  if (manual) {
+    return (
+      <NotConnectedTrigger
+        label="Have Claude write this up"
+        reason={manual}
+        command={writeUpCommand(id)}
+        className={cn(FIT, SIZE[size], 'border border-line2 bg-panel text-fg3 hover:text-fg2 aria-expanded:text-fg2')}
+      >
+        {icon}
+        Have Claude write this up
+      </NotConnectedTrigger>
+    );
+  }
+  return (
+    <button type="button" className={cn(FIT, SIZE[size], 'bg-accent-soft text-accent-ink hover:bg-accent hover:text-accent-fg')} onClick={onWriteUp}>
+      {icon}
+      Have Claude write this up
+    </button>
+  );
+}

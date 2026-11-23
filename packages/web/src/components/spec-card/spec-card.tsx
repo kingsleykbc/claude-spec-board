@@ -1,6 +1,6 @@
 import type { DragEvent, HTMLAttributes, KeyboardEvent, MouseEvent, PointerEvent, ReactNode } from 'react';
 import type { Spec } from '@specboard/core';
-import { MoreIcon, NeededByIcon, NeedsIcon, PlayIcon, ReviewIcon, WarnIcon } from '@/lib/icons';
+import { MoreIcon, NeededByIcon, NeedsIcon, ReviewIcon, WarnIcon } from '@/lib/icons';
 import { firstParagraph, statusMeta } from '@/lib/vm';
 import { cn } from '@/lib/utils';
 import { useSimple } from '@/state/simpleMode';
@@ -8,6 +8,8 @@ import { CategoryTag } from '@/components/ui/category-tag/category-tag';
 import { Urgency } from '@/components/ui/urgency/urgency';
 import { InlineMarkdown } from '@/components/ui/inline-markdown/inline-markdown';
 import { Hint } from '@/components/ui/hint/hint';
+import { WriteUpButton } from '@/components/write-up-button/write-up-button';
+import type { ManualReason } from '@/state/runUi';
 import { InfoPopover } from '@/components/ui/info-popover/info-popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip/tooltip';
 import { ResponsiveMenu, ResponsiveMenuItem, ResponsiveMenuSeparator } from '@/components/ui/responsive-menu/responsive-menu';
@@ -33,6 +35,8 @@ export interface SpecCardProps {
   onArchive: () => void;
   onUnarchive: () => void;
   onWriteUp: () => void;
+  /** Why the board can't run Claude here (null when it can): Have Claude write this up then shows the command to paste. */
+  manual?: ManualReason | null;
   /** Native HTML5 drag: the card is `draggable` only when one of these is passed. */
   onDragStart?: () => void;
   onDragEnd?: () => void;
@@ -100,6 +104,7 @@ export function SpecCard({
   onArchive,
   onUnarchive,
   onWriteUp,
+  manual = null,
   onDragStart,
   onDragEnd,
   dragRef,
@@ -149,7 +154,6 @@ export function SpecCard({
   const fileProblem = spec.problems[0];
   /** Simple mode hides these, so the ⋯ button carries a dot to say something needs a look. */
   const attention = spec.blocked || fileProblem !== undefined;
-  const showMenu = simple || spec.status === 'done';
   const menuLabel = simple ? `More about ${spec.id}` : 'Card actions';
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -239,8 +243,7 @@ export function SpecCard({
             {spec.blockedReasons.join(' · ')}
           </CardInfo>
         )}
-        {showMenu && (
-          // A control of its own: pressing it (or anything in its portalled menu or drawer) never drags or opens the card.
+        {/* A control of its own: pressing it (or anything in its portalled menu or drawer) never drags or opens the card. */}
           <span {...{ [CONTROL]: '' }} className="inline-flex" onClick={(e) => e.stopPropagation()}>
             <ResponsiveMenu
               title={menuLabel}
@@ -304,13 +307,11 @@ export function SpecCard({
                   )}
                 </span>
               )}
-              {simple && spec.status === 'done' && <ResponsiveMenuSeparator />}
-              {spec.status === 'done' && (
-                <ResponsiveMenuItem onSelect={spec.archived ? onUnarchive : onArchive}>{spec.archived ? 'Unarchive' : 'Archive'}</ResponsiveMenuItem>
-              )}
+              {simple && <ResponsiveMenuSeparator />}
+              {/* Any card can be archived, whatever its column; a run on it makes the server refuse. */}
+              <ResponsiveMenuItem onSelect={spec.archived ? onUnarchive : onArchive}>{spec.archived ? 'Unarchive' : 'Archive'}</ResponsiveMenuItem>
             </ResponsiveMenu>
           </span>
-        )}
       </div>
 
       <div className="flex flex-col gap-1">
@@ -398,14 +399,10 @@ export function SpecCard({
 
       <div className="flex min-h-6 items-center gap-2.5">
         {isDraft && (
-          <button
-            type="button"
-            className="inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-md border-0 bg-accent-soft px-[9px] py-0 text-xs font-semibold text-accent-ink hover:bg-accent hover:text-accent-fg"
-            onClick={stop(onWriteUp)}
-          >
-            <PlayIcon aria-hidden className="text-[11px]" />
-            Have Claude write this up
-          </button>
+          // A control of its own (its popover is portalled): pressing it never drags or opens the card.
+          <span {...{ [CONTROL]: '' }} className="inline-flex" onClick={(e) => e.stopPropagation()}>
+            <WriteUpButton id={spec.id} manual={manual} onWriteUp={onWriteUp} />
+          </span>
         )}
         {total > 0 && !writing && (
           <div className="flex items-center gap-[7px]" title="Subtasks done">

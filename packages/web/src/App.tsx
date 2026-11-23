@@ -360,6 +360,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
             onArchive={(s) => (down ? offline() : void actions.archive(s))}
             onUnarchive={(s) => (down ? offline() : void actions.unarchive(s))}
             onWriteUp={(s) => void startRun('write-up', s.id)}
+            manual={manual}
             onAdd={openAdd}
           />
           )}

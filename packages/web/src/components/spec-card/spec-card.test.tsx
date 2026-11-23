@@ -16,6 +16,7 @@ const {
   Writing,
   InReview,
   Draft,
+  DraftNotConnected,
   FileProblem,
   ManyNeeds,
   Archived,
@@ -162,9 +163,31 @@ describe('SpecCard', () => {
     expect((await screen.findByRole('tooltip')).textContent).toContain('Card actions');
   });
 
-  it('non-done cards have no ⋯ menu', () => {
-    const { light } = setup(Running, { running: null });
-    expect(light.queryByRole('button', { name: 'Card actions' })).toBeNull();
+  it('a card in any column has Archive in its ⋯ menu', async () => {
+    const { light, onArchive } = setup(Running, { running: null });
+    await userEvent.click(light.getByRole('button', { name: 'Card actions' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Archive' }));
+    expect(onArchive).toHaveBeenCalledTimes(1);
+  });
+
+  it('an archived card offers Unarchive instead', async () => {
+    const { light, onUnarchive } = setup(Archived);
+    await userEvent.click(light.getByRole('button', { name: 'Card actions' }));
+    expect(screen.queryByRole('menuitem', { name: 'Archive' })).toBeNull();
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Unarchive' }));
+    expect(onUnarchive).toHaveBeenCalledTimes(1);
+  });
+
+  it('not connected: the draft write-up button is greyed, not disabled, and opens the command to paste without opening the card', async () => {
+    const { light, onWriteUp, onOpen } = setup(DraftNotConnected);
+    const btn = light.getByRole('button', { name: 'Have Claude write this up' }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+    expect(btn.className).not.toMatch(/bg-accent/);
+    await userEvent.click(btn);
+    const pop = await screen.findByRole('dialog', { name: "Claude isn't connected" });
+    expect(pop.textContent).toMatch('/specboard:create-spec T-107');
+    expect(onWriteUp).not.toHaveBeenCalled();
+    expect(onOpen).not.toHaveBeenCalled();
   });
 
   it('clicking the card, and Enter or Space while focused, call onOpen', () => {

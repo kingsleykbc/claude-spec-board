@@ -22,7 +22,7 @@ import type { RunSnapshot } from '@/api/client';
 import { PlusIcon } from '@/lib/icons';
 import { ORDER, ST } from '@/lib/vm';
 import { archivedShown, filterSpecs, NO_FILTERS, sortSpecs, compareSpecs, type Filters } from '@/state/filters';
-import { cardRun } from '@/state/runUi';
+import { cardRun, type ManualReason } from '@/state/runUi';
 import { Column } from '@/components/column/column';
 import { SpecCard } from '@/components/spec-card/spec-card';
 
@@ -45,6 +45,8 @@ export interface BoardProps {
   onArchive: (spec: Spec) => void;
   onUnarchive: (spec: Spec) => void;
   onWriteUp: (spec: Spec) => void;
+  /** Why the board can't run Claude here (null when it can). */
+  manual?: ManualReason | null;
   onAdd: () => void;
 }
 
@@ -102,6 +104,7 @@ function DraggableCard({ spec, all, canDrag, flash, p }: CardProps) {
       onArchive={() => p.onArchive(spec)}
       onUnarchive={() => p.onUnarchive(spec)}
       onWriteUp={() => p.onWriteUp(spec)}
+      manual={p.manual ?? null}
     />
   );
 }

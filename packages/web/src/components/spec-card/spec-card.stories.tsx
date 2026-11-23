@@ -122,6 +122,15 @@ export const Draft: Story = {
   },
 };
 
+/** Claude isn't connected: the write-up button is greyed; hover, focus or a click shows the command to paste. */
+export const DraftNotConnected: Story = {
+  args: { id: 'T-107', manual: 'not-installed' },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    expect(c.getAllByRole('button', { name: 'Have Claude write this up' })).toHaveLength(2);
+  },
+};
+
 export const FileProblem: Story = {
   args: { id: 'T-109' },
   play: async ({ canvasElement }) => {
