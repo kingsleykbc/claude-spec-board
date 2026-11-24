@@ -14,6 +14,7 @@ import {
   setMetaField,
   setNeedsRefresh,
   setReviewDone,
+  setReviewFailed,
   setSubtaskDone,
   splitFrontMatter,
   unarchiveSpec,
@@ -114,9 +115,15 @@ export function specRoutes(registry: Registry, runs?: RunManager): Hono {
   app.patch('/api/projects/:pid/specs/:id/reviews/:n', async (c) => {
     const b = await readJson(c);
     const hash = requireString(b, 'hash', false);
-    if (typeof b.done !== 'boolean') throw new HttpError(400, 'Missing or invalid "done"');
+    // `{hash, done}` ticks (Pass, which also clears a failed reason) or unticks; `{hash, failed}` writes or clears it.
+    const hasFailed = 'failed' in b;
+    if (hasFailed && 'done' in b) throw new HttpError(400, 'Send "done" or "failed", not both');
+    if (hasFailed) {
+      if (b.failed !== null && typeof b.failed !== 'string') throw new HttpError(400, 'Invalid "failed"');
+    } else if (typeof b.done !== 'boolean') throw new HttpError(400, 'Missing or invalid "done"');
     const n = Number(c.req.param('n'));
     if (!Number.isInteger(n)) throw new HttpError(400, 'Invalid review item number');
+    if (hasFailed) return mutate(c, (text) => setReviewFailed(text, n, b.failed as string | null), hash);
     return mutate(c, (text) => setReviewDone(text, n, b.done as boolean), hash);
   });
 

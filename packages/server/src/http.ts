@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 
 /** Messages thrown by core for bad caller input; anything else is a server fault. */
-const CORE_400 = [/^Invalid value for /, /^Invalid key /, /^Cannot edit /, /^Only done specs can be archived/, /^(Subtask|Question|Review item) .+ not found$/];
+const CORE_400 = [/^Invalid value for /, /^Invalid key /, /^Cannot edit /, /^Only done specs can be archived/, /^(Subtask|Question|Review item) .+ not found$/, /^The reason can’t be empty$/];
 
 /** Hand-edited spec files whose front matter cannot be read. */
 const CORE_422 = [/^No front matter$/, /^Front matter is not valid YAML/];

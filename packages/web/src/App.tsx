@@ -5,7 +5,7 @@ import { useThemeChoice, type ThemeChoice } from './lib/theme';
 import { createSpecActions, OFFLINE_TOAST } from './state/actions';
 import { interceptPop } from './lib/popGuard';
 import { PlusIcon } from './lib/icons';
-import { runHold } from './lib/vm';
+import { canFixReview, runHold } from './lib/vm';
 import { loadMode } from './lib/mode';
 import { startTour, tourSeen } from './lib/tour';
 import { currentMilestone, projectProgress } from '@specboard/core/milestones';
@@ -299,7 +299,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
           },
         }}
         manual={manual}
-        onSync={() => sync.openSync(null)}
+        onSync={() => void sync.openSync(null)}
         syncWaiting={!!sync.proposal && sync.proposal.scope === null}
         onSyncWaiting={sync.openWaiting}
         simple={simple}
@@ -361,7 +361,7 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
             onOpen={openSpec}
             onArchive={(s) => (down ? offline() : void actions.archive(s))}
             onUnarchive={(s) => (down ? offline() : void actions.unarchive(s))}
-            onWriteUp={(s) => void startRun('write-up', s.id)}
+            onWriteUp={(s) => startRun('write-up', s.id)}
             manual={manual}
             statusKnown={statusKnown}
             onAdd={openAdd}
@@ -402,11 +402,12 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
               statusKnown={statusKnown}
               runActive={openDoc ? cardRun(run.run, openDoc).runActive : false}
               chat={openDoc ? cardRun(run.run, openDoc).chat : null}
-              onRun={() => void startRun('run', openId)}
+              onRun={() => startRun('run', openId)}
+              onFixReview={() => startRun('fix-review', openId)}
               onStop={() => void stopRun()}
-              onWriteUp={() => void startRun('write-up', openId)}
+              onWriteUp={() => startRun('write-up', openId)}
               {...(openAny ? { onArchive: () => (down ? offline() : void actions.archive(openAny)), onUnarchive: () => (down ? offline() : void actions.unarchive(openAny)) } : {})}
-              onFixFile={() => void startRun('fix-file', openId)}
+              onFixFile={() => startRun('fix-file', openId)}
               canAutoRun={run.claude !== null && manual === null}
               startRun={run.start}
               refreshing={isRefreshingQuestions(run.run, openId)}
@@ -426,9 +427,13 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
                         onAction={(a) => {
                           if (a === 'question') goToQuestions();
                           else if (a === 'rerun') {
-                            const hold = shownRun.kind === 'run' && openDoc ? runHold(openDoc, [...specs, ...archived], cardRun(run.run, openDoc).chat) : null;
+                            // Run and Fix review issues go again as whichever the card now needs. The start is returned, so
+                            // Run again says Starting… until the run has started.
+                            let kind = shownRun.kind;
+                            if (openDoc && (kind === 'run' || kind === 'fix-review')) kind = canFixReview(openDoc) ? 'fix-review' : 'run';
+                            const hold = kind === 'run' && openDoc ? runHold(openDoc, [...specs, ...archived], cardRun(run.run, openDoc).chat) : null;
                             if (hold) toast('warn', `${openId} can’t start yet`, hold);
-                            else void startRun(shownRun.kind, openId);
+                            else return startRun(kind, openId);
                           }
                         }}
                       />
@@ -445,7 +450,8 @@ function ProjectView({ pid, spec: openId, projects, navigate, toast, themeChoice
               name={name}
               toast={toast}
               refreshing={isRefreshing(run.run)}
-              onRefresh={() => void startRun('refresh-overview')}
+              onRefresh={() => startRun('refresh-overview')}
+              onSync={() => sync.openSync(null)}
               manual={manual}
               statusKnown={statusKnown}
               onOpenLogs={() => setModal('logs')}

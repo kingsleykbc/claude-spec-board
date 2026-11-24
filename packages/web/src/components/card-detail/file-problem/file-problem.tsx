@@ -1,12 +1,14 @@
 import { WarnIcon } from '@/lib/icons';
 import { FileLink } from '@/state/fileLinks';
+import { StartButton, type StartHandler } from '@/components/ui/start-button/start-button';
 
 export interface FileProblemProps {
   /** `spec.problems[0]`. */
   message: string;
   /** Project-relative path of the spec file. */
   path: string;
-  onFix: () => void;
+  /** Starts the fix-file run. It may return a promise of the start: the button says Starting… until it settles. */
+  onFix: StartHandler;
 }
 
 /** Warning panel for a spec file that does not parse cleanly (prototype lines 161-169). */
@@ -19,13 +21,12 @@ export function FileProblem({ message, path, onFix }: FileProblemProps) {
         <span className="text-fg2">{message}</span>
         <FileLink path={path} className="text-[12px] wrap-anywhere text-fg2" />
       </div>
-      <button
-        type="button"
-        className="h-[30px] cursor-pointer self-start rounded-[7px] border border-line2 bg-card px-3 py-0 text-[12.5px] font-semibold whitespace-nowrap text-fg"
-        onClick={onFix}
+      <StartButton
+        className="inline-flex h-[30px] cursor-pointer items-center gap-[7px] self-start rounded-[7px] border border-line2 bg-card px-3 py-0 text-[12.5px] font-semibold whitespace-nowrap text-fg disabled:cursor-default"
+        onStart={onFix}
       >
         Ask Claude to fix
-      </button>
+      </StartButton>
     </div>
   );
 }

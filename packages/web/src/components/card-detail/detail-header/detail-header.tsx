@@ -1,6 +1,7 @@
 import { useRef, type ReactNode } from 'react';
 import type { Status, Urgency } from '@specboard/core';
 import { MoreIcon, RefreshIcon } from '@/lib/icons';
+import { cn } from '@/lib/utils';
 import { ESC, runEscape, useEscape } from '@/lib/escape';
 import { FileLink } from '@/state/fileLinks';
 import { Hint } from '@/components/ui/hint/hint';
@@ -10,6 +11,7 @@ import { ResponsiveMenu, ResponsiveMenuItem } from '@/components/ui/responsive-m
 import { WriteUpButton } from '@/components/write-up-button/write-up-button';
 import { CategoryEditor } from '../category-editor/category-editor';
 import type { ManualReason } from '@/state/runUi';
+import { StartButton, type StartHandler } from '@/components/ui/start-button/start-button';
 import { offButton, RunButton, secondaryButton, type RunState } from '../run-button/run-button';
 import { StatusMenu } from '../status-menu/status-menu';
 import { UrgencyControl } from '../urgency-control/urgency-control';
@@ -27,16 +29,18 @@ export interface DetailHeaderProps {
   runState: RunState;
   runningId?: string | null;
   runHold?: string | null;
+  /** In Review with a failed check: Run with Claude becomes Fix review issues, and `onRun` starts that. */
+  fixReview?: boolean;
   runBlockedNote?: string | undefined;
   runBusyNote?: string | undefined;
   /** Why the board can't run Claude here; Run with Claude explains instead of starting. */
   manual?: ManualReason | null;
   /** Claude's status has loaded. */
   statusKnown?: boolean;
-  onRun: () => void;
+  onRun: StartHandler;
   onStop: () => void;
   /** Sync this spec with the code; off while any run is active, like Run. */
-  onSync?: () => void;
+  onSync?: StartHandler;
   /** A sync proposal for this spec is waiting. */
   syncWaiting?: boolean;
   onSyncWaiting?: () => void;
@@ -47,7 +51,7 @@ export interface DetailHeaderProps {
   onClose: () => void;
   /** A draft: the header shows the Draft badge and Have Claude write this up. */
   draft?: boolean;
-  onWriteUp?: () => void;
+  onWriteUp?: StartHandler;
   /** Archive or Unarchive (for an archived spec) from the ⋯ menu; none without `onArchive`/`onUnarchive`. */
   archived?: boolean;
   onArchive?: () => void;
@@ -173,7 +177,7 @@ export function DetailHeader(p: DetailHeaderProps) {
         )}
       </div>
       <div className={row2} data-testid="detail-actions">
-        <RunButton id={p.id} state={p.runState} runningId={p.runningId ?? null} hold={p.runHold ?? null} blockedNote={p.runBlockedNote} busyNote={p.runBusyNote} manual={p.manual ?? null} statusKnown={p.statusKnown ?? true} onRun={p.onRun} onStop={p.onStop} />
+        <RunButton id={p.id} state={p.runState} fix={p.fixReview ?? false} runningId={p.runningId ?? null} hold={p.runHold ?? null} blockedNote={p.runBlockedNote} busyNote={p.runBusyNote} manual={p.manual ?? null} statusKnown={p.statusKnown ?? true} onRun={p.onRun} onStop={p.onStop} />
         {p.syncWaiting && p.onSyncWaiting && (
           <button
             type="button"
@@ -191,10 +195,10 @@ export function DetailHeader(p: DetailHeaderProps) {
             </button>
           ) : (
             <Hint label={SYNC_TITLE}>
-              <button type="button" className={secondaryButton} aria-label="Sync" onClick={p.onSync}>
+              <StartButton className={cn(secondaryButton, 'disabled:cursor-default')} aria-label="Sync" onStart={p.onSync}>
                 <RefreshIcon aria-hidden />
                 Sync
-              </button>
+              </StartButton>
             </Hint>
           ))}
         {p.draft && (

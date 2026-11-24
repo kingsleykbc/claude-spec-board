@@ -12,6 +12,11 @@ const SUBTASK = /^- \[([ xX])\][ \t]+(\d+)\.[ \t]+(.*?)[ \t]*$/;
 /** A To review item: the text must not be empty, so parsing and ticking count the same lines. */
 export const REVIEW_LINE = /^- \[([ xX])\][ \t]+(\S.*?)[ \t]*$/;
 const EXPECTED = /^[ \t]+>[ \t]*expected[ \t]*:[ \t]*(.*?)[ \t]*$/i;
+/** Any indented `> …` line under a To review item: expected, step, failed, fixed, or one the board doesn't know (kept). */
+export const REVIEW_SUB = /^[ \t]+>/;
+const STEP = /^[ \t]+>[ \t]*step[ \t]*:[ \t]*(.*?)[ \t]*$/i;
+export const FAILED = /^[ \t]+>[ \t]*failed[ \t]*:[ \t]*(.*?)[ \t]*$/i;
+const FIXED = /^[ \t]+>[ \t]*fixed[ \t]*:[ \t]*(.*?)[ \t]*$/i;
 const GROUP = /^###[ \t]+(.*?)[ \t]*#*[ \t]*$/;
 // Only column-0 list items can be questions or subtasks; indented bullets are free-form detail.
 const LIST_ITEM = /^[-*+][ \t]/;
@@ -93,13 +98,27 @@ function parseReviews(lines: string[], range: SectionRange | undefined, problems
       if (LIST_ITEM.test(line)) problems.push(`Unrecognised review line ${i + 1}`);
       continue;
     }
+    const itemLine = i;
     let expected: string | null = null;
-    const e = i + 1 < range.end ? EXPECTED.exec(lines[i + 1]!) : null;
-    if (e) {
-      if (e[1]! !== '') expected = e[1]!;
-      i++;
+    let failed: string | null = null;
+    const steps: string[] = [];
+    const fixed: string[] = [];
+    // The item's indented `> …` lines, in any order. The first expected and failed count; unknown ones are skipped.
+    while (i + 1 < range.end && REVIEW_SUB.test(lines[i + 1]!)) {
+      const sub = lines[++i]!;
+      const e = EXPECTED.exec(sub);
+      const s = STEP.exec(sub);
+      const f = FAILED.exec(sub);
+      const x = FIXED.exec(sub);
+      if (e) {
+        if (expected === null && e[1]! !== '') expected = e[1]!;
+      } else if (s) {
+        if (s[1]! !== '') steps.push(s[1]!);
+      } else if (f) {
+        if (failed === null && f[1]! !== '') failed = f[1]!;
+      } else if (x && x[1]! !== '') fixed.push(x[1]!);
     }
-    reviews.push({ n: reviews.length + 1, text: m[2]!, expected, group, done: m[1] !== ' ', line: i - (e ? 1 : 0) });
+    reviews.push({ n: reviews.length + 1, text: m[2]!, expected, steps, failed, fixed, group, done: m[1] !== ' ', line: itemLine });
   }
   return reviews;
 }

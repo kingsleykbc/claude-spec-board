@@ -197,9 +197,9 @@ export const recipeSpecs: Spec[] = [
   {
     "id": "T-103",
     "reviews": [
-      { "n": 1, "text": "Type a few letters into the search box", "expected": "The list narrows as you type and shows the match count.", "group": "Searching", "done": true, "line": 50 },
-      { "n": 2, "text": "Clear the search box", "expected": "All recipes come back.", "group": "Searching", "done": false, "line": 52 },
-      { "n": 3, "text": "Pick a cook time filter, then reload the page", "expected": "The filter is still applied after the reload.", "group": "Filters", "done": false, "line": 55 }
+      { "n": 1, "text": "Type a few letters into the search box", "expected": "The list narrows as you type and shows the match count.", "steps": [], "failed": null, "fixed": [], "group": "Searching", "done": true, "line": 50 },
+      { "n": 2, "text": "Clear the search box", "expected": "All recipes come back.", "steps": [], "failed": null, "fixed": [], "group": "Searching", "done": false, "line": 52 },
+      { "n": 3, "text": "Pick a cook time filter, then reload the page", "expected": "The filter is still applied after the reload.", "steps": [], "failed": null, "fixed": [], "group": "Filters", "done": false, "line": 55 }
     ],
     "images": [],
     "attachments": [],
@@ -897,6 +897,7 @@ export const recipeProject: Project = {
     milestones: ['Basics', 'Planning'],
     closingSteps: [],
     commits: null,
+    specsInGit: null,
     testCommand: null,
     problems: [],
   },
@@ -905,6 +906,7 @@ export const recipeProject: Project = {
     updated: '2026-11-08T09:30',
     summaryMd:
       'Recipe Box can list and add recipes, and **Search & filters** is built and waiting for your review.\n\nThe **meal planner** is in progress: the calendar grid and drag-to-day work, and saving planned meals is underway. **User accounts** is the most urgent spec left and also unblocks sharing. **Shopping list export** needs three answers from you and waits on the planner.',
+    outOfSync: null,
   },
   specs: recipeSpecs,
   archived: recipeArchived,

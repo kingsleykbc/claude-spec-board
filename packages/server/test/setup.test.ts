@@ -424,6 +424,96 @@ describe('initCommand', () => {
   });
 });
 
+describe('init --specs-in-git', () => {
+  const gitInit = (dir: string) => {
+    const r = spawnSync('git', ['init', '-q'], { cwd: dir, encoding: 'utf8' });
+    expect(r.status, r.stderr).toBe(0);
+  };
+  const excludeFile = (root: string) => path.join(root, '.git', 'info', 'exclude');
+  const excludeLines = async (root: string) => (await fs.readFile(excludeFile(root), 'utf8')).split(/\r?\n/).filter((l) => l.trim() === '.specboard/');
+  const initWith = (root: string, specsInGit: 'yes' | 'no', i = io()) => initCommand({ root, yes: true, forceSkills: false, noSkills: true, specsInGit }, i);
+
+  it('no adds .specboard/ to the local exclude file once, and never touches .gitignore', async () => {
+    const root = await project('sg1');
+    gitInit(root);
+    const before = await fs.readFile(excludeFile(root), 'utf8');
+    const i = io();
+    await initWith(root, 'no', i);
+    expect(i.out).toContain('Added .specboard/ to .git/info/exclude (stays on this machine).');
+    const after = await fs.readFile(excludeFile(root), 'utf8');
+    expect(after.startsWith(before)).toBe(true);
+    expect(await excludeLines(root)).toHaveLength(1);
+    const again = io();
+    await initWith(root, 'no', again);
+    expect(await excludeLines(root)).toHaveLength(1);
+    expect(again.out.join('\n')).toMatch(/already in \.git\/info\/exclude/);
+    await expect(fs.stat(path.join(root, '.gitignore'))).rejects.toThrow();
+    expect(spawnSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).stdout).not.toContain('.specboard');
+  });
+
+  it('no creates the exclude file when it is missing, and adds a line break before the line when needed', async () => {
+    const root = await project('sg2');
+    gitInit(root);
+    await fs.rm(excludeFile(root));
+    await initWith(root, 'no');
+    expect(await fs.readFile(excludeFile(root), 'utf8')).toBe('.specboard/\n');
+    await fs.writeFile(excludeFile(root), '*.log');
+    await initWith(root, 'no');
+    expect(await fs.readFile(excludeFile(root), 'utf8')).toBe('*.log\n.specboard/\n');
+  });
+
+  it('yes removes the line and keeps the rest of the file', async () => {
+    const root = await project('sg3');
+    gitInit(root);
+    await fs.writeFile(excludeFile(root), '# mine\r\n.specboard/\r\n*.log\r\n');
+    const i = io();
+    await initWith(root, 'yes', i);
+    expect(await fs.readFile(excludeFile(root), 'utf8')).toBe('# mine\r\n*.log\r\n');
+    expect(i.out).toContain('Removed .specboard/ from .git/info/exclude (it can go in git now).');
+    const again = io();
+    await initWith(root, 'yes', again);
+    expect(await fs.readFile(excludeFile(root), 'utf8')).toBe('# mine\r\n*.log\r\n');
+    expect(again.out.join('\n')).toMatch(/not in \.git\/info\/exclude/);
+  });
+
+  it('without a git repo it says so in one line and changes nothing', async () => {
+    const plain = await project('sg4');
+    const withFlag = io();
+    await initWith(plain, 'no', withFlag);
+    const other = await project('sg5');
+    const without = io();
+    await initCommand({ root: other, yes: true, forceSkills: false, noSkills: true }, without);
+    const lines = (out: string[], root: string) => out.map((l) => l.split(root).join('<root>'));
+    const extra = lines(withFlag.out, plain).filter((l) => !lines(without.out, other).includes(l));
+    expect(extra).toEqual(['No git repo here, so --specs-in-git changes nothing.']);
+    expect(await fs.readdir(plain)).toEqual(['.specboard']);
+  });
+
+  it('on a folder already set up, the flag alone only touches the exclude file', async () => {
+    const root = await project('sg6');
+    gitInit(root);
+    await init(root);
+    const approved = await fs.readFile(approvedFile(), 'utf8');
+    const projects = await fs.readFile(path.join(home, 'projects.json'), 'utf8');
+    await fs.rm(path.join(root, '.claude', 'skills', 'specboard', 'SKILL.md'));
+    const i = io({ tty: false });
+    await initCommand({ root, yes: false, forceSkills: false, specsInGit: 'no' }, i);
+    expect(i.asked).toEqual([]);
+    expect(i.out).toEqual(['Added .specboard/ to .git/info/exclude (stays on this machine).']);
+    expect(await excludeLines(root)).toHaveLength(1);
+    await expect(fs.stat(path.join(root, '.claude', 'skills', 'specboard', 'SKILL.md'))).rejects.toThrow();
+    expect(await fs.readFile(approvedFile(), 'utf8')).toBe(approved);
+    expect(await fs.readFile(path.join(home, 'projects.json'), 'utf8')).toBe(projects);
+  });
+
+  it('on a folder not set up yet, the flag alone still needs a terminal or --yes', async () => {
+    const root = await project('sg7');
+    gitInit(root);
+    await expect(initCommand({ root, yes: false, forceSkills: false, specsInGit: 'no' }, io({ tty: false }))).rejects.toThrow(/--yes|terminal/);
+    expect(await excludeLines(root)).toHaveLength(0);
+  });
+});
+
 describe('init: links, approval binding and the no answer', () => {
   it('refuses a linked .specboard and writes nothing outside the project', async () => {
     const root = await project('l1');

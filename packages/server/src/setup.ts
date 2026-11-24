@@ -1,8 +1,10 @@
+import { execFile } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createInterface } from 'node:readline/promises';
+import { promisify } from 'node:util';
 import { initProject, parseConfig } from '@specboard/core';
 import { matchesDeny, NEVER_PREFIX, normProg } from './claude/classify.js';
 import { assertNoLinks, installSkills, kitPluginDir } from './kit.js';
@@ -24,6 +26,8 @@ export function specboardHome(): string {
 const holdsFolder = (root: string, folder: string): boolean => isWithin(realPathLoose(root), realPathLoose(folder));
 
 const unique = (xs: string[]): string[] => [...new Set(xs)];
+
+const execFileAsync = promisify(execFile);
 
 // ---------- rules ----------
 
@@ -142,6 +146,61 @@ export async function hasGitRepo(root: string): Promise<boolean> {
     if (up === dir) return false;
     dir = up;
   }
+}
+
+// ---------- specs in git ----------
+
+const EXCLUDE_LINE = '.specboard/';
+
+/** The repo's local exclude file, as `git rev-parse --git-path info/exclude` names it from the project folder. */
+async function gitExcludeFile(root: string): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync('git', ['rev-parse', '--git-path', 'info/exclude'], { cwd: root });
+    const out = stdout.trim();
+    if (out === '') throw new Error('git printed no path');
+    return path.resolve(root, out);
+  } catch (e) {
+    throw new Error(`Could not find git's exclude file for ${root}: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
+/**
+ * `init --specs-in-git`: `no` adds `.specboard/` to the repo's local exclude file (so it stays on this machine),
+ * `yes` takes it out again. Touches only that file, never `.gitignore`.
+ */
+export async function applySpecsInGit(root: string, choice: 'yes' | 'no', io: SetupIO): Promise<void> {
+  if (!(await hasGitRepo(root))) {
+    io.log('No git repo here, so --specs-in-git changes nothing.');
+    return;
+  }
+  const file = await gitExcludeFile(root);
+  const shown = path.relative(root, file).split(path.sep).join('/');
+  let text: string | null = null;
+  try {
+    text = await fs.readFile(file, 'utf8');
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+  }
+  const lines = text === null ? [] : text.split(/(?<=\n)/); // each line keeps its own line ending
+  const isOurs = (l: string) => l.trim() === EXCLUDE_LINE;
+  if (choice === 'no') {
+    if (lines.some(isOurs)) {
+      io.log(`${EXCLUDE_LINE} is already in ${shown} (stays on this machine).`);
+      return;
+    }
+    const eol = text?.includes('\r\n') ? '\r\n' : '\n';
+    const before = text === null || text === '' || text.endsWith('\n') ? (text ?? '') : text + eol;
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(file, `${before}${EXCLUDE_LINE}${eol}`);
+    io.log(`Added ${EXCLUDE_LINE} to ${shown} (stays on this machine).`);
+    return;
+  }
+  if (!lines.some(isOurs)) {
+    io.log(`${EXCLUDE_LINE} is not in ${shown}, so it can go in git.`);
+    return;
+  }
+  await fs.writeFile(file, lines.filter((l) => !isOurs(l)).join(''));
+  io.log(`Removed ${EXCLUDE_LINE} from ${shown} (it can go in git now).`);
 }
 
 /** The conservative default rules, plus the test commands this project appears to use. Git rules only when there is a repo. */
@@ -311,10 +370,17 @@ export function approvedStore(): ApprovedPermissions {
 }
 
 export async function initCommand(
-  opts: { root: string; yes: boolean; forceSkills: boolean; noSkills?: boolean; runs?: 'yes' | 'no'; kitDir?: string },
+  opts: { root: string; yes: boolean; forceSkills: boolean; noSkills?: boolean; runs?: 'yes' | 'no'; specsInGit?: 'yes' | 'no'; kitDir?: string },
   io: SetupIO,
 ): Promise<{ approved: boolean; id: string }> {
   const root = path.resolve(opts.root);
+  // On a folder already set up, `--specs-in-git` alone only changes the exclude file: no skills, no approval, no registry.
+  const onlySpecsInGit = opts.specsInGit && !opts.yes && !opts.runs && !opts.forceSkills && !opts.noSkills;
+  if (onlySpecsInGit && (await exists(path.join(root, '.specboard', 'config.md')))) {
+    await applySpecsInGit(root, opts.specsInGit!, io);
+    const id = projectId(root);
+    return { approved: (await approvedStore().get(id, root).catch(() => null)) !== null, id };
+  }
   if (!opts.yes && !opts.runs && !io.isTTY) {
     throw new Error('specboard init asks you to approve permissions and needs a terminal. Run it in one, or pass --yes to approve the default list.');
   }
@@ -339,6 +405,7 @@ export async function initCommand(
   for (const s of skills) io.log(`skill ${s.name}: ${s.action}`);
   if (skills.some((s) => s.action === 'skipped-modified')) io.log('Some skills were edited and kept. Use --force-skills to replace them.');
   if (!(await hasGitRepo(root))) io.log(`No git repo here: tasks won't be committed unless you \`git init\`.`);
+  if (opts.specsInGit) await applySpecsInGit(root, opts.specsInGit, io);
 
   const store = approvedStore();
   const previous = await store.stored(id, root);

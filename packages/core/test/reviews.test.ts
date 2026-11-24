@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { replaceSpecBody, setReviewDone, specBodyMd } from '../src/edit.js';
+import { replaceSpecBody, setReviewDone, setReviewFailed, specBodyMd } from '../src/edit.js';
 import { parseSpec } from '../src/parseSpec.js';
 import { loadProject } from '../src/project.js';
 import { IMAGE_EXTS } from '../src/images.js';
@@ -27,9 +27,9 @@ describe('parse To review', () => {
     const d = parseSpec(text);
     expect(d.problems).toEqual([]);
     expect(d.reviews).toEqual([
-      { n: 1, text: 'Add a task with the Enter key', expected: 'It appears at the bottom of the list and the box clears.', group: 'Adding tasks', done: false, line: 19 },
-      { n: 2, text: 'Reload the page', expected: 'The task is still there.', group: 'Adding tasks', done: true, line: 21 },
-      { n: 3, text: 'Plain item', expected: null, group: 'Other', done: false, line: 24 },
+      { n: 1, text: 'Add a task with the Enter key', expected: 'It appears at the bottom of the list and the box clears.', steps: [], failed: null, fixed: [], group: 'Adding tasks', done: false, line: 19 },
+      { n: 2, text: 'Reload the page', expected: 'The task is still there.', steps: [], failed: null, fixed: [], group: 'Adding tasks', done: true, line: 21 },
+      { n: 3, text: 'Plain item', expected: null, steps: [], failed: null, fixed: [], group: 'Other', done: false, line: 24 },
     ]);
     const lines = text.split('\n');
     for (const r of d.reviews) expect(lines[r.line]).toContain(r.text);
@@ -100,6 +100,100 @@ describe('setReviewDone', () => {
     expect(() => setReviewDone(text, 9, true)).toThrow('Review item 9 not found');
     expect(() => setReviewDone(HEAD, 1, true)).toThrow('Review item 1 not found');
     expect(() => setReviewDone(text, 0, true)).toThrow();
+  });
+});
+
+const RICH = [
+  '',
+  '## To review',
+  '- [ ] Add a task',
+  '  > step: Run `npm run dev`',
+  '  > expected: It shows at the bottom.',
+  '  > step: Open [the app](http://localhost:5173) and click **Add**',
+  '  > note: something a person wrote',
+  '  > fixed: The button was red (a1b2c3d)',
+  '  > failed: Nothing happens on Enter',
+  '  > fixed: Second try (no commit)',
+  '- [x] Reload the page',
+  '  > expected: Still there.',
+  '- [ ] Plain item',
+  '',
+].join('\n');
+const rich = HEAD + RICH;
+
+describe('To review steps, failed and fixed', () => {
+  it('parses steps in order, the failed reason and the fixed history, in any order, and keeps line numbers right', () => {
+    const d = parseSpec(rich);
+    expect(d.problems).toEqual([]);
+    expect(d.reviews).toEqual([
+      {
+        n: 1,
+        text: 'Add a task',
+        expected: 'It shows at the bottom.',
+        steps: ['Run `npm run dev`', 'Open [the app](http://localhost:5173) and click **Add**'],
+        failed: 'Nothing happens on Enter',
+        fixed: ['The button was red (a1b2c3d)', 'Second try (no commit)'],
+        group: null,
+        done: false,
+        line: 18,
+      },
+      { n: 2, text: 'Reload the page', expected: 'Still there.', steps: [], failed: null, fixed: [], group: null, done: true, line: 26 },
+      { n: 3, text: 'Plain item', expected: null, steps: [], failed: null, fixed: [], group: null, done: false, line: 28 },
+    ]);
+    const lines = rich.split('\n');
+    for (const r of d.reviews) expect(lines[r.line]).toContain(r.text);
+  });
+
+  it('an empty failed line is not a failure, empty steps are skipped, and CRLF works', () => {
+    const t = HEAD + '\n## To review\n- [ ] One\n  > failed:\n  > step:\n  > step: Go\n';
+    expect(parseSpec(t).reviews[0]).toMatchObject({ failed: null, steps: ['Go'] });
+    expect(parseSpec(rich.replace(/\n/g, '\r\n')).reviews[0]!.failed).toBe('Nothing happens on Enter');
+  });
+
+  it('ticking with steps and other lines present changes only the item line, and round-trips', () => {
+    const out = setReviewDone(rich, 3, true);
+    const a = rich.split('\n');
+    const b = out.split('\n');
+    expect(b.filter((l, i) => l !== a[i])).toEqual(['- [x] Plain item']);
+    expect(setReviewDone(out, 3, false)).toBe(rich);
+    expect(setReviewDone(setReviewDone(rich, 2, false), 2, true)).toBe(rich);
+  });
+
+  it('ticking (Pass) removes the failed line and nothing else', () => {
+    const out = setReviewDone(rich, 1, true);
+    expect(out).toBe(rich.replace('- [ ] Add a task', '- [x] Add a task').replace('  > failed: Nothing happens on Enter\n', ''));
+    expect(parseSpec(out).reviews[0]).toMatchObject({ done: true, failed: null, fixed: ['The button was red (a1b2c3d)', 'Second try (no commit)'] });
+  });
+
+  it('failing writes one failed line after the item lines, replaces an old one, and clears it', () => {
+    const out = setReviewFailed(rich, 3, 'Wrong\ncolour\r\n  here ');
+    expect(out).toBe(rich.replace('- [ ] Plain item\n', '- [ ] Plain item\n  > failed: Wrong colour here\n'));
+    expect(parseSpec(out).reviews[2]).toMatchObject({ failed: 'Wrong colour here', done: false });
+    expect(setReviewFailed(out, 3, null)).toBe(rich);
+    const replaced = setReviewFailed(rich, 1, 'Still broken');
+    expect(replaced).toBe(rich.replace('  > failed: Nothing happens on Enter', '  > failed: Still broken'));
+    expect(setReviewFailed(rich, 1, null)).toBe(rich.replace('  > failed: Nothing happens on Enter\n', ''));
+    expect(setReviewFailed(rich, 3, null)).toBe(rich);
+  });
+
+  it('failing an item with lines under it goes after them; at the end of the file it keeps the file ending', () => {
+    const out = setReviewFailed(rich, 2, 'Gone');
+    expect(out).toContain('- [ ] Reload the page\n  > expected: Still there.\n  > failed: Gone\n- [ ] Plain item');
+    const noEol = HEAD + '\n## To review\n- [ ] Last';
+    expect(setReviewFailed(noEol, 1, 'Bad')).toBe(noEol + '\n  > failed: Bad');
+    expect(setReviewFailed(noEol + '\n  > failed: Bad', 1, null)).toBe(noEol);
+    expect(setReviewDone(noEol + '\n  > failed: Bad', 1, true)).toBe(noEol.replace('- [ ] Last', '- [x] Last'));
+    const crlf = rich.replace(/\n/g, '\r\n');
+    const c = setReviewFailed(crlf, 3, 'Bad');
+    expect(c).toBe(crlf.replace('- [ ] Plain item\r\n', '- [ ] Plain item\r\n  > failed: Bad\r\n'));
+    expect(setReviewFailed(c, 3, null)).toBe(crlf);
+  });
+
+  it('failing a ticked item unticks it; an empty reason or unknown item throws', () => {
+    expect(parseSpec(setReviewFailed(rich, 2, 'Nope')).reviews[1]).toMatchObject({ done: false, failed: 'Nope' });
+    expect(() => setReviewFailed(rich, 1, ' \n ')).toThrow('The reason can’t be empty');
+    expect(() => setReviewFailed(rich, 9, 'x')).toThrow('Review item 9 not found');
+    expect(() => setReviewFailed(HEAD, 1, 'x')).toThrow('Review item 1 not found');
   });
 });
 

@@ -1,6 +1,6 @@
 import { Document, parseDocument, visit } from 'yaml';
 import { STATUSES, URGENCIES, splitFrontMatter } from './frontmatter.js';
-import { REVIEW_LINE } from './parseSpec.js';
+import { FAILED, REVIEW_LINE, REVIEW_SUB } from './parseSpec.js';
 import { demoteH2, findSections } from './sections.js';
 import type { Status, Urgency } from './types.js';
 
@@ -173,22 +173,72 @@ export function setSubtaskDone(text: string, n: number, done: boolean): string {
   throw new Error(`Subtask ${n} not found`);
 }
 
-/** Tick or untick the n-th (1-based) item of `## To review`. Throws when there is no such item. */
-export function setReviewDone(text: string, n: number, done: boolean): string {
-  const ls = toLines(text);
-  const lines = textsOf(ls);
+/**
+ * The n-th (1-based) item of `## To review`: its line, the end of its indented `> …` lines (exclusive) and the
+ * `> failed:` line among them (or -1). Throws when there is no such item.
+ */
+function findReviewItem(lines: string[], text: string, n: number): { line: number; end: number; failed: number } {
   const range = findSections(lines, splitFrontMatter(text).bodyStartLine).get('to review');
   if (range) {
     let count = 0;
     for (let i = range.start; i < range.end; i++) {
       if (!REVIEW_LINE.test(lines[i]!)) continue;
-      if (++count === n) {
-        ls[i]!.text = lines[i]!.replace(/^- \[[ xX]\]/, `- [${done ? 'x' : ' '}]`);
-        return fromLines(ls);
+      if (++count !== n) continue;
+      let end = i + 1;
+      let failed = -1;
+      while (end < range.end && REVIEW_SUB.test(lines[end]!)) {
+        if (failed === -1 && FAILED.test(lines[end]!)) failed = end;
+        end++;
       }
+      return { line: i, end, failed };
     }
   }
   throw new Error(`Review item ${n} not found`);
+}
+
+/** Remove one line with its ending; removing the file's last line leaves the one before it without an ending too. */
+function removeLine(ls: Line[], i: number): void {
+  if (i === ls.length - 1 && i > 0 && ls[i]!.eol === '') ls[i - 1]!.eol = '';
+  ls.splice(i, 1);
+}
+
+const tickReview = (line: string, done: boolean): string => line.replace(/^- \[[ xX]\]/, `- [${done ? 'x' : ' '}]`);
+
+/**
+ * Tick or untick the n-th (1-based) item of `## To review`. Ticking (the board's Pass) also removes the item's
+ * `> failed:` line. Every other line stays byte-for-byte. Throws when there is no such item.
+ */
+export function setReviewDone(text: string, n: number, done: boolean): string {
+  const ls = toLines(text);
+  const lines = textsOf(ls);
+  const item = findReviewItem(lines, text, n);
+  ls[item.line]!.text = tickReview(lines[item.line]!, done);
+  if (done && item.failed !== -1) removeLine(ls, item.failed);
+  return fromLines(ls);
+}
+
+/**
+ * Write (a reason) or remove (null) the `  > failed: <reason>` line of the n-th To review item. Newlines in the reason
+ * become spaces and it can't be empty. An existing failed line is replaced; a new one goes after the item's other `>`
+ * lines. A failed item is never ticked, so a ticked one is unticked. Throws when there is no such item.
+ */
+export function setReviewFailed(text: string, n: number, failed: string | null): string {
+  const ls = toLines(text);
+  const lines = textsOf(ls);
+  const item = findReviewItem(lines, text, n);
+  const fallback = detectEol(text);
+  if (failed === null) {
+    if (item.failed === -1) return text;
+    removeLine(ls, item.failed);
+    return fromLines(ls);
+  }
+  const reason = failed.replace(/[ \t]*(?:\r?\n|\r)+[ \t]*/g, ' ').trim();
+  if (reason === '') throw new Error('The reason can’t be empty');
+  const line = `  > failed: ${reason}`;
+  ls[item.line]!.text = tickReview(lines[item.line]!, false);
+  if (item.failed !== -1) ls[item.failed]!.text = line;
+  else spliceLines(ls, item.end, 0, [line], fallback);
+  return fromLines(ls);
 }
 
 export function setAnswers(text: string, answers: Record<string, string>): string {

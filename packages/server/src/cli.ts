@@ -35,13 +35,14 @@ export function parseArgs(argv: string[]): { path: string; port: number; open: b
   return { path: dir, port, open, detach };
 }
 
-export function parseInitArgs(argv: string[]): { path: string; yes: boolean; forceSkills: boolean; noSkills: boolean; runs?: 'yes' | 'no' } {
+export function parseInitArgs(argv: string[]): { path: string; yes: boolean; forceSkills: boolean; noSkills: boolean; runs?: 'yes' | 'no'; specsInGit?: 'yes' | 'no' } {
   const base = process.env.INIT_CWD || process.cwd();
   let dir = base;
   let yes = false;
   let forceSkills = false;
   let noSkills = false;
   let runs: 'yes' | 'no' | undefined;
+  let specsInGit: 'yes' | 'no' | undefined;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
     if (a === '--yes') yes = true;
@@ -51,10 +52,14 @@ export function parseInitArgs(argv: string[]): { path: string; yes: boolean; for
       const v = argv[++i];
       if (v !== 'yes' && v !== 'no') throw new Error(`--runs needs yes or no, got ${v ?? '(missing)'}`);
       runs = v;
+    } else if (a === '--specs-in-git') {
+      const v = argv[++i];
+      if (v !== 'yes' && v !== 'no') throw new Error(`--specs-in-git needs yes or no, got ${v ?? '(missing)'}`);
+      specsInGit = v;
     } else if (a.startsWith('--')) throw new Error(`Unknown option: ${a}`);
     else dir = path.resolve(base, a);
   }
-  return { path: dir, yes, forceSkills, noSkills, runs };
+  return { path: dir, yes, forceSkills, noSkills, runs, specsInGit };
 }
 
 export function parseRulesArgs(argv: string[]): { path: string } {
@@ -293,7 +298,7 @@ async function main(): Promise<void> {
   }
   if (cmd === 'init') {
     const a = parseInitArgs(rest);
-    await initCommand({ root: a.path, yes: a.yes, forceSkills: a.forceSkills, noSkills: a.noSkills, runs: a.runs }, terminalIO());
+    await initCommand({ root: a.path, yes: a.yes, forceSkills: a.forceSkills, noSkills: a.noSkills, runs: a.runs, specsInGit: a.specsInGit }, terminalIO());
     return;
   }
   if (cmd === 'rules') {

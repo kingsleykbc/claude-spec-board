@@ -5,6 +5,7 @@ import { OFFLINE_TOAST } from '@/state/actions';
 import type { PushToast } from '@/state/toasts';
 import { PlayIcon } from '@/lib/icons';
 import { Modal, ModalClose } from '@/components/ui/modal/modal';
+import { StartButton } from '@/components/ui/start-button/start-button';
 import { useDiscardGuard } from '@/lib/use-discard-guard';
 import { cn } from '@/lib/utils';
 
@@ -17,7 +18,8 @@ export interface AddSpecModalProps {
   down?: boolean;
   refresh: () => Promise<void>;
   /** "Have Claude write it up" for the new spec (starts a write-up run). */
-  onWriteUp: (spec: Spec) => Promise<void>;
+  /** Starts the write-up of the new spec; the button says Starting… until it settles. */
+  onWriteUp: (spec: Spec) => Promise<unknown>;
   onClose: () => void;
 }
 
@@ -119,11 +121,12 @@ export function AddSpecModal({ pid, nextId, client = api, toast, down = false, r
           disabled={disabled} onClick={() => void add(false)}>
           Add as draft
         </button>
-        <button type="button" className={cn('flex h-9 cursor-pointer items-center gap-[7px] rounded-lg border-0 bg-accent px-[15px] py-0 text-[13.5px] font-semibold text-accent-fg disabled:cursor-default', faded)}
-          disabled={disabled} onClick={() => void add(true)}>
+        {/* Starting… while it adds the spec and starts the write-up (the modal closes once the spec exists). */}
+        <StartButton className={cn('flex h-9 cursor-pointer items-center gap-[7px] rounded-lg border-0 bg-accent px-[15px] py-0 text-[13.5px] font-semibold text-accent-fg disabled:cursor-default', faded)}
+          disabled={disabled} onStart={() => add(true)}>
           <PlayIcon aria-hidden className="text-[12px]" />
           Add &amp; have Claude write it up
-        </button>
+        </StartButton>
       </div>
       {dialog}
     </Modal>

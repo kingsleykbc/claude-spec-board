@@ -113,6 +113,26 @@ export const InReview: Story = {
   },
 };
 
+/** A review check failed: a small "1 failed" marker, so the card stands out in the Review column. */
+const withFailed = (id: string): Partial<Spec> => ({ reviews: recipeSpec(id).reviews.map((r, i) => (i === 1 ? { ...r, failed: 'The list stays empty.' } : r)) });
+export const ReviewFailed: Story = {
+  args: { id: 'T-103', col: 'review-soft', patch: withFailed('T-103') },
+  play: async ({ canvasElement }) => {
+    expect(within(canvasElement).getAllByText('1 failed')).toHaveLength(2);
+  },
+};
+
+/** Simple mode: the failed marker moves behind ⋯, which carries the dot. */
+export const SimpleReviewFailed: Story = {
+  args: { id: 'T-103', col: 'review-soft', patch: withFailed('T-103') },
+  decorators: [(Story) => <SimpleMode value>{Story()}</SimpleMode>],
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement.querySelector('[data-testid="theme-light"]')!);
+    expect(c.queryByText('1 failed')).toBeNull();
+    expect(c.getByTestId('card-attention')).toBeTruthy();
+  },
+};
+
 export const Draft: Story = {
   args: { id: 'T-107' },
   play: async ({ canvasElement }) => {

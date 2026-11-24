@@ -131,6 +131,27 @@ describe('POST /runs outcomes', () => {
     expect(runs.start).toHaveBeenCalledWith(entry, 'refresh-questions', 'T-101');
   });
 
+  it('starts a fix-review run for a spec, which needs a specId', async () => {
+    const runs = fakeRuns({ start: vi.fn(async () => snap({ kind: 'fix-review' })) });
+    const app = appWith(runs);
+    expect((await post(app, `/api/projects/${entry.id}/runs`, { kind: 'fix-review' })).status).toBe(400);
+    const res = await post(app, `/api/projects/${entry.id}/runs`, { kind: 'fix-review', specId: 'T-101' });
+    expect(res.status).toBe(202);
+    expect(runs.start).toHaveBeenCalledWith(entry, 'fix-review', 'T-101');
+  });
+
+  it('refuses a fix-review run while another run is going, like any run', async () => {
+    const app = appWith(realManager('idle'));
+    const url = `/api/projects/${entry.id}/runs`;
+    const first = await post(app, url, { kind: 'run', specId: 'T-101' });
+    expect(first.status).toBe(202);
+    const fix = await post(app, url, { kind: 'fix-review', specId: 'T-102' });
+    expect(fix.status).toBe(409);
+    const { run } = (await first.json()) as { run: RunSnapshot };
+    expect(((await fix.json()) as { run: RunSnapshot }).run.id).toBe(run.id);
+    await post(app, `${url}/${run.id}/stop`);
+  });
+
   it('maps the manager errors', async () => {
     const run = snap();
     const cases: [Error, number, Record<string, unknown>][] = [

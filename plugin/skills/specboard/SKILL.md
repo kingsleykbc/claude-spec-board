@@ -11,8 +11,8 @@ Spec Board is a kanban board over plain Markdown files in `.specboard/`. People 
 
 ```
 .specboard/
-  config.md                     # front matter: name, created (YYYY-MM-DD), references (list of repo-relative paths to `.md` files inside the project), closing_steps and milestones (lists, optional), commits (true or false, optional) and test_command (a command string, optional); body = project description, then optional ## Stack and ## Design sections
-  overview.md                   # front matter: updated (YYYY-MM-DD); body = progress summary
+  config.md                     # front matter: name, created (YYYY-MM-DD), references (list of repo-relative paths to `.md` files inside the project), closing_steps and milestones (lists, optional), commits (true or false, optional), specs_in_git (true or false, optional; see Specs in git) and test_command (a command string, optional); body = project description, then optional ## Stack and ## Design sections
+  overview.md                   # front matter: updated (YYYY-MM-DD); body = progress summary, then an optional `## Out of sync` section (written by refresh-overview, removed by a project-wide sync)
   settings.md                   # optional, front matter only: track_tokens (true or false); the person sets it on the board
   specs/<ID>-<slug>/spec.md
   specs/<ID>-<slug>/logs/<n>-<slug>.md
@@ -93,8 +93,12 @@ Customers pick a barber, a service and a time slot, then confirm.
 
 ## To review
 - [ ] Book a slot on your phone
+  > step: Run `npm run dev` in the project folder.
+  > step: On your phone, open http://<your computer's IP>:5173/book.
+  > step: Pick a barber, a service and a free slot, then tap **Confirm**.
   > expected: The confirmation shows the barber, the service and the time.
 - [ ] Try to book the same slot again
+  > step: Go back to http://<your computer's IP>:5173/book and pick the same slot.
   > expected: The slot shows as taken.
 ```
 
@@ -115,15 +119,26 @@ A subtask whose title starts with `(you) ` is for the person, not Claude: `- [ ]
 ## To review
 ### Adding tasks
 - [ ] Add a task with the Enter key
+  > step: Run `npm run dev` and wait for "ready".
+  > step: Open [http://localhost:5173](http://localhost:5173).
+  > step: Type "Buy milk" in the **New task** box and press Enter.
   > expected: It appears at the bottom of the list and the box clears.
 - [ ] Reload the page
+  > step: Press the browser's reload button.
   > expected: The task is still there.
 ```
 
-- An item is `- [ ] <text>` at the start of a line (`- [x]` once checked), with no number. An optional indented `  > expected: <what they should see>` line follows it.
+- An item is `- [ ] <text>` at the start of a line (`- [x]` once checked), with no number. Indented lines may follow it, in any order:
+  - `  > expected: <what they should see>`: at most one.
+  - `  > step: <one step>`: any number, in order. Together they are the item's "How to check" steps on the board. Setup first (which command starts the app, seed data, a test account), then the real link to open, then where to click. Inline Markdown is allowed (links, `code`).
+  - `  > failed: <reason>`: at most one. The person's check failed. Only the board writes `> failed:` (its Fail button); Pass or a tick removes it.
+  - `  > fixed: <reason> (<commit or "no commit">)`: any number. The history Claude writes after fixing a failed check (see /fix-review).
+  - Keep any other indented `>` line as it is.
 - Optional `### <group>` headings group the items below them.
 - A small spec has 1 to 3 plain items. A larger spec has groups of steps, each with an `expected` line.
 - The person ticks them on the board. Claude never ticks a To review item. They do not count as subtasks and do not move the card.
+- Never tick a To review item, and never remove or reword a `> failed:` or `> fixed:` line, except as /fix-review says.
+- When the person asks in a chat to fix a card's review issues (its failed checks), Read and follow `../fix-review/SKILL.md` (relative to this skill's base directory) for that card.
 - Never drop the section or its ticks when you change a spec.
 - Older specs may still end with `(you)` check subtasks. Leave them as they are; they still work.
 
@@ -139,6 +154,7 @@ A subtask whose title starts with `(you) ` is for the person, not Claude: `- [ ]
 4. Subtask order: `(you)` steps needed before the work, then Claude's work, then the `closing_steps` from config.md in order. Leave a closing step out only when the spec plainly does not need it (a docs-only spec needs no "Write tests"), and say so.
 5. Put each `(you)` subtask where it is needed: before the work, or before the step that needs it. Checks the person does afterwards go in `## To review`, never as `(you)` subtasks at the end.
 6. Ask a question only for a real decision, with a recommendation when you have a view. Do not ask what the spec or the code already answers.
+7. Every To review item gets `> step:` lines, then its `> expected:` line. Setup first, with the project's real commands (the `test_command`, the start script in `package.json`, and so on), then the real URL and port from the code, then where to click. Short steps, plain words. The person should not have to guess how to start or reach anything.
 
 ## Spec or subtask?
 
@@ -222,11 +238,23 @@ Archive a spec only when the person asks (for example "archive T-002") or has sa
 
 To carry a card's images to another card (a merge or a split), run `specboard copy-images <from ID> <to ID> "<project folder>"`: it copies every image from the first card's `images/` into the second's, never overwriting, and prints `images/<old> -> images/<new>` per file.
 
+## Specs in git
+
+`specs_in_git` in config.md says whether `.specboard/` is kept in git. It is chosen at setup.
+
+- `true`: Claude keeps the specs in git, in their own commits. Code commits still never hold `.specboard/` files. When `commits` is not `false` and there is a git repo, end each of these with one board commit, but only if `.specboard/` changed:
+  - a run that ends with the spec in Review (step 6 of Running a spec), in a chat or a background run. Use the summary `<ID> to Review`.
+  - plan-project, import-specs, setup, create-spec, sync-specs, reorganize, move and the refresh commands, when they wrote `.specboard/` in a chat.
+- The board commit holds only `.specboard/`. Run `git add .specboard`, then `git commit -m "Spec Board: <short summary>" -- .specboard`, each on its own with the Bash tool. The `-- .specboard` part keeps anything else that is staged out of it. For example `Spec Board: T-001 to Review` or `Spec Board: first specs`.
+- If the board commit is refused, skip it, say so in one line, and carry on. Never push it.
+- `false`: the specs stay on this machine, and `.specboard/` is hidden from git. Make no board commits.
+- Not set: make no board commits.
+
 ## Running a spec
 
 Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never start a spec on your own.
 
-1. Find `.specboard/specs/<ID>-*/spec.md` (Glob) and read it, then its existing logs and its images (the linked ones and the attachments, see Layout). Say so and stop if there is no such spec, or if `status` is already `review` or `done` and all of Claude's subtasks (everything except trailing `(you)` steps in older specs) are ticked. Open `## To review` items never count as Claude's work.
+1. Find `.specboard/specs/<ID>-*/spec.md` (Glob) and read it, then its existing logs and its images (the linked ones and the attachments, see Layout). Say so and stop if there is no such spec, or if `status` is already `review` or `done` and all of Claude's subtasks (everything except trailing `(you)` steps in older specs) are ticked. Open `## To review` items never count as Claude's work. If the spec is in Review and a To review item has a `> failed:` line, point the person to `/fix-review <ID>` instead, and stop.
    - If `draft: true`: when the person asked in a chat to run or implement it, say it needs writing up first, Read `../create-spec/SKILL.md` (relative to this skill's base directory) and follow it (its questions are asked in the chat), then continue with the run in the same reply, without waiting for the request again. In a background run (the board started you, no one is in the chat), say it needs `/create-spec` first and stop.
 2. **Refuse to start** (change nothing, say why, stop) when:
    - any required question under `## Open questions` is unanswered. List them with their numbers; or
@@ -239,10 +267,10 @@ Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never s
    2. Set `current_subtask: <n>`.
    3. Do the work the subtask describes, using the Spec and Features sections and the answers.
    4. Run the project's tests. Read `test_command` from `.specboard/config.md` (for example `test_command: "npm test"`) and run exactly that command, alone, with the Bash tool. Do not pick another test command and do not chain anything onto it. If it fails, fix the cause. If you cannot, treat it as the decision step (step 5 of Running a spec) and do not commit failing work. If there is no `test_command`, skip the tests: do not run or add tests and do not edit `package.json` to create a test script; write "No test command is set up" in the subtask's log entry and carry on.
-   5. Commit only this subtask's code with the Bash tool: `git add <the files you changed>`, then `git commit -m "<ID> · <n>. <subtask title>"`. Do not add `.specboard/` files to the commit. When config.md has `commits: false`, or there is no git repo (neither the folder nor a parent has `.git`), make no commit.
+   5. Commit only this subtask's code with the Bash tool: `git add <the files you changed>`, then `git commit -m "<ID> · <n>. <subtask title>"`. Do not add `.specboard/` files to this code commit. With `specs_in_git: true` they get their own board commit when the spec reaches Review (see Specs in git). When config.md has `commits: false`, or there is no git repo (neither the folder nor a parent has `.git`), make no commit.
    6. Get the short hash and local time with `git log -1 --format="%h %cd" --date=format:"%Y-%m-%d %H:%M"`, the changed files with `git diff --name-only HEAD~1 HEAD`, and the PR link as the log format says. With no commit, there is no hash and no PR link: take the current local time (from your context if it has one, otherwise run `date "+%Y-%m-%d %H:%M"` on its own with the Bash tool) and list the files you changed for this subtask.
    7. Write `.specboard/specs/<ID>-<slug>/logs/<n>-<slug>.md` in the log format: `subtask`, `commit` (empty with no commit), `files`, `pr` (when found; never with no commit), `done_at` (the commit's time, or now with no commit), and a dated entry (`### YYYY-MM-DD HH:mm`) of what you did.
-   8. Tick the subtask (`- [x]`) and set `updated`.
+   8. Tick the subtask (`- [x]`) and set `updated`. If it is a `Fix: <reason> (review item <n>)` subtask from /fix-review, also replace that To review item's `> failed:` line with `> fixed:`, as step 5 of `../fix-review/SKILL.md` says.
 5. When you reach a decision you cannot make from the spec and its answers (or tests cannot be fixed): add a required open question (`- [ ] Q<k> (<type>): <text>` then `  > answer:`, with a recommendation if you have one), set `current_subtask: null`, leave the status as `doing`, say what you need, and **stop**. Do not guess and do not carry on to the next subtask. A refused action is different: see rule 8.
 6. When no Claude subtask is left unticked (only trailing `(you)` checks in an older spec, or nothing), check each line of `## Done when` before moving to Review:
    - Check it with the code, the tests or a command you may run. Write the result of each line in a log entry: met, not met, or in To review (when only a person can check it), and how you checked.
@@ -250,6 +278,7 @@ Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never s
    - A line you checked and found not met: fix it and commit the fix as `<ID> · <n>. <title>` of the last code subtask (no commit when `commits: false` or there is no repo, as in the commit step above), adding a dated entry to its log; or add a required question (step 5) and stop. Do not move to Review.
    - A line you cannot check yourself goes to `## To review` as an item, with an `expected` line, unless an item there already covers it (add the section after `## Subtasks` if it is missing; in an older spec a trailing `(you)` check that covers it is enough). It does not block Review and is not a question.
    - Otherwise set `current_subtask: null`, `status: review` and `updated` to today, and list the open To review items (and any trailing `(you)` checks) in your summary. Never tick them. Never set `status: done`.
+   - Then, with `specs_in_git: true`, make the board commit `Spec Board: <ID> to Review` (see Specs in git).
    - A spec without `## Done when` has nothing to check: go straight to Review.
 7. Finish with a short summary: subtasks completed, commits made, anything the reviewer should look at.
 
@@ -262,5 +291,5 @@ Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never s
 5. Edit `.specboard/` only for spec bookkeeping, plus the code the spec needs. Never edit anything under `.claude/`. Never touch files outside the project folder.
 6. Work with the file tools: Read, Edit, Write, Glob and Grep. Do not use shell commands such as `rm`, `mv`, `mkdir` or `echo` for files. Change a spec with small Edit calls so everything else in the file stays exactly as it was (comments, other sections, line endings). Do not rewrite a whole file just to change one line.
 7. Dates are `YYYY-MM-DD`. Take today's date from your context. If you do not have it, read it from the last commit: `git log -1 --format=%cd --date=format:"%Y-%m-%d %H:%M"`. Without git, run `date "+%Y-%m-%d %H:%M"` on its own with the Bash tool.
-8. If a tool call is refused (permission denied), do not look for a way around the refusal. If you only used the wrong tool (for example Bash to read a file), use the right one. If the action itself is needed (a commit, the tests, a command the spec needs, a file outside the project): do not try another way, set `current_subtask: null`, leave the status as `doing`, say which action was refused, and stop. Do not add an open question for it: the board shows the refusal and how to allow it, and an unanswered question would stop the next run after the person has allowed it. Five exceptions are optional and simply skipped when refused: the PR link (`gh`, `glab`), `specboard tree`, `specboard archive` (then tell the person to use Archive in the card's ⋯ menu), `specboard copy-images` (then tell the person which images to move), and `date` (then use today's date with the time `00:00`).
+8. If a tool call is refused (permission denied), do not look for a way around the refusal. If you only used the wrong tool (for example Bash to read a file), use the right one. If the action itself is needed (a commit, the tests, a command the spec needs, a file outside the project): do not try another way, set `current_subtask: null`, leave the status as `doing`, say which action was refused, and stop. Do not add an open question for it: the board shows the refusal and how to allow it, and an unanswered question would stop the next run after the person has allowed it. Six exceptions are optional and simply skipped when refused: the PR link (`gh`, `glab`), `specboard tree`, `specboard archive` (then tell the person to use Archive in the card's ⋯ menu), `specboard copy-images` (then tell the person which images to move), `date` (then use today's date with the time `00:00`), and the board commit of Specs in git (then say in one line that it was skipped).
 9. When something is unclear or the files do not match this format, say so in your answer and stop. Do not "fix" the format by inventing new keys.

@@ -263,3 +263,41 @@ describe('Sync one card from its detail', () => {
     expect(screen.queryByRole('button', { name: 'Sync proposal waiting' })).toBeNull();
   });
 });
+
+describe('Sync from the Overview’s out-of-sync box', () => {
+  const OFF = 'Two cards look further along in the code than on the board.';
+  beforeEach(() => {
+    project.overview = { updated: '2026-11-14T09:00', summaryMd: 'The app is half built.', outOfSync: OFF };
+  });
+  afterEach(() => {
+    project.overview = null;
+  });
+  const openOverview = () => fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+  const box = () => screen.getByRole('note', { name: 'Out of sync' });
+
+  it('shows the warning and its Sync plans the whole project, like the menu’s Sync with code', async () => {
+    let answer!: (v: { run: RunSnapshot }) => void;
+    vi.mocked(api.startRun).mockImplementation(() => new Promise((r) => (answer = r)));
+    await mount();
+    openOverview();
+    expect(box().textContent).toContain(OFF);
+    fireEvent.click(within(box()).getByRole('button', { name: 'Sync' }));
+    expect(api.startRun).toHaveBeenCalledWith('p1', 'sync-plan', undefined);
+    // Starting…: disabled until the start answers, so a second click starts nothing.
+    const starting = within(box()).getByRole('button', { name: 'Starting…' });
+    fireEvent.click(starting);
+    expect(api.startRun).toHaveBeenCalledTimes(1);
+    await act(async () => answer({ run: run() }));
+    expect(within(syncDialog()).getByText('Claude is reading your code…')).toBeTruthy();
+  });
+
+  it('not connected: the same command dialog as the menu’s Sync, and nothing starts', async () => {
+    await mount('/?project=p1', { approved: false });
+    openOverview();
+    fireEvent.click(within(box()).getByRole('button', { name: 'Sync' }));
+    await flush();
+    expect(within(syncDialog()).getByText('Sync needs Claude')).toBeTruthy();
+    expect(within(syncDialog()).getByText('/specboard:sync-specs')).toBeTruthy();
+    expect(api.startRun).not.toHaveBeenCalled();
+  });
+});

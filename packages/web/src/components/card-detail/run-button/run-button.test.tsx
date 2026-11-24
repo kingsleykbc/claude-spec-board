@@ -5,13 +5,73 @@ import { composeStories } from '@storybook/react-vite';
 import * as stories from './run-button.stories';
 import { NOT_CONNECTED_SHORT } from '@/components/not-connected/not-connected';
 
-const { Ready } = composeStories(stories);
+const { Ready, FixReview, FixReviewNotConnected } = composeStories(stories);
 const base = { id: 'T-104', manual: null, statusKnown: true, onRun: vi.fn(), onStop: vi.fn() } as const;
+const never = () => new Promise<boolean>(() => undefined);
 
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
   vi.restoreAllMocks();
+});
+
+describe('RunButton: Fix review issues', () => {
+  it('connected: the orange Fix review issues replaces the Review hold and calls onRun', () => {
+    const onRun = vi.fn();
+    render(<FixReview {...base} state="ready" onRun={onRun} hold="In Review: check the work, then move the card to Done." />);
+    expect(screen.queryByText(/In Review/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Run with Claude' })).toBeNull();
+    const fix = screen.getByRole('button', { name: 'Fix review issues' });
+    expect(fix.className).toMatch(/bg-accent/);
+    fireEvent.click(fix);
+    expect(onRun).toHaveBeenCalled();
+  });
+
+  it('Copy run command copies /fix-review <ID>', async () => {
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    render(<FixReview {...base} state="ready" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy run command' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('/fix-review T-104'));
+  });
+
+  it('not connected: it opens the notice with /fix-review <ID> and starts nothing', async () => {
+    const user = userEvent.setup();
+    const onRun = vi.fn();
+    render(<FixReviewNotConnected {...base} state="ready" manual="not-approved" onRun={onRun} />);
+    await user.click(screen.getByRole('button', { name: 'Fix review issues' }));
+    const notice = await screen.findByRole('dialog', { name: NOT_CONNECTED_SHORT });
+    expect(notice.textContent).toMatch('/fix-review T-104');
+    expect(onRun).not.toHaveBeenCalled();
+  });
+
+  it('another run going: Fix review issues is off, like Run', () => {
+    render(<FixReview {...base} state="disabled" runningId="T-103" />);
+    expect(screen.getByText('Claude is already working on T-103')).toBeTruthy();
+    expect((screen.getByRole('button', { name: /Fix review issues/ }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe('RunButton: Starting…', () => {
+  it('Run with Claude shows a spinner and Starting…, disabled, until the start settles', async () => {
+    let settle!: (ok: boolean) => void;
+    const onRun = vi.fn(() => new Promise<boolean>((r) => (settle = r)));
+    render(<Ready {...base} state="ready" onRun={onRun} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Run with Claude' }));
+    const btn = screen.getByRole('button', { name: 'Starting…' });
+    expect(btn).toHaveProperty('disabled', true);
+    expect(within(btn).getByTestId('spinner')).toBeTruthy();
+    fireEvent.click(btn);
+    expect(onRun).toHaveBeenCalledOnce();
+    await act(async () => settle(false));
+    expect(screen.getByRole('button', { name: 'Run with Claude' })).toHaveProperty('disabled', false);
+  });
+
+  it('Fix review issues shows Starting… too', () => {
+    render(<FixReview {...base} state="ready" onRun={vi.fn(never)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Fix review issues' }));
+    expect(screen.getByRole('button', { name: 'Starting…' })).toHaveProperty('disabled', true);
+  });
 });
 
 describe('RunButton', () => {

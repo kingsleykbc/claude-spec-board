@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { composeStories } from '@storybook/react-vite';
 import * as stories from './detail-header.stories';
@@ -40,6 +40,25 @@ describe('DetailHeader', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sync proposal waiting' }));
     expect(onSync).toHaveBeenCalledOnce();
     expect(onSyncWaiting).toHaveBeenCalledOnce();
+  });
+
+  it('Sync says Starting…, disabled, until its start settles', async () => {
+    let settle!: () => void;
+    const onSync = vi.fn(() => new Promise<void>((r) => (settle = r)));
+    render(<WithSync onSync={onSync} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sync' }));
+    const btn = screen.getByRole('button', { name: 'Starting…' });
+    expect(btn).toHaveProperty('disabled', true);
+    fireEvent.click(btn);
+    expect(onSync).toHaveBeenCalledOnce();
+    await act(async () => settle());
+    expect(screen.getByRole('button', { name: 'Sync' })).toHaveProperty('disabled', false);
+  });
+
+  it('Have Claude write this up says Starting… too', () => {
+    render(<Draft onWriteUp={() => new Promise(() => undefined)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Have Claude write this up' }));
+    expect(screen.getByRole('button', { name: 'Starting…' })).toHaveProperty('disabled', true);
   });
 
   it('Sync waits while a run is active', () => {

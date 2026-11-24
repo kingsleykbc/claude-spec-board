@@ -4,7 +4,7 @@ Everything lives in `.specboard/` in your project, as files you can read and edi
 
 ```
 .specboard/
-  config.md                  project name, description, reference documents, closing steps, milestones, test command and commits
+  config.md                  project name, description, reference documents, closing steps, milestones, test command, commits and specs in git
   settings.md                optional, board settings (token tracking)
   overview.md                a summary of the project's progress
   specs/T-001-booking-page/
@@ -130,16 +130,32 @@ The checks you do once the work is done, such as trying the page on your phone, 
 ## To review
 ### Adding tasks
 - [ ] Add a task with the Enter key
+  > step: Run `npm run dev` and wait for "ready".
+  > step: Open [http://localhost:5173](http://localhost:5173).
+  > step: Type "Buy milk" in the **New task** box and press Enter.
   > expected: It appears at the bottom of the list and the box clears.
 - [ ] Reload the page
+  > step: Press the browser's reload button.
   > expected: The task is still there.
 ```
 
-- Each item is a `- [ ]` line with no number, optionally followed by an `> expected:` line saying what you should see. `###` headings group the items.
+- Each item is a `- [ ]` line with no number. `###` headings group the items.
+- Indented lines under an item can come in any order:
+  - `> expected:` says what you should see.
+  - `> step:` lines are the steps to check it, in order. Claude writes them: how to start the app first (the real command), then the real link to open, then where to click. Links and `code` work in them.
+  - `> failed:` is the reason you gave with **Fail** (one per item).
+  - `> fixed:` lines are Claude's notes after fixing a failed check, with the commit.
 - A small spec has 1 to 3 plain items. A bigger one has groups of steps, each with what to expect.
-- The card detail shows them as a checklist under **To review**. Tick them there as you go. Claude never ticks them.
+- The card detail shows them as a checklist under **To review**. Claude never ticks them.
 - They don't count toward the subtask progress and ticking them doesn't move the card. A card in Review shows how many you've checked ("Reviewed 1/3").
 - A spec without the section has nothing to review. Specs whose checks are trailing `(you)` steps keep working.
+
+### Checking the work
+
+- **How to check** under an item opens its steps as a numbered list. Links open in a new tab, and each piece of `code` has a copy button.
+- **Pass** ticks the item, like its checkbox. You can still untick a ticked item.
+- **Fail** opens a small box, "What went wrong?". Write what you saw and press **Save**. The item stays unticked and shows in red with your reason, with **Edit** and **Clear** to change or remove it. The card in the column shows "1 failed" (or how many failed).
+- **Fix review issues**: on a card in Review with a failed check, this orange button takes the place of **Run with Claude**. Claude adds a subtask for each failed check, fixes it, writes a `> fixed:` line, and moves the card back to Review for you to check again. If your reason asks for something new ("make it blue, not red"), Claude first changes the spec's **Features** and **Done when** to match. In a chat it asks when it isn't sure; in the background it adds a question and stops. [Running a spec](running-specs.md#fix-review-issues) has more.
 
 ## Closing steps
 
@@ -153,15 +169,17 @@ closing_steps: [Write tests, Update the docs]
 
 ## Tests and commits
 
-Two more keys in `.specboard/config.md` control how a run works:
+Three more keys in `.specboard/config.md` control how a run works:
 
 ```
 test_command: "npm test"
 commits: false
+specs_in_git: true
 ```
 
 - **`test_command`** is the command a run uses to check its work. A run uses exactly this command and nothing else. Without it, the run skips tests and its log says "No test command is set up". A background run is refused the command until it is on the approved list. The board's notice offers the rule to add.
 - **`commits`** is `true` unless you set `false`. With `false`, or with no git repo, a run makes no commits. Each log lists the files changed instead.
+- **`specs_in_git`** is the setup answer to "Keep the specs in git?". With `true`, Claude also commits `.specboard/` in a commit of its own (never in a code commit). With `false`, `.specboard/` stays on this machine and is hidden from git. Left out, nothing changes: no board commits. See [.specboard and git](getting-started.md#specboard-and-git).
 
 ## Open questions
 

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import type { RunLine } from '@/api/client';
 import { FIX_NOTE, RUN_LINES, RunPanel } from './run-panel';
 
@@ -121,5 +121,21 @@ export const ErrorState: Story = {
     const c = within(canvasElement);
     expect(c.getByText('Claude Code exited unexpectedly. Work up to the last commit is safe.')).toBeTruthy();
     expect(c.getByRole('button', { name: 'Run again' })).toBeTruthy();
+  },
+};
+
+/** Run again just clicked: Starting…, disabled, until the new run has started (it then takes the panel over). */
+export const RerunStarting: Story = {
+  args: {
+    status: 'error',
+    end: { status: 'error', title: 'Claude Code exited with code 1' },
+    lines: withLine({ k: 'err', text: 'Claude Code exited with code 1', time: '16:45' }),
+    onAction: fn(() => new Promise<boolean>(() => undefined)),
+  },
+  play: async ({ canvasElement, args }) => {
+    const c = within(canvasElement);
+    await userEvent.click(c.getByRole('button', { name: 'Run again' }));
+    expect(await c.findByRole('button', { name: 'Starting…' })).toHaveProperty('disabled', true);
+    expect(args.onAction).toHaveBeenCalledWith('rerun');
   },
 };

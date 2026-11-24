@@ -40,5 +40,6 @@ export {
   LuTrash2 as TrashIcon,
   LuTerminal as CommandIcon,
   LuTriangleAlert as WarnIcon,
+  LuWrench as FixIcon,
   LuX as CloseIcon,
 } from 'react-icons/lu';

@@ -18,6 +18,12 @@ There are two ways to have Claude work on a spec, and the card shows both: **Run
 
 **Copy run command** is the alternative. It copies `/run-spec T-001` for you to paste into a chat (the short form works with or without the plugin).
 
+## Fix review issues
+
+When you mark a [To review](writing-specs.md#checking-the-work) check as failed on a card in Review, **Run with Claude** becomes an orange **Fix review issues** button. It starts a background run of `/fix-review T-001`: the card shows the run's output, **Stop**, the logs and the tokens, as for any run. **Copy run command** copies `/fix-review T-001` for a chat instead. When Claude isn't connected, the button shows the not-connected notice with that command to paste. Like any run, it can't start while another run is going in the project.
+
+Claude adds one subtask per failed check, `Fix: <your reason> (review item 2)`, fixes each one with its own commit and log, replaces your `> failed:` line with a `> fixed:` line, and moves the card back to Review. Your checks stay unticked so you can check them again.
+
 While Claude works on a spec in a chat, the card shows "Claude is working on step 2 in a chat". The board can't tell when a chat is closed, so the marker can outlast the work. If nothing is running, press **Not running? Clear** in the card's detail. It removes the marker and changes nothing else.
 
 ## Turn on background runs
@@ -35,7 +41,7 @@ The approved list is kept in `~/.specboard/`, outside the repo. [Safety](safety.
 
 When background runs can't happen for a project, because Claude Code isn't installed, isn't logged in, is blocked by a setting, or the project hasn't been approved for runs, the board shows a small "not connected" icon in the header. Hover it (or focus it with the keyboard, or tap it on a phone) to see **Claude isn't connected to the board**, the reason, and a link to this page.
 
-The board still works fully as a view of your files. It just can't start Claude. The buttons that would (**Run with Claude**, **Have Claude write this up** and **Refresh** in the overview) look greyed out but still respond: hover, focus or press one to see **Claude isn't connected**, the reason, and the command to paste into a Claude chat in the project folder, with a **Copy command** button. The commands are `/run-spec T-001`, `/create-spec T-001` and `/refresh-overview`: short forms that work with or without the plugin.
+The board still works fully as a view of your files. It just can't start Claude. The buttons that would (**Run with Claude**, **Fix review issues**, **Have Claude write this up** and **Refresh** in the overview) look greyed out but still respond: hover, focus or press one to see **Claude isn't connected**, the reason, and the command to paste into a Claude chat in the project folder, with a **Copy command** button. The commands are `/run-spec T-001`, `/fix-review T-001`, `/create-spec T-001` and `/refresh-overview`: short forms that work with or without the plugin.
 
 ## Why the chat is the usual choice
 
@@ -90,18 +96,21 @@ Over time the board can drift from the code: work gets done without a tick, or a
 - **Specs to archive** are archived by the board once you confirm and Claude has applied every change. In a chat, Claude archives them with `specboard archive` after your OK; if that isn't allowed, it names them and you archive them on the board.
 - **Old logs stay.** When sync unticks a subtask or archives a spec, it marks the matching logs obsolete instead of deleting them.
 - **If the browser closes** before you confirm, a **Sync proposal waiting** item in the logo menu brings the dialog back for a whole-project sync. For one spec, a **Sync proposal waiting** button beside **Sync** in that card does the same.
+- **The Overview can warn you.** When Claude refreshes the overview, it also checks whether the board and the code look out of sync. If they do, a warning box in the [Overview](getting-started.md#the-overview) says so, with a **Sync** button that does the same as **Sync with code**. A whole-project sync removes the warning once it is applied.
 - **When Claude isn't connected** the dialog shows the command to copy: `/specboard:sync-specs`, or with a spec ID.
 
 ## When Claude stops
 
 - **It needs a decision.** Claude adds a required question and stops. Answer it on the card, then start the spec again and it carries on.
-- **An action was refused in the background.** The card shows what was refused and the rule that would allow it, if it's safe to offer. From a copy of the repo, run the `allow` command it gives you in a terminal, then run again. With the plugin there is no `specboard` in your terminal, so ask Claude to run `/specboard:setup` again to update the allowed commands, or to run `specboard init --yes --no-skills --runs yes "<project folder>"`. Refusals of the pull request lookup (`gh pr view`, `glab mr view`) and `specboard tree` don't stop a run: Claude skips the link or the tree and carries on. A refused `specboard archive` or `specboard copy-images` isn't needed by a background run (only chats use them): Claude asks you to archive the card or move the images on the board instead.
+- **An action was refused in the background.** The card shows what was refused and the rule that would allow it, if it's safe to offer. From a copy of the repo, run the `allow` command it gives you in a terminal, then run again. With the plugin there is no `specboard` in your terminal, so ask Claude to run `/specboard:setup` again to update the allowed commands, or to run `specboard init --yes --no-skills --runs yes "<project folder>"`. Refusals of the pull request lookup (`gh pr view`, `glab mr view`), `specboard tree` and the `.specboard/` commit of [specs in git](getting-started.md#specboard-and-git) don't stop a run: Claude skips the link, the tree or that commit, says so, and carries on. A refused `specboard archive` or `specboard copy-images` isn't needed by a background run (only chats use them): Claude asks you to archive the card or move the images on the board instead.
 - **It's waiting on you.** The spec has a `(you)` step before more work, such as adding a file or a key. The run panel says **Waiting on you** and names the step. Do it, tick it on the card, then run again. This is a pause, not an error.
-- **It finished.** The card moves to Review. Any check Claude couldn't do itself is added to [To review](writing-specs.md#to-review) for you to tick. Only you can move a card to Done.
+- **It finished.** The card moves to Review. Any check Claude couldn't do itself is added to [To review](writing-specs.md#to-review) for you to tick, with the steps to check it. If a check fails, press **Fail** and then **Fix review issues**. Only you can move a card to Done.
 
 A blocked spec or a draft can't be started from the card. If you start a draft from a chat, Claude writes it up first (it asks its questions in the chat), then runs it. If you start a blocked spec from a chat, Claude refuses and says why.
 
 ## The other Claude buttons on the board
+
+Every button that starts Claude in the background says **Starting…** with a spinner the moment you press it, and can't be pressed again until the run has started (then the run's own display takes over) or the start failed (then the button comes back and a message says why).
 
 These run in the background: **Have Claude write this up** on a draft, **Refresh** in the overview, **Ask Claude to fix** on a file with a formatting problem, **Sync with code**, and the automatic question refresh after you edit a spec (only when background runs are approved). To do them in your chat, type `/create-spec T-001`, `/refresh-overview`, `/specboard:update-spec T-001 fix the formatting` or `/specboard:sync-specs`. The question refresh is `/specboard:refresh-questions T-001`.
 

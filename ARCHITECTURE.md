@@ -81,9 +81,9 @@ A project's data:
 
 ```
 <project>/.specboard/
-  config.md            name, created, references, milestones, closing_steps, commits, test_command (front matter) + notes
+  config.md            name, created, references, milestones, closing_steps, commits, specs_in_git, test_command (front matter) + notes
   settings.md          per-project settings (track_tokens)
-  overview.md          project summary written by /specboard:refresh-overview
+  overview.md          project summary written by /specboard:refresh-overview, ending with an optional `## Out of sync` section (core `Overview.outOfSync`)
   sync-proposal.md     pending sync plan (written by sync-specs --dry-run, read by the board)
   specs/<ID>-<slug>/
     spec.md            front matter + ## Spec, ## Features, ## Done when, ## Open questions, ## Subtasks, ## To review
@@ -162,7 +162,7 @@ The person runs `/specboard:<skill>` in their own Claude Code chat. Skills are p
 | `setup` | Set up a project: find existing plans, import or start fresh, preview the tree, open the board |
 | `plan-project`, `import-specs`, `structure`, `reorganize`, `sync-specs`, `correct-specs` | Create and reshape the set of specs and milestones |
 | `create-spec`, `update-spec`, `refresh-questions` | Write or change one spec (`refresh-questions` makes a minimal update after a board edit) |
-| `run-spec`, `next` | Work a spec's subtasks (one log per subtask), suggest what to do next |
+| `run-spec`, `next`, `fix-review` | Work a spec's subtasks (one log per subtask), suggest what to do next, fix the To review checks the person marked as failed |
 | `refresh-overview`, `refresh-logs` | Rewrite `overview.md`, fill in missing logs |
 
 Skills that a background run calls take a `--board` flag. It means "no one is in the chat: don't ask questions, write them into the file".
@@ -178,9 +178,10 @@ claude -p "<fixed prompt>" --output-format stream-json --verbose --permission-mo
 
 - **Isolated.** The empty `--setting-sources` drops the person's and the project's settings, hooks, MCP servers and CLAUDE.md. Only the approved allow/deny lists and the Spec Board plugin apply.
 - **Approval first.** Runs refuse to start until the person approves the lists for that project with `specboard init --runs yes`, which `/specboard:setup` runs. Approvals live in `~/.specboard/permissions.json` (`setup.ts` `ApprovedPermissions`), outside every project, so a spec can't tell Claude to widen its own rules.
-- **Fixed prompts.** `runPrompt(kind, specId)` builds prompts only from fixed strings and a validated spec ID. The kinds are `run`, `write-up`, `fix-file`, `refresh-overview`, `refresh-questions`, `sync-plan` and `sync-apply`.
+- **Fixed prompts.** `runPrompt(kind, specId)` builds prompts only from fixed strings and a validated spec ID. The kinds are `run`, `fix-review`, `write-up`, `fix-file`, `refresh-overview`, `refresh-questions`, `sync-plan` and `sync-apply`.
 - **One run per project.**
 - **Streaming.** `claude/events.ts` parses the stream-json output into run lines and sends them over the WebSocket. `claude/classify.ts` decides how a run ended (finished, needs you, permission denied, error). For a denial it suggests a safe allow rule, never for interpreters, git config, hooks and so on, nor anything that overlaps a deny rule.
+- **Instant feedback.** Every button that starts a run is a `StartButton` (`web/src/components/ui/start-button`): from the click until the start settles (the handler returns `startRun`'s promise) it shows a spinner and "Starting…" and is disabled. Then the running UI takes over, or the button comes back beside the refusal toast.
 - **Not installed or not approved.** The board shows a not-connected marker (`web/src/state/runUi.ts` `manualReason`), and every button that would start Claude (Run with Claude, Have Claude write this up, Overview Refresh) becomes a greyed `NotConnectedTrigger`: still focusable, it opens a popover with the reason and the chat command to copy.
 
 ### 3. Token counts

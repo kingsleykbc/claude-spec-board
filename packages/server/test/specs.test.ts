@@ -359,6 +359,38 @@ describe('review items and archive guard', () => {
     expect(await fs.readFile(file, 'utf8')).toBe(before);
   });
 
+  it('review route: failed sets the reason, null clears it, and done true (Pass) removes it', async () => {
+    const file = specFile('T-101');
+    await fs.writeFile(file, (await fs.readFile(file, 'utf8')).replace(/\s*$/, '\n') + REVIEW);
+    const before = await fs.readFile(file, 'utf8');
+    const s = await get('T-101');
+    const res = await send('PATCH', '/specs/T-101/reviews/1', { hash: s.hash, failed: 'Nothing\nhappens' });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { hash: string; spec: Spec };
+    expect(body.spec.reviews[0]).toMatchObject({ failed: 'Nothing happens', done: false, expected: 'It works.' });
+    expect(await fs.readFile(file, 'utf8')).toBe(before.replace('  > expected: It works.\n', '  > expected: It works.\n  > failed: Nothing happens\n'));
+    const cleared = (await (await send('PATCH', '/specs/T-101/reviews/1', { hash: body.hash, failed: null })).json()) as { hash: string; spec: Spec };
+    expect(cleared.spec.reviews[0]!.failed).toBeNull();
+    expect(await fs.readFile(file, 'utf8')).toBe(before);
+    const again = (await (await send('PATCH', '/specs/T-101/reviews/1', { hash: cleared.hash, failed: 'Broken' })).json()) as { hash: string };
+    const passed = (await (await send('PATCH', '/specs/T-101/reviews/1', { hash: again.hash, done: true })).json()) as { spec: Spec };
+    expect(passed.spec.reviews[0]).toMatchObject({ failed: null, done: true });
+  });
+
+  it('review route failed: 409 on a stale hash, 400 on an empty or bad reason or on both done and failed', async () => {
+    const file = specFile('T-101');
+    await fs.writeFile(file, (await fs.readFile(file, 'utf8')).replace(/\s*$/, '\n') + REVIEW);
+    const s = await get('T-101');
+    const before = await fs.readFile(file, 'utf8');
+    expect((await send('PATCH', '/specs/T-101/reviews/1', { hash: 'stale', failed: 'x' })).status).toBe(409);
+    expect((await send('PATCH', '/specs/T-101/reviews/1', { hash: s.hash, failed: '  \n ' })).status).toBe(400);
+    expect((await send('PATCH', '/specs/T-101/reviews/1', { hash: s.hash, failed: 3 })).status).toBe(400);
+    expect((await send('PATCH', '/specs/T-101/reviews/1', { hash: s.hash, failed: 'x', done: false })).status).toBe(400);
+    expect((await send('PATCH', '/specs/T-101/reviews/1', { hash: s.hash })).status).toBe(400);
+    expect((await send('PATCH', '/specs/T-101/reviews/9', { hash: s.hash, failed: 'x' })).status).toBe(400);
+    expect(await fs.readFile(file, 'utf8')).toBe(before);
+  });
+
   it('archives a to-do spec (any status)', async () => {
     const open = (await loadProject(proj)).specs.find((s) => s.status === 'todo')!;
     expect((await send('POST', `/specs/${open.id}/archive`)).status).toBe(204);

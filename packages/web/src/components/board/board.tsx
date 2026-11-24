@@ -44,7 +44,8 @@ export interface BoardProps {
   onOpen: (id: string) => void;
   onArchive: (spec: Spec) => void;
   onUnarchive: (spec: Spec) => void;
-  onWriteUp: (spec: Spec) => void;
+  /** May return a promise of the start: the card's button says Starting… until it settles. */
+  onWriteUp: (spec: Spec) => unknown;
   /** Why the board can't run Claude here (null when it can). */
   manual?: ManualReason | null;
   /** Claude's status has loaded; until then Have Claude write this up waits, in the neutral style. */

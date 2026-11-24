@@ -24,6 +24,19 @@ export const Ready: Story = {
   },
 };
 
+/** Just clicked: a spinner and Starting…, disabled, until the run has started (then Stop) or the start failed. */
+export const Starting: Story = {
+  args: { onRun: fn(() => new Promise<boolean>(() => undefined)) },
+  play: async ({ canvasElement, args }) => {
+    const c = within(canvasElement);
+    await userEvent.click(c.getByRole('button', { name: 'Run with Claude' }));
+    const btn = await c.findByRole('button', { name: 'Starting…' });
+    expect(btn).toHaveProperty('disabled', true);
+    await userEvent.click(btn);
+    expect(args.onRun).toHaveBeenCalledOnce();
+  },
+};
+
 /** Greyed, but not disabled: hover, focus or a click opens why Claude isn’t connected and the command to paste. */
 export const NotConnected: Story = {
   args: { manual: 'not-approved' },
@@ -104,6 +117,31 @@ export const HeldBack: Story = {
     const button = c.getByRole('button') as HTMLButtonElement;
     expect(button.disabled).toBe(true);
     await userEvent.click(button);
+    expect(args.onRun).not.toHaveBeenCalled();
+  },
+};
+
+/** A card in Review with a failed check: the orange Fix review issues replaces the held Run with Claude. */
+export const FixReview: Story = {
+  args: { fix: true, hold: 'In Review: check the work, then move the card to Done.' },
+  play: async ({ canvasElement, args }) => {
+    const c = within(canvasElement);
+    expect(c.queryByText('In Review: check the work, then move the card to Done.')).toBeNull();
+    const fix = c.getByRole('button', { name: 'Fix review issues' });
+    expect(fix.className).toMatch(/bg-accent/);
+    await userEvent.click(fix);
+    expect(args.onRun).toHaveBeenCalled();
+  },
+};
+
+/** Not connected: Fix review issues opens the notice with `/fix-review <ID>` to paste, and starts nothing. */
+export const FixReviewNotConnected: Story = {
+  args: { fix: true, manual: 'not-approved' },
+  play: async ({ canvasElement, args }) => {
+    stubClipboard(async () => undefined);
+    const fix = within(canvasElement).getByRole('button', { name: 'Fix review issues' }) as HTMLButtonElement;
+    await userEvent.click(fix);
+    expect(await within(document.body).findByText('/fix-review T-104')).toBeTruthy();
     expect(args.onRun).not.toHaveBeenCalled();
   },
 };

@@ -62,7 +62,7 @@ describe('parseLog', () => {
 describe('parseConfig', () => {
   it('missing references gives []; description is trimmed body', () => {
     const c = parseConfig('---\nname: Demo\n---\n\nA project.\n\n');
-    expect(c).toEqual({ name: 'Demo', created: null, references: [], milestones: [], closingSteps: [], commits: null, testCommand: null, description: 'A project.', problems: [] });
+    expect(c).toEqual({ name: 'Demo', created: null, references: [], milestones: [], closingSteps: [], commits: null, specsInGit: null, testCommand: null, description: 'A project.', problems: [] });
   });
 
   it('parses references', () => {
@@ -80,6 +80,21 @@ describe('parseConfig', () => {
     const c = parseConfig('---\nname: X\n---\n');
     expect(c.commits).toBeNull();
     expect(c.testCommand).toBeNull();
+  });
+
+  it('parses specs_in_git true and false; absent stays unset', () => {
+    expect(parseConfig('---\nname: X\nspecs_in_git: true\n---\n').specsInGit).toBe(true);
+    const off = parseConfig('---\nname: X\nspecs_in_git: false\n---\n');
+    expect(off.specsInGit).toBe(false);
+    expect(off.problems).toEqual([]);
+    expect(parseConfig('---\nname: X\n---\n').specsInGit).toBeNull();
+  });
+
+  it('an invalid specs_in_git is a problem and stays unset', () => {
+    const c = parseConfig('---\nname: X\nspecs_in_git: "no"\n---\n');
+    expect(c.specsInGit).toBeNull();
+    expect(c.problems).toHaveLength(1);
+    expect(c.problems[0]).toMatch(/specs_in_git/);
   });
 
   it('bad values are problems', () => {
@@ -103,18 +118,51 @@ describe('parseConfig', () => {
 
 describe('parseOverview', () => {
   it('empty input', () => {
-    expect(parseOverview('')).toEqual({ updated: null, summaryMd: '' });
+    expect(parseOverview('')).toEqual({ updated: null, summaryMd: '', outOfSync: null });
   });
 
   it('parses updated and body', () => {
     expect(parseOverview('---\nupdated: 2026-11-08T10:00:00Z\n---\n\nAll good.\n')).toEqual({
       updated: '2026-11-08T10:00:00Z',
       summaryMd: 'All good.',
+      outOfSync: null,
     });
   });
 
   it('bad yaml gives null updated and the body', () => {
-    expect(parseOverview('---\nupdated: [x\n---\nBody\n')).toEqual({ updated: null, summaryMd: 'Body' });
+    expect(parseOverview('---\nupdated: [x\n---\nBody\n')).toEqual({ updated: null, summaryMd: 'Body', outOfSync: null });
+  });
+
+  it('takes the ## Out of sync section out of the summary', () => {
+    const text = '---\nupdated: 2026-11-08T10:00:00Z\n---\n\nThe app is half built.\n\nNext comes search.\n\n## Out of sync\n\nTwo cards look further along in the code than on the board.\n';
+    expect(parseOverview(text)).toEqual({
+      updated: '2026-11-08T10:00:00Z',
+      summaryMd: 'The app is half built.\n\nNext comes search.',
+      outOfSync: 'Two cards look further along in the code than on the board.',
+    });
+  });
+
+  it('keeps other headings in the summary and stops the section at the next ## heading', () => {
+    const text = 'Intro.\n\n## Out of sync\nOne card looks done in the code.\nIt is still in To-do.\n\n## Notes\nMore.\n';
+    const o = parseOverview(text);
+    expect(o.outOfSync).toBe('One card looks done in the code.\nIt is still in To-do.');
+    expect(o.summaryMd).toBe('Intro.\n\n## Notes\nMore.');
+  });
+
+  it('an empty section, a ### heading or a heading inside a code block is not a warning', () => {
+    expect(parseOverview('Intro.\n\n## Out of sync\n\n').outOfSync).toBeNull();
+    expect(parseOverview('Intro.\n\n## Out of sync\n\n').summaryMd).toBe('Intro.');
+    expect(parseOverview('Intro.\n\n### Out of sync\nx\n').outOfSync).toBeNull();
+    const fenced = 'Intro.\n\n```\n## Out of sync\nx\n```\n';
+    expect(parseOverview(fenced)).toMatchObject({ outOfSync: null, summaryMd: fenced.trim() });
+  });
+
+  it('matches the heading whatever its case and trailing spaces', () => {
+    expect(parseOverview('Intro.\n## out of SYNC  \nOff.\n')).toMatchObject({ summaryMd: 'Intro.', outOfSync: 'Off.' });
+  });
+
+  it('handles Windows line endings', () => {
+    expect(parseOverview('Intro.\r\n\r\n## Out of sync\r\nOff.\r\n')).toMatchObject({ summaryMd: 'Intro.', outOfSync: 'Off.' });
   });
 });
 

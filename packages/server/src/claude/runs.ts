@@ -89,6 +89,7 @@ export function runPrompt(kind: RunKind, specId: string | null): string {
   if (specId === null || !SPEC_ID.test(specId)) throw new Error(`Invalid spec ID: ${String(specId)}`);
   switch (kind) {
     case 'run': return `/specboard:run-spec ${specId}`;
+    case 'fix-review': return `/specboard:fix-review ${specId} --board`;
     case 'write-up': return `/specboard:create-spec ${specId} --board`;
     case 'fix-file': return `/specboard:update-spec ${specId} Fix this file's formatting problems. Keep all content.`;
     case 'refresh-questions': return `/specboard:refresh-questions ${specId} --board`;
@@ -173,7 +174,7 @@ function deniedAction(end: EndInfo): string | undefined {
   return what.split(/\r?\n/)[0]!.trim().slice(0, 200);
 }
 
-const FINISHED_TEXT: Record<Exclude<RunKind, 'run'>, string> = {
+const FINISHED_TEXT: Record<Exclude<RunKind, 'run' | 'fix-review'>, string> = {
   'write-up': 'Spec written up',
   'fix-file': 'File fixed',
   'refresh-overview': 'Overview refreshed',
@@ -193,7 +194,7 @@ function finalLine(kind: RunKind, end: EndInfo, before: Spec | null, after: Spec
 function endLine(kind: RunKind, end: EndInfo, before: Spec | null, after: Spec | null): ParsedLine {
   switch (end.status) {
     case 'finished': {
-      if (kind !== 'run') return { k: 'done', text: FINISHED_TEXT[kind] };
+      if (kind !== 'run' && kind !== 'fix-review') return { k: 'done', text: FINISHED_TEXT[kind] };
       const commit = [...(after?.subtasks ?? [])].reverse().map((t) => after?.logs[t.n]?.commit).find(Boolean);
       const left = (after?.subtasks ?? []).filter((t) => !t.done && youStep(t.title) !== null).length;
       const toReview = (after?.reviews ?? []).filter((r) => !r.done).length;

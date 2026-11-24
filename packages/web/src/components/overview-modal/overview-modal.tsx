@@ -3,13 +3,14 @@ import type { Project } from '@specboard/core';
 import { exportOverview, overviewCounts } from '@/lib/exportOverview';
 import { formatTokens } from '@/lib/formatTokens';
 import { projectDescription } from '@/lib/projectDescription';
-import { CaretIcon, CaretRightIcon, ErrorIcon, ExportIcon, RefreshIcon } from '@/lib/icons';
+import { CaretIcon, CaretRightIcon, ErrorIcon, ExportIcon, RefreshIcon, WarnIcon } from '@/lib/icons';
 import { ORDER, relTime, ST } from '@/lib/vm';
 import { projectTokens } from '@/state/allLogs';
 import type { PushToast } from '@/state/toasts';
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/connection-banner/connection-banner';
 import { InlineMarkdown } from '@/components/ui/inline-markdown/inline-markdown';
+import { StartButton, type StartHandler } from '@/components/ui/start-button/start-button';
 import { Markdown } from '@/components/ui/markdown/markdown';
 import { Modal, ModalClose } from '@/components/ui/modal/modal';
 import { NotConnectedTrigger } from '@/components/not-connected/not-connected';
@@ -25,8 +26,13 @@ export interface OverviewModalProps {
   toast: PushToast;
   /** A refresh run is in flight. */
   refreshing?: boolean;
-  /** Start a refresh run; refusals and the outcome are toasts. */
-  onRefresh: () => void;
+  /** Start a refresh run; refusals and the outcome are toasts. It may return a promise of the start: Refresh says Starting… until it settles. */
+  onRefresh: StartHandler;
+  /**
+   * The out-of-sync box's Sync: the same handler as Sync with code in the header's menu (it handles the not-connected
+   * case itself). No box without it.
+   */
+  onSync?: StartHandler;
   /** Why the board can't run Claude here (null when it can). Refresh then greys and shows the command to paste. */
   manual?: ManualReason | null;
   /** Claude's status has loaded; until then Refresh is neutral and a click waits. */
@@ -57,7 +63,7 @@ function download(filename: string, text: string): void {
 }
 
 /** Project overview (pinned behaviour 17; prototype lines 295-319 and 748-751). */
-export function OverviewModal({ project, pid, name, toast, refreshing = false, onRefresh, manual = null, statusKnown = true, onOpenLogs, onClose, now, returnFocus }: OverviewModalProps) {
+export function OverviewModal({ project, pid, name, toast, refreshing = false, onRefresh, onSync, manual = null, statusKnown = true, onOpenLogs, onClose, now, returnFocus }: OverviewModalProps) {
   const c = overviewCounts(project);
   const description = projectDescription(project.config?.description ?? '');
   const [tasksOpen, setTasksOpen] = useState(false);
@@ -69,6 +75,7 @@ export function OverviewModal({ project, pid, name, toast, refreshing = false, o
   ];
   const tokens = project.settings.trackTokens ? projectTokens(project) : 0;
   const summary = project.overview?.summaryMd.trim() ?? '';
+  const outOfSync = project.overview?.outOfSync?.trim() || null;
   const rel = relTime(project.overview?.updated, now);
   const updated = refreshing ? 'Updating…' : rel ? `Last updated ${rel}` : '';
 
@@ -86,7 +93,8 @@ export function OverviewModal({ project, pid, name, toast, refreshing = false, o
           <span className="text-[11.5px] font-semibold tracking-[0.1em] text-fg3">OVERVIEW</span>
           <span className="flex-1" />
         </div>
-        <div className="flex items-start gap-7 px-7 pt-1 pb-[22px]">
+        {/* The right padding keeps the progress ring clear of the close button pinned top-right. */}
+        <div className="flex items-start gap-7 pt-1 pr-[60px] pb-[22px] pl-7">
           <div className="flex min-w-0 flex-1 flex-col gap-2.5">
             <h1 className="m-0 text-[34px] leading-[1.1] font-semibold tracking-[-0.025em]">{name}</h1>
             {description && (
@@ -135,7 +143,7 @@ export function OverviewModal({ project, pid, name, toast, refreshing = false, o
                 <RefreshIcon aria-hidden /> Refresh
               </NotConnectedTrigger>
             ) : (
-              <button type="button" className="flex h-[30px] cursor-pointer items-center gap-[7px] rounded-[7px] border border-line bg-card px-[11px] py-0 text-[12.5px] font-medium text-fg enabled:hover:border-line2 disabled:cursor-default" disabled={refreshing} aria-disabled={!statusKnown || undefined} onClick={statusKnown ? onRefresh : undefined}>
+              <StartButton className="flex h-[30px] cursor-pointer items-center gap-[7px] rounded-[7px] border border-line bg-card px-[11px] py-0 text-[12.5px] font-medium text-fg enabled:hover:border-line2 disabled:cursor-default" disabled={refreshing} aria-disabled={!statusKnown || undefined} onStart={statusKnown ? onRefresh : undefined}>
                 {refreshing && <Spinner />}
                 {refreshing ? (
                   'Refreshing'
@@ -144,7 +152,7 @@ export function OverviewModal({ project, pid, name, toast, refreshing = false, o
                     <RefreshIcon aria-hidden /> Refresh
                   </>
                 )}
-              </button>
+              </StartButton>
             )}
           </div>
           {refreshing ? (
@@ -171,18 +179,33 @@ export function OverviewModal({ project, pid, name, toast, refreshing = false, o
                   Refresh summary
                 </NotConnectedTrigger>
               ) : (
-                <button
-                  type="button"
+                <StartButton
                   className={cn(
-                    'h-8 cursor-pointer rounded-lg px-3.5 py-0 text-[13px] font-semibold',
+                    'inline-flex h-8 cursor-pointer items-center gap-[7px] rounded-lg px-3.5 py-0 text-[13px] font-semibold disabled:cursor-default',
                     statusKnown ? 'border-0 bg-accent text-accent-fg' : 'border border-line2 bg-card text-fg hover:border-fg3 hover:bg-raise',
                   )}
                   aria-disabled={!statusKnown || undefined}
-                  onClick={statusKnown ? onRefresh : undefined}
+                  onStart={statusKnown ? onRefresh : undefined}
                 >
                   Refresh summary
-                </button>
+                </StartButton>
               )}
+            </div>
+          )}
+          {!refreshing && outOfSync && onSync && (
+            // The board and the code disagree (refresh-overview's read-only check): the same Sync as the header's menu.
+            <div role="note" aria-label="Out of sync" className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[10px] border border-review bg-review-soft px-3.5 py-2.5 text-[13.5px] text-fg">
+              <WarnIcon aria-hidden className="flex-none text-[15px] text-review-ink" />
+              <span className="min-w-0 flex-[1_1_240px] leading-[1.5]">
+                <InlineMarkdown md={outOfSync} />
+              </span>
+              <StartButton
+                className="inline-flex h-[30px] flex-none cursor-pointer items-center gap-[7px] rounded-[7px] border border-line2 bg-card px-[11px] py-0 text-[12.5px] font-semibold text-fg enabled:hover:border-fg3 enabled:hover:bg-raise disabled:cursor-default"
+                aria-label="Sync"
+                onStart={onSync}
+              >
+                <RefreshIcon aria-hidden /> Sync
+              </StartButton>
             </div>
           )}
         </div>

@@ -1,7 +1,7 @@
 import type { DragEvent, HTMLAttributes, KeyboardEvent, MouseEvent, PointerEvent, ReactNode } from 'react';
 import type { Spec } from '@specboard/core';
 import { MoreIcon, NeededByIcon, NeedsIcon, ReviewIcon, WarnIcon } from '@/lib/icons';
-import { blockedReasons, canWriteUp, firstParagraph, isBlocked, needBlocks, statusMeta } from '@/lib/vm';
+import { blockedReasons, canWriteUp, failedReviews, firstParagraph, isBlocked, needBlocks, statusMeta } from '@/lib/vm';
 import { cn } from '@/lib/utils';
 import { useSimple } from '@/state/simpleMode';
 import { CategoryTag } from '@/components/ui/category-tag/category-tag';
@@ -13,6 +13,7 @@ import type { ManualReason } from '@/state/runUi';
 import { InfoPopover } from '@/components/ui/info-popover/info-popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip/tooltip';
 import { ResponsiveMenu, ResponsiveMenuItem, ResponsiveMenuSeparator } from '@/components/ui/responsive-menu/responsive-menu';
+import type { StartHandler } from '@/components/ui/start-button/start-button';
 
 export interface SpecCardProps {
   spec: Spec;
@@ -34,7 +35,8 @@ export interface SpecCardProps {
   onOpen: () => void;
   onArchive: () => void;
   onUnarchive: () => void;
-  onWriteUp: () => void;
+  /** May return a promise of the start: the button says Starting… until it settles. */
+  onWriteUp: StartHandler;
   /** Why the board can't run Claude here (null when it can): Have Claude write this up then shows the command to paste. */
   manual?: ManualReason | null;
   /** Claude's status has loaded; until then Have Claude write this up waits, in the neutral style. */
@@ -159,8 +161,11 @@ export function SpecCard({
   const reasons = blockedReasons(spec).join(' · ');
   const isRunning = running !== null && running !== undefined;
   const fileProblem = spec.problems[0];
+  /** To review checks the person marked as failed (Fix review issues hands them to Claude). */
+  const failed = failedReviews(spec);
+  const failedText = `${failed} failed`;
   /** Simple mode hides these, so the ⋯ button carries a dot to say something needs a look. */
-  const attention = blocked || fileProblem !== undefined;
+  const attention = blocked || fileProblem !== undefined || failed > 0;
   const menuLabel = simple ? `More about ${spec.id}` : 'Card actions';
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -237,6 +242,11 @@ export function SpecCard({
             {fileProblem}
           </CardInfo>
         )}
+        {!simple && failed > 0 && (
+          <span className={cn(badge, 'bg-block-soft text-block-ink')} title={failed === 1 ? '1 To review check failed' : `${failed} To review checks failed`} data-testid="card-failed">
+            {failedText}
+          </span>
+        )}
         {!simple && blocked && (
           <CardInfo
             label={`Why is ${spec.id} blocked?`}
@@ -281,6 +291,11 @@ export function SpecCard({
                   {fileProblem !== undefined && (
                     <Detail label="File problem" ink="text-review-ink">
                       {fileProblem}
+                    </Detail>
+                  )}
+                  {failed > 0 && (
+                    <Detail label="To review" ink="text-block-ink">
+                      {failedText}
                     </Detail>
                   )}
                   {spec.status === 'review' && <Detail label="Status">Waiting on your review</Detail>}

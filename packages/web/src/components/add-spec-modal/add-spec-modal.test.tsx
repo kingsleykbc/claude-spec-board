@@ -67,6 +67,18 @@ describe('AddSpecModal', () => {
     expect(p.onClose).toHaveBeenCalled();
   });
 
+  it('Add & have Claude write it up says Starting…, disabled, while it adds the spec and starts the write-up', async () => {
+    let created!: (v: unknown) => void;
+    const p = setup({ createSpec: vi.fn(() => new Promise((r) => (created = r))) });
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Nutrition info' } });
+    fireEvent.click(writeBtn());
+    const btn = screen.getByRole('button', { name: 'Starting…' });
+    expect(btn).toHaveProperty('disabled', true);
+    expect(draftBtn().disabled).toBe(true);
+    await act(async () => created({ spec: p.created }));
+    await waitFor(() => expect(p.onWriteUp).toHaveBeenCalledWith(p.created));
+  });
+
   it('a failed create keeps the modal open with an err toast', async () => {
     const p = setup({ createSpec: vi.fn(async () => Promise.reject(new ApiError(500, 'Disk full'))) });
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'X' } });

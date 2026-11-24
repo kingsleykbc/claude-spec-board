@@ -1,7 +1,10 @@
 import { firstOpenYouStep, type SpecDoc } from '@specboard/core';
 import type { ClaudeResult, Denial } from './events.js';
 
-export type RunKind = 'run' | 'write-up' | 'fix-file' | 'refresh-overview' | 'refresh-questions' | 'sync-plan' | 'sync-apply';
+export type RunKind = 'run' | 'fix-review' | 'write-up' | 'fix-file' | 'refresh-overview' | 'refresh-questions' | 'sync-plan' | 'sync-apply';
+
+/** Runs that work through a spec's subtasks and end in Review: Run with Claude, and Fix review issues. */
+export const isSpecRun = (kind: RunKind): boolean => kind === 'run' || kind === 'fix-review';
 export type RunStatus = 'running' | 'finished' | 'stopped' | 'needs' | 'permission' | 'error';
 export interface RunTokens { total: number; input: number; output: number; cacheRead: number; cacheWrite: number }
 export interface EndInfo { status: RunStatus; title?: string; text?: string; fix?: string; denied?: Denial[]; waiting?: string; tokens?: RunTokens }
@@ -279,10 +282,10 @@ export function classifyEnd(input: ClassifyInput): EndInfo {
   }, result.denials);
 
   // The skill adds no question for a refusal, so a new question is a real decision: it comes before any refusal.
-  if (kind === 'run' && open.some((q) => !wasOpen.has(q.id))) return needs();
+  if (isSpecRun(kind) && open.some((q) => !wasOpen.has(q.id))) return needs();
   if (result.denials.length > 0 && !afterInReview) return permissionEnd(result.denials, input.denyRules ?? []);
 
-  if (kind !== 'run') return withRefusals({ status: 'finished' }, result.denials);
+  if (!isSpecRun(kind)) return withRefusals({ status: 'finished' }, result.denials);
 
   if (open.length > 0 && !afterInReview) return needs();
   if (afterInReview) return withRefusals({ status: 'finished' }, result.denials);

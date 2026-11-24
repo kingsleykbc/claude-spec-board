@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Spec } from '@specboard/core';
 import { recipeSpec, recipeSpecs } from '../fixtures/recipeBox';
 import { ReviewIcon, TodoIcon } from './icons';
-import { blockedReasons, blockTexts, canWriteUp, catColor, firstParagraph, fmtLogTime, isBlocked, needBlocks, relPath, relTime, runHold, statusMeta, tokensUsed, truncate, urgVm } from './vm';
+import { blockedReasons, blockTexts, canFixReview, canWriteUp, failedReviews, catColor, firstParagraph, fmtLogTime, isBlocked, needBlocks, relPath, relTime, runHold, statusMeta, tokensUsed, truncate, urgVm } from './vm';
 
 // The prototype's hue(), copied as-is, to pin catColor to it.
 const hue = (n: string) => {
@@ -173,3 +173,20 @@ describe('tokensUsed', () => {
   });
 });
 
+
+describe('failed review checks', () => {
+  const rv = (n: number, failed: string | null, done = false) => ({ n, text: `Check ${n}`, expected: null, steps: [], failed, fixed: [], group: null, done, line: n });
+  const spec = (over: Partial<Spec>): Spec => ({ ...recipeSpec('T-103'), status: 'review', ...over });
+
+  it('counts the items with a failed reason', () => {
+    expect(failedReviews(spec({ reviews: [rv(1, 'Broken'), rv(2, null), rv(3, 'Wrong')] }))).toBe(2);
+    expect(failedReviews(spec({}))).toBe(0);
+  });
+  it('Fix review issues is offered only on a card in Review with a failed check, and not when archived', () => {
+    const failed = { reviews: [rv(1, 'Broken')] };
+    expect(canFixReview(spec(failed))).toBe(true);
+    expect(canFixReview(spec({}))).toBe(false);
+    expect(canFixReview(spec({ ...failed, status: 'doing' }))).toBe(false);
+    expect(canFixReview(spec({ ...failed, archived: true }))).toBe(false);
+  });
+});

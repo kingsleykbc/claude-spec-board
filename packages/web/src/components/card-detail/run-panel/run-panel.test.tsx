@@ -79,6 +79,21 @@ describe('RunPanel', () => {
     expect(p.queryByRole('button', { name: 'Go to question' })).toBeNull();
   });
 
+  it('Run again says Starting…, disabled, until its start settles', async () => {
+    let settle!: (ok: boolean) => void;
+    const onAction = vi.fn(() => new Promise<boolean>((r) => (settle = r)));
+    render(<Running status="error" lines={RUN_LINES} onDismiss={vi.fn()} onAction={onAction} />);
+    const panel = screen.getByRole('complementary', { name: 'Run output' });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Run again' }));
+    const btn = within(panel).getByRole('button', { name: 'Starting…' });
+    expect(btn).toHaveProperty('disabled', true);
+    fireEvent.click(btn);
+    expect(onAction).toHaveBeenCalledOnce();
+    expect(onAction).toHaveBeenCalledWith('rerun');
+    await act(async () => settle(false));
+    expect(within(panel).getByRole('button', { name: 'Run again' })).toHaveProperty('disabled', false);
+  });
+
   it('needs and error actions call onAction', () => {
     const { panel, onAction } = setup('needs');
     fireEvent.click(within(panel).getByRole('button', { name: 'Go to question' }));

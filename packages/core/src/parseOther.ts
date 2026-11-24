@@ -16,9 +16,15 @@ export interface SubtaskLog {
   entries: LogEntry[];
   problems: string[];
 }
-export interface ProjectConfig { name: string; created: string | null; references: string[]; milestones: string[]; closingSteps: string[]; commits: boolean | null; testCommand: string | null; description: string; problems: string[] }
+export interface ProjectConfig { name: string; created: string | null; references: string[]; milestones: string[]; closingSteps: string[]; commits: boolean | null; specsInGit: boolean | null; testCommand: string | null; description: string; problems: string[] }
 export interface ProjectSettings { trackTokens: boolean; problems: string[] }
-export interface Overview { updated: string | null; summaryMd: string }
+export interface Overview {
+  updated: string | null;
+  /** The summary, without the `## Out of sync` section. */
+  summaryMd: string;
+  /** The text of the `## Out of sync` section: the board and the code disagree. Null when there is none. */
+  outOfSync: string | null;
+}
 
 /** Parse YAML into a mapping. Never throws; returns null data plus problems when unusable. */
 export function parseMapping(yaml: string | null): { data: Record<string, unknown> | null; problems: string[]; doc?: Document } {
@@ -104,7 +110,7 @@ export function parseLog(text: string): SubtaskLog {
 export function parseConfig(text: string): ProjectConfig {
   const { yaml, body } = splitFrontMatter(text);
   const { data, problems } = parseMapping(yaml);
-  const config: ProjectConfig = { name: '', created: null, references: [], milestones: [], closingSteps: [], commits: null, testCommand: null, description: body.trim(), problems };
+  const config: ProjectConfig = { name: '', created: null, references: [], milestones: [], closingSteps: [], commits: null, specsInGit: null, testCommand: null, description: body.trim(), problems };
   if (!data) return config;
   config.name = optionalString(data.name) ?? '';
   config.created = optionalString(data.created);
@@ -114,17 +120,54 @@ export function parseConfig(text: string): ProjectConfig {
   const commits = data.commits;
   if (typeof commits === 'boolean') config.commits = commits;
   else if (commits !== undefined && commits !== null) problems.push(`Invalid commits "${String(commits)}"`);
+  const specsInGit = data.specs_in_git;
+  if (typeof specsInGit === 'boolean') config.specsInGit = specsInGit;
+  else if (specsInGit !== undefined && specsInGit !== null) problems.push(`Invalid specs_in_git "${String(specsInGit)}"`);
   const testCommand = data.test_command;
   if (typeof testCommand === 'string' && testCommand.trim() !== '') config.testCommand = testCommand;
   else if (testCommand !== undefined && testCommand !== null) problems.push(`Invalid test_command "${String(testCommand)}"`);
   return config;
 }
 
-/** Parse .specboard/overview.md. Never throws; bad YAML yields updated: null. */
+const OUT_OF_SYNC = /^##[ \t]+out of sync[ \t]*$/i;
+const H2 = /^##[ \t]/;
+const FENCE = /^[ \t]{0,3}(```|~~~)/;
+
+/**
+ * Splits the `## Out of sync` section (refresh-overview's warning that the board and the code disagree) out of the
+ * overview body: from its heading to the next `## ` heading or the end. Headings inside code blocks don't count.
+ */
+function splitOutOfSync(body: string): { summaryMd: string; outOfSync: string | null } {
+  const lines = body.split(/\r?\n/);
+  let fence: string | null = null;
+  let start = -1;
+  let end = lines.length;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    const f = FENCE.exec(line);
+    if (f) {
+      if (fence === null) fence = f[1]!;
+      else if (f[1] === fence) fence = null;
+      continue;
+    }
+    if (fence !== null) continue;
+    if (start === -1 && OUT_OF_SYNC.test(line)) start = i;
+    else if (start !== -1 && H2.test(line)) {
+      end = i;
+      break;
+    }
+  }
+  if (start === -1) return { summaryMd: body.trim(), outOfSync: null };
+  const section = lines.slice(start + 1, end).join('\n').trim();
+  const rest = [...lines.slice(0, start), ...lines.slice(end)].join('\n').trim();
+  return { summaryMd: rest.replace(/\n{3,}/g, '\n\n'), outOfSync: section === '' ? null : section };
+}
+
+/** Parse .specboard/overview.md. Never throws; bad YAML yields updated: null. `summaryMd` leaves out `## Out of sync`. */
 export function parseOverview(text: string): Overview {
   const { yaml, body } = splitFrontMatter(text);
   const { data } = parseMapping(yaml);
-  return { updated: data ? optionalString(data.updated) : null, summaryMd: body.trim() };
+  return { updated: data ? optionalString(data.updated) : null, ...splitOutOfSync(body) };
 }
 
 /** Parse .specboard/settings.md. Never throws; `trackTokens` defaults to true. */

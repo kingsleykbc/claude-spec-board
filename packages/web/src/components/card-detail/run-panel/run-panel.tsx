@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { LINE } from '@/lib/vm';
 import { FileLink } from '@/state/fileLinks';
 import { Spinner } from '@/components/connection-banner/connection-banner';
+import { StartButton } from '@/components/ui/start-button/start-button';
 import { sectionLabel } from '../section';
 
 // The RUN OUTPUT aside (prototype lines 270-291, END and CHIP at lines 683-691). Purely
@@ -27,7 +28,8 @@ export interface RunPanelProps {
   /** The project's folder, for the command shown under a rule. */
   projectRoot?: string;
   onDismiss: () => void;
-  onAction: (action: RunAction) => void;
+  /** An end card button. Run again may return a promise of the start: it says Starting… until it settles. */
+  onAction: (action: RunAction) => unknown;
 }
 
 export const BACKGROUND_LINE = "Running in the background as a separate Claude session. It won't show in your terminal chat; follow it here.";
@@ -267,6 +269,11 @@ export function RunPanel({ kind = 'run', status, lines, end: server, projectRoot
                   </span>
                 )}
               </>
+            ) : end.action.kind === 'rerun' ? (
+              // Run again starts Claude: Starting… until the new run takes the panel over.
+              <StartButton className={cn(endBtn, 'disabled:cursor-default disabled:hover:bg-card')} onStart={() => onAction('rerun')}>
+                {end.action.label}
+              </StartButton>
             ) : (
               <button type="button" className={endBtn} onClick={() => onAction(end.action!.kind)}>
                 {end.action.label}

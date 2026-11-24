@@ -37,7 +37,7 @@ export type SyncProposal =
   | { exists: true; head: string | null; changes: number | null; created: string | null; scope: string | null; bodyMd: string; problems: string[] };
 
 // Run wire types, duplicated from packages/server/src/claude/ (runs.ts, classify.ts, events.ts, status.ts).
-export type RunKind = 'run' | 'write-up' | 'fix-file' | 'refresh-overview' | 'refresh-questions' | 'sync-plan' | 'sync-apply';
+export type RunKind = 'run' | 'fix-review' | 'write-up' | 'fix-file' | 'refresh-overview' | 'refresh-questions' | 'sync-plan' | 'sync-apply';
 export type RunStatus = 'running' | 'finished' | 'stopped' | 'needs' | 'permission' | 'error';
 export type RunLineKind = 'start' | 'read' | 'edit' | 'cmd' | 'ok' | 'done' | 'stop' | 'warn' | 'err';
 /** A run's output line as the server sends it: `seq` counts from 1 within a run. */
@@ -177,6 +177,9 @@ export const api = {
     request<SpecWrite>('PATCH', `${spec(pid, id)}/subtasks/${n}`, { hash, done }),
   setReview: (pid: string, id: string, n: number, hash: string, done: boolean) =>
     request<SpecWrite>('PATCH', `${spec(pid, id)}/reviews/${n}`, { hash, done }),
+  /** Fail a To review item with a reason (one line on disk), or clear its failed reason (null). */
+  setReviewFailed: (pid: string, id: string, n: number, hash: string, failed: string | null) =>
+    request<SpecWrite>('PATCH', `${spec(pid, id)}/reviews/${n}`, { hash, failed }),
   setAnswers: (pid: string, id: string, hash: string, answers: Record<string, string>) =>
     request<SpecWrite>('PATCH', `${spec(pid, id)}/answers`, { hash, answers }),
   /** `bodyHash` is `spec.bodyHash` from when editing began: the server 409s if the body changed since. */

@@ -1,10 +1,11 @@
 import { docsPath } from '@/lib/docsPages';
-import { CheckIcon, CopyIcon, HelpIcon, PlayIcon } from '@/lib/icons';
+import { CheckIcon, CopyIcon, FixIcon, HelpIcon, PlayIcon } from '@/lib/icons';
 import { Hint } from '@/components/ui/hint/hint';
 import { NotConnectedTrigger } from '@/components/not-connected/not-connected';
 import { COPIED_MS, COPY_FAILED_MS, useCopyCommand } from '@/lib/useCopyCommand';
 import type { ManualReason } from '@/state/runUi';
 import { cn } from '@/lib/utils';
+import { StartButton, type StartHandler } from '@/components/ui/start-button/start-button';
 
 export type RunState = 'ready' | 'running' | 'disabled' | 'fallback';
 
@@ -13,6 +14,11 @@ export interface RunButtonProps {
   state: RunState;
   /** The spec Claude is working on, for the disabled note; null while it refreshes the overview. */
   runningId?: string | null;
+  /**
+   * The card is in Review with a failed check: the primary button is Fix review issues (`/fix-review <ID>`) instead of
+   * the held Run with Claude, and Copy run command copies that command.
+   */
+  fix?: boolean;
   /** Why this spec shouldn't start yet (blocked or a draft), so no usage is spent finding out. */
   hold?: string | null;
   /** In the fallback: what a registered project has to do with it, since "not found" would mislead. */
@@ -23,7 +29,8 @@ export interface RunButtonProps {
   manual: ManualReason | null;
   /** Claude's status and the project's approval have loaded; until then Run with Claude waits. */
   statusKnown: boolean;
-  onRun: () => void;
+  /** Starts the run (or the fix run). It may return a promise of the start: the button says Starting… until it settles. */
+  onRun: StartHandler;
   onStop: () => void;
 }
 
@@ -32,6 +39,8 @@ export { COPIED_MS, COPY_FAILED_MS };
 export const CHAT_TITLE = 'Copies the command to paste into a Claude chat open in this project. You see all the work in that chat, and this card follows along. It uses your normal Claude settings and approvals.';
 export const BACKGROUND_TITLE =
   'Starts a separate Claude with its output on this card. It can’t ask you anything, ignores the project’s and your Claude settings, and can only do what you approved. Best for a repo you don’t fully trust. Uses background runs when this project is connected.';
+export const FIX_TITLE =
+  'Starts a separate Claude that fixes the checks you marked as failed, with its output on this card. It adds a subtask for each, then moves the card back to Review for you to check again.';
 const HELP = 'Chat or background: which to use';
 
 const button = 'flex h-[34px] items-center gap-2 rounded-lg py-0 pr-3.5 pl-3 text-[13px] font-semibold whitespace-nowrap';
@@ -41,7 +50,7 @@ export const secondaryButton = cn(
   'cursor-pointer border border-line2 bg-card text-fg hover:border-fg3 hover:bg-raise data-[copied=true]:border-done data-[copied=true]:text-done-ink',
 );
 /** Run with Claude: the card's one filled button. */
-const primaryButton = cn(button, 'cursor-pointer border-0 bg-accent text-accent-fg hover:bg-accent-hover');
+const primaryButton = cn(button, 'cursor-pointer border-0 bg-accent text-accent-fg hover:bg-accent-hover disabled:cursor-default disabled:hover:bg-accent');
 /** The same button while nothing can start. */
 export const offButton = cn(button, 'cursor-not-allowed border-0 bg-panel text-fg3');
 /** A one-line note beside the buttons (cut with … when it doesn't fit, except on phones). */
@@ -53,8 +62,9 @@ const note = 'min-w-0 flex-[0_1_auto] overflow-hidden text-[12px] text-ellipsis 
  * Copy run command stays beside it for a Claude chat (the board can't type into one).
  * docs/guide/running-specs.md says when to use which.
  */
-export function RunButton({ id, state, runningId, hold, blockedNote, busyNote, manual, statusKnown, onRun, onStop }: RunButtonProps) {
-  const command = `/run-spec ${id}`;
+export function RunButton({ id, state, fix = false, runningId, hold, blockedNote, busyNote, manual, statusKnown, onRun, onStop }: RunButtonProps) {
+  const command = fix ? `/fix-review ${id}` : `/run-spec ${id}`;
+  const name = fix ? 'Fix review issues' : 'Run with Claude';
   const { state: copy, copy: doCopy } = useCopyCommand(command);
 
   if (state === 'running') {
@@ -85,26 +95,26 @@ export function RunButton({ id, state, runningId, hold, blockedNote, busyNote, m
   );
   const runLabel = (
     <>
-      <PlayIcon aria-hidden className="text-[12px]" />
-      Run with Claude
+      {fix ? <FixIcon aria-hidden className="text-[12px]" /> : <PlayIcon aria-hidden className="text-[12px]" />}
+      {name}
     </>
   );
   // Not connected: the same button explains why instead of starting. Status not loaded yet: it waits, so nothing is
   // started or explained wrongly.
   const runWithClaude =
     manual && statusKnown ? (
-      <NotConnectedTrigger label="Run with Claude" reason={manual} command={command}>
+      <NotConnectedTrigger label={name} reason={manual} command={command}>
         {runLabel}
       </NotConnectedTrigger>
     ) : statusKnown ? (
-      <Hint label={BACKGROUND_TITLE}>
-        <button type="button" className={primaryButton} aria-label="Run with Claude" onClick={onRun}>
+      <Hint label={fix ? FIX_TITLE : BACKGROUND_TITLE}>
+        <StartButton className={primaryButton} aria-label={name} onStart={onRun}>
           {runLabel}
-        </button>
+        </StartButton>
       </Hint>
     ) : (
       // Status not loaded: the neutral secondary style (no accent flash), nothing opens on hover, a click waits.
-      <button type="button" className={secondaryButton} aria-label="Run with Claude" aria-disabled>
+      <button type="button" className={secondaryButton} aria-label={name} aria-disabled>
         {runLabel}
       </button>
     );
@@ -125,7 +135,8 @@ export function RunButton({ id, state, runningId, hold, blockedNote, busyNote, m
   );
 
   // Another run is going, or the spec can't start: neither way should begin.
-  const off = state === 'disabled' ? (busyNote ?? `Claude is already working on ${runningId ?? 'the overview'}`) : state === 'ready' ? hold : null;
+  // Fix review issues replaces the Review hold, so a hold never applies to it.
+  const off = state === 'disabled' ? (busyNote ?? `Claude is already working on ${runningId ?? 'the overview'}`) : state === 'ready' && !fix ? hold : null;
   if (off) {
     // A disabled button gets no hover, so the reason stays a native title here.
     return (

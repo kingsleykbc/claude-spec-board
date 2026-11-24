@@ -44,3 +44,15 @@ export const Filled: Story = {
     });
   },
 };
+
+/** Add & have Claude write it up just clicked: Starting…, disabled, while the spec is added and the write-up starts. */
+export const WriteUpStarting: Story = {
+  args: { client: { createSpec: fn(() => new Promise<never>(() => undefined)) } },
+  play: async ({ canvasElement }) => {
+    const dlg = within(canvasElement).getByRole('dialog', { name: 'New spec' });
+    await userEvent.type(within(dlg).getByLabelText('Title'), 'Nutrition info per serving');
+    await userEvent.click(within(dlg).getByRole('button', { name: /Add & have Claude write it up/ }));
+    expect(await within(dlg).findByRole('button', { name: 'Starting…' })).toHaveProperty('disabled', true);
+    expect(within(dlg).getByRole('button', { name: 'Add as draft' })).toHaveProperty('disabled', true);
+  },
+};

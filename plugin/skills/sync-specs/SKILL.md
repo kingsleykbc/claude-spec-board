@@ -34,7 +34,7 @@ Without a git repo, the evidence is the code only.
 Sync never deletes a spec file or a log, never deletes or rewrites a log entry, and never changes `created`.
 - A tick is like any tick: in the subtask's log write `done_at:` (now) and a dated entry `Ticked by sync: <evidence>`, creating the log in the log format if it is missing.
 - When sync unticks a subtask, archives a spec, or finds a log whose work no longer exists, it marks that log obsolete: add `obsolete: "<YYYY-MM-DD>: <short reason>"` to the log's front matter and a dated entry `Marked obsolete by sync: <reason>`.
-- Sync never ticks, unticks or drops `## To review` items: they are the person's, and open ones never hold a card back from Review.
+- Sync never ticks, unticks or drops `## To review` items: they are the person's, and open ones never hold a card back from Review. Keep every `> failed:` and `> fixed:` line as it is.
 - Sync does not move spec folders itself. After a board apply, the board archives every spec named on an `Archive <ID>` line. In a chat, Claude runs `specboard archive <ID>` for those lines (see "In a chat").
 
 ## The proposal
@@ -81,9 +81,10 @@ Without a git repo, write `head: "none"`. Leave out `scope:` for a whole-project
 2. If `head` is `none` or missing, skip the head check. Otherwise run `git log -1 --format=%h`; if it differs from `head`, change nothing (not even the proposal) and stop with: "The code changed since the proposal. Run Sync again."
 3. If the proposal's `scope` differs from the ID you were given (one present and not the other, or two different IDs), change nothing (not even the proposal) and stop with: "This proposal is for a different scope. Run Sync again."
 4. Apply exactly the listed operations, in order, with small Edit calls (Write for a new draft or log). Check each operation against the file as it is now: when it no longer fits (the subtask is already ticked, or the spec is already in that column), skip it and report it. Do nothing else. Set `updated` to today on every spec you change. A new draft has front matter and a short `## Spec`, like any draft. For an `Archive <ID>` line, change only that spec's logs as above: the board archives the spec.
-5. Last, only once every operation is applied: add the line `applied: true` to the proposal's front matter with one Edit. The board archives the listed specs and reports the sync done only when it finds that line; it deletes the file when the run ends. Change nothing else in the proposal.
-6. Finish with a short list of what changed.
+5. For a project-wide sync (no `scope`), remove the `## Out of sync` section from `.specboard/overview.md`, if it has one: the heading and its text, up to the next `## ` heading or the end. Change nothing else in the overview. This way the board's out-of-sync warning doesn't outlive the fix. A sync of one spec leaves the overview alone.
+6. Last, only once every operation is applied: add the line `applied: true` to the proposal's front matter with one Edit. The board archives the listed specs and reports the sync done only when it finds that line; it deletes the file when the run ends. Change nothing else in the proposal.
+7. Finish with a short list of what changed.
 
 ## In a chat
 
-Show the summary and the tree, and ask for an OK or changes. On the OK, apply the operations as in `--board --apply` step 4. There is no proposal file and no head check. Then, last, run `specboard archive <ID> "<project folder>"` for each `Archive <ID>` line (see Archiving in the rules). If that fails for any reason, tell the person to use Archive in the card's ⋯ menu. Finish with what changed, the specs archived, and any the person still needs to archive on the board.
+Show the summary and the tree, and ask for an OK or changes. On the OK, apply the operations as in `--board --apply` step 4. There is no proposal file and no head check. After a project-wide sync, remove the `## Out of sync` section from `.specboard/overview.md` as in `--board --apply` step 5. Then, last, run `specboard archive <ID> "<project folder>"` for each `Archive <ID>` line (see Archiving in the rules). If that fails for any reason, tell the person to use Archive in the card's ⋯ menu. Finish with what changed, the specs archived, and any the person still needs to archive on the board.

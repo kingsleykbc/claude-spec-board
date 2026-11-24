@@ -128,6 +128,13 @@ describe('classifyEnd', () => {
     expect(end({ after: null }).status).toBe('error');
   });
 
+  it('a fix-review run ends like a run: a new question needs, Review finishes, stopping short is an error', () => {
+    const kind = 'fix-review' as const;
+    expect(end({ kind, before: spec(), after: spec({ open: ['Q1'] }) }).status).toBe('needs');
+    expect(end({ kind }).status).toBe('finished');
+    expect(end({ kind, after: spec({ done: [true, false] }) })).toMatchObject({ status: 'error', title: 'Claude stopped before finishing' });
+  });
+
   it('finishes other kinds with no error or denial, even with new questions (R1)', () => {
     for (const kind of ['write-up', 'fix-file', 'refresh-overview'] as const) {
       expect(end({ kind, before: null, after: spec({ open: ['Q1'] }) }).status).toBe('finished');

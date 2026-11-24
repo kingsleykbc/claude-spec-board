@@ -171,12 +171,14 @@ describe('runPrompt', () => {
     expect(runPrompt('fix-file', 'T-001')).toBe("/specboard:update-spec T-001 Fix this file's formatting problems. Keep all content.");
     expect(runPrompt('refresh-overview', null)).toBe('/specboard:refresh-overview');
     expect(runPrompt('refresh-questions', 'T-001')).toBe('/specboard:refresh-questions T-001 --board');
+    expect(runPrompt('fix-review', 'T-001')).toBe('/specboard:fix-review T-001 --board');
   });
 
   it('refuses a bad ID, a missing one, and an ID where none belongs', () => {
     for (const id of ['T-1', 'T-001 && rm', 'T-001\n', 'x', '', null]) expect(() => runPrompt('run', id)).toThrow(/spec ID/i);
     expect(() => runPrompt('refresh-overview', 'T-001')).toThrow(/spec ID/i);
     for (const id of ['T-1', 'T-001 --x', null]) expect(() => runPrompt('refresh-questions', id)).toThrow(/spec ID/i);
+    for (const id of ['T-1', 'T-001 --x', null]) expect(() => runPrompt('fix-review', id)).toThrow(/spec ID/i);
   });
 });
 

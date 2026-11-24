@@ -15,7 +15,7 @@ const { ReadMode, WorkingInChat, ObsoleteLog, Simple, NarrowStatus, DraftInDone 
 
 const ROOT = 'examples/recipe-box';
 
-function setup(id: string, over: Partial<DetailClient> = {}, specs: Spec[] = [...recipeSpecs, fileProblemSpec], extra: Pick<CardDetailProps, 'canAutoRun' | 'startRun' | 'refreshing'> = {}) {
+function setup(id: string, over: Partial<DetailClient> = {}, specs: Spec[] = [...recipeSpecs, fileProblemSpec], extra: Pick<CardDetailProps, 'canAutoRun' | 'startRun' | 'refreshing' | 'onFixReview' | 'manual'> = {}) {
   const client = {
     setMeta: vi.fn(async (_pid: string, sid: string) => ({ hash: 'h2', spec: recipeSpec(sid) })),
     setBody: vi.fn(async (_pid: string, sid: string) => ({ hash: 'h2', spec: recipeSpec(sid) })),
@@ -320,6 +320,35 @@ describe('CardDetail', () => {
     expect(copy.disabled).toBe(true);
     fireEvent.click(copy);
     expect(onRun).not.toHaveBeenCalled();
+  });
+
+  it('a Review card with a failed check: the orange Fix review issues replaces the held Run and asks for a fix', () => {
+    const onFixReview = vi.fn();
+    const failed = recipeSpecs.map((s) => (s.id === 'T-103' ? { ...s, reviews: s.reviews.map((r, i) => (i === 1 ? { ...r, failed: 'Empty list' } : r)) } : s));
+    const { onRun } = setup('T-103', {}, failed, { onFixReview });
+    expect(screen.queryByText('In Review: check the work, then move the card to Done.')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Run with Claude/ })).toBeNull();
+    const fix = screen.getByRole('button', { name: 'Fix review issues' });
+    expect(fix.className).toMatch(/bg-accent/);
+    fireEvent.click(fix);
+    expect(onFixReview).toHaveBeenCalledOnce();
+    expect(onRun).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Copy run command' })).toBeTruthy();
+  });
+
+  it('not connected: Fix review issues shows the notice with /fix-review <ID>', async () => {
+    const onFixReview = vi.fn();
+    const failed = recipeSpecs.map((s) => (s.id === 'T-103' ? { ...s, reviews: s.reviews.map((r, i) => (i === 1 ? { ...r, failed: 'Empty list' } : r)) } : s));
+    setup('T-103', {}, failed, { onFixReview, manual: 'not-approved' });
+    fireEvent.click(screen.getByRole('button', { name: 'Fix review issues' }));
+    expect((await screen.findAllByText('/fix-review T-103')).length).toBeGreaterThan(0);
+    expect(onFixReview).not.toHaveBeenCalled();
+  });
+
+  it('a Review card with no failed check stays as it is, even with onFixReview', () => {
+    setup('T-103', {}, undefined, { onFixReview: vi.fn() });
+    expect(screen.queryByRole('button', { name: 'Fix review issues' })).toBeNull();
+    expect(screen.getByText('In Review: check the work, then move the card to Done.')).toBeTruthy();
   });
 
   it('a Done card holds Run with Claude as Already done', () => {

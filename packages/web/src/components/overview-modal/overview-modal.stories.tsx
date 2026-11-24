@@ -92,3 +92,41 @@ export const StatusUnknown: Story = {
     expect(args.onRefresh).not.toHaveBeenCalled();
   },
 };
+
+/** Refresh just clicked: a spinner and Starting…, disabled, until the refresh run has started (then Refreshing). */
+export const RefreshStarting: Story = {
+  args: { onRefresh: fn(() => new Promise<boolean>(() => undefined)) },
+  play: async ({ canvasElement, args }) => {
+    const dlg = within(canvasElement).getByRole('dialog', { name: 'Overview' });
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Refresh' }));
+    const btn = await within(dlg).findByRole('button', { name: 'Starting…' });
+    expect(btn).toHaveProperty('disabled', true);
+    await userEvent.click(btn);
+    expect(args.onRefresh).toHaveBeenCalledOnce();
+  },
+};
+
+const outOfSync = { ...recipeProject, overview: { ...recipeProject.overview!, outOfSync: 'Two cards look further along in the code than on the board.' } };
+
+/** refresh-overview found the board and the code out of sync: a warning box under the summary with the header menu’s Sync. */
+export const OutOfSync: Story = {
+  args: { project: outOfSync, onSync: fn() },
+  play: async ({ canvasElement, args }) => {
+    const dlg = within(canvasElement).getByRole('dialog', { name: 'Overview' });
+    const box = within(dlg).getByRole('note', { name: 'Out of sync' });
+    expect(box.textContent).toContain('Two cards look further along in the code than on the board.');
+    await userEvent.click(within(box).getByRole('button', { name: 'Sync' }));
+    expect(args.onSync).toHaveBeenCalledOnce();
+  },
+};
+
+/** The box’s Sync just clicked: Starting…, disabled, like every button that starts Claude. */
+export const OutOfSyncStarting: Story = {
+  args: { project: outOfSync, onSync: fn(() => new Promise<void>(() => undefined)) },
+  play: async ({ canvasElement, args }) => {
+    const box = within(canvasElement).getByRole('note', { name: 'Out of sync' });
+    await userEvent.click(within(box).getByRole('button', { name: 'Sync' }));
+    expect(await within(box).findByRole('button', { name: 'Starting…' })).toHaveProperty('disabled', true);
+    expect(args.onSync).toHaveBeenCalledOnce();
+  },
+};

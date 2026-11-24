@@ -5,7 +5,7 @@ import { parseSpec, specBodyMd, splitFrontMatter, youStep } from '@specboard/cor
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { installSkills, kitPluginDir, kitSkills } from '../src/kit.js';
 
-const COMMANDS = ['create-spec', 'update-spec', 'run-spec', 'next', 'refresh-overview', 'refresh-questions', 'refresh-logs', 'correct-specs', 'plan-project', 'import-specs', 'reorganize', 'setup', 'structure', 'sync-specs', 'move'];
+const COMMANDS = ['create-spec', 'update-spec', 'run-spec', 'next', 'refresh-overview', 'refresh-questions', 'refresh-logs', 'correct-specs', 'plan-project', 'import-specs', 'reorganize', 'setup', 'structure', 'sync-specs', 'move', 'fix-review'];
 /** Skills a plain request may trigger; the other commands only run when typed. */
 const MODEL_INVOCABLE = ['specboard', 'setup'];
 
@@ -45,8 +45,8 @@ describe('plugin folder', () => {
   const repo = path.resolve(import.meta.dirname, '../../..');
   it('reads the skills from plugin/skills and hands runs the plugin folder', async () => {
     expect(kitPluginDir()).toBe(path.join(repo, 'plugin'));
-    expect((await kitSkills()).length).toBe(16);
-    expect((await fs.readdir(path.join(repo, 'plugin', 'skills'))).length).toBe(16);
+    expect((await kitSkills()).length).toBe(17);
+    expect((await fs.readdir(path.join(repo, 'plugin', 'skills'))).length).toBe(17);
   });
   it('plugin.json and marketplace.json parse and agree', async () => {
     const plugin = JSON.parse(await fs.readFile(path.join(repo, 'plugin', '.claude-plugin', 'plugin.json'), 'utf8'));
@@ -181,6 +181,61 @@ describe('kit content', () => {
     ]);
   });
 
+  it('the format documents the step, failed and fixed lines, and the grammar example parses with steps', async () => {
+    const text = (await kitSkills()).find((s) => s.name === 'specboard')!.text;
+    expect(text).toContain('`  > step: <one step>`');
+    expect(text).toContain('`  > failed: <reason>`');
+    expect(text).toContain('`  > fixed: <reason> (<commit or "no commit">)`');
+    expect(text).toContain('Setup first');
+    expect(text).toContain('Only the board writes `> failed:`');
+    expect(text).toContain('Never tick a To review item, and never remove or reword a `> failed:` or `> fixed:` line, except as /fix-review says.');
+    const block = /```\n(## To review\n[\s\S]*?)```/.exec(text)![1]!;
+    const doc = parseSpec(`---\nid: T-001\ntitle: Tasks\nstatus: todo\n---\n\n## Spec\nA list.\n\n${block}`);
+    expect(doc.problems).toEqual([]);
+    expect(doc.reviews[0]!.steps.length).toBeGreaterThanOrEqual(2);
+    expect(doc.reviews.every((r) => r.expected !== null)).toBe(true);
+    for (const sample of fenced(text, 'spec')) expect(parseSpec(sample).reviews.every((r) => r.steps.length > 0)).toBe(true);
+  });
+
+  it('writing a good spec, create-spec and import-specs give every To review item its steps, setup first', async () => {
+    const skills = await kitSkills();
+    const get = (name: string) => skills.find((s) => s.name === name)!.text;
+    expect(get('specboard')).toContain('Every To review item gets `> step:` lines');
+    expect(get('specboard')).toContain('the `test_command`, the start script in `package.json`');
+    for (const name of ['create-spec', 'import-specs']) {
+      expect(get(name), name).toContain('`  > step:` lines');
+      expect(get(name), name).toContain('"Writing a good spec"');
+    }
+  });
+
+  it('fix-review: a command for one ID that fixes failed checks as new subtasks and never ticks To review items', async () => {
+    const skills = await kitSkills();
+    const get = (name: string) => skills.find((s) => s.name === name)!.text;
+    const fix = get('fix-review');
+    expect(frontMatter(fix)['argument-hint']).toBe('<ID>');
+    expect(frontMatter(fix)['disable-model-invocation']).toBe('true');
+    for (const s of [
+      'If no item has failed, say so and stop.',
+      'a bug',
+      'a change of mind',
+      'update `## Features` and `## Done when` to match',
+      'one question at a time',
+      'add a required open question and stop without changing code',
+      '`Fix: <reason, shortened> (review item <n>)`',
+      'Never renumber existing subtasks.',
+      '`status: doing`',
+      '"Running a spec"',
+      '`> fixed: <reason> (<commit>)`',
+      'Never tick To review items.',
+      'specs_in_git',
+      '`status: review`',
+    ]) expect(fix, s).toContain(s);
+    const rules = get('specboard');
+    expect(rules).toContain('follow `../fix-review/SKILL.md`');
+    expect(runningSection(rules)).toContain('point the person to `/fix-review <ID>`');
+    expect(get('sync-specs')).toContain('Keep every `> failed:` and `> fixed:` line as it is.');
+  });
+
   it('the rules read linked images and attachments, and archive with specboard archive or the card menu', async () => {
     const text = (await kitSkills()).find((s) => s.name === 'specboard')!.text;
     expect(text).toContain('are **attachments**');
@@ -192,7 +247,7 @@ describe('kit content', () => {
     expect(text).toContain('`specboard copy-images <from ID> <to ID> "<project folder>"`');
     expect(text).toContain('or archive a spec.');
     expect(text).toContain("tell the person to use Archive in the card's ⋯ menu");
-    expect(text).toMatch(/Five exceptions are optional[^\n]*`specboard tree`, `specboard archive`[^\n]*`specboard copy-images`/);
+    expect(text).toMatch(/Six exceptions are optional[^\n]*`specboard tree`, `specboard archive`[^\n]*`specboard copy-images`[^\n]*the board commit/);
   });
 
   it('skills that write or change specs keep To review; reorganize and chat sync archive with specboard archive; next skips review-only specs', async () => {
@@ -249,6 +304,37 @@ describe('kit content', () => {
     expect(step7).not.toContain('--runs no');
     expect(text.split('\n').find((l) => l.startsWith('1. **Where.**'))).not.toContain('--runs no');
     expect(text).toContain('If it prints that an older board is running');
+  });
+
+  it('refresh-overview writes a short plain summary with no IDs, checks sync read-only and may end with ## Out of sync', async () => {
+    const skills = await kitSkills();
+    const text = (name: string): string => skills.find((s) => s.name === name)!.text;
+    const ov = text('refresh-overview');
+    for (const s of [
+      '1 to 3 short paragraphs in plain words',
+      'anything waiting on the person (questions to answer, work to review, checks that failed)',
+      'No ticket IDs, file names, or technical detail',
+      'no front-matter terms (status, subtask numbers), commands or paths',
+      'Lists or bullets only when they really help, for example when four or more things need the person.',
+      // The read-only check points to sync-specs' analysis instead of copying it.
+      'Check, read-only, whether the board and the code are out of sync.',
+      '"What sync may change" in `../sync-specs/SKILL.md`',
+      'write nothing except `.specboard/overview.md`',
+      'end the overview with a section `## Out of sync` holding 1 or 2 plain sentences on what\'s off, with no IDs',
+      'Two cards look further along in the code than on the board.',
+      'If nothing would change, there is no `## Out of sync` section.',
+      'Without a git repo, or when the check can\'t run',
+    ]) expect(ov, s).toContain(s);
+    expect(ov).not.toContain('how many specs are To-do, Doing, Review and Done'); // the old card-by-card report
+    expect(ov).not.toMatch(/\bT-\d+/); // no IDs, not even in examples
+    expect(ov).not.toContain('- subtasks to tick'); // the analysis itself stays in sync-specs
+    // A project-wide sync removes the section, in board mode before applied: true, and in a chat.
+    const sync = text('sync-specs');
+    const apply = sync.slice(sync.indexOf('## --board --apply'), sync.indexOf('## In a chat'));
+    expect(apply).toContain('5. For a project-wide sync (no `scope`), remove the `## Out of sync` section from `.specboard/overview.md`');
+    expect(apply.indexOf('remove the `## Out of sync` section')).toBeLessThan(apply.indexOf('applied: true'));
+    expect(sync.slice(sync.indexOf('## In a chat'))).toContain('After a project-wide sync, remove the `## Out of sync` section from `.specboard/overview.md`');
+    expect(text('specboard')).toContain('then an optional `## Out of sync` section');
   });
 
   it('structure prints the tree read-only; sync-specs uses the proposal file and checks head and scope', async () => {
@@ -309,6 +395,27 @@ describe('kit content', () => {
     expect(get('plan-project')).toContain('never an interpreter with flags like `node --test`');
     expect(get('setup')).toContain('If it says it is not allowing the `test_command`');
     expect(get('create-spec')).toContain('ask only the required ones: take the recommendation for every optional one');
+  });
+
+  it('specs in git: plan-project and import-specs ask, setup passes the answer to init, the rules commit .specboard on its own', async () => {
+    const skills = await kitSkills();
+    const get = (name: string) => skills.find((s) => s.name === name)!.text;
+    for (const name of ['plan-project', 'import-specs']) {
+      expect(get(name), name).toContain('Keep the specs in git?');
+      expect(get(name), name).toContain('specs_in_git');
+    }
+    expect(get('plan-project')).toContain('at most 9');
+    expect(get('plan-project')).toMatch(/^\s*\| 9 \| Keep the specs in git\? \|/m);
+    const setup = get('setup');
+    expect(setup).toContain('--specs-in-git');
+    expect(setup.split('\n').find((l) => l.startsWith('5. **Set up.**'))).toContain('--specs-in-git');
+    expect(setup.split('\n').find((l) => l.startsWith('8. **Finish.**'))).toMatch(/specs/);
+    const rules = get('specboard');
+    expect(rules).toContain('specs_in_git');
+    expect(rules).toContain('git commit -m "Spec Board: <short summary>" -- .specboard');
+    expect(rules).toContain('git add .specboard');
+    expect(runningSection(rules)).toContain('specs_in_git');
+    expect(rules.split('\n').find((l) => l.startsWith('  config.md'))).toContain('specs_in_git');
   });
 
   it('reorganize keeps the numbers of ticked or logged subtasks', async () => {

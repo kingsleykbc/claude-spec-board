@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { composeStories } from '@storybook/react-vite';
 import * as stories from './file-problem.stories';
 
@@ -17,5 +17,20 @@ describe('FileProblem', () => {
     expect(screen.getByText('specs/a.md')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Ask Claude to fix' }));
     expect(onFix).toHaveBeenCalled();
+  });
+});
+
+describe('FileProblem: Starting…', () => {
+  it('Ask Claude to fix says Starting…, disabled, until its start settles', async () => {
+    let settle!: (ok: boolean) => void;
+    const onFix = vi.fn(() => new Promise<boolean>((r) => (settle = r)));
+    render(<Default message="Bad line" path="specs/a.md" onFix={onFix} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Ask Claude to fix' }));
+    const btn = screen.getByRole('button', { name: 'Starting…' });
+    expect(btn).toHaveProperty('disabled', true);
+    fireEvent.click(btn);
+    expect(onFix).toHaveBeenCalledOnce();
+    await act(async () => settle(false));
+    expect(screen.getByRole('button', { name: 'Ask Claude to fix' })).toHaveProperty('disabled', false);
   });
 });

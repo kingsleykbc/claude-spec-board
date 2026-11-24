@@ -105,6 +105,15 @@ describe('parseInitArgs', () => {
     expect(() => parseInitArgs(['--runs', 'maybe'])).toThrow('--runs needs yes or no');
     expect(() => parseInitArgs(['--runs'])).toThrow('--runs needs yes or no');
   });
+  it('reads --specs-in-git yes or no', () => {
+    expect(parseInitArgs(['--specs-in-git', 'yes']).specsInGit).toBe('yes');
+    expect(parseInitArgs(['--specs-in-git', 'no', '--yes']).specsInGit).toBe('no');
+    expect(parseInitArgs([]).specsInGit).toBeUndefined();
+  });
+  it('rejects a bad --specs-in-git value', () => {
+    expect(() => parseInitArgs(['--specs-in-git', 'maybe'])).toThrow('--specs-in-git needs yes or no');
+    expect(() => parseInitArgs(['--specs-in-git'])).toThrow('--specs-in-git needs yes or no');
+  });
 });
 
 describe('detach', () => {

@@ -64,7 +64,7 @@ export function cardRun(
 ): { running: string | null; writing: boolean; runActive: boolean; chat: number | null } {
   if (!isRunning(run) || run.specId !== spec.id) return { running: null, writing: false, runActive: false, chat: spec.currentSubtask };
   if (run.kind === 'write-up') return { running: null, writing: true, runActive: false, chat: null };
-  if (run.kind !== 'run') return { running: '', writing: false, runActive: false, chat: null };
+  if (run.kind !== 'run' && run.kind !== 'fix-review') return { running: '', writing: false, runActive: false, chat: null };
   return { running: spec.subtasks.find((t) => t.n === spec.currentSubtask)?.title ?? '', writing: false, runActive: true, chat: null };
 }
 
@@ -80,6 +80,8 @@ function startedToast(run: RunSnapshot, title: string | undefined): ToastArgs | 
   switch (run.kind) {
     case 'run':
       return ['run', `Claude started working on ${id} in the background.`, title];
+    case 'fix-review':
+      return ['run', `Claude started fixing ${id}’s failed checks in the background.`, title];
     case 'write-up':
       return ['run', `Claude is writing up ${id}`, 'Features, questions and subtasks will appear on the card.'];
     case 'fix-file':
@@ -131,6 +133,7 @@ export function endedToast(run: RunSnapshot): ToastArgs {
       if (run.kind === 'write-up') return ['ok', `Claude wrote up ${id}`];
       if (run.kind === 'fix-file') return ['ok', `${id} is fixed`];
       if (run.kind === 'refresh-questions') return ['ok', `Refreshed ${id}’s questions and subtasks`];
+      if (run.kind === 'fix-review') return ['ok', `${id} is back in Review`, 'Claude fixed the failed checks. Check them again.'];
       return ['ok', `${id} moved to Review`, 'Claude finished. Have a look when you can.'];
   }
 }
@@ -152,7 +155,7 @@ export function useRunToasts({ onEvent }: Pick<UseRun, 'onEvent'>, specs: Spec[]
           args = startedToast(run, spec?.title);
         } else if (e.type === 'run-ended') {
           args = endedToast(run);
-        } else if (run.kind === 'run' && e.line.subtask !== undefined) {
+        } else if ((run.kind === 'run' || run.kind === 'fix-review') && e.line.subtask !== undefined) {
           args = ['ok', `${run.specId} · Subtask done`, spec?.subtasks.find((t) => t.n === e.line.subtask)?.title];
         }
         if (args) toast(...args);
@@ -166,6 +169,8 @@ export function pasteCommand(kind: RunKind, specId: string | undefined): string 
   switch (kind) {
     case 'run':
       return specId ? `/run-spec ${specId}` : null;
+    case 'fix-review':
+      return specId ? `/fix-review ${specId}` : null;
     case 'write-up':
       return specId ? `/create-spec ${specId}` : null;
     case 'refresh-overview':

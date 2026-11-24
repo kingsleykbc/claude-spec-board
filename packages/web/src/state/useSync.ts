@@ -33,8 +33,11 @@ export interface UseSync {
   proposal: WaitingProposal | null;
   /** Props for the open SyncDialog, or null when it is closed. */
   dialog: Omit<SyncDialogProps, 'toast'> | null;
-  /** "Sync with code" (scope null) or a card's Sync. */
-  openSync: (scope: string | null) => void;
+  /**
+   * "Sync with code" (scope null) or a card's Sync. Resolves once the plan run has started or was refused (at once in
+   * manual mode), so the button that asked can say Starting… until then.
+   */
+  openSync: (scope: string | null) => Promise<void>;
   /** Reopen the waiting proposal's confirm view. */
   openWaiting: () => void;
 }
@@ -97,15 +100,14 @@ export function useSync({ pid, stamp, run, manual, startRun, stopRun, toast }: U
   }, [open?.phase, proposal]);
 
   const openSync = useCallback(
-    (scope: string | null) => {
+    async (scope: string | null): Promise<void> => {
       if (manual) {
         setOpen({ scope, phase: 'manual', before: null });
         return;
       }
       setOpen({ scope, phase: 'plan', before: runRef.current?.id ?? null });
-      void startRun('sync-plan', scope ?? undefined).then((ok) => {
-        if (!ok) setOpen(null);
-      });
+      const ok = await startRun('sync-plan', scope ?? undefined);
+      if (!ok) setOpen(null);
     },
     [manual, startRun],
   );

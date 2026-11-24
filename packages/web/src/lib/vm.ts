@@ -204,6 +204,16 @@ export function runHold(spec: Spec, all: Spec[], chat: number | null = null): st
   return first ? `Blocked. ${first.text}` : null;
 }
 
+/** How many To review items the person marked as failed. */
+export function failedReviews(spec: Spec): number {
+  return spec.reviews.filter((r) => r.failed !== null).length;
+}
+
+/** A card in Review with a failed check: Run with Claude becomes Fix review issues (`/fix-review <ID>`). */
+export function canFixReview(spec: Spec): boolean {
+  return spec.status === 'review' && !spec.archived && failedReviews(spec) > 0;
+}
+
 /** Tokens counted on the spec's subtask logs, summed; null when none are counted. */
 export function tokensUsed(spec: Spec): number | null {
   let total: number | null = null;

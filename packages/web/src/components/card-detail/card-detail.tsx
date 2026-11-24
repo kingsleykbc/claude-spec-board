@@ -5,7 +5,8 @@ import { OFFLINE_TOAST, type Mutate } from '@/state/actions';
 import { useSimple } from '@/state/simpleMode';
 import type { PushToast } from '@/state/toasts';
 import type { ManualReason } from '@/state/runUi';
-import { blockTexts, canWriteUp, relPath, runHold } from '@/lib/vm';
+import type { StartHandler } from '@/components/ui/start-button/start-button';
+import { blockTexts, canFixReview, canWriteUp, relPath, runHold } from '@/lib/vm';
 import { cn } from '@/lib/utils';
 import { ConflictDialog } from '@/components/conflict-dialog/conflict-dialog';
 import { Modal } from '@/components/ui/modal/modal';
@@ -30,7 +31,7 @@ export function datesLine(created: string | null, updated: string | null): strin
   return parts.length > 0 ? parts.join(' · ') : null;
 }
 
-export type DetailClient = Pick<typeof api, 'setMeta' | 'setBody' | 'specDraftCopy' | 'setAnswers' | 'setSubtask'> & Partial<Pick<typeof api, 'uploadImage' | 'deleteImage' | 'setReview'>>;
+export type DetailClient = Pick<typeof api, 'setMeta' | 'setBody' | 'specDraftCopy' | 'setAnswers' | 'setSubtask'> & Partial<Pick<typeof api, 'uploadImage' | 'deleteImage' | 'setReview' | 'setReviewFailed'>>;
 
 export interface CardDetailProps {
   pid: string;
@@ -66,17 +67,20 @@ export interface CardDetailProps {
   runActive?: boolean;
   /** The step Claude is working on from a chat (no background run): a marker with "Not running? Clear". */
   chat?: number | null;
-  onRun?: () => void;
+  /** Run with Claude. Like every start here, it may return a promise of the start: the button says Starting… until it settles. */
+  onRun?: StartHandler;
+  /** Fix review issues on a card in Review with a failed check (a `fix-review` run); without it the card keeps Run. */
+  onFixReview?: StartHandler;
   onStop?: () => void;
   /** "Have Claude write this up" on a draft. */
-  onWriteUp?: () => void;
+  onWriteUp?: StartHandler;
   /** Archive (or, for an archived spec, Unarchive) from the card's ⋯ menu; no menu item without them. */
   onArchive?: () => void;
   onUnarchive?: () => void;
   /** "Ask Claude to fix" on a file problem. */
-  onFixFile?: () => void;
+  onFixFile?: StartHandler;
   /** The header's Sync (this spec against the code); no button without it. */
-  onSync?: () => void;
+  onSync?: StartHandler;
   /** A sync proposal for this spec is waiting: a button beside Sync reopens it. */
   syncWaiting?: boolean;
   onSyncWaiting?: () => void;
@@ -151,6 +155,7 @@ function SpecDetail({
   runActive = false,
   chat = null,
   onRun = () => undefined,
+  onFixReview,
   onStop = () => undefined,
   onWriteUp,
   onArchive,
@@ -353,6 +358,8 @@ function SpecDetail({
   const problem = spec.problems[0];
 
   const dates = datesLine(spec.created, spec.updated);
+  /** A failed check in Review: the header's Run with Claude becomes Fix review issues. */
+  const fix = onFixReview !== undefined && canFixReview(spec);
   // Review and Done specs are frozen: no refresh prompt there.
   const frozen = spec.status === 'review' || spec.status === 'done';
   const stale = spec.needsRefresh && !refreshing && !frozen;
@@ -380,8 +387,9 @@ function SpecDetail({
           runBusyNote={runBusyNote}
           manual={manual}
           statusKnown={statusKnown}
-          runHold={runHold(spec, all, chat)}
-          onRun={onRun}
+          runHold={fix ? null : runHold(spec, all, chat)}
+          fixReview={fix}
+          onRun={fix ? onFixReview : onRun}
           onStop={onStop}
           {...(onSync ? { onSync } : {})}
           syncWaiting={syncWaiting}
@@ -479,7 +487,7 @@ function SpecDetail({
               <ToReview
                 pid={pid}
                 spec={spec}
-                client={{ setReview: client.setReview ?? api.setReview }}
+                client={{ setReview: client.setReview ?? api.setReview, setReviewFailed: client.setReviewFailed ?? api.setReviewFailed }}
                 mutate={mutate}
                 refresh={refresh}
                 toast={toast}

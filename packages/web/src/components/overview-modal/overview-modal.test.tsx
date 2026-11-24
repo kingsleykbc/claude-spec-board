@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { composeStories } from '@storybook/react-vite';
 import { recipeProject } from '@/fixtures/recipeBox';
 import type { OverviewModalProps } from './overview-modal';
@@ -41,7 +41,7 @@ describe('OverviewModal', () => {
   });
 
   it('relative images in the summary load through the image route from .specboard', () => {
-    setup({ pid: 'p1', project: { ...recipeProject, overview: { updated: '2026-11-08T09:30', summaryMd: '![shot](images/a.png)' } } });
+    setup({ pid: 'p1', project: { ...recipeProject, overview: { updated: '2026-11-08T09:30', summaryMd: '![shot](images/a.png)', outOfSync: null } } });
     expect(screen.getByRole('img', { name: 'shot' }).getAttribute('src')).toBe('/api/projects/p1/image?path=.specboard%2Fimages%2Fa.png');
   });
 
@@ -179,5 +179,67 @@ describe('OverviewModal tokens and logs link', () => {
     setup({ onOpenLogs });
     fireEvent.click(screen.getByRole('button', { name: 'View all logs' }));
     expect(onOpenLogs).toHaveBeenCalledOnce();
+  });
+});
+
+describe('OverviewModal: Starting… and the out-of-sync box', () => {
+  const outOfSync = (text: string | null) => ({ ...recipeProject, overview: { ...recipeProject.overview!, outOfSync: text } });
+
+  it('Refresh says Starting…, disabled, until its start settles', async () => {
+    let settle!: (ok: boolean) => void;
+    const onRefresh = vi.fn(() => new Promise<boolean>((r) => (settle = r)));
+    setup({ onRefresh });
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    const btn = screen.getByRole('button', { name: 'Starting…' });
+    expect(btn).toHaveProperty('disabled', true);
+    fireEvent.click(btn);
+    expect(onRefresh).toHaveBeenCalledOnce();
+    await act(async () => settle(false));
+    expect(screen.getByRole('button', { name: 'Refresh' })).toHaveProperty('disabled', false);
+  });
+
+  it('Refresh summary in the empty state says Starting… too', () => {
+    setup({ project: { ...recipeProject, overview: null }, onRefresh: () => new Promise(() => undefined) });
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh summary' }));
+    expect(screen.getByRole('button', { name: 'Starting…' })).toHaveProperty('disabled', true);
+  });
+
+  it('no out-of-sync text: no box', () => {
+    setup({ onSync: vi.fn() });
+    expect(screen.queryByRole('note', { name: 'Out of sync' })).toBeNull();
+  });
+
+  it('shows the out-of-sync text under the summary with a Sync button that calls onSync', () => {
+    const onSync = vi.fn();
+    setup({ project: outOfSync('Two cards look further along in the code than on the board.'), onSync });
+    const box = screen.getByRole('note', { name: 'Out of sync' });
+    expect(box.textContent).toContain('Two cards look further along in the code than on the board.');
+    // At the bottom of the summary: after its text.
+    const summary = screen.getByText('Search & filters');
+    expect(summary.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(within(box).getByRole('button', { name: 'Sync' }));
+    expect(onSync).toHaveBeenCalledOnce();
+  });
+
+  it('the box’s Sync says Starting…, disabled, until its start settles', () => {
+    setup({ project: outOfSync('One card looks done in the code.'), onSync: () => new Promise(() => undefined) });
+    const box = screen.getByRole('note', { name: 'Out of sync' });
+    fireEvent.click(within(box).getByRole('button', { name: 'Sync' }));
+    expect(within(box).getByRole('button', { name: 'Starting…' })).toHaveProperty('disabled', true);
+  });
+
+  it('not connected: the box’s Sync still calls onSync, which shows the command to paste like the menu’s Sync', () => {
+    const onSync = vi.fn();
+    setup({ project: outOfSync('One card looks done in the code.'), onSync, manual: 'not-approved' });
+    fireEvent.click(within(screen.getByRole('note', { name: 'Out of sync' })).getByRole('button', { name: 'Sync' }));
+    expect(onSync).toHaveBeenCalledOnce();
+  });
+
+  it('while refreshing, or without onSync, there is no box', () => {
+    setup({ project: outOfSync('One card looks done in the code.'), onSync: vi.fn(), refreshing: true });
+    expect(screen.queryByRole('note', { name: 'Out of sync' })).toBeNull();
+    cleanup();
+    setup({ project: outOfSync('One card looks done in the code.') });
+    expect(screen.queryByRole('note', { name: 'Out of sync' })).toBeNull();
   });
 });

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ClaudeStatus, RunSnapshot } from '../api/client';
 import { recipeSpec } from '../fixtures/recipeBox';
 import { resetMode, setPluginMode } from '../lib/mode';
-import { cardRun, endedToast, isRefreshingQuestions, manualReason, runButtonState } from './runUi';
+import { cardRun, endedToast, isRefreshingQuestions, manualReason, pasteCommand, runButtonState } from './runUi';
 
 const PLUGIN_HINT = 'Ask Claude to run /specboard:setup again to update the allowed commands, or ask Claude to run `specboard init --yes --no-skills --runs yes <project path>`.';
 
@@ -96,6 +96,22 @@ describe('endedToast', () => {
   it('a run that needs an answer is unchanged', () => {
     const end = { status: 'needs' as const, title: 'Claude has a question', text: 'There is 1 unanswered question on this spec.' };
     expect(endedToast(run({ status: 'needs', end }))).toEqual(['warn', 'Claude needs your answer on T-104', end.text]);
+  });
+});
+
+describe('fix-review runs', () => {
+  it('the card and its subtasks show a run, as for Run with Claude', () => {
+    const spec = { ...recipeSpec('T-104'), currentSubtask: 2 };
+    expect(cardRun(run({ kind: 'fix-review' }), spec)).toEqual({ running: spec.subtasks.find((t) => t.n === 2)!.title, writing: false, runActive: true, chat: null });
+    expect(runButtonState(run({ kind: 'fix-review' }), 'T-104', OK).runState).toBe('running');
+  });
+  it('a finished fix says the card is back in Review, to check again', () => {
+    expect(endedToast(run({ kind: 'fix-review', status: 'finished' }))).toEqual(['ok', 'T-104 is back in Review', 'Claude fixed the failed checks. Check them again.']);
+    expect(endedToast(run({ kind: 'fix-review', status: 'stopped' }))[1]).toBe('Stopped Claude on T-104');
+  });
+  it('pastes /fix-review <ID> in place of the run', () => {
+    expect(pasteCommand('fix-review', 'T-104')).toBe('/fix-review T-104');
+    expect(pasteCommand('fix-review', undefined)).toBeNull();
   });
 });
 

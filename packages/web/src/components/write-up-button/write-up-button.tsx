@@ -1,6 +1,7 @@
 import { PlayIcon } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import { NotConnectedTrigger } from '@/components/not-connected/not-connected';
+import { StartButton, type StartHandler } from '@/components/ui/start-button/start-button';
 import type { ManualReason } from '@/state/runUi';
 
 export interface WriteUpButtonProps {
@@ -9,7 +10,8 @@ export interface WriteUpButtonProps {
   manual: ManualReason | null;
   /** Claude's status and the project's approval have loaded; until then the button is neutral and waits. */
   statusKnown?: boolean;
-  onWriteUp: () => void;
+  /** Starts the write-up run. It may return a promise of the start: the button says Starting… until it settles. */
+  onWriteUp: StartHandler;
   /** `sm` on a card, `md` in the card detail's header. */
   size?: 'sm' | 'md';
 }
@@ -49,9 +51,12 @@ export function WriteUpButton({ id, manual, statusKnown = true, onWriteUp, size 
     );
   }
   return (
-    <button type="button" className={cn(FIT, SIZE[size], 'bg-accent-soft text-accent-ink hover:bg-accent hover:text-accent-fg')} onClick={onWriteUp}>
+    <StartButton
+      className={cn(FIT, SIZE[size], 'bg-accent-soft text-accent-ink enabled:hover:bg-accent enabled:hover:text-accent-fg disabled:cursor-default')}
+      onStart={onWriteUp}
+    >
       {icon}
       Have Claude write this up
-    </button>
+    </StartButton>
   );
 }

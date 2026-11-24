@@ -39,7 +39,7 @@ Claude treats what you wrote as the project notes. Setup goes through these step
 1. **Where.** Which folder. If it already has a `.specboard/` folder, it tells you and offers `/specboard:structure`, an import or a sync instead.
 2. **Look first.** It searches the folder for plans you already have: Spec Kit, OpenSpec, or roadmap and plan documents.
 3. **Import or start fresh.** If it found plans it asks which. If not, it starts from scratch.
-4. **Setup questions.** What you're building, the stack, must-have features, design references, phases ([milestones](writing-specs.md#milestones)), tests and docs after each spec, and commits. Each has a suggested answer, and "skip" takes it. Questions your request already answers are skipped.
+4. **Setup questions.** What you're building, the stack, must-have features, design references, phases ([milestones](writing-specs.md#milestones)), tests and docs after each spec, commits, and whether to keep the specs in git. Each has a suggested answer, and "skip" takes it. Questions your request already answers are skipped.
 5. **Preview.** It shows the specs it would make as a tree, and waits for your OK or changes. Nothing is written before that.
 6. **Set up.** It creates `.specboard/` and writes the specs as drafts.
 7. **Old plan files.** After an import it asks whether to keep them or move them to `.specboard/imported/`. It never deletes them, and warns you that deleting `.specboard` later deletes the moved files too.
@@ -56,7 +56,14 @@ Git is optional. Without a git repo, or with `commits: false` in `.specboard/con
 
 ### .specboard and git
 
-Claude's commits hold only the code; it never adds `.specboard/` to them. Your own commits are up to you. Keeping `.specboard/` in git shares the specs with your team, but every board change then shows up in `git status`. To keep it out, add `.specboard/` to `.gitignore`, or commit with `git add -- . ":!.specboard"`.
+When the project has a git repo, setup asks **Keep the specs in git?** (suggested: yes). Your answer goes in `.specboard/config.md` as `specs_in_git`. Either way, Claude's code commits hold only the code; it never adds `.specboard/` to them.
+
+- **Yes** (`specs_in_git: true`). The specs are pushed with your code, so your team sees them. Claude commits `.specboard/` in a commit of its own, with only `.specboard/` in it, for example `Spec Board: T-001 to Review`. It makes one at the end of a run that moves a spec to Review, in a chat or in the background, and at the end of a command you ran in a chat that changed the specs (planning, importing, writing or moving specs, a sync, a refresh). Changes you made on the board go into the next one. It never pushes. With `commits: false` it makes no board commits either.
+- **No** (`specs_in_git: false`). The specs stay on this machine. Setup adds `.specboard/` to the repo's local exclude file (`.git/info/exclude`), so git doesn't see the folder and it never shows in `git status`. It doesn't touch `.gitignore`, and the exclude file is never shared.
+
+A project set up before this choice existed has no `specs_in_git`, and works as before: no board commits and nothing hidden. Your own commits are up to you.
+
+To change your mind later, edit `specs_in_git` in `.specboard/config.md`, then ask Claude to run `specboard init --specs-in-git yes "<project folder>"` (or `no`). On a project that's already set up, that command only updates the exclude file: `no` adds `.specboard/`, and `yes` takes it out again. If `.specboard/` was committed before you switch to no, git keeps tracking those files until you remove them from the repo with `git rm -r --cached .specboard`.
 
 ### Removing Spec Board
 
@@ -96,6 +103,14 @@ The board remembers your choice in this browser, for every project.
 - Buttons that show only an icon name themselves when you hover or focus them. Icons that carry information, such as a warning on a log or a waiting marker, open a small popup when you hover them or focus them with the keyboard, and on a tap on phones.
 - On a small screen the board scrolls sideways one column at a time, the card detail fills the screen, and the header's extra buttons join the logo menu. Category, urgency and **Blocked only** move into a **Filters** button above the board (its badge counts the active ones), and menus open as panels from the bottom of the screen.
 
+### The Overview
+
+**Overview** in the header opens a page about the whole project: its name and description, a progress ring, the counts per column, the tokens used (when token tracking is on), a **Summary** and a **Tasks** table of every spec.
+
+- **The summary** is a quick status report in plain words, one to three short paragraphs: what the project is, what has been done, what is in progress, what comes next, and anything waiting on you (questions to answer, work to review, checks that failed). It names the work, not card IDs or files. **Refresh** asks Claude to write it again from the current specs ([how it runs](running-specs.md#the-other-claude-buttons-on-the-board)).
+- **Out of sync.** While it refreshes the summary, Claude also checks, without changing anything, whether the board and the code still agree, the same way [Sync with code](running-specs.md#sync-with-code) does. When they don't, a warning box at the bottom of the summary says what looks off, for example "Two cards look further along in the code than on the board.", with a **Sync** button. It does exactly what **Sync with code** in the logo menu does. Once a whole-project sync is applied, the warning goes away. Without git, or when the check can't run, there is no warning.
+- **Export .md** downloads the overview as a Markdown file.
+
 ## Use it from Claude
 
 Open a Claude chat in your project folder, in the terminal or the desktop app, and use the commands directly:
@@ -131,7 +146,7 @@ Then open a chat in the project folder and run `/plan-project`. It asks a few qu
 Two things to know about this route:
 
 - **No token counts.** They come from a hook in the plugin. A project set up with plain `init` doesn't have it.
-- **`init` has options** for scripts: `--yes` (skip the questions), `--runs yes` or `--runs no` (answer the background-runs question), `--no-skills` (don't copy commands into the project) and `--force-skills` (replace the copied commands with the current ones).
+- **`init` has options** for scripts: `--yes` (skip the questions), `--runs yes` or `--runs no` (answer the background-runs question), `--specs-in-git yes` or `--specs-in-git no` (hide `.specboard/` from git on this machine, or stop hiding it; see [.specboard and git](getting-started.md#specboard-and-git)), `--no-skills` (don't copy commands into the project) and `--force-skills` (replace the copied commands with the current ones).
 
 ## Where your files live
 

@@ -11795,6 +11795,10 @@ var RECOMMENDED = /^(.*?\S)[ \t]*\(recommended[ \t]*:[ \t]*(.*\S)[ \t]*\)$/i;
 var SUBTASK = /^- \[([ xX])\][ \t]+(\d+)\.[ \t]+(.*?)[ \t]*$/;
 var REVIEW_LINE = /^- \[([ xX])\][ \t]+(\S.*?)[ \t]*$/;
 var EXPECTED = /^[ \t]+>[ \t]*expected[ \t]*:[ \t]*(.*?)[ \t]*$/i;
+var REVIEW_SUB = /^[ \t]+>/;
+var STEP = /^[ \t]+>[ \t]*step[ \t]*:[ \t]*(.*?)[ \t]*$/i;
+var FAILED = /^[ \t]+>[ \t]*failed[ \t]*:[ \t]*(.*?)[ \t]*$/i;
+var FIXED = /^[ \t]+>[ \t]*fixed[ \t]*:[ \t]*(.*?)[ \t]*$/i;
 var GROUP = /^###[ \t]+(.*?)[ \t]*#*[ \t]*$/;
 var LIST_ITEM = /^[-*+][ \t]/;
 var TYPES = ["yesno", "number", "text", "choice"];
@@ -11868,13 +11872,26 @@ function parseReviews(lines, range, problems) {
       if (LIST_ITEM.test(line)) problems.push(`Unrecognised review line ${i + 1}`);
       continue;
     }
+    const itemLine = i;
     let expected = null;
-    const e = i + 1 < range.end ? EXPECTED.exec(lines[i + 1]) : null;
-    if (e) {
-      if (e[1] !== "") expected = e[1];
-      i++;
+    let failed = null;
+    const steps = [];
+    const fixed = [];
+    while (i + 1 < range.end && REVIEW_SUB.test(lines[i + 1])) {
+      const sub = lines[++i];
+      const e = EXPECTED.exec(sub);
+      const s = STEP.exec(sub);
+      const f = FAILED.exec(sub);
+      const x = FIXED.exec(sub);
+      if (e) {
+        if (expected === null && e[1] !== "") expected = e[1];
+      } else if (s) {
+        if (s[1] !== "") steps.push(s[1]);
+      } else if (f) {
+        if (failed === null && f[1] !== "") failed = f[1];
+      } else if (x && x[1] !== "") fixed.push(x[1]);
     }
-    reviews.push({ n: reviews.length + 1, text: m[2], expected, group, done: m[1] !== " ", line: i - (e ? 1 : 0) });
+    reviews.push({ n: reviews.length + 1, text: m[2], expected, steps, failed, fixed, group, done: m[1] !== " ", line: itemLine });
   }
   return reviews;
 }
@@ -12016,21 +12033,54 @@ function setSubtaskDone(text2, n, done) {
   }
   throw new Error(`Subtask ${n} not found`);
 }
-function setReviewDone(text2, n, done) {
-  const ls = toLines(text2);
-  const lines = textsOf(ls);
+function findReviewItem(lines, text2, n) {
   const range = findSections(lines, splitFrontMatter(text2).bodyStartLine).get("to review");
   if (range) {
     let count2 = 0;
     for (let i = range.start; i < range.end; i++) {
       if (!REVIEW_LINE.test(lines[i])) continue;
-      if (++count2 === n) {
-        ls[i].text = lines[i].replace(/^- \[[ xX]\]/, `- [${done ? "x" : " "}]`);
-        return fromLines(ls);
+      if (++count2 !== n) continue;
+      let end = i + 1;
+      let failed = -1;
+      while (end < range.end && REVIEW_SUB.test(lines[end])) {
+        if (failed === -1 && FAILED.test(lines[end])) failed = end;
+        end++;
       }
+      return { line: i, end, failed };
     }
   }
   throw new Error(`Review item ${n} not found`);
+}
+function removeLine(ls, i) {
+  if (i === ls.length - 1 && i > 0 && ls[i].eol === "") ls[i - 1].eol = "";
+  ls.splice(i, 1);
+}
+var tickReview = (line, done) => line.replace(/^- \[[ xX]\]/, `- [${done ? "x" : " "}]`);
+function setReviewDone(text2, n, done) {
+  const ls = toLines(text2);
+  const lines = textsOf(ls);
+  const item = findReviewItem(lines, text2, n);
+  ls[item.line].text = tickReview(lines[item.line], done);
+  if (done && item.failed !== -1) removeLine(ls, item.failed);
+  return fromLines(ls);
+}
+function setReviewFailed(text2, n, failed) {
+  const ls = toLines(text2);
+  const lines = textsOf(ls);
+  const item = findReviewItem(lines, text2, n);
+  const fallback = detectEol(text2);
+  if (failed === null) {
+    if (item.failed === -1) return text2;
+    removeLine(ls, item.failed);
+    return fromLines(ls);
+  }
+  const reason = failed.replace(/[ \t]*(?:\r?\n|\r)+[ \t]*/g, " ").trim();
+  if (reason === "") throw new Error("The reason can\u2019t be empty");
+  const line = `  > failed: ${reason}`;
+  ls[item.line].text = tickReview(lines[item.line], false);
+  if (item.failed !== -1) ls[item.failed].text = line;
+  else spliceLines(ls, item.end, 0, [line], fallback);
+  return fromLines(ls);
 }
 function setAnswers(text2, answers) {
   const ls = toLines(text2);
@@ -12219,7 +12269,7 @@ function parseLog(text2) {
 function parseConfig(text2) {
   const { yaml, body } = splitFrontMatter(text2);
   const { data, problems } = parseMapping(yaml);
-  const config = { name: "", created: null, references: [], milestones: [], closingSteps: [], commits: null, testCommand: null, description: body.trim(), problems };
+  const config = { name: "", created: null, references: [], milestones: [], closingSteps: [], commits: null, specsInGit: null, testCommand: null, description: body.trim(), problems };
   if (!data) return config;
   config.name = optionalString2(data.name) ?? "";
   config.created = optionalString2(data.created);
@@ -12229,15 +12279,46 @@ function parseConfig(text2) {
   const commits = data.commits;
   if (typeof commits === "boolean") config.commits = commits;
   else if (commits !== void 0 && commits !== null) problems.push(`Invalid commits "${String(commits)}"`);
+  const specsInGit = data.specs_in_git;
+  if (typeof specsInGit === "boolean") config.specsInGit = specsInGit;
+  else if (specsInGit !== void 0 && specsInGit !== null) problems.push(`Invalid specs_in_git "${String(specsInGit)}"`);
   const testCommand = data.test_command;
   if (typeof testCommand === "string" && testCommand.trim() !== "") config.testCommand = testCommand;
   else if (testCommand !== void 0 && testCommand !== null) problems.push(`Invalid test_command "${String(testCommand)}"`);
   return config;
 }
+var OUT_OF_SYNC = /^##[ \t]+out of sync[ \t]*$/i;
+var H2 = /^##[ \t]/;
+var FENCE2 = /^[ \t]{0,3}(```|~~~)/;
+function splitOutOfSync(body) {
+  const lines = body.split(/\r?\n/);
+  let fence = null;
+  let start2 = -1;
+  let end = lines.length;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const f = FENCE2.exec(line);
+    if (f) {
+      if (fence === null) fence = f[1];
+      else if (f[1] === fence) fence = null;
+      continue;
+    }
+    if (fence !== null) continue;
+    if (start2 === -1 && OUT_OF_SYNC.test(line)) start2 = i;
+    else if (start2 !== -1 && H2.test(line)) {
+      end = i;
+      break;
+    }
+  }
+  if (start2 === -1) return { summaryMd: body.trim(), outOfSync: null };
+  const section = lines.slice(start2 + 1, end).join("\n").trim();
+  const rest = [...lines.slice(0, start2), ...lines.slice(end)].join("\n").trim();
+  return { summaryMd: rest.replace(/\n{3,}/g, "\n\n"), outOfSync: section === "" ? null : section };
+}
 function parseOverview(text2) {
   const { yaml, body } = splitFrontMatter(text2);
   const { data } = parseMapping(yaml);
-  return { updated: data ? optionalString2(data.updated) : null, summaryMd: body.trim() };
+  return { updated: data ? optionalString2(data.updated) : null, ...splitOutOfSync(body) };
 }
 function parseSettings(text2) {
   const { yaml } = splitFrontMatter(text2);
@@ -12998,13 +13079,16 @@ var boardCommand = (root, bundled = isBundled()) => bundled ? `specboard ${proje
 var nextLine = (root, bundled = isBundled()) => bundled ? `Open the board with \`${boardCommand(root, true)}\`.` : `Next, from the Spec Board repo, open the board: ${boardCommand(root, false)}`;
 
 // packages/server/src/setup.ts
+import { execFile } from "node:child_process";
 import { randomBytes as randomBytes3 } from "node:crypto";
 import fs9 from "node:fs/promises";
 import os from "node:os";
 import path10 from "node:path";
 import { createInterface } from "node:readline/promises";
+import { promisify } from "node:util";
 
 // packages/server/src/claude/classify.ts
+var isSpecRun = (kind) => kind === "run" || kind === "fix-review";
 var AUTH = /authenticate|logged in|\/login/i;
 var CLIP_AT = 500;
 var MULTI_WORD = /* @__PURE__ */ new Set([
@@ -13300,9 +13384,9 @@ function classifyEnd(input) {
     title: "Claude has a question",
     text: open3.length === 1 ? "There is 1 unanswered question on this spec." : `There are ${open3.length} unanswered questions on this spec.`
   }, result.denials);
-  if (kind === "run" && open3.some((q) => !wasOpen.has(q.id))) return needs();
+  if (isSpecRun(kind) && open3.some((q) => !wasOpen.has(q.id))) return needs();
   if (result.denials.length > 0 && !afterInReview) return permissionEnd(result.denials, input.denyRules ?? []);
-  if (kind !== "run") return withRefusals({ status: "finished" }, result.denials);
+  if (!isSpecRun(kind)) return withRefusals({ status: "finished" }, result.denials);
   if (open3.length > 0 && !afterInReview) return needs();
   if (afterInReview) return withRefusals({ status: "finished" }, result.denials);
   const you = after ? firstOpenYouStep(after.subtasks) : null;
@@ -13542,6 +13626,7 @@ function specboardHome() {
 }
 var holdsFolder = (root, folder) => isWithin(realPathLoose(root), realPathLoose(folder));
 var unique = (xs) => [...new Set(xs)];
+var execFileAsync = promisify(execFile);
 var SHELL_TOOLS2 = /* @__PURE__ */ new Set(["Bash", "PowerShell"]);
 var FILE_TOOLS2 = /* @__PURE__ */ new Set(["Read", "Edit", "Write", "MultiEdit", "NotebookEdit"]);
 var OTHER_TOOLS = ["Glob", "Grep", "WebFetch", "WebSearch", "Skill", "Task", "TodoWrite"];
@@ -13645,6 +13730,51 @@ async function hasGitRepo(root) {
     if (up === dir) return false;
     dir = up;
   }
+}
+var EXCLUDE_LINE = ".specboard/";
+async function gitExcludeFile(root) {
+  try {
+    const { stdout } = await execFileAsync("git", ["rev-parse", "--git-path", "info/exclude"], { cwd: root });
+    const out = stdout.trim();
+    if (out === "") throw new Error("git printed no path");
+    return path10.resolve(root, out);
+  } catch (e) {
+    throw new Error(`Could not find git's exclude file for ${root}: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+async function applySpecsInGit(root, choice, io) {
+  if (!await hasGitRepo(root)) {
+    io.log("No git repo here, so --specs-in-git changes nothing.");
+    return;
+  }
+  const file = await gitExcludeFile(root);
+  const shown = path10.relative(root, file).split(path10.sep).join("/");
+  let text2 = null;
+  try {
+    text2 = await fs9.readFile(file, "utf8");
+  } catch (e) {
+    if (e.code !== "ENOENT") throw e;
+  }
+  const lines = text2 === null ? [] : text2.split(/(?<=\n)/);
+  const isOurs = (l) => l.trim() === EXCLUDE_LINE;
+  if (choice === "no") {
+    if (lines.some(isOurs)) {
+      io.log(`${EXCLUDE_LINE} is already in ${shown} (stays on this machine).`);
+      return;
+    }
+    const eol = text2?.includes("\r\n") ? "\r\n" : "\n";
+    const before = text2 === null || text2 === "" || text2.endsWith("\n") ? text2 ?? "" : text2 + eol;
+    await fs9.mkdir(path10.dirname(file), { recursive: true });
+    await fs9.writeFile(file, `${before}${EXCLUDE_LINE}${eol}`);
+    io.log(`Added ${EXCLUDE_LINE} to ${shown} (stays on this machine).`);
+    return;
+  }
+  if (!lines.some(isOurs)) {
+    io.log(`${EXCLUDE_LINE} is not in ${shown}, so it can go in git.`);
+    return;
+  }
+  await fs9.writeFile(file, lines.filter((l) => !isOurs(l)).join(""));
+  io.log(`Removed ${EXCLUDE_LINE} from ${shown} (it can go in git now).`);
 }
 async function defaultAllowList(root) {
   const allow = [...BASE_ALLOW];
@@ -13778,6 +13908,12 @@ function approvedStore() {
 }
 async function initCommand(opts, io) {
   const root = path10.resolve(opts.root);
+  const onlySpecsInGit = opts.specsInGit && !opts.yes && !opts.runs && !opts.forceSkills && !opts.noSkills;
+  if (onlySpecsInGit && await exists(path10.join(root, ".specboard", "config.md"))) {
+    await applySpecsInGit(root, opts.specsInGit, io);
+    const id2 = projectId(root);
+    return { approved: await approvedStore().get(id2, root).catch(() => null) !== null, id: id2 };
+  }
   if (!opts.yes && !opts.runs && !io.isTTY) {
     throw new Error("specboard init asks you to approve permissions and needs a terminal. Run it in one, or pass --yes to approve the default list.");
   }
@@ -13798,6 +13934,7 @@ async function initCommand(opts, io) {
   for (const s of skills) io.log(`skill ${s.name}: ${s.action}`);
   if (skills.some((s) => s.action === "skipped-modified")) io.log("Some skills were edited and kept. Use --force-skills to replace them.");
   if (!await hasGitRepo(root)) io.log(`No git repo here: tasks won't be committed unless you \`git init\`.`);
+  if (opts.specsInGit) await applySpecsInGit(root, opts.specsInGit, io);
   const store = approvedStore();
   const previous = await store.stored(id, root);
   const { allow, deny } = await planPermissions(root, id, io, previous);
@@ -14618,7 +14755,7 @@ import process8 from "node:process";
 import { Buffer as Buffer2 } from "node:buffer";
 import path11 from "node:path";
 import { fileURLToPath } from "node:url";
-import { promisify as promisify5 } from "node:util";
+import { promisify as promisify6 } from "node:util";
 import childProcess from "node:child_process";
 import fs14, { constants as fsConstants2 } from "node:fs/promises";
 
@@ -14758,20 +14895,20 @@ function defineLazyProperty(object, propertyName, valueGetter) {
 }
 
 // node_modules/default-browser/index.js
-import { promisify as promisify4 } from "node:util";
+import { promisify as promisify5 } from "node:util";
 import process7 from "node:process";
-import { execFile as execFile4 } from "node:child_process";
+import { execFile as execFile5 } from "node:child_process";
 
 // node_modules/default-browser-id/index.js
-import { promisify } from "node:util";
+import { promisify as promisify2 } from "node:util";
 import process4 from "node:process";
-import { execFile } from "node:child_process";
-var execFileAsync = promisify(execFile);
+import { execFile as execFile2 } from "node:child_process";
+var execFileAsync2 = promisify2(execFile2);
 async function defaultBrowserId() {
   if (process4.platform !== "darwin") {
     throw new Error("macOS only");
   }
-  const { stdout } = await execFileAsync("defaults", ["read", "com.apple.LaunchServices/com.apple.launchservices.secure", "LSHandlers"]);
+  const { stdout } = await execFileAsync2("defaults", ["read", "com.apple.LaunchServices/com.apple.launchservices.secure", "LSHandlers"]);
   const match2 = /LSHandlerRoleAll = "(?!-)(?<id>[^"]+?)";\s+?LSHandlerURLScheme = (?:http|https);/.exec(stdout);
   const browserId = match2?.groups.id ?? "com.apple.Safari";
   if (browserId === "com.apple.safari") {
@@ -14782,9 +14919,9 @@ async function defaultBrowserId() {
 
 // node_modules/run-applescript/index.js
 import process5 from "node:process";
-import { promisify as promisify2 } from "node:util";
-import { execFile as execFile2, execFileSync } from "node:child_process";
-var execFileAsync2 = promisify2(execFile2);
+import { promisify as promisify3 } from "node:util";
+import { execFile as execFile3, execFileSync } from "node:child_process";
+var execFileAsync3 = promisify3(execFile3);
 async function runAppleScript(script, { humanReadableOutput = true, signal } = {}) {
   if (process5.platform !== "darwin") {
     throw new Error("macOS only");
@@ -14794,7 +14931,7 @@ async function runAppleScript(script, { humanReadableOutput = true, signal } = {
   if (signal) {
     execOptions.signal = signal;
   }
-  const { stdout } = await execFileAsync2("osascript", ["-e", script, outputArguments], execOptions);
+  const { stdout } = await execFileAsync3("osascript", ["-e", script, outputArguments], execOptions);
   return stdout.trim();
 }
 
@@ -14813,9 +14950,9 @@ tell application "System Events" to get value of property list item "CFBundleNam
 
 // node_modules/default-browser/windows.js
 import process6 from "node:process";
-import { promisify as promisify3 } from "node:util";
-import { execFile as execFile3 } from "node:child_process";
-var execFileAsync3 = promisify3(execFile3);
+import { promisify as promisify4 } from "node:util";
+import { execFile as execFile4 } from "node:child_process";
+var execFileAsync4 = promisify4(execFile4);
 var windowsBrowserProgIds = {
   MSEdgeHTM: { name: "Edge", id: "com.microsoft.edge" },
   // The missing `L` is correct.
@@ -14838,7 +14975,7 @@ var windowsBrowserProgIds = {
 var _windowsBrowserProgIdMap = new Map(Object.entries(windowsBrowserProgIds));
 var UnknownBrowserError = class extends Error {
 };
-async function defaultBrowser(_execFileAsync = execFileAsync3) {
+async function defaultBrowser(_execFileAsync = execFileAsync4) {
   const regPath = `${process6.env.SYSTEMROOT ?? process6.env.windir ?? "C:\\Windows"}\\System32\\reg.exe`;
   const { stdout } = await _execFileAsync(regPath, [
     "QUERY",
@@ -14859,7 +14996,7 @@ async function defaultBrowser(_execFileAsync = execFileAsync3) {
 }
 
 // node_modules/default-browser/index.js
-var execFileAsync4 = promisify4(execFile4);
+var execFileAsync5 = promisify5(execFile5);
 var titleize = (string) => string.toLowerCase().replaceAll(/(?:^|\s|-)\S/g, (x) => x.toUpperCase());
 async function defaultBrowser2() {
   if (process7.platform === "darwin") {
@@ -14868,7 +15005,7 @@ async function defaultBrowser2() {
     return { name, id };
   }
   if (process7.platform === "linux") {
-    const { stdout } = await execFileAsync4("xdg-mime", ["query", "default", "x-scheme-handler/http"]);
+    const { stdout } = await execFileAsync5("xdg-mime", ["query", "default", "x-scheme-handler/http"]);
     const id = stdout.trim();
     const name = titleize(id.replace(/.desktop$/, "").replace("-", " "));
     return { name, id };
@@ -14880,7 +15017,7 @@ async function defaultBrowser2() {
 }
 
 // node_modules/open/index.js
-var execFile5 = promisify5(childProcess.execFile);
+var execFile6 = promisify6(childProcess.execFile);
 var __dirname = path11.dirname(fileURLToPath(import.meta.url));
 var localXdgOpenPath = path11.join(__dirname, "xdg-open");
 var { platform, arch } = process8;
@@ -14888,7 +15025,7 @@ async function getWindowsDefaultBrowserFromWsl() {
   const powershellPath = await powerShellPath();
   const rawCommand = String.raw`(Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\Shell\Associations\UrlAssociations\http\UserChoice").ProgId`;
   const encodedCommand = Buffer2.from(rawCommand, "utf16le").toString("base64");
-  const { stdout } = await execFile5(
+  const { stdout } = await execFile6(
     powershellPath,
     [
       "-NoProfile",
@@ -18823,7 +18960,7 @@ async function watchProject(entry, refs, onChange) {
 import path13 from "node:path";
 
 // packages/server/src/http.ts
-var CORE_400 = [/^Invalid value for /, /^Invalid key /, /^Cannot edit /, /^Only done specs can be archived/, /^(Subtask|Question|Review item) .+ not found$/];
+var CORE_400 = [/^Invalid value for /, /^Invalid key /, /^Cannot edit /, /^Only done specs can be archived/, /^(Subtask|Question|Review item) .+ not found$/, /^The reason can’t be empty$/];
 var CORE_422 = [/^No front matter$/, /^Front matter is not valid YAML/];
 var HttpError = class extends Error {
   constructor(status, message) {
@@ -18928,9 +19065,14 @@ function specRoutes(registry, runs) {
   app.patch("/api/projects/:pid/specs/:id/reviews/:n", async (c) => {
     const b = await readJson(c);
     const hash = requireString(b, "hash", false);
-    if (typeof b.done !== "boolean") throw new HttpError(400, 'Missing or invalid "done"');
+    const hasFailed = "failed" in b;
+    if (hasFailed && "done" in b) throw new HttpError(400, 'Send "done" or "failed", not both');
+    if (hasFailed) {
+      if (b.failed !== null && typeof b.failed !== "string") throw new HttpError(400, 'Invalid "failed"');
+    } else if (typeof b.done !== "boolean") throw new HttpError(400, 'Missing or invalid "done"');
     const n = Number(c.req.param("n"));
     if (!Number.isInteger(n)) throw new HttpError(400, "Invalid review item number");
+    if (hasFailed) return mutate(c, (text2) => setReviewFailed(text2, n, b.failed), hash);
     return mutate(c, (text2) => setReviewDone(text2, n, b.done), hash);
   });
   app.patch("/api/projects/:pid/specs/:id/answers", async (c) => {
@@ -19671,6 +19813,8 @@ function runPrompt(kind, specId) {
   switch (kind) {
     case "run":
       return `/specboard:run-spec ${specId}`;
+    case "fix-review":
+      return `/specboard:fix-review ${specId} --board`;
     case "write-up":
       return `/specboard:create-spec ${specId} --board`;
     case "fix-file":
@@ -19743,7 +19887,7 @@ function finalLine(kind, end, before, after) {
 function endLine(kind, end, before, after) {
   switch (end.status) {
     case "finished": {
-      if (kind !== "run") return { k: "done", text: FINISHED_TEXT[kind] };
+      if (kind !== "run" && kind !== "fix-review") return { k: "done", text: FINISHED_TEXT[kind] };
       const commit = [...after?.subtasks ?? []].reverse().map((t) => after?.logs[t.n]?.commit).find(Boolean);
       const left = (after?.subtasks ?? []).filter((t) => !t.done && youStep(t.title) !== null).length;
       const toReview = (after?.reviews ?? []).filter((r) => !r.done).length;
@@ -20049,7 +20193,7 @@ var RunManager = class {
 };
 
 // packages/server/src/routes/runs.ts
-var KINDS = ["run", "write-up", "fix-file", "refresh-overview", "refresh-questions", "sync-plan", "sync-apply"];
+var KINDS = ["run", "fix-review", "write-up", "fix-file", "refresh-overview", "refresh-questions", "sync-plan", "sync-apply"];
 var SPEC_ID2 = /^T-\d{3,}$/;
 function runRoutes(deps) {
   const app = new Hono3();
@@ -20602,6 +20746,7 @@ function parseInitArgs(argv) {
   let forceSkills = false;
   let noSkills = false;
   let runs;
+  let specsInGit;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--yes") yes = true;
@@ -20611,10 +20756,14 @@ function parseInitArgs(argv) {
       const v = argv[++i];
       if (v !== "yes" && v !== "no") throw new Error(`--runs needs yes or no, got ${v ?? "(missing)"}`);
       runs = v;
+    } else if (a === "--specs-in-git") {
+      const v = argv[++i];
+      if (v !== "yes" && v !== "no") throw new Error(`--specs-in-git needs yes or no, got ${v ?? "(missing)"}`);
+      specsInGit = v;
     } else if (a.startsWith("--")) throw new Error(`Unknown option: ${a}`);
     else dir = path23.resolve(base, a);
   }
-  return { path: dir, yes, forceSkills, noSkills, runs };
+  return { path: dir, yes, forceSkills, noSkills, runs, specsInGit };
 }
 function parseRulesArgs(argv) {
   const base = process.env.INIT_CWD || process.cwd();
@@ -20810,7 +20959,7 @@ async function main() {
   }
   if (cmd === "init") {
     const a = parseInitArgs(rest);
-    await initCommand({ root: a.path, yes: a.yes, forceSkills: a.forceSkills, noSkills: a.noSkills, runs: a.runs }, terminalIO());
+    await initCommand({ root: a.path, yes: a.yes, forceSkills: a.forceSkills, noSkills: a.noSkills, runs: a.runs, specsInGit: a.specsInGit }, terminalIO());
     return;
   }
   if (cmd === "rules") {

@@ -286,6 +286,28 @@ describe('refusals', () => {
     expect(api.startRun).toHaveBeenCalledTimes(1);
     await act(async () => answer({ run: run() }));
   });
+
+  it('Starting… from the click until the start answers, then the running UI (Stop) takes over', async () => {
+    let answer!: (v: { run: RunSnapshot }) => void;
+    vi.mocked(api.startRun).mockImplementation(() => new Promise((r) => (answer = r)));
+    await mount(null, '/?project=p1&spec=T-104');
+    fireEvent.click(runBtn());
+    expect(screen.getByRole('button', { name: 'Starting…' })).toHaveProperty('disabled', true);
+    await act(async () => answer({ run: run() }));
+    expect(screen.queryByRole('button', { name: 'Starting…' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeTruthy();
+  });
+
+  it('a refused start brings the button back beside the toast', async () => {
+    let fail!: (e: unknown) => void;
+    vi.mocked(api.startRun).mockImplementation(() => new Promise((_r, rej) => (fail = rej)));
+    await mount(null, '/?project=p1&spec=T-104');
+    fireEvent.click(runBtn());
+    expect(screen.getByRole('button', { name: 'Starting…' })).toBeTruthy();
+    await act(async () => fail(new ApiError(503, 'x', { claude: 'logged-out' })));
+    expect(runBtn()).toHaveProperty('disabled', false);
+    expect(named('Claude Code isn’t logged in').length).toBeGreaterThan(0);
+  });
 });
 
 describe('the actions start the right kind', () => {
@@ -587,5 +609,29 @@ describe('the run panel in the detail', () => {
     fireEvent.click(yes);
     expect(yes).toHaveProperty('checked', true);
     expect(save).toHaveProperty('disabled', false);
+  });
+});
+
+describe('Fix review issues', () => {
+  const failedReview = () => noChat.map((s) => (s.id === 'T-103' ? { ...s, reviews: s.reviews.map((r, i) => (i === 1 ? { ...r, failed: 'The list stays empty.' } : r)) } : s));
+
+  it('on a Review card with a failed check, starts a fix-review run that shows like a run', async () => {
+    project.specs = failedReview();
+    vi.mocked(api.startRun).mockResolvedValue({ run: run({ kind: 'fix-review', specId: 'T-103' }) });
+    await mount(null, '/?project=p1&spec=T-103');
+    fireEvent.click(screen.getByRole('button', { name: 'Fix review issues' }));
+    await waitFor(() => expect(api.startRun).toHaveBeenCalledWith('p1', 'fix-review', 'T-103'));
+    send({ type: 'run-started', run: run({ kind: 'fix-review', specId: 'T-103' }) });
+    expect(await screen.findByRole('button', { name: 'Stop' })).toBeTruthy();
+    expect(panel()).toBeTruthy();
+    expect(named('Claude started fixing T-103’s failed checks in the background.').length).toBeGreaterThan(0);
+  });
+
+  it('not connected: the button explains instead and offers /fix-review <ID>', async () => {
+    project.specs = failedReview();
+    await mount(null, '/?project=p1&spec=T-103', { approved: false });
+    fireEvent.click(screen.getByRole('button', { name: 'Fix review issues' }));
+    expect((await screen.findAllByText('/fix-review T-103')).length).toBeGreaterThan(0);
+    expect(api.startRun).not.toHaveBeenCalled();
   });
 });

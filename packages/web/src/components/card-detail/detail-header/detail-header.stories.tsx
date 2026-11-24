@@ -44,6 +44,17 @@ export const WithSync: Story = {
   args: { onSync: fn(), syncWaiting: true, onSyncWaiting: fn() },
 };
 
+/** Sync just clicked: a spinner and Starting…, disabled, until the sync has started or the start failed. */
+export const SyncStarting: Story = {
+  args: { onSync: fn(() => new Promise<void>(() => undefined)) },
+  play: async ({ canvasElement, args }) => {
+    const c = within(canvasElement);
+    await userEvent.click(c.getByRole('button', { name: 'Sync' }));
+    expect(await c.findByRole('button', { name: 'Starting…' })).toHaveProperty('disabled', true);
+    expect(args.onSync).toHaveBeenCalledOnce();
+  },
+};
+
 export const Simple: Story = {
   name: 'Simple mode',
   args: { simple: true, dependencies: <p className="m-0 text-[13px] text-fg3">Dependencies go here.</p> },

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { composeStories } from '@storybook/react-vite';
 import * as stories from './spec-card.stories';
@@ -26,6 +26,8 @@ const {
   MenuNarrow,
   SimpleBlocked,
   SimpleBlockedNarrow,
+  ReviewFailed,
+  SimpleReviewFailed,
 } = composeStories(stories);
 
 afterEach(cleanup);
@@ -180,6 +182,21 @@ describe('SpecCard', () => {
     expect(onUnarchive).toHaveBeenCalledTimes(1);
   });
 
+  it('the draft write-up button says Starting…, disabled, from the click until the start settles, without opening the card', async () => {
+    let settle!: (ok: boolean) => void;
+    const onWriteUp = vi.fn(() => new Promise<boolean>((r) => (settle = r)));
+    const { light, onOpen } = setup(Draft, { onWriteUp });
+    fireEvent.click(light.getByRole('button', { name: 'Have Claude write this up' }));
+    const btn = light.getByRole('button', { name: 'Starting…' });
+    expect(btn).toHaveProperty('disabled', true);
+    expect(within(btn).getByTestId('spinner')).toBeTruthy();
+    fireEvent.click(btn);
+    expect(onWriteUp).toHaveBeenCalledOnce();
+    expect(onOpen).not.toHaveBeenCalled();
+    await act(async () => settle(false));
+    expect(light.getByRole('button', { name: 'Have Claude write this up' })).toHaveProperty('disabled', false);
+  });
+
   it('not connected: the draft write-up button is greyed, not disabled, and opens the command to paste without opening the card', async () => {
     const { light, onWriteUp, onOpen } = setup(DraftNotConnected);
     const btn = light.getByRole('button', { name: 'Have Claude write this up' }) as HTMLButtonElement;
@@ -284,6 +301,25 @@ describe('SpecCard', () => {
     ({ light } = setup(InReview));
     expect(light.getByText('Waiting on your review')).toBeTruthy();
     expect(light.queryByText(/Claude is working/)).toBeNull();
+  });
+
+  it('a card with a failed review check shows a small "N failed" marker; others do not', () => {
+    let { light } = setup(ReviewFailed);
+    expect(light.getByTestId('card-failed').textContent).toBe('1 failed');
+    expect(light.getByTestId('card-failed').className).toMatch(/text-block-ink/);
+    cleanup();
+    ({ light } = setup(InReview));
+    expect(light.queryByTestId('card-failed')).toBeNull();
+  });
+
+  it('simple mode puts the failed count behind ⋯, with the attention dot', async () => {
+    const user = userEvent.setup();
+    const { light } = setup(SimpleReviewFailed);
+    expect(light.queryByTestId('card-failed')).toBeNull();
+    expect(light.getByTestId('card-attention')).toBeTruthy();
+    await user.click(light.getByRole('button', { name: 'More about T-103' }));
+    const menu = await screen.findByRole('menu', { name: 'More about T-103' });
+    expect(within(menu).getByTestId('card-details').textContent).toContain('1 failed');
   });
 
   it('a card in Review with review items shows Reviewed 1/3; other cards do not', () => {
