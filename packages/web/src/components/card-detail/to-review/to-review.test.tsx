@@ -115,6 +115,19 @@ describe('ToReview: How to check', () => {
     expect(within(list).getByText('Search').tagName).toBe('STRONG');
   });
 
+  it('the toggle sits at the end of the item row, like Log, and the steps open under the row', () => {
+    setup(checkSpec());
+    const toggle = screen.getAllByRole('button', { name: 'How to check' })[0]!;
+    const item = toggle.closest('[data-review]')!;
+    const row = item.firstElementChild!;
+    expect(row.lastElementChild).toBe(toggle);
+    expect(toggle.querySelectorAll('svg')).toHaveLength(2);
+    fireEvent.click(toggle);
+    const list = document.getElementById(toggle.getAttribute('aria-controls')!)!;
+    expect(row.contains(list)).toBe(false);
+    expect(item.contains(list)).toBe(true);
+  });
+
   it('no toggle for an item without steps', () => {
     setup(recipeSpec('T-103'));
     expect(screen.queryByRole('button', { name: 'How to check' })).toBeNull();
@@ -151,6 +164,15 @@ describe('ToReview: Pass and Fail', () => {
     expect(screen.queryByRole('group', { name: 'Check: Type a few letters into the search box' })).toBeNull();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Type a few letters into the search box' }));
     await waitFor(() => expect(client.setReview).toHaveBeenCalledWith('p1', 'T-103', 1, expect.any(String), false));
+  });
+
+  it('Pass has a green tick and Fail a red X, at regular button size', () => {
+    setup(recipeSpec('T-103'));
+    const pass = actions('Clear the search box').getByRole('button', { name: 'Pass' });
+    const fail = actions('Clear the search box').getByRole('button', { name: 'Fail' });
+    expect(pass.querySelector('svg')!.getAttribute('class')).toMatch(/text-done-ink/);
+    expect(fail.querySelector('svg')!.getAttribute('class')).toMatch(/text-block-ink/);
+    for (const b of [pass, fail]) expect(b.className).toMatch(/h-\[30px\]/);
   });
 
   it('Pass ticks the item, as the checkbox does', async () => {

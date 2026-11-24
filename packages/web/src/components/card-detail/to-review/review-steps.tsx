@@ -1,11 +1,9 @@
-import { useState } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { CaretIcon, CaretRightIcon, CheckIcon, CopyIcon } from '@/lib/icons';
+import { CaretIcon, CaretUpIcon, CheckIcon, CopyIcon, LogIcon } from '@/lib/icons';
 import { useCopyCommand } from '@/lib/useCopyCommand';
-import { cn } from '@/lib/utils';
 
-// A To review item's "How to check" steps: a collapsed toggle that opens a numbered list. Each step is inline Markdown:
+// A To review item's "How to check" steps: a toggle on the item's row that opens a numbered list under it. Each step is inline Markdown:
 // http and https links open in a new tab, other links are plain text, and each `code` span has its own copy button.
 
 const SAFE_LINK = /^https?:\/\//i;
@@ -56,31 +54,34 @@ export function StepMarkdown({ md }: { md: string }) {
   );
 }
 
-/** The collapsed How to check toggle and, open, the numbered steps. */
-export function ReviewSteps({ id, steps }: { id: string; steps: string[] }) {
-  const [open, setOpen] = useState(false);
-  if (steps.length === 0) return null;
+/** The How to check toggle, at the right end of an item's row like a subtask's Log button. */
+export function ReviewStepsToggle({ controls, open, onToggle }: { controls: string; open: boolean; onToggle: () => void }) {
   return (
-    <div className="mt-1">
-      <button
-        type="button"
-        className="inline-flex cursor-pointer items-center gap-1 rounded-[6px] border-0 bg-transparent px-0 py-0.5 text-[12.5px] font-semibold text-fg2 hover:text-fg"
-        aria-expanded={open}
-        aria-controls={id}
-        onClick={() => setOpen((o) => !o)}
-      >
-        {open ? <CaretIcon aria-hidden /> : <CaretRightIcon aria-hidden />}
-        How to check
-      </button>
-      {open && (
-        <ol id={id} className={cn('m-0 mt-1 flex list-decimal flex-col gap-1 pl-6 text-[13px] leading-[1.5] text-fg')}>
-          {steps.map((s, i) => (
-            <li key={i}>
-              <StepMarkdown md={s} />
-            </li>
-          ))}
-        </ol>
-      )}
+    <button
+      type="button"
+      className="flex h-[26px] flex-none cursor-pointer items-center gap-1.5 rounded-md border-0 bg-transparent px-[9px] py-0 text-[12.5px] whitespace-nowrap text-fg2 hover:bg-panel hover:text-fg aria-expanded:bg-panel"
+      aria-expanded={open}
+      aria-controls={controls}
+      onClick={onToggle}
+    >
+      <LogIcon aria-hidden className="text-[14px]" />
+      How to check
+      {open ? <CaretUpIcon aria-hidden className="text-[12px]" /> : <CaretIcon aria-hidden className="text-[12px]" />}
+    </button>
+  );
+}
+
+/** The open steps: a numbered list in a panel under the item's row, like an open subtask log. */
+export function ReviewStepsList({ id, steps }: { id: string; steps: string[] }) {
+  return (
+    <div className="mr-4 mb-3.5 ml-[45px] animate-[sbIn_0.2s_ease-out] rounded-[10px] border border-line bg-bg px-4 py-3">
+      <ol id={id} className="m-0 flex list-decimal flex-col gap-1 pl-5 text-[13px] leading-[1.5] text-fg">
+        {steps.map((s, i) => (
+          <li key={i}>
+            <StepMarkdown md={s} />
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

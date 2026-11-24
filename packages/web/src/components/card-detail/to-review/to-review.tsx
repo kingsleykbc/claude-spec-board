@@ -6,7 +6,8 @@ import { OFFLINE_TOAST, type Mutate } from '@/state/actions';
 import type { PushToast } from '@/state/toasts';
 import { cn } from '@/lib/utils';
 import { section, sectionHead, sectionLabel } from '../section';
-import { ReviewSteps } from './review-steps';
+import { CheckIcon, CloseIcon } from '@/lib/icons';
+import { ReviewStepsList, ReviewStepsToggle } from './review-steps';
 
 // The To review checklist: person-only checks after the work. Ticking one never moves the card. Pass ticks an item;
 // Fail saves what went wrong (`> failed:`), which Fix review issues hands to Claude.
@@ -39,8 +40,8 @@ export function groupReviews(items: ReviewItem[]): { group: string | null; items
 /** A failed reason as it is saved: one line, trimmed. */
 export const oneLine = (text: string): string => text.replace(/\s*[\r\n]+\s*/g, ' ').trim();
 
-const smallButton =
-  'inline-flex h-[26px] cursor-pointer items-center rounded-[7px] border border-line2 bg-card px-2.5 py-0 text-[12.5px] font-semibold text-fg hover:border-fg3 hover:bg-raise disabled:cursor-default disabled:opacity-50';
+const button =
+  'inline-flex h-[30px] cursor-pointer items-center gap-1.5 rounded-[7px] border border-line2 bg-card px-3 py-0 text-[13px] font-semibold text-fg hover:border-fg3 hover:bg-raise disabled:cursor-default disabled:opacity-50';
 
 type Local = { done?: boolean; failed?: string | null };
 
@@ -51,6 +52,8 @@ export function ToReview({ pid, spec, client = api, mutate, refresh, toast, down
   const [local, setLocal] = useState<Record<number, Local>>({});
   /** The item whose "What went wrong?" box is open, and its draft. */
   const [editing, setEditing] = useState<{ n: number; text: string } | null>(null);
+  /** The items whose How to check steps are open. */
+  const [stepsOpen, setStepsOpen] = useState<ReadonlySet<number>>(new Set());
   const inFlight = useRef(0);
   // Esc closes the box before the card.
   useEscape(editing !== null, () => setEditing(null), ESC.input);
@@ -91,6 +94,14 @@ export function ToReview({ pid, spec, client = api, mutate, refresh, toast, down
   const setFailed = (n: number, reason: string | null) =>
     write(n, reason === null ? { failed: null } : { failed: reason, done: false }, (h) => client.setReviewFailed(pid, id, n, h, reason));
 
+  const toggleSteps = (n: number) =>
+    setStepsOpen((o) => {
+      const next = new Set(o);
+      if (next.has(n)) next.delete(n);
+      else next.add(n);
+      return next;
+    });
+
   const save = () => {
     if (!editing) return;
     const reason = oneLine(editing.text);
@@ -115,97 +126,104 @@ export function ToReview({ pid, spec, client = api, mutate, refresh, toast, down
               const inputId = `rv-${id}-${r.n}`;
               const failed = r.failed !== null && !r.done;
               const open = editing?.n === r.n;
+              const stepsId = `${inputId}-steps`;
+              const showSteps = r.steps.length > 0 && stepsOpen.has(r.n);
               const describedBy = [r.expected !== null ? `${inputId}-exp` : null, failed ? `${inputId}-fail` : null].filter(Boolean).join(' ');
               return (
                 <div
                   key={r.n}
                   data-review={r.n}
                   data-failed={failed || undefined}
-                  className={cn('flex items-start gap-3 border-b border-line px-4 py-2.5', failed && 'bg-block-soft')}
+                  className={cn('border-b border-line', failed && 'bg-block-soft')}
                 >
-                  <input
-                    type="checkbox"
-                    id={inputId}
-                    className="m-0 mt-[3px] size-[17px] flex-none cursor-pointer p-0 disabled:cursor-default"
-                    aria-describedby={describedBy || undefined}
-                    checked={r.done}
-                    disabled={readOnly}
-                    onChange={() => void toggle(r.n, !r.done)}
-                  />
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    <label htmlFor={inputId} className={cn('block text-[14px]', readOnly ? 'cursor-default' : 'cursor-pointer', r.done ? 'text-fg2' : 'text-fg')}>
-                      {r.text}
-                    </label>
-                    {r.expected !== null && <p id={`${inputId}-exp`} className="m-0 mt-0.5 text-[12.5px] text-fg3">Expected: {r.expected}</p>}
-                    <ReviewSteps id={`${inputId}-steps`} steps={r.steps} />
-                    {failed && (
-                      <p id={`${inputId}-fail`} className="m-0 mt-1 text-[12.5px] font-medium wrap-anywhere text-block-ink">
-                        Failed: {r.failed}
-                      </p>
-                    )}
-                    {r.fixed.map((f, i) => (
-                      <p key={i} className="m-0 mt-0.5 text-[12px] wrap-anywhere text-fg3">
-                        Fixed: {f}
-                      </p>
-                    ))}
-                    {open && (
-                      <form
-                        className="mt-2 flex flex-col gap-2"
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          save();
-                        }}
-                      >
-                        <label htmlFor={`${inputId}-why`} className="text-[12.5px] font-semibold text-fg2">
-                          What went wrong?
-                        </label>
-                        <textarea
-                          id={`${inputId}-why`}
-                          autoFocus
-                          rows={2}
-                          className="w-full resize-y rounded-[7px] border border-line2 bg-card px-2.5 py-1.5 text-[13px] text-fg outline-none focus:border-accent"
-                          value={editing.text}
-                          onChange={(e) => setEditing({ n: r.n, text: e.target.value })}
-                          onKeyDown={(e) => {
-                            // Enter saves (the reason is one line); Shift+Enter is still allowed and becomes a space.
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                              save();
-                            }
+                  <div className="flex items-start gap-3 px-4 py-2.5">
+                    <input
+                      type="checkbox"
+                      id={inputId}
+                      className="m-0 mt-[3px] size-[17px] flex-none cursor-pointer p-0 disabled:cursor-default"
+                      aria-describedby={describedBy || undefined}
+                      checked={r.done}
+                      disabled={readOnly}
+                      onChange={() => void toggle(r.n, !r.done)}
+                    />
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <label htmlFor={inputId} className={cn('block text-[14px]', readOnly ? 'cursor-default' : 'cursor-pointer', r.done ? 'text-fg2' : 'text-fg')}>
+                        {r.text}
+                      </label>
+                      {r.expected !== null && <p id={`${inputId}-exp`} className="m-0 mt-0.5 text-[12.5px] text-fg3">Expected: {r.expected}</p>}
+                      {failed && (
+                        <p id={`${inputId}-fail`} className="m-0 mt-1 text-[12.5px] font-medium wrap-anywhere text-block-ink">
+                          Failed: {r.failed}
+                        </p>
+                      )}
+                      {r.fixed.map((f, i) => (
+                        <p key={i} className="m-0 mt-0.5 text-[12px] wrap-anywhere text-fg3">
+                          Fixed: {f}
+                        </p>
+                      ))}
+                      {open && (
+                        <form
+                          className="mt-2 flex flex-col gap-2"
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            save();
                           }}
-                        />
-                        <div className="flex gap-2">
-                          <button type="submit" className={cn(smallButton, 'border-0 bg-accent text-accent-fg hover:bg-accent-hover')} disabled={oneLine(editing.text) === ''}>
-                            Save
+                        >
+                          <label htmlFor={`${inputId}-why`} className="text-[12.5px] font-semibold text-fg2">
+                            What went wrong?
+                          </label>
+                          <textarea
+                            id={`${inputId}-why`}
+                            autoFocus
+                            rows={2}
+                            className="w-full resize-y rounded-[7px] border border-line2 bg-card px-2.5 py-1.5 text-[13px] text-fg outline-none focus:border-accent"
+                            value={editing.text}
+                            onChange={(e) => setEditing({ n: r.n, text: e.target.value })}
+                            onKeyDown={(e) => {
+                              // Enter saves (the reason is one line); Shift+Enter is still allowed and becomes a space.
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                save();
+                              }
+                            }}
+                          />
+                          <div className="flex gap-2">
+                            <button type="submit" className={cn(button, 'border-0 bg-accent text-accent-fg hover:bg-accent-hover')} disabled={oneLine(editing.text) === ''}>
+                              Save
+                            </button>
+                            <button type="button" className={button} onClick={() => setEditing(null)}>
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      )}
+                      {!readOnly && !r.done && !open && (
+                        <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label={`Check: ${r.text}`}>
+                          <button type="button" className={button} onClick={() => void toggle(r.n, true)}>
+                            <CheckIcon aria-hidden className="text-[15px] text-done-ink" />
+                            Pass
                           </button>
-                          <button type="button" className={smallButton} onClick={() => setEditing(null)}>
-                            Cancel
-                          </button>
+                          {failed ? (
+                            <>
+                              <button type="button" className={button} onClick={() => setEditing({ n: r.n, text: r.failed ?? '' })}>
+                                Edit
+                              </button>
+                              <button type="button" className={button} onClick={() => void setFailed(r.n, null)}>
+                                Clear
+                              </button>
+                            </>
+                          ) : (
+                            <button type="button" className={button} onClick={() => setEditing({ n: r.n, text: '' })}>
+                              <CloseIcon aria-hidden className="text-[15px] text-block-ink" />
+                              Fail
+                            </button>
+                          )}
                         </div>
-                      </form>
-                    )}
-                    {!readOnly && !r.done && !open && (
-                      <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label={`Check: ${r.text}`}>
-                        <button type="button" className={smallButton} onClick={() => void toggle(r.n, true)}>
-                          Pass
-                        </button>
-                        {failed ? (
-                          <>
-                            <button type="button" className={smallButton} onClick={() => setEditing({ n: r.n, text: r.failed ?? '' })}>
-                              Edit
-                            </button>
-                            <button type="button" className={smallButton} onClick={() => void setFailed(r.n, null)}>
-                              Clear
-                            </button>
-                          </>
-                        ) : (
-                          <button type="button" className={smallButton} onClick={() => setEditing({ n: r.n, text: '' })}>
-                            Fail
-                          </button>
-                        )}
-                      </div>
-                    )}
+                      )}
+                    </div>
+                    {r.steps.length > 0 && <ReviewStepsToggle controls={stepsId} open={showSteps} onToggle={() => toggleSteps(r.n)} />}
                   </div>
+                  {showSteps && <ReviewStepsList id={stepsId} steps={r.steps} />}
                 </div>
               );
             })}
