@@ -244,7 +244,8 @@ To carry a card's images to another card (a merge or a split), run `specboard co
 
 - `true`: Claude keeps the specs in git, in their own commits. Code commits still never hold `.specboard/` files. When `commits` is not `false` and there is a git repo, end each of these with one board commit, but only if `.specboard/` changed:
   - a run that ends with the spec in Review (step 6 of Running a spec), in a chat or a background run. Use the summary `<ID> to Review`.
-  - plan-project, import-specs, setup, create-spec, sync-specs, reorganize, move and the refresh commands, when they wrote `.specboard/` in a chat.
+  - every other command that wrote `.specboard/` (plan-project, import-specs, setup, create-spec, fix-review, sync-specs, reorganize, move and the refresh commands), in a chat or a background run. This includes a sync applied from the board and a write-up the board started.
+  - Changes made on the board itself (dragging cards, ticking, Pass and Fail) and the token counts the board adds after a background run aren't commits of their own: they go into the next board commit.
 - The board commit holds only `.specboard/`. Run `git add .specboard`, then `git commit -m "Spec Board: <short summary>" -- .specboard`, each on its own with the Bash tool. The `-- .specboard` part keeps anything else that is staged out of it. For example `Spec Board: T-001 to Review` or `Spec Board: first specs`.
 - If the board commit is refused, skip it, say so in one line, and carry on. Never push it.
 - `false`: the specs stay on this machine, and `.specboard/` is hidden from git. Make no board commits.
@@ -260,7 +261,7 @@ Only when the user ran `/run-spec` or `/next`, or asked for it directly. Never s
    - any required question under `## Open questions` is unanswered. List them with their numbers; or
    - a spec in `depends_on` is not finished, or does not exist. Name it.
 
-   Otherwise read the saved answers and use them as decisions. For an unanswered optional question, go with its recommendation, leave the question unanswered, and say which you assumed in the log of the first subtask it affects. If it has no recommendation, use your best judgment and say so the same way.
+   Otherwise read the saved answers and use them as decisions. For an unanswered optional question, go with its recommendation, leave the question unanswered, and say which you assumed in the log of the first subtask it affects. In your closing message, say you went with the recommended answers and that the questions are still open on the board if the person wants to change them; never say they were answered. If it has no recommendation, use your best judgment and say so the same way.
 3. Edit the front matter: `status: doing`, and `updated` to today.
 4. For each unticked subtask, in order:
    1. If it is a `(you)` subtask and Claude subtasks come after it: set `current_subtask: null`, leave the status as `doing`, say exactly what the person needs to do, and **stop**. Never tick it. The person ticks it on the board and runs again. In an older spec, a `(you)` check with only `(you)` subtasks after it does not stop the run: go to step 6 of Running a spec (the Done when check).

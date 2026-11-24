@@ -36,3 +36,15 @@ describe('WriteUpButton', () => {
     expect(onWriteUp).not.toHaveBeenCalled();
   });
 });
+
+describe('WriteUpButton while another run is going', () => {
+  it('is disabled with the note, and starts nothing', () => {
+    const onWriteUp = vi.fn();
+    render(<Ready onWriteUp={onWriteUp} busyNote="Claude is already working on T-002" />);
+    const btn = screen.getByRole('button', { name: 'Have Claude write this up' });
+    expect(btn).toHaveProperty('disabled', true);
+    expect(btn.getAttribute('title')).toBe('Claude is already working on T-002');
+    fireEvent.click(btn);
+    expect(onWriteUp).not.toHaveBeenCalled();
+  });
+});

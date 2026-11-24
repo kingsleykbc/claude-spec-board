@@ -297,8 +297,13 @@ describe('initCommand', () => {
 
   it('--runs no works without a TTY and writes no settings', async () => {
     const root = await project('rn');
-    const r = await initCommand({ root, yes: false, forceSkills: false, runs: 'no' }, io({ tty: false }));
+    const i = io({ tty: false });
+    const r = await initCommand({ root, yes: false, forceSkills: false, runs: 'no' }, i);
     expect(r.approved).toBe(false);
+    // Nothing is being approved, so the lists stay out; the one line says runs are off and how to turn them on.
+    expect(i.out.join('\n')).not.toContain('Headless runs may use:');
+    expect(i.out.filter((l) => /^ {2}(allow|deny) /.test(l))).toEqual([]);
+    expect(i.out.some((l) => l.startsWith('Project set up, but runs are not approved.'))).toBe(true);
     await expect(fs.stat(path.join(root, '.claude', 'settings.json'))).rejects.toThrow();
     expect(await approvedStore().get(r.id, root)).toBeNull();
   });

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ClaudeStatus, RunSnapshot } from '../api/client';
 import { recipeSpec } from '../fixtures/recipeBox';
 import { resetMode, setPluginMode } from '../lib/mode';
-import { cardRun, endedToast, isRefreshingQuestions, manualReason, pasteCommand, runButtonState } from './runUi';
+import { busyNote, cardRun, endedToast, isRefreshingQuestions, manualReason, pasteCommand, runButtonState } from './runUi';
 
 const PLUGIN_HINT = 'Ask Claude to run /specboard:setup again to update the allowed commands, or ask Claude to run `specboard init --yes --no-skills --runs yes <project path>`.';
 
@@ -210,5 +210,20 @@ describe('manualReason', () => {
   ];
   it.each(cases)('%s', (_n, claude, approved, want) => {
     expect(manualReason(claude, approved)).toBe(want);
+  });
+});
+
+describe('busyNote', () => {
+  it('names the spec Claude is working on, as Run with Claude does', () => {
+    expect(busyNote(run(), 'T-103')).toBe('Claude is already working on T-104');
+  });
+  it('names the overview when the run has no spec, and a sync with its own words', () => {
+    expect(busyNote(run({ kind: 'refresh-overview', specId: null }), 'T-103')).toBe('Claude is already working on the overview');
+    expect(busyNote(run({ kind: 'sync-plan', specId: null }), 'T-103')).toBe('Claude is syncing the board with the code');
+  });
+  it('is null for the spec that is running, an ended run, or no run', () => {
+    expect(busyNote(run(), 'T-104')).toBeNull();
+    expect(busyNote(run({ status: 'finished' }), 'T-103')).toBeNull();
+    expect(busyNote(null, 'T-103')).toBeNull();
   });
 });

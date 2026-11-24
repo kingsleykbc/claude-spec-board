@@ -128,6 +128,27 @@ export function relTime(s: string | null | undefined, now: Date = new Date()): s
   return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
 }
 
+/**
+ * The Overview's "updated" line. A date with no time (`2026-11-24`) is a day, not a moment: it reads Updated today,
+ * Updated yesterday or the date, never a number of hours. With a time it keeps the relative form (`Last updated 2h ago`).
+ * Empty for missing or unparseable input.
+ */
+export function updatedLabel(s: string | null | undefined, now: Date = new Date()): string {
+  if (!s) return '';
+  const m = STAMP.exec(s.trim());
+  if (!m) return '';
+  if (m[4] !== undefined) {
+    const rel = relTime(s, now);
+    return rel ? `Last updated ${rel}` : '';
+  }
+  const d = parseLocal(s);
+  if (!d) return '';
+  const days = Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() - d.getTime()) / 86400000);
+  if (days <= 0) return 'Updated today';
+  if (days === 1) return 'Updated yesterday';
+  return `Updated ${MONTHS[d.getMonth()]} ${d.getDate()}`;
+}
+
 /** A path shown to the user: relative to the project root, with forward slashes (as is when outside the root). */
 export function relPath(root: string, p: string): string {
   const norm = (s: string) => s.replace(/\\/g, '/').replace(/\/+$/, '');

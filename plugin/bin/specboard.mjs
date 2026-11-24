@@ -13938,9 +13938,11 @@ async function initCommand(opts, io) {
   const store = approvedStore();
   const previous = await store.stored(id, root);
   const { allow, deny } = await planPermissions(root, id, io, previous);
-  io.log("Headless runs may use:");
-  for (const r of allow) io.log(`  allow  ${r}`);
-  for (const r of deny) io.log(`  deny   ${r}`);
+  if (opts.runs !== "no") {
+    io.log("Headless runs may use:");
+    for (const r of allow) io.log(`  allow  ${r}`);
+    for (const r of deny) io.log(`  deny   ${r}`);
+  }
   const approved = opts.runs ? opts.runs === "yes" : opts.yes || await io.confirm("Allow these actions for headless runs? [y/N] ");
   if (!approved) {
     if (previous) {

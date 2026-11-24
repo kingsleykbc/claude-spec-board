@@ -39,6 +39,13 @@ export function runButtonState(
   return { runState: 'fallback', runningId: null, ...(note ? { runBlockedNote: note } : {}) };
 }
 
+/** Why a start for `specId` would be refused right now (another run is going), in Run with Claude's words; null when it isn't. */
+export function busyNote(run: RunSnapshot | null, specId: string): string | null {
+  const s = runButtonState(run, specId, null);
+  if (s.runState !== 'disabled') return null;
+  return s.runBusyNote ?? `Claude is already working on ${s.runningId ?? 'the overview'}`;
+}
+
 export type ManualReason = 'not-installed' | 'not-logged-in' | 'blocked' | 'not-approved';
 
 /**

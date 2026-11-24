@@ -243,3 +243,19 @@ describe('OverviewModal: Starting… and the out-of-sync box', () => {
     expect(screen.queryByRole('note', { name: 'Out of sync' })).toBeNull();
   });
 });
+
+describe('OverviewModal updated line', () => {
+  it('a date with no time reads Updated today, not hours', () => {
+    setup({ project: { ...recipeProject, overview: { updated: '2026-11-08', summaryMd: 'x', outOfSync: null } } });
+    expect(screen.getByText('Updated today')).toBeTruthy();
+    expect(screen.queryByText(/ago/)).toBeNull();
+  });
+});
+
+describe('OverviewModal updated line', () => {
+  it('a date with no time reads Updated today, not hours', () => {
+    setup({ project: { ...recipeProject, overview: { updated: '2026-11-08', summaryMd: 'x', outOfSync: null } } });
+    expect(screen.getByText('Updated today')).toBeTruthy();
+    expect(screen.queryByText(/ago/)).toBeNull();
+  });
+});

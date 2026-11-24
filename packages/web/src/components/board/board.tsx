@@ -22,7 +22,7 @@ import type { RunSnapshot } from '@/api/client';
 import { PlusIcon } from '@/lib/icons';
 import { ORDER, ST } from '@/lib/vm';
 import { archivedShown, filterSpecs, NO_FILTERS, sortSpecs, compareSpecs, type Filters } from '@/state/filters';
-import { cardRun, type ManualReason } from '@/state/runUi';
+import { busyNote, cardRun, type ManualReason } from '@/state/runUi';
 import { Column } from '@/components/column/column';
 import { SpecCard } from '@/components/spec-card/spec-card';
 
@@ -108,6 +108,7 @@ function DraggableCard({ spec, all, canDrag, flash, p }: CardProps) {
       onUnarchive={() => p.onUnarchive(spec)}
       onWriteUp={() => p.onWriteUp(spec)}
       manual={p.manual ?? null}
+      writeUpBusy={busyNote(p.run ?? null, spec.id)}
       statusKnown={p.statusKnown ?? true}
     />
   );

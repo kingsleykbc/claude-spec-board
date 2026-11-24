@@ -322,6 +322,16 @@ describe('the actions start the right kind', () => {
     expect(within(screen.getByRole('button', { name: /^T-107 / })).getByText('Claude is writing it up')).toBeTruthy();
   });
 
+  it('a write-up refused as busy shows the toast naming the spec Claude is on', async () => {
+    vi.mocked(api.startRun).mockRejectedValue(new ApiError(409, 'busy', { run: run({ specId: 'T-104' }) }));
+    await mount();
+    const card = screen.getByRole('button', { name: /^T-107 / });
+    fireEvent.click(within(card).getByRole('button', { name: /Have Claude write this up/ }));
+    await flush();
+    expect(api.startRun).toHaveBeenCalledWith('p1', 'write-up', 'T-107');
+    expect(named('Claude is already working on T-104').length).toBeGreaterThan(0);
+  });
+
   it('Add & have Claude write it up: creates, then starts a write-up of the new spec', async () => {
     vi.mocked(api.createSpec).mockResolvedValue({ spec: { ...recipeSpec('T-107'), id: 'T-110', title: 'New' } });
     vi.mocked(api.startRun).mockResolvedValue({ run: run({ kind: 'write-up', specId: 'T-110' }) });
@@ -632,6 +642,18 @@ describe('Fix review issues', () => {
     await mount(null, '/?project=p1&spec=T-103', { approved: false });
     fireEvent.click(screen.getByRole('button', { name: 'Fix review issues' }));
     expect((await screen.findAllByText('/fix-review T-103')).length).toBeGreaterThan(0);
+    expect(api.startRun).not.toHaveBeenCalled();
+  });
+});
+
+describe('write-up buttons while another run is going', () => {
+  it('are disabled with the note, and a click starts nothing', async () => {
+    await mount(run({ specId: 'T-104' }));
+    const btn = within(screen.getByRole('button', { name: /^T-107 / })).getByRole('button', { name: /Have Claude write this up/ });
+    expect(btn).toHaveProperty('disabled', true);
+    expect(btn.getAttribute('title')).toBe('Claude is already working on T-104');
+    fireEvent.click(btn);
+    await flush();
     expect(api.startRun).not.toHaveBeenCalled();
   });
 });

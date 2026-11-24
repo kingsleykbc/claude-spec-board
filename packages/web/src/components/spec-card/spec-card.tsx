@@ -39,6 +39,8 @@ export interface SpecCardProps {
   onWriteUp: StartHandler;
   /** Why the board can't run Claude here (null when it can): Have Claude write this up then shows the command to paste. */
   manual?: ManualReason | null;
+  /** Why a write-up would be refused now (another run is going): the button is then disabled with this note. */
+  writeUpBusy?: string | null;
   /** Claude's status has loaded; until then Have Claude write this up waits, in the neutral style. */
   statusKnown?: boolean;
   /** Native HTML5 drag: the card is `draggable` only when one of these is passed. */
@@ -109,6 +111,7 @@ export function SpecCard({
   onUnarchive,
   onWriteUp,
   manual = null,
+  writeUpBusy = null,
   statusKnown = true,
   onDragStart,
   onDragEnd,
@@ -423,7 +426,7 @@ export function SpecCard({
         {writeUp && (
           // A control of its own (its popover is portalled): pressing it never drags or opens the card.
           <span {...{ [CONTROL]: '' }} className="inline-flex" onClick={(e) => e.stopPropagation()}>
-            <WriteUpButton id={spec.id} manual={manual} statusKnown={statusKnown} onWriteUp={onWriteUp} />
+            <WriteUpButton id={spec.id} manual={manual} statusKnown={statusKnown} busyNote={writeUpBusy} onWriteUp={onWriteUp} />
           </span>
         )}
         {total > 0 && !writing && (

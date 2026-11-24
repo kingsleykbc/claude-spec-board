@@ -4,7 +4,7 @@ import { exportOverview, overviewCounts } from '@/lib/exportOverview';
 import { formatTokens } from '@/lib/formatTokens';
 import { projectDescription } from '@/lib/projectDescription';
 import { CaretIcon, CaretRightIcon, ErrorIcon, ExportIcon, RefreshIcon, WarnIcon } from '@/lib/icons';
-import { ORDER, relTime, ST } from '@/lib/vm';
+import { ORDER, ST, updatedLabel } from '@/lib/vm';
 import { projectTokens } from '@/state/allLogs';
 import type { PushToast } from '@/state/toasts';
 import { cn } from '@/lib/utils';
@@ -76,8 +76,7 @@ export function OverviewModal({ project, pid, name, toast, refreshing = false, o
   const tokens = project.settings.trackTokens ? projectTokens(project) : 0;
   const summary = project.overview?.summaryMd.trim() ?? '';
   const outOfSync = project.overview?.outOfSync?.trim() || null;
-  const rel = relTime(project.overview?.updated, now);
-  const updated = refreshing ? 'Updating…' : rel ? `Last updated ${rel}` : '';
+  const updated = refreshing ? 'Updating…' : updatedLabel(project.overview?.updated, now);
 
   const onExport = () => {
     const { filename, text } = exportOverview(project, name);

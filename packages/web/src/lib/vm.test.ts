@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Spec } from '@specboard/core';
 import { recipeSpec, recipeSpecs } from '../fixtures/recipeBox';
 import { ReviewIcon, TodoIcon } from './icons';
-import { blockedReasons, blockTexts, canFixReview, canWriteUp, failedReviews, catColor, firstParagraph, fmtLogTime, isBlocked, needBlocks, relPath, relTime, runHold, statusMeta, tokensUsed, truncate, urgVm } from './vm';
+import { blockedReasons, blockTexts, canFixReview, canWriteUp, failedReviews, catColor, firstParagraph, fmtLogTime, isBlocked, needBlocks, relPath, relTime, runHold, updatedLabel, statusMeta, tokensUsed, truncate, urgVm } from './vm';
 
 // The prototype's hue(), copied as-is, to pin catColor to it.
 const hue = (n: string) => {
@@ -76,6 +76,22 @@ describe('vm', () => {
     expect(relTime('2026-11-06 12:00', now)).toBe('2d ago');
     expect(relTime('2026-09-01', now)).toBe('Sep 1');
     expect(relTime(null, now)).toBe('');
+  });
+
+  it('updatedLabel: a date with no time never shows hours', () => {
+    const now = new Date(2026, 10, 24, 1, 5);
+    expect(updatedLabel('2026-11-24', now)).toBe('Updated today');
+    expect(updatedLabel('2026-11-23', now)).toBe('Updated yesterday');
+    expect(updatedLabel('2026-11-20', now)).toBe('Updated Nov 20');
+    expect(updatedLabel('2026-11-30', now)).toBe('Updated today');
+  });
+
+  it('updatedLabel: a date with a time keeps the relative form', () => {
+    const now = new Date(2026, 10, 8, 12, 0);
+    expect(updatedLabel('2026-11-08T09:30', now)).toBe('Last updated 2h ago');
+    expect(updatedLabel('2026-11-06 12:00', now)).toBe('Last updated 2d ago');
+    expect(updatedLabel(null, now)).toBe('');
+    expect(updatedLabel('nonsense', now)).toBe('');
   });
 });
 

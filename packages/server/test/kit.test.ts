@@ -316,9 +316,10 @@ describe('kit content', () => {
       'No ticket IDs, file names, or technical detail',
       'no front-matter terms (status, subtask numbers), commands or paths',
       'Lists or bullets only when they really help, for example when four or more things need the person.',
-      // The read-only check points to sync-specs' analysis instead of copying it.
+      // The read-only check is self-contained: background runs can't read other skill files.
       'Check, read-only, whether the board and the code are out of sync.',
-      '"What sync may change" in `../sync-specs/SKILL.md`',
+      'Do not read other skill files for this: background runs can\'t read them.',
+      'money as "£10.00", not "1000 cents"',
       'write nothing except `.specboard/overview.md`',
       'end the overview with a section `## Out of sync` holding 1 or 2 plain sentences on what\'s off, with no IDs',
       'Two cards look further along in the code than on the board.',

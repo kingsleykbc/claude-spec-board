@@ -44,3 +44,14 @@ export const NotConnected: Story = {
     expect(args.onWriteUp).not.toHaveBeenCalled();
   },
 };
+
+/** Another run is going: disabled, with the same note Run with Claude shows. */
+export const Busy: Story = {
+  args: { busyNote: 'Claude is already working on T-002' },
+  play: async ({ canvasElement, args }) => {
+    const btn = within(canvasElement).getByRole('button', { name: 'Have Claude write this up' });
+    expect(btn).toHaveProperty('disabled', true);
+    expect(btn.getAttribute('title')).toBe('Claude is already working on T-002');
+    expect(args.onWriteUp).not.toHaveBeenCalled();
+  },
+};

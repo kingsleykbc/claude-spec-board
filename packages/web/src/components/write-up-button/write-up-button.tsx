@@ -12,6 +12,8 @@ export interface WriteUpButtonProps {
   statusKnown?: boolean;
   /** Starts the write-up run. It may return a promise of the start: the button says Starting… until it settles. */
   onWriteUp: StartHandler;
+  /** Why a start would be refused now (another run is going). The button is then disabled with this as its note. */
+  busyNote?: string | null;
   /** `sm` on a card, `md` in the card detail's header. */
   size?: 'sm' | 'md';
 }
@@ -27,7 +29,7 @@ export const writeUpCommand = (id: string) => `/create-spec ${id}`;
  * greyed and a hover, focus or click explains why and offers the command to paste. While Claude's status isn't known
  * yet it uses the neutral secondary style (no accent fill, not greyed), opens nothing, and a click waits.
  */
-export function WriteUpButton({ id, manual, statusKnown = true, onWriteUp, size = 'sm' }: WriteUpButtonProps) {
+export function WriteUpButton({ id, manual, statusKnown = true, onWriteUp, busyNote = null, size = 'sm' }: WriteUpButtonProps) {
   const icon = <PlayIcon aria-hidden className={size === 'sm' ? 'text-[11px]' : 'text-[12px]'} />;
   if (!statusKnown) {
     return (
@@ -48,6 +50,15 @@ export function WriteUpButton({ id, manual, statusKnown = true, onWriteUp, size 
         {icon}
         Have Claude write this up
       </NotConnectedTrigger>
+    );
+  }
+  if (busyNote) {
+    // A disabled button gets no hover, so the reason stays a native title, as on Run with Claude.
+    return (
+      <button type="button" disabled title={busyNote} className={cn(FIT, SIZE[size], 'cursor-not-allowed bg-panel text-fg3')}>
+        {icon}
+        Have Claude write this up
+      </button>
     );
   }
   return (
