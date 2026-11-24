@@ -97,11 +97,18 @@ export function runPrompt(kind: RunKind, specId: string | null): string {
 }
 
 /**
+ * Claude Code's settings that leave the `Co-Authored-By: Claude` line off commits and the "Generated with
+ * Claude Code" line off PRs. `attribution` is the current key; `includeCoAuthoredBy` covers older versions.
+ */
+export const NO_ATTRIBUTION = { attribution: { commit: '', pr: '' }, includeCoAuthoredBy: false } as const;
+
+/**
  * The `claude` arguments for an isolated run: only the approved lists and our own plugin apply. An empty
  * `--setting-sources` leaves out the project's and the person's settings, hooks, MCP servers and CLAUDE.md.
+ * Commits and PRs from a run never get Claude's co-author line (`NO_ATTRIBUTION`).
  */
 export function buildRunArgs(prompt: string, approved: Permissions, kitDir: string): string[] {
-  const settings = { permissions: { allow: approved.allow, deny: approved.deny }, disableAllHooks: true };
+  const settings = { permissions: { allow: approved.allow, deny: approved.deny }, disableAllHooks: true, ...NO_ATTRIBUTION };
   return [
     '-p', prompt,
     '--output-format', 'stream-json',

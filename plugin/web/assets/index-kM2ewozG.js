@@ -326,6 +326,7 @@ There are two ways to have Claude work on a spec, and the card shows both: **Run
 | **When Claude needs an action approved** | It asks you in the chat | It can't ask. Anything you haven't approved is refused and the run stops |
 | **Your Claude settings, plugins and MCP servers** | Apply as usual | Off (only Spec Board's own plugin is loaded) |
 | **The project's hooks, MCP servers and settings** | Apply as usual | Off |
+| **Claude's \`Co-Authored-By\` line on commits** | Follows your Claude setting (\`attribution\`) | Never added |
 | **To stop it** | Press Esc in the chat | Press **Stop** on the card |
 | **Setup it needs** | The plugin (or the commands \`init\` copied), the chat is open in the project folder, and you trusted that folder when Claude asked | Background runs turned on for the project (see below) |
 

@@ -73,7 +73,7 @@ changes: <number of specs that change>
 1. ...
 ```
 
-Without a git repo, write `head: "none"`. Leave out `scope:` for a whole-project sync. Quote `created` and `head` as shown. If nothing needs changing, still write the file, with `changes: 0`, the summary line "The board already matches the code." and no tree or operations. Finish with the summary.
+Without a git repo, write `head: "none"`. Leave out `scope:` for a whole-project sync. Quote `created` and `head` as shown. If nothing needs changing, still write the file, with `changes: 0`, the summary line "The board already matches the code." and no tree or operations. For a project-wide sync with nothing to change, also remove the `## Out of sync` section from `.specboard/overview.md` as in `--board --apply` step 5: sync has the last word, so a warning it doesn't agree with must not stay. Finish with the summary.
 
 ## --board --apply
 
@@ -87,4 +87,4 @@ Without a git repo, write `head: "none"`. Leave out `scope:` for a whole-project
 
 ## In a chat
 
-Show the summary and the tree, and ask for an OK or changes. On the OK, apply the operations as in `--board --apply` step 4. There is no proposal file and no head check. After a project-wide sync, remove the `## Out of sync` section from `.specboard/overview.md` as in `--board --apply` step 5. Then, last, run `specboard archive <ID> "<project folder>"` for each `Archive <ID>` line (see Archiving in the rules). If that fails for any reason, tell the person to use Archive in the card's ⋯ menu. Finish with what changed, the specs archived, and any the person still needs to archive on the board.
+If nothing needs changing, say "The board already matches the code.", remove the `## Out of sync` section from `.specboard/overview.md` for a project-wide sync (as in `--board --apply` step 5), and stop. Otherwise show the summary and the tree, and ask for an OK or changes. On the OK, apply the operations as in `--board --apply` step 4. There is no proposal file and no head check. After a project-wide sync, remove the `## Out of sync` section from `.specboard/overview.md` as in `--board --apply` step 5. Then, last, run `specboard archive <ID> "<project folder>"` for each `Archive <ID>` line (see Archiving in the rules). If that fails for any reason, tell the person to use Archive in the card's ⋯ menu. Finish with what changed, the specs archived, and any the person still needs to archive on the board.

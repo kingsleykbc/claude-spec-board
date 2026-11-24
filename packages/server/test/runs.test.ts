@@ -8,6 +8,7 @@ import { kitPluginDir } from '../src/kit.js';
 import { projectId, type ProjectEntry } from '../src/registry.js';
 import {
   buildRunArgs,
+  NO_ATTRIBUTION,
   formatTokens,
   clearCurrentSubtask,
   ClaudeUnavailableError,
@@ -153,8 +154,14 @@ describe('buildRunArgs', () => {
       '--permission-mode', 'dontAsk',
       '--setting-sources', '',
       '--plugin-dir', 'C:/kit',
-      '--settings', JSON.stringify({ permissions: { allow: APPROVED.allow, deny: APPROVED.deny }, disableAllHooks: true }),
+      '--settings', JSON.stringify({ permissions: { allow: APPROVED.allow, deny: APPROVED.deny }, disableAllHooks: true, ...NO_ATTRIBUTION }),
     ]);
+  });
+
+  it('turns off Claude co-author and PR attribution', () => {
+    const settings = JSON.parse(buildRunArgs('p', APPROVED, 'k').at(-1)!);
+    expect(settings.attribution).toEqual({ commit: '', pr: '' });
+    expect(settings.includeCoAuthoredBy).toBe(false);
   });
 
   it('carries nothing but the two approved lists', () => {
@@ -452,7 +459,7 @@ console.log(JSON.stringify({ type: 'result', is_error: false, result: 'done', pe
     const argv = JSON.parse(await fs.readFile(out, 'utf8')) as string[];
     expect(argv).toEqual(buildRunArgs(runPrompt(kind, specId), perms, kitPluginDir()));
     expect(argv[argv.indexOf('--setting-sources') + 1]).toBe('');
-    expect(JSON.parse(argv.at(-1)!)).toEqual({ permissions: perms, disableAllHooks: true });
+    expect(JSON.parse(argv.at(-1)!)).toEqual({ permissions: perms, disableAllHooks: true, ...NO_ATTRIBUTION });
   });
 });
 

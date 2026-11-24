@@ -246,7 +246,7 @@ To carry a card's images to another card (a merge or a split), run `specboard co
   - a run that ends with the spec in Review (step 6 of Running a spec), in a chat or a background run. Use the summary `<ID> to Review`.
   - every other command that wrote `.specboard/` (plan-project, import-specs, setup, create-spec, fix-review, sync-specs, reorganize, move and the refresh commands), in a chat or a background run. This includes a sync applied from the board and a write-up the board started.
   - Changes made on the board itself (dragging cards, ticking, Pass and Fail) and the token counts the board adds after a background run aren't commits of their own: they go into the next board commit.
-- The board commit holds only `.specboard/`. Run `git add .specboard`, then `git commit -m "Spec Board: <short summary>" -- .specboard`, each on its own with the Bash tool. The `-- .specboard` part keeps anything else that is staged out of it. For example `Spec Board: T-001 to Review` or `Spec Board: first specs`.
+- The board commit holds only `.specboard/`. Run `git add .specboard`, then `git commit -m "Spec Board: <short summary>" -- .specboard`, each on its own with the Bash tool. The `-- .specboard` part keeps anything else that is staged out of it. For example `Spec Board: T-001 to Review` or `Spec Board: first specs`. When `git status` shows it also holds earlier board changes that weren't yours (drags, ticks, token counts), add `, plus earlier board changes` to the summary.
 - If the board commit is refused, skip it, say so in one line, and carry on. Never push it.
 - `false`: the specs stay on this machine, and `.specboard/` is hidden from git. Make no board commits.
 - Not set: make no board commits.

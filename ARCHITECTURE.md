@@ -173,10 +173,11 @@ The board's run buttons call `POST /runs`, and `claude/runs.ts` `RunManager` spa
 
 ```
 claude -p "<fixed prompt>" --output-format stream-json --verbose --permission-mode dontAsk \
-       --setting-sources "" --plugin-dir <plugin> --settings '{"permissions":{allow,deny},"disableAllHooks":true}'
+       --setting-sources "" --plugin-dir <plugin> --settings '{"permissions":{allow,deny},"disableAllHooks":true,"attribution":{"commit":"","pr":""},"includeCoAuthoredBy":false}'
 ```
 
 - **Isolated.** The empty `--setting-sources` drops the person's and the project's settings, hooks, MCP servers and CLAUDE.md. Only the approved allow/deny lists and the Spec Board plugin apply.
+- **No co-author line.** The `attribution` and `includeCoAuthoredBy` settings keep Claude's `Co-Authored-By` line off a run's commits and its "Generated with Claude Code" line off PRs.
 - **Approval first.** Runs refuse to start until the person approves the lists for that project with `specboard init --runs yes`, which `/specboard:setup` runs. Approvals live in `~/.specboard/permissions.json` (`setup.ts` `ApprovedPermissions`), outside every project, so a spec can't tell Claude to widen its own rules.
 - **Fixed prompts.** `runPrompt(kind, specId)` builds prompts only from fixed strings and a validated spec ID. The kinds are `run`, `fix-review`, `write-up`, `fix-file`, `refresh-overview`, `refresh-questions`, `sync-plan` and `sync-apply`.
 - **One run per project.**

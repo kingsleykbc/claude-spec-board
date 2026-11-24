@@ -19825,8 +19825,9 @@ function runPrompt(kind, specId) {
       return `/specboard:refresh-questions ${specId} --board`;
   }
 }
+var NO_ATTRIBUTION = { attribution: { commit: "", pr: "" }, includeCoAuthoredBy: false };
 function buildRunArgs(prompt, approved, kitDir2) {
-  const settings = { permissions: { allow: approved.allow, deny: approved.deny }, disableAllHooks: true };
+  const settings = { permissions: { allow: approved.allow, deny: approved.deny }, disableAllHooks: true, ...NO_ATTRIBUTION };
   return [
     "-p",
     prompt,
